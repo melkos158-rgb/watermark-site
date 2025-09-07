@@ -1,0 +1,379 @@
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <title>Online Watermark – Photo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page--photo">
+<!-- NAV -->
+ {% include 'nav.html' %}
+
+
+
+  <!-- ДАЛІ ІДЕ ТОЧНО ТАКИЙ ЖЕ КОНТЕНТ, ЯК У ТВОЇЙ ПРАЦЮЮЧІЙ ВЕРСІЇ (канвас, повзунки тощо).
+       Я залишаю той самий JS, що давав раніше — він уже всередині нижче. -->
+<div class="layout">
+
+  <!-- ЛІВА КОЛОНКА: Текст -->
+  <div class="card side">
+    <h2>Текст</h2>
+    <label>Watermark text</label>
+    <input id="inpText" type="text" value="© Мій бренд">
+
+    <label>Text opacity (%)</label>
+    <input id="rngTxtOp" type="range" min="0" max="100" value="70">
+
+    <label>Text size (px)</label>
+    <input id="rngTxtSize" type="range" min="10" max="200" value="48">
+
+    <label>Angle (°)</label>
+    <input id="rngTxtAng" type="range" min="-180" max="180" value="0">
+
+    <label>Text color</label>
+    <input id="inpTxtColor" type="color" value="#FFFFFF">
+
+    <div class="check-inline">
+      <label><input id="chkShadow" type="checkbox" checked> Тінь</label>
+      <label><input id="chkOutline" type="checkbox"> Контур</label>
+      <label><input id="chkTile" type="checkbox"> Мозаїка</label>
+    </div>
+<!-- Відстань мозаїки -->
+<div id="tileGapRow">
+  <label>Tile spacing (× size)</label>
+  <input id="rngTileGap" type="range" min="2" max="10" value="4">
+</div>
+
+  </div>
+
+  <!-- СЕРЕДИНА: Фото -->
+  <div class="canvas-wrap">
+    <h2>Фото</h2>
+    <input id="inpPhoto" type="file" accept="image/*">
+    <canvas id="canvas" width="1200" height="800"></canvas>
+    <div class="tip">Перетягуй. Колесико — розмір. Ctrl — крутити.</div>
+
+    <div class="row" style="margin-top:14px">
+      <button id="btnDownload" class="btn primary">Завантажити (PNG)</button>
+      <button id="btnClear" class="btn ghost" type="button">Очистити</button>
+    </div>
+  </div>
+
+  <!-- ПРАВА КОЛОНКА: Логотип -->
+  <div class="card side">
+    <h2>Лого</h2>
+    <label>Logo (PNG transparent recommended)</label>
+    <input id="inpLogo" type="file" accept="image/png,image/webp,image/svg+xml,image/*">
+
+    <label>Logo opacity (%)</label>
+    <input id="rngLogoOp" type="range" min="0" max="100" value="70">
+
+    <label>Logo scale (%)</label>
+    <input id="rngLogoScale" type="range" min="10" max="300" value="100">
+  </div>
+
+</div>
+
+  <!-- ТВОЙ ЖЕ JS з попередньої версії (без змін) -->
+  <script>
+  /* … Весь той самий JS з твоєї робочої сторінки (малювання, drag&wheel тощо).
+     Якщо загубив — скажи, я кину ще раз повністю. */
+  </script>
+<script>
+(() => {
+  // ==== elements
+  const cvs = document.getElementById('canvas');
+  const ctx = cvs.getContext('2d');
+
+  const inpPhoto     = document.getElementById('inpPhoto');
+  const inpText      = document.getElementById('inpText');
+  const rngTxtOp     = document.getElementById('rngTxtOp');
+  const rngTxtSize   = document.getElementById('rngTxtSize');
+  const rngTxtAng    = document.getElementById('rngTxtAng');
+  const inpTxtColor  = document.getElementById('inpTxtColor');
+  const chkShadow    = document.getElementById('chkShadow');
+  const chkOutline   = document.getElementById('chkOutline');
+  const chkTile      = document.getElementById('chkTile');
+  const rngTileGap   = document.getElementById('rngTileGap');
+  const tileGapRow   = document.getElementById('tileGapRow');
+
+  const inpLogo      = document.getElementById('inpLogo');
+  const rngLogoOp    = document.getElementById('rngLogoOp');
+  const rngLogoScale = document.getElementById('rngLogoScale');
+
+  const btnDownload  = document.getElementById('btnDownload');
+  const btnClear     = document.getElementById('btnClear');
+
+  // (опційно) елементи формату виводу
+  const selOutFmt   = document.getElementById('selOutFmt');   // <select> image/png | image/jpeg | image/webp
+  const rngQuality  = document.getElementById('rngQuality');  // 50..100
+  const qualityWrap = document.getElementById('qualityWrap'); // контейнер повзунка якості
+
+  // ==== state
+  let photoImg = null, logoImg = null;
+  let textOffset = { x: 0, y: 0 };
+  let logoOffset = { x: 0, y: 0 };
+  let draggingText = false, draggingLogo = false;
+  let dragStart = { x: 0, y: 0 };
+  let startTextOffset = { x: 0, y: 0 };
+  let startLogoOffset = { x: 0, y: 0 };
+  let activeMode = 'text';
+
+  // hitboxes
+  let textBox = null;   // { cx, cy, w, h, angleRad }
+  let logoBox = null;   // { x, y, w, h }
+
+  // ==== utils
+  function mousePos(e){
+    const r = cvs.getBoundingClientRect();
+    const scaleX = cvs.width  / r.width;
+    const scaleY = cvs.height / r.height;
+    return { x: (e.clientX - r.left) * scaleX, y: (e.clientY - r.top) * scaleY };
+  }
+
+  // Універсальне читання зображень
+  const fileToImage = (file) => new Promise(async (resolve, reject) => {
+    try {
+      if ('createImageBitmap' in window) {
+        const bmp = await createImageBitmap(file);
+        resolve(bmp);
+      } else {
+        const fr = new FileReader();
+        fr.onload = e => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = reject;
+          im.src = e.target.result;
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      }
+    } catch (err) { reject(err); }
+  });
+
+  function drawContain(img){
+    const cw = cvs.width, ch = cvs.height;
+    const ir = img.width / img.height, cr = cw / ch;
+    let w, h;
+    if (ir > cr){ w = cw; h = w/ir; } else { h = ch; w = h*ir; }
+    const x = (cw - w) / 2, y = (ch - h) / 2;
+    ctx.drawImage(img, x, y, w, h);
+    return { x, y, w, h };
+  }
+
+  function pointInRotRect(mx, my, box){
+    const dx = mx - box.cx, dy = my - box.cy;
+    const c = Math.cos(-box.angleRad), s = Math.sin(-box.angleRad);
+    const rx = dx*c - dy*s, ry = dx*s + dy*c;
+    return Math.abs(rx) <= box.w/2 && Math.abs(ry) <= box.h/2;
+  }
+
+  // ==== render
+  function render(){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    textBox = null; logoBox = null;
+    if(!photoImg) return;
+
+    // фото
+    const box = drawContain(photoImg);
+    const cx = box.x + box.w/2, cy = box.y + box.h/2;
+
+    // ---- текст
+    const text = (inpText?.value || '').trim();
+    if (text){
+      const opacity = (Number(rngTxtOp?.value) || 70)/100;
+      const size    = Math.max(8, Number(rngTxtSize?.value) || 48);
+      const angle   = Number(rngTxtAng?.value) || 0;
+      const angleRad= angle * Math.PI / 180;
+      const color   = inpTxtColor?.value || '#ffffff';
+      const shadow  = !!chkShadow?.checked;
+      const outline = !!chkOutline?.checked;
+      const tiled   = !!chkTile?.checked;
+
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.font = `bold ${size}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if (shadow){
+        ctx.shadowColor = 'rgba(0,0,0,.6)';
+        ctx.shadowBlur  = Math.ceil(size*0.1);
+        ctx.shadowOffsetX = Math.ceil(size*0.05);
+        ctx.shadowOffsetY = Math.ceil(size*0.05);
+      }
+
+      const m = ctx.measureText(text);
+      const textW = Math.max(1, m.width);
+      const textH = size;
+      textBox = { cx: cx + textOffset.x, cy: cy + textOffset.y, w: textW, h: textH, angleRad };
+
+      if (!tiled){
+        ctx.translate(textBox.cx, textBox.cy);
+        ctx.rotate(angleRad);
+        if (outline){ ctx.lineWidth = Math.max(2, size*0.08); ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(text, 0, 0); }
+        ctx.fillStyle = color;
+        ctx.fillText(text, 0, 0);
+      } else {
+        // покриття ВСІЄЇ області під будь-яким кутом
+        const gapFactor = Math.max(2, Number(rngTileGap?.value) || 4);
+        const step = Math.max(10, size * gapFactor);
+        const r = Math.hypot(box.w, box.h) / 2; // радіус, що накриває прямокутник після повороту
+
+        ctx.translate(cx, cy);
+        ctx.rotate(angleRad);
+
+        for (let y = -r + textOffset.y; y <= r + textOffset.y; y += step){
+          for (let x = -r + textOffset.x; x <= r + textOffset.x; x += step){
+            if (outline){ ctx.lineWidth = Math.max(1, size*0.06); ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.strokeText(text, x, y); }
+            ctx.fillStyle = color;
+            ctx.fillText(text, x, y);
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    // ---- лого
+    if (logoImg){
+      const op    = (Number(rngLogoOp?.value) || 70)/100;
+      const scale = (Number(rngLogoScale?.value) || 100)/100;
+      const baseW = box.w * 0.22 * scale;
+      const ratio = logoImg.width / logoImg.height;
+      const w = baseW, h = w / ratio;
+      const pad = Math.max(8, Math.round(box.w*0.02));
+      const x = box.x + box.w - w - pad + logoOffset.x;
+      const y = box.y + box.h - h - pad + logoOffset.y;
+
+      ctx.save();
+      ctx.globalAlpha = op;
+      ctx.drawImage(logoImg, x, y, w, h);
+      ctx.restore();
+
+      logoBox = { x, y, w, h };
+    }
+  }
+
+  // ==== file inputs
+  inpPhoto?.addEventListener('change', async () => {
+    const f = inpPhoto.files?.[0]; if (!f) return;
+    try { photoImg = await fileToImage(f); render(); }
+    catch { alert('Не вдалося відкрити файл цього формату у браузері.'); }
+  });
+
+  inpLogo?.addEventListener('change', async () => {
+    const f = inpLogo.files?.[0];
+    if (!f) { logoImg = null; return render(); }
+    try { logoImg = await fileToImage(f); render(); }
+    catch { alert('Не вдалося відкрити файл логотипа у цьому форматі.'); }
+  });
+
+  // показ/приховати «відстань мозаїки»
+  const updateTileUI = () => { if (tileGapRow) tileGapRow.style.display = chkTile?.checked ? '' : 'none'; };
+  chkTile?.addEventListener('change', () => { updateTileUI(); render(); });
+  updateTileUI();
+
+  // показ/приховати «якість» для формату виводу
+  function updateQualityUI(){
+    if (!qualityWrap || !selOutFmt) return;
+    qualityWrap.style.display = (selOutFmt.value === 'image/png') ? 'none' : '';
+  }
+  selOutFmt?.addEventListener('change', updateQualityUI);
+  updateQualityUI();
+
+  // ==== controls => render
+  [inpText, rngTxtOp, rngTxtSize, rngTxtAng, inpTxtColor, chkShadow, chkOutline, chkTile,
+   rngTileGap, rngLogoOp, rngLogoScale].forEach(el => el && el.addEventListener('input', render));
+
+  // ==== buttons
+  btnDownload?.addEventListener('click', () => {
+    if (!photoImg) return alert('Спершу оберіть фото');
+
+    const mime = selOutFmt?.value || 'image/png';
+    const q = (mime === 'image/png') ? undefined : (Number(rngQuality?.value || 92) / 100);
+    const url = cvs.toDataURL(mime, q);
+
+    const ext = mime.endsWith('png') ? 'png' : mime.endsWith('jpeg') ? 'jpg' : mime.endsWith('webp') ? 'webp' : 'png';
+    const a = document.createElement('a');
+    a.download = `watermarked.${ext}`;
+    a.href = url;
+    a.click();
+  });
+
+  btnClear?.addEventListener('click', () => {
+    photoImg = null;
+    logoImg  = null;
+    textOffset = {x:0,y:0};
+    logoOffset = {x:0,y:0};
+    textBox = null; logoBox = null;
+
+    // важливо: скинути file inputs, щоб повторний вибір того ж файла спрацював
+    if (inpPhoto) inpPhoto.value = '';
+    if (inpLogo)  inpLogo.value  = '';
+
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+  });
+
+  // ==== click & drag
+  cvs.addEventListener('mousedown', (e) => {
+    const {x:mx,y:my} = mousePos(e);
+    // спочатку — лого (воно зверху)
+    if (logoBox && mx >= logoBox.x && mx <= logoBox.x + logoBox.w && my >= logoBox.y && my <= logoBox.y + logoBox.h){
+      activeMode = 'logo';
+      draggingLogo = true; dragStart = {x:mx,y:my}; startLogoOffset = {...logoOffset};
+      return;
+    }
+    // далі — текст (з урахуванням обертання), якщо НЕ мозаїка
+    if (textBox && pointInRotRect(mx, my, textBox) && !chkTile?.checked){
+      activeMode = 'text';
+      draggingText = true; dragStart = {x:mx,y:my}; startTextOffset = {...textOffset};
+    }
+  });
+
+  cvs.addEventListener('mousemove', (e) => {
+    if (draggingText){
+      const p = mousePos(e);
+      textOffset = { x: startTextOffset.x + (p.x - dragStart.x), y: startTextOffset.y + (p.y - dragStart.y) };
+      render();
+    } else if (draggingLogo){
+      const p = mousePos(e);
+      logoOffset = { x: startLogoOffset.x + (p.x - dragStart.x), y: startLogoOffset.y + (p.y - dragStart.y) };
+      render();
+    }
+  });
+
+  ['mouseup','mouseleave'].forEach(ev => 
+    cvs.addEventListener(ev, () => { draggingText = false; draggingLogo = false; })
+  );
+
+  // ==== wheel: текст (розмір/кут) або лого (масштаб/прозорість)
+  cvs.addEventListener('wheel', (e) => {
+    if (!photoImg) return;
+    e.preventDefault();
+
+    if (activeMode === 'text'){
+      if (e.ctrlKey && rngTxtAng){
+        const v = +rngTxtAng.value - Math.sign(e.deltaY) * 3;
+        rngTxtAng.value = Math.max(-180, Math.min(180, v));
+      } else if (rngTxtSize){
+        const v = +rngTxtSize.value - Math.sign(e.deltaY) * 3;
+        rngTxtSize.value = Math.max(8, Math.min(400, v));
+      }
+    } else if (activeMode === 'logo'){
+      if (e.ctrlKey && rngLogoOp){
+        const v = +rngLogoOp.value - Math.sign(e.deltaY) * 3;
+        rngLogoOp.value = Math.max(0, Math.min(100, v));
+      } else if (rngLogoScale){
+        const v = +rngLogoScale.value - Math.sign(e.deltaY) * 5;
+        rngLogoScale.value = Math.max(10, Math.min(400, v));
+      }
+    }
+    render();
+  }, { passive:false });
+
+  // якщо файли були вибрані раніше (повторне відкриття сторінки)
+  if (inpPhoto?.files?.[0]) fileToImage(inpPhoto.files[0]).then(im => { photoImg = im; render(); });
+  if (inpLogo?.files?.[0])  fileToImage(inpLogo.files[0]).then(im => { logoImg  = im; render(); });
+})();
+</script>
+</body>
+</html>

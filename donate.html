@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Поповнити PXP</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    :root{--bg:#0f1115;--card:#11141b;--line:#1b2131;--ink:#e8eaed;--muted:#9fb0d4;--btn:#1c64ec}
+    body{background:var(--bg);color:var(--ink);margin:0}
+    .navbar{background:#0b0d12;border-bottom:1px solid var(--line)}
+    .nav-wrap{max-width:980px;margin:0 auto;display:flex;gap:14px;align-items:center;padding:10px 22px}
+    .nav-link{color:#c7d2fe;text-decoration:none;font-weight:600;opacity:.85}
+    .nav-link.active,.nav-link:hover{opacity:1}
+    .balance{margin-left:auto;color:var(--muted);font-weight:700}
+    .wrap{max-width:980px;margin:0 auto;padding:18px 22px 40px}
+    .page-title{font-size:24px;margin:8px 0 6px}
+    .sub{color:var(--muted);margin-bottom:14px}
+    .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    .row{display:flex;align-items:center;gap:10px}
+    .coin{width:28px;height:28px;border-radius:50%;display:inline-block;background:#222 center/cover no-repeat;flex:0 0 28px}
+    .btn{padding:10px 14px;background:var(--btn);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:700}
+    .btn.gray{background:#23293a;color:#dbe5ff}
+    .input{padding:10px 12px;background:#0f131c;border:1px solid var(--line);border-radius:10px;color:var(--ink)}
+    .muted{color:var(--muted)}
+    .hr{height:1px;background:var(--line);margin:16px 0}
+    .small{font-size:12px}
+  </style>
+</head>
+<body>
+  {% include 'nav.html' %}
+
+  <div class="wrap">
+    <h1 class="page-title">Поповнити PXP</h1>
+    <div class="sub">Обери мережу. Адреса не показується — натисни «Скопіювати». 1$ = 1 PXP 🐾</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/eth.png')"></span>
+          <b>Ethereum (ETH / USDT / USDC)</b>
+        </div>
+        <button class="btn copy" data-addr="0x4a9f82ea442cc3cc8f0d3c3513d1d5ec632b4d52">Скопіювати</button>
+        <div class="small muted">EVM-адреса</div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/bnb.png')"></span>
+          <b>BNB Chain (BNB / USDT / USDC)</b>
+        </div>
+        <button class="btn copy" data-addr="0x4a9f82ea442cc3cc8f0d3c3513d1d5ec632b4d52">Скопіювати</button>
+        <div class="small muted">EVM-адреса</div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/trx.png')"></span>
+          <b>TRON (TRX / USDT-TRC20)</b>
+        </div>
+        <button class="btn copy" data-addr="TGWftd99jzw6t2yZZ6V1jhkiJiXfqN3mvb">Скопіювати</button>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/btc.png')"></span>
+          <b>Bitcoin (BTC)</b>
+        </div>
+        <button class="btn copy" data-addr="bc1qeg8p4ucqxjj4pt2rdwgtejyhhwtzxq7ts4pm9d">Скопіювати</button>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/sol.png')"></span>
+          <b>Solana (SOL)</b>
+        </div>
+        <button class="btn copy" data-addr="7zQNzgS8Ahrmm4GDytAuhZqM4t9Pz2kL3FPicdva2KA9">Скопіювати</button>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/xrp.png')"></span>
+          <b>XRP (Ripple)</b>
+        </div>
+        <button class="btn copy" data-addr="rNW1PSoT1H4SiQMUaH7fBLkX9X8Sge7Rqf">Скопіювати</button>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/sui.png')"></span>
+          <b>Sui (SUI)</b>
+        </div>
+        <button class="btn copy" data-addr="0x1947571d58da0a80e9f98f0ffb4bab09329df1be06f5c7a8bf464d58d5f2d0c5">Скопіювати</button>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="coin" style="background-image:url('/static/icons/ton.png')"></span>
+          <b>TON</b>
+        </div>
+        <button class="btn copy" data-addr="UQDXw7DLhGHyxx9bbrmiiVbuxUTyFW8vNqBtZyZ3aS2mzdS5">Скопіювати</button>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <!-- Автоматичне зарахування: зараз підтримуємо ETH/BNB/TRON -->
+    <h3>Автоматично зарахувати PXP</h3>
+    <div class="sub">Після переказу встав свій <b>TX hash</b> — ми перевіримо в блокчейні і нарахуємо PXP.</div>
+
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <select id="network" class="input" style="min-width:180px">
+        <option value="ETH">Ethereum (USDT/USDC)</option>
+        <option value="BNB">BNB Chain (USDT/USDC)</option>
+        <option value="TRON">TRON (USDT-TRC20)</option>
+      </select>
+      <input id="tx" class="input" placeholder="TX hash (0x... або Tron txid)" style="flex:1;min-width:260px">
+      <button id="verify" class="btn" type="button">Перевірити</button>
+      <!-- fixed: pxp -> pxp_page -->
+      <a href="{{ url_for('pxp_page') }}" class="btn gray">До профілю</a>
+    </div>
+    <div id="vmsg" class="muted" style="margin-top:8px"></div>
+  </div>
+
+<script>
+  // Копіювання адрес
+  document.querySelectorAll('.copy').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const addr = btn.dataset.addr;
+      try{
+        await navigator.clipboard.writeText(addr);
+        btn.textContent = 'Скопійовано ✔';
+      }catch{
+        const ta=document.createElement('textarea'); ta.value=addr; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); ta.remove();
+        btn.textContent = 'Скопійовано ✔';
+      }
+      setTimeout(()=>btn.textContent='Скопіювати',1200);
+    });
+  });
+
+  // Автоперевірка
+  document.getElementById('verify').addEventListener('click', async ()=>{
+    const network = document.getElementById('network').value;
+    const tx = document.getElementById('tx').value.trim();
+    const vmsg = document.getElementById('vmsg');
+    if(!tx){ vmsg.textContent='Встав свій TX hash'; return; }
+    vmsg.textContent='Перевіряємо…';
+    try{
+      const r = await fetch('/api/crypto/verify', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({network, tx})
+      });
+      const data = await r.json();
+      if(!data.ok){ vmsg.textContent = 'Помилка: '+(data.error||''); return; }
+      if(data.credited_pxp>0){
+        vmsg.textContent = `Зараховано: ${data.usd}$ → +${data.credited_pxp} PXP ✅ (перейди у профіль)`;
+      }else{
+        vmsg.textContent = 'Транзакцію ще не видно / не на нашу адресу / не стейбл-токен.';
+      }
+    }catch(e){ vmsg.textContent='Сервер недоступний.'; }
+  });
+</script>
+</body>
+</html>
+

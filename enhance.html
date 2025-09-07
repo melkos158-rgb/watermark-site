@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <title>Photo Enhance</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- TFJS + UpscalerJS (AI) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/upscaler@1.6.0/dist/browser/umd/upscaler.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@upscalerjs/esrgan-slim/umd/esrgan-slim.min.js"></script>
+
+  <style>
+    .stage {
+      position: relative;
+      background: #eef1f6;
+      border: 1px solid #e1e5ee;
+      border-radius: 10px;
+      min-height: 520px;
+      overflow: hidden;
+    }
+    #container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3/2;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+    #processed, #original {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+      background: #0b0e14;
+    }
+    #original {
+      clip-path: inset(0 50% 0 0);
+      -webkit-clip-path: inset(0 50% 0 0);
+      pointer-events: none;
+    }
+    #slider {
+      position: absolute; top: 0; bottom: 0; left: 50%;
+      width: 3px; background: #6c63ff; cursor: ew-resize; z-index: 10;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.06);
+    }
+    #slider::before{
+      content:""; position:absolute; left:50%; top:50%; translate:-50% -50%;
+      width:22px; height:22px; border-radius:50%; background:#6c63ff;
+      box-shadow:0 0 0 3px rgba(108,99,255,.18), 0 1px 4px rgba(0,0,0,.22);
+    }
+    .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px; }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+ {% include 'nav.html' %}
+
+
+
+  <!-- 3-колонки -->
+  <div class="layout">
+    <!-- ЛІВА -->
+    <aside class="card side">
+      <h2>Корегувати (1)</h2>
+      <label>Яскравість
+        <input type="range" id="brightness" min="0" max="2" step="0.01" value="1">
+      </label>
+      <label>Контраст
+        <input type="range" id="contrast" min="0" max="2" step="0.01" value="1">
+      </label>
+      <label>Насиченість
+        <input type="range" id="saturation" min="0" max="2" step="0.01" value="1">
+      </label>
+    </aside>
+
+    <!-- ЦЕНТР -->
+    <div class="canvas-wrap">
+      <h2>Полотно</h2>
+      <div class="stage">
+        <div id="container">
+          <canvas id="processed"></canvas>
+          <img id="original" alt="original">
+          <div id="slider" title="Перетягни для До/Після"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <input type="file" id="upload" accept="image/*">
+        <button class="btn primary" id="enhanceBtn">Покращити якість</button>
+        <button class="btn ghost" id="superEnhance">Максимальна обробка</button>
+        <button class="btn ghost" id="clear">Очистити</button>
+        <button class="btn primary" id="publish">Завантажити PNG</button>
+      </div>
+    </div>
+
+    <!-- ПРАВА -->
+    <aside class="card side">
+      <h2>Інформація</h2>
+      <p class="tip">Після “Максимальна обробка” спочатку видно “До”; веди повзунок вправо — відкривається “Після”.</p>
+    </aside>
+  </div>
+
+<script>
+/* ===== ЕЛЕМЕНТИ ===== */
+const upload = document.getElementById('upload');
+const original = document.getElementById('original');
+const processedCanvas = document.getElementById('processed');
+const ctx = processedCanvas.getContext('2d', { willReadFrequently: true });
+const slider = document.getElementById('slider');
+const container = document.getElementById('container');
+
+let img = new Image();
+let dragging = false;
+let currentX = 0.5;          // 0..1 — позиція різака
+let revealAfterMode = false; // true лише після "Макс. обробка"
+
+/* ===== РОЗМІР CANVAS = КОНТЕЙНЕР (DPR) ===== */
+function fitCanvasToContainer() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = container.getBoundingClientRect();
+  processedCanvas.style.width = rect.width + 'px';
+  processedCanvas.style.height = rect.height + 'px';
+  processedCanvas.width  = Math.round(rect.width * dpr);
+  processedCanvas.height = Math.round(rect.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+/* малюємо “contain” (центрування) */
+function drawContain(image) {
+  const rect = container.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  const iw = image.naturalWidth || image.width;
+  const ih = image.naturalHeight || image.height;
+  const s = Math.min(W/iw, H/ih);
+  const dw = iw * s, dh = ih * s;
+  const dx = (W - dw)/2, dy = (H - dh)/2;
+  ctx.clearRect(0,0,processedCanvas.width,processedCanvas.height);
+  ctx.drawImage(image, dx, dy, dw, dh);
+}
+
+/* ===== ЗАВАНТАЖЕННЯ ФОТО ===== */
+upload.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { img.src = reader.result; };
+  reader.readAsDataURL(file);
+});
+img.onload = () => {
+  original.src = img.src;         // верхній шар “До”
+  fitCanvasToContainer();
+  drawContain(img);               // нижній шар “Після” = копія “До”
+  revealAfterMode = false;        // стандартний режим
+  currentX = 0.5;
+  applyClip(); placeSlider();
+};
+window.addEventListener('resize', () => {
+  if (!original.src) return;
+  fitCanvasToContainer();
+  drawContain(img);
+  placeSlider(); applyClip();
+});
+
+/* ===== AI UPSCALER (з fallback) ===== */
+let upscaler = null, upscalerReady = false;
+(async () => {
+  try {
+    await tf.setBackend('webgl'); await tf.ready();
+    upscaler = new window.Upscaler({ model: window.esrganSlim });
+    upscalerReady = true;
+    document.getElementById('enhanceBtn').textContent = 'Покращити якість (AI)';
+  } catch(_) { upscalerReady = false; }
+})();
+
+function fallbackEnhance() {
+  const w = processedCanvas.width, h = processedCanvas.height;
+  if (!w || !h) return;
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext('2d');
+  tctx.drawImage(processedCanvas, 0, 0);
+  const id = tctx.getImageData(0, 0, w, h);
+  const d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const avg = (d[i]+d[i+1]+d[i+2])/3;
+    d[i]   = Math.min(255, d[i]   + (d[i]   - avg)*0.5);
+    d[i+1] = Math.min(255, d[i+1] + (d[i+1] - avg)*0.5);
+    d[i+2] = Math.min(255, d[i+2] + (d[i+2] - avg)*0.5);
+  }
+  tctx.putImageData(id, 0, 0);
+  const out = new Image();
+  out.onload = () => { fitCanvasToContainer(); drawContain(out); applyClip(); placeSlider(); };
+  out.src = tmp.toDataURL('image/png');
+}
+
+document.getElementById('enhanceBtn').addEventListener('click', async () => {
+  if (!original.src) return alert('Завантаж фото!');
+  if (upscaler && upscalerReady) {
+    try {
+      const base64 = await upscaler.upscale(img, { output:'base64' });
+      const hi = new Image();
+      hi.onload = () => { fitCanvasToContainer(); drawContain(hi); applyClip(); placeSlider(); };
+      hi.src = base64;
+      return;
+    } catch(_) {}
+  }
+  fallbackEnhance();
+});
+
+/* ===== МАКС. ОБРОБКА ===== */
+document.getElementById('superEnhance').addEventListener('click', () => {
+  if (!processedCanvas.width) return;
+  const w = processedCanvas.width, h = processedCanvas.height;
+  const t = document.createElement('canvas');
+  t.width = w; t.height = h;
+  const tctx = t.getContext('2d');
+  tctx.drawImage(processedCanvas, 0, 0, w, h);
+
+  const imageData = tctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  for (let i=0;i<data.length;i+=4){
+    const avg = (data[i]+data[i+1]+data[i+2])/3;
+    data[i]   = Math.min(255, data[i]   + (data[i]   - avg)*0.7);
+    data[i+1] = Math.min(255, data[i+1] + (data[i+1] - avg)*0.7);
+    data[i+2] = Math.min(255, data[i+2] + (data[i+2] - avg)*0.7);
+  }
+  tctx.putImageData(imageData, 0, 0);
+
+  const out = new Image();
+  out.onload = () => {
+    fitCanvasToContainer();
+    drawContain(out);        // оновили “Після” (внизу)
+    revealAfterMode = true;  // тепер зліва → направо відкриваємо “Після”
+    currentX = 0;            // старт зліва, видно повністю “До”
+    placeSlider(); applyClip();
+  };
+  out.src = t.toDataURL('image/png');
+});
+
+/* ===== ФІЛЬТРИ (CSS) ===== */
+['brightness','contrast','saturation'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', () => {
+    const b = document.getElementById('brightness').value;
+    const c = document.getElementById('contrast').value;
+    const s = document.getElementById('saturation').value;
+    processedCanvas.style.filter = `brightness(${b}) contrast(${c}) saturate(${s})`;
+  });
+});
+
+/* ===== СЛАЙДЕР ===== */
+function placeSlider() {
+  const rect = container.getBoundingClientRect();
+  slider.style.left = `${rect.width * currentX}px`;
+}
+function applyClip() {
+  if (revealAfterMode) {
+    // ПІСЛЯ "Макс. обробка": currentX=0 -> повністю "До" (left=0),
+    // ведемо вправо -> збільшуємо left, відкриваємо "Після"
+    const left = currentX * 100;
+    original.style.clipPath = `inset(0 0 0 ${left}%)`;
+    original.style.webkitClipPath = `inset(0 0 0 ${left}%)`;
+  } else {
+    // Стандарт: currentX=0 -> нічого "До", currentX=1 -> повністю "До"
+    const right = (1 - currentX) * 100;
+    original.style.clipPath = `inset(0 ${right}% 0 0)`;
+    original.style.webkitClipPath = `inset(0 ${right}% 0 0)`;
+  }
+}
+const startDrag = (clientX) => {
+  const rect = container.getBoundingClientRect();
+  let x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+  currentX = x / rect.width; placeSlider(); applyClip();
+};
+slider.addEventListener('mousedown', e => { dragging = true; e.preventDefault(); });
+document.addEventListener('mouseup',   () => dragging = false);
+document.addEventListener('mousemove', e => { if (dragging) startDrag(e.clientX); });
+slider.addEventListener('touchstart', e => { dragging = true; e.preventDefault(); }, {passive:false});
+document.addEventListener('touchend', () => dragging = false, {passive:true});
+document.addEventListener('touchmove', e => { if (dragging) startDrag(e.touches[0].clientX); }, {passive:false});
+
+/* ===== ОЧИСТИТИ / ЗАВАНТАЖИТИ ===== */
+document.getElementById('clear').addEventListener('click', () => {
+  ctx.clearRect(0,0,processedCanvas.width,processedCanvas.height);
+  original.removeAttribute('src');
+  processedCanvas.style.filter = '';
+  upload.value = '';
+  revealAfterMode = false;
+  currentX = 0.5; placeSlider(); applyClip();
+});
+document.getElementById('publish').addEventListener('click', () => {
+  if (!processedCanvas.width) return alert('Немає фото!');
+  processedCanvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'enhanced.png'; a.click();
+    URL.revokeObjectURL(url);
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+{% set page = 'edit_photo' %}
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Edit Photo</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  /* === ТУТ міняй дизайн (одне місце) ================================ */
+  :root{
+    /* світла тема за замовчуванням */
+    --bg:#ffffff; --panel:#f6f7fb; --border:#dbe1ee;
+    --text:#0f1115; --muted:#334155; --hint:#556277;
+    --chip:#e2e8f0; --primary:#2563eb; --primary-contrast:#ffffff;
+  }
+  /* хочеш темну — просто заміни значення вище або додай альтернативний блок
+  :root{ --bg:#0f1115; --panel:#131722; --border:#1d2230; --text:#e8eaed; --muted:#aab2c8; --hint:#93a0b8; --chip:#1e293b33; --primary:#2563eb; --primary-contrast:#fff; }
+  */
+  /* ================================================================== */
+
+  body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .navbar{background:var(--bg);border-bottom:1px solid var(--border)}
+  .nav-wrap{max-width:1280px;margin:0 auto;height:64px;display:flex;align-items:center;gap:18px;padding:0 24px}
+  .nav-link{color:var(--muted);text-decoration:none;padding:10px 12px;border-radius:10px}
+  .nav-link.active{background:var(--chip);border:1px solid var(--border);color:var(--text)}
+  .container{max-width:1280px;margin:0 auto;padding:16px}
+  .grid-3{display:grid;grid-template-columns:320px 1fr 320px;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .panel h3{margin:0 0 8px;font-size:14px;letter-spacing:.3px;color:var(--muted)}
+  .controls{display:flex;flex-direction:column;gap:12px}
+  .control{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center}
+  .control label{font-size:13px;color:var(--muted)}
+  .control input[type=range]{grid-column:1/3;width:100%}
+  .btnrow{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+  .btn{background:#0000;border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
+  .btn.primary{background:var(--primary);color:var(--primary-contrast);border-color:#2b5bd8}
+  .hint{font-size:12px;color:var(--hint)}
+  .stage{height:64vh;min-height:420px;background:var(--panel);border:1px dashed var(--border);border-radius:14px;position:relative;overflow:hidden}
+  .stage .inner{position:absolute;inset:0}
+  .stage img{position:absolute;inset:0;margin:auto;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;display:none;pointer-events:none}
+  .placeholder{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--hint);font-size:14px}
+  .badge{position:absolute;right:10px;bottom:10px;font-size:11px;color:var(--hint);background:#00000012;border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:none}
+  .split-title{margin:6px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  input[type=range]{appearance:none;height:4px;background:#94a3b833;border-radius:999px;outline:none}
+  input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:#60a5fa;border:2px solid #1f2a44}
+  .vignette-row{display:flex;align-items:center;gap:10px}
+  select{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:6px 8px}
+</style>
+</head>
+<body>
+  <!-- NAV -->
+ {% include 'nav.html' %}
+
+
+
+  <div class="container">
+    <div class="grid-3">
+      <!-- LEFT -->
+      <section class="panel">
+        <h3>Корегувати (базове)</h3>
+        <div class="controls">
+          <div class="control">
+            <label>Вибір файлу</label>
+            <div class="btnrow">
+              <input id="file" type="file" accept="image/*" style="display:none">
+              <button class="btn" id="pickBtn">Вибір файлу</button>
+              <button class="btn" id="clearBtn">Очистити</button>
+            </div>
+          </div>
+
+          <div class="control"><label>Яскравість</label><span id="v-bright">100%</span><input type="range" id="brightness" min="0" max="200" value="100"></div>
+          <div class="control"><label>Контраст</label><span id="v-contrast">100%</span><input type="range" id="contrast"  min="0" max="200" value="100"></div>
+          <div class="control"><label>Насиченість</label><span id="v-sat">100%</span><input type="range" id="saturate"  min="0" max="300" value="100"></div>
+          <div class="control"><label>Відтінок (Hue)</label><span id="v-hue">0°</span><input type="range" id="hue" min="-180" max="180" value="0"></div>
+          <div class="control"><label>Сепія</label><span id="v-sepia">0%</span><input type="range" id="sepia" min="0" max="100" value="0"></div>
+          <div class="control"><label>Ч/Б</label><span id="v-gray">0%</span><input type="range" id="grayscale" min="0" max="100" value="0"></div>
+          <div class="control"><label>Розмиття</label><span id="v-blur">0px</span><input type="range" id="blur" min="0" max="10" step="0.1" value="0"></div>
+
+          <div class="btnrow">
+            <button class="btn primary" id="saveBtn">Завантажити (PNG)</button>
+            <button class="btn" id="resetBtn">Скинути налаштування</button>
+          </div>
+          <p class="hint">Затисни на фото — <b>До</b>, відпусти — <b>Після</b>. Усі обчислення локально в браузері.</p>
+        </div>
+      </section>
+
+      <!-- CENTER -->
+      <section class="panel">
+        <h3>Фото</h3>
+        <div class="stage" id="stage">
+          <div class="inner">
+            <img id="imgAfter" alt="">
+            <img id="imgBefore" alt="">
+          </div>
+          <div class="placeholder" id="ph">Обери зображення, щоб почати</div>
+          <div class="badge" id="badge">ПІСЛЯ</div>
+        </div>
+      </section>
+
+      <!-- RIGHT -->
+      <section class="panel">
+        <h3>Корегувати (просунуте)</h3>
+        <div class="controls">
+          <div class="split-title">ТЕМПЕРАТУРА / ТОН</div>
+          <div class="control"><label>Тепло/Холод</label><span id="v-temp">0</span><input type="range" id="temperature" min="-100" max="100" value="0"></div>
+          <div class="control"><label>Tint</label><span id="v-tint">0</span><input type="range" id="tint" min="-100" max="100" value="0"></div>
+
+          <div class="split-title">СВІТЛА / ТІНІ</div>
+          <div class="pair">
+            <div class="control"><label>Світла</label><span id="v-high">0</span><input type="range" id="highlights" min="-100" max="100" value="0"></div>
+            <div class="control"><label>Тіні</label><span id="v-shadows">0</span><input type="range" id="shadows" min="-100" max="100" value="0"></div>
+          </div>
+          <div class="pair">
+            <div class="control"><label>Білі відтінки</label><span id="v-whites">0</span><input type="range" id="whites" min="-100" max="100" value="0"></div>
+            <div class="control"><label>Чорні відтінки</label><span id="v-blacks">0</span><input type="range" id="blacks" min="-100" max="100" value="0"></div>
+          </div>
+
+          <div class="split-title">РІЗКІСТЬ / ДОДАТКОВО</div>
+          <div class="control"><label>Різкість</label><span id="v-sharp">0</span><input type="range" id="sharpness" min="0" max="5" step="0.1" value="0"></div>
+
+          <div class="control" style="grid-template-columns:auto 1fr">
+            <div class="vignette-row">
+              <label><input type="checkbox" id="vignette"> Віньєтка</label>
+              <select id="vignetteColor"><option value="black">Чорна</option><option value="white">Біла</option></select>
+            </div>
+          </div>
+          <div class="control"><label>Сила віньєтки</label><span id="v-vignette">0%</span>
+            <input type="range" id="vignetteStrength" min="0" max="100" value="0">
+          </div>
+
+          <div class="control"><label>Зерно</label><span id="v-grain">0</span><input type="range" id="grain" min="0" max="100" value="0"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script>
+  const $=id=>document.getElementById(id);
+  const S={
+    brightness:100,contrast:100,saturate:100,hue:0,sepia:0,grayscale:0,blur:0,
+    temperature:0,tint:0,highlights:0,shadows:0,whites:0,blacks:0,
+    sharpness:0, grain:0,
+    vignette:false, vignetteColor:'black', vignetteStrength:0
+  };
+
+  let ORIG=null;
+  const imgA=$('imgAfter'), imgB=$('imgBefore'), badge=$('badge'), ph=$('ph'), stage=$('stage');
+
+  // file
+  $('pickBtn').onclick=()=>$('file').click();
+  $('clearBtn').onclick=()=>{imgA.removeAttribute('src');imgB.removeAttribute('src');imgA.style.display='none';imgB.style.display='none';badge.style.display='none';ph.style.display='block';$('file').value='';ORIG=null;};
+  $('file').addEventListener('change',e=>{
+    const f=e.target.files?.[0]; if(!f) return;
+    const url=URL.createObjectURL(f);
+    ORIG=new Image(); ORIG.onload=()=>{ imgB.src=url; imgB.style.display='block'; badge.style.display='block'; ph.style.display='none'; render(); };
+    ORIG.src=url;
+  });
+
+  // binds
+  const binds=[
+    ['brightness','v-bright',v=>v+'%'],['contrast','v-contrast',v=>v+'%'],['saturate','v-sat',v=>v+'%'],['hue','v-hue',v=>v+'°'],
+    ['sepia','v-sepia',v=>v+'%'],['grayscale','v-gray',v=>v+'%'],['blur','v-blur',v=>v+'px'],
+    ['temperature','v-temp',v=>v],['tint','v-tint',v=>v],
+    ['highlights','v-high',v=>v],['shadows','v-shadows',v=>v],['whites','v-whites',v=>v],['blacks','v-blacks',v=>v],
+    ['sharpness','v-sharp',v=>v],['grain','v-grain',v=>v],
+    ['vignetteStrength','v-vignette',v=>v+'%']
+  ];
+  binds.forEach(([id,l,fmt])=>{$(id).addEventListener('input',()=>{S[id]=Number($(id).value); $(l).textContent=fmt(S[id]); render();});});
+  $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render();});
+  $('vignetteColor').addEventListener('change',e=>{S.vignetteColor=e.target.value; render();});
+
+  const baseFilter=()=>`brightness(${S.brightness}%) contrast(${S.contrast}%) saturate(${S.saturate}%) hue-rotate(${S.hue}deg) sepia(${S.sepia}%) grayscale(${S.grayscale}%) blur(${S.blur}px)`;
+
+  function render(toDownload=false){
+    if(!ORIG) return;
+    const w=ORIG.naturalWidth, h=ORIG.naturalHeight;
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const ctx=c.getContext('2d');
+
+    ctx.filter=baseFilter();
+    ctx.drawImage(ORIG,0,0,w,h);
+    ctx.filter='none';
+
+    // температура / tint
+    if(S.temperature||S.tint){
+      const r=Math.max(0,S.temperature)/100*255, g=(100-Math.abs(S.tint))/100*255, b=Math.max(0,-S.temperature)/100*255;
+      ctx.save(); ctx.globalAlpha=(Math.abs(S.temperature)+Math.abs(S.tint))/220; ctx.globalCompositeOperation='color';
+      ctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`; ctx.fillRect(0,0,w,h); ctx.restore();
+    }
+
+    // світла / тіні / whites / blacks
+    if([S.highlights,S.shadows,S.whites,S.blacks].some(v=>v)){
+      const id=ctx.getImageData(0,0,w,h), d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        let r=d[i],g=d[i+1],b=d[i+2]; const L=0.2126*r+0.7152*g+0.0722*b;
+        const hi=S.highlights/100, sh=S.shadows/100, ww=S.whites/100, bb=S.blacks/100;
+        const hiM=Math.max(0,(L-128)/127), shM=Math.max(0,(128-L)/128);
+        const s=(1+hiM*hi)*(1+shM*sh);
+        r=r*s+255*ww-80*bb; g=g*s+255*ww-80*bb; b=b*s+255*ww-80*bb;
+        d[i]=r<0?0:r>255?255:r; d[i+1]=g<0?0:g>255?255:g; d[i+2]=b<0?0:b>255?255:b;
+      }
+      ctx.putImageData(id,0,0);
+    }
+
+    // різкість (unsharp)
+    if(S.sharpness>0){
+      const k=[1,2,1,2,4,2,1,2,1], ks=16, src=ctx.getImageData(0,0,w,h), s=src.data, out=ctx.createImageData(w,h), o=out.data;
+      const idx=(x,y)=>(y*w+x)*4;
+      for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+        let r=0,g=0,b=0,ki=0;
+        for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const p=idx(x+i,y+j), kv=k[ki++]; r+=s[p]*kv; g+=s[p+1]*kv; b+=s[p+2]*kv;}
+        const p=idx(x,y), br=r/ks, bg=g/ks, bb=b/ks, a=S.sharpness;
+        o[p]=cl(s[p]+(s[p]-br)*a); o[p+1]=cl(s[p+1]+(s[p+1]-bg)*a); o[p+2]=cl(s[p+2]+(s[p+2]-bb)*a); o[p+3]=s[p+3];
+      }
+      ctx.putImageData(out,0,0);
+      function cl(v){return v<0?0:v>255?255:v}
+    }
+
+    // віньєтка
+    if(S.vignette && S.vignetteStrength>0){
+      const color = S.vignetteColor==='white' ? '255,255,255' : '0,0,0';
+      const strength = Math.min(1, S.vignetteStrength/100);
+      const grd=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.55,w/2,h/2,Math.max(w,h)*0.8);
+      grd.addColorStop(0,`rgba(${color},0)`);
+      grd.addColorStop(1,`rgba(${color},${0.5*strength})`);
+      ctx.fillStyle=grd; ctx.fillRect(0,0,w,h);
+    }
+
+    // зерно
+    if(S.grain>0){
+      const lvl=S.grain/100*30, id=ctx.getImageData(0,0,w,h), d=id.data;
+      for(let i=0;i<d.length;i+=4){ const n=(Math.random()*2-1)*lvl; d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
+      ctx.putImageData(id,0,0);
+    }
+
+    if(toDownload){ return c.toDataURL('image/png'); }
+    imgA.src=c.toDataURL('image/png'); imgA.style.display='block'; badge.style.display='block';
+  }
+
+  // ДО/ПІСЛЯ
+  const pressOn=()=>{ if(!ORIG) return; imgB.style.opacity=1; badge.textContent='ДО'; };
+  const pressOff=()=>{ if(!ORIG) return; imgB.style.opacity=0; badge.textContent='ПІСЛЯ'; };
+  stage.addEventListener('mousedown',pressOn); stage.addEventListener('mouseup',pressOff);
+  stage.addEventListener('mouseleave',pressOff);
+  stage.addEventListener('touchstart',e=>{e.preventDefault();pressOn();},{passive:false});
+  stage.addEventListener('touchend',pressOff);
+
+  // reset all
+  $('resetBtn').onclick=()=>{
+    Object.assign(S,{brightness:100,contrast:100,saturate:100,hue:0,sepia:0,grayscale:0,blur:0,
+      temperature:0,tint:0,highlights:0,shadows:0,whites:0,blacks:0,sharpness:0,grain:0,
+      vignette:false,vignetteColor:'black',vignetteStrength:0});
+    const set=(id,val)=>{const el=$(id); if(!el) return; if(el.type==='checkbox') el.checked=val; else el.value=val;};
+    ['brightness','contrast','saturate','hue','sepia','grayscale','blur','temperature','tint','highlights','shadows','whites','blacks','sharpness','grain','vignetteStrength'].forEach(k=>set(k,S[k]));
+    set('vignette',S.vignette); $('vignetteColor').value=S.vignetteColor;
+    $('v-bright').textContent='100%'; $('v-contrast').textContent='100%'; $('v-sat').textContent='100%';
+    $('v-hue').textContent='0°'; $('v-sepia').textContent='0%'; $('v-gray').textContent='0%'; $('v-blur').textContent='0px';
+    $('v-temp').textContent='0'; $('v-tint').textContent='0'; $('v-high').textContent='0'; $('v-shadows').textContent='0';
+    $('v-whites').textContent='0'; $('v-blacks').textContent='0'; $('v-sharp').textContent='0'; $('v-grain').textContent='0'; $('v-vignette').textContent='0%';
+    render();
+  };
+
+  // save
+  $('saveBtn').onclick=()=>{
+    if(!ORIG) return;
+    const dataURL = render(true);
+    const a=document.createElement('a'); a.href=dataURL; a.download='edited.png'; a.click();
+  };
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <title>Welcome</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .welcome-container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      text-align: center;
+    }
+    .welcome-container h1 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+    .welcome-container p {
+      color: #aeb4c1;
+      margin-bottom: 24px;
+    }
+    .welcome-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+      gap: 20px;
+    }
+    .welcome-card {
+      background: #151923;
+      border: 1px solid #263043;
+      border-radius: 14px;
+      padding: 20px;
+      transition: .2s;
+    }
+    .welcome-card:hover {
+      transform: translateY(-4px);
+      border-color: #3b82f6;
+    }
+    .welcome-card a {
+      text-decoration: none;
+      color: #e8eaed;
+      font-weight: 600;
+      font-size: 1.1rem;
+      display: block;
+      margin-top: 8px;
+    }
+    .welcome-card span {
+      font-size: 0.9rem;
+      color: #aeb4c1;
+    }
+  </style>
+</head>
+<body>
+<!-- NAV -->
+ {% include 'nav.html' %}
+
+
+  <main class="welcome-container">
+    <h1>👋 Ласкаво просимо</h1>
+    <p>Обери потрібний редактор, щоб почати роботу:</p>
+
+    <div class="welcome-grid">
+      <div class="welcome-card">
+        <a href="{{ url_for('photo') }}">📷 Photo</a>
+        <span>Базовий редактор фото</span>
+      </div>
+      <div class="welcome-card">
+        <a href="{{ url_for('enhance') }}">✨ Photo Enhance</a>
+        <span>AI покращення й апскейл</span>
+      </div>
+      <div class="welcome-card">
+        <a href="{{ url_for('stl') }}">📐 STL</a>
+        <span>Редактор 3D-моделей</span>
+      </div>
+      <div class="welcome-card">
+        <a href="{{ url_for('video') }}">🎬 Video</a>
+        <span>Простий редактор відео</span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Top-100 PXP</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body { background:#0f1115; color:#e8eaed; margin:0; }
+    <...всі твої стилі без змін...>
+  </style>
+</head>
+<body>
+ {% include 'nav.html' %}
+
+  <div class="page">
+    <h1>Top-100 PXP</h1>
+    <div class="sub">Рейтинг за кількістю <b>PXP</b>. Обери період.</div>
+
+    <div class="panel" id="heroPanel" style="display:none; margin-bottom:14px;">
+      <div class="hero">
+        <div id="heroAva" class="ava"></div>
+        <div class="meta">
+          <div class="name" id="heroName">—</div>
+          <div class="stats">
+            <span id="heroPxp">PXP: —</span>
+            <span id="heroDate">З нами з: —</span>
+          </div>
+        </div>
+        <!-- ВИПРАВЛЕНО: pxp → pxp_page -->
+        <a id="heroBtn" href="{{ url_for('pxp_page') }}" class="btn">Переглянути профіль</a>
+        <div class="badge"><span class="medal"></span> Топ-1</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar" style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px;">
+        <div class="tabs" id="tabs" style="display:flex; gap:8px;">
+          <button class="tab active" data-range="all" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">За весь час</button>
+          <button class="tab" data-range="month" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Місяць</button>
+          <button class="tab" data-range="week" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Тиждень</button>
+        </div>
+        <div class="sub">PXP = PixPaw 🐾</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th class="rank">#</th><th>Нік</th><th>PXP</th><th>З нами з</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+            <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+            <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="myrank" class="note" style="margin-top:12px"></div>
+      <div class="note">Щоб увійти до ТОП-100, потрібно мати більше PXP, ніж у 100-го місця. 1$ = 1 PXP.</div>
+    </div>
+  </div>
+
+<script>
+  const API = '/api/pxp/top100';
+  <...весь твій JS без змін...>
+</script>
+</body>
+</html>
+
+

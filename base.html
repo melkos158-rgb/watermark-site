@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title or 'PXP' }}</title>
+  <!-- якщо маєш свій css -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body{margin:0;background:#0f1115;color:#e8eaed;font-family:system-ui,Segoe UI,Roboto,Arial}
+    main{max-width:1100px;margin:16px auto;padding:0 20px}
+    .flash{margin:10px 0}
+    .flash .item{background:#fee2e2;border:1px solid #fecaca;color:#7f1d1d;
+                 padding:10px;border-radius:10px;margin-bottom:8px}
+  </style>
+</head>
+<body>
+  {% include 'nav.html' %}
+
+  <main>
+    {% with msgs = get_flashed_messages() %}
+      {% if msgs %}
+        <div class="flash">
+          {% for m in msgs %}<div class="item">{{ m }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

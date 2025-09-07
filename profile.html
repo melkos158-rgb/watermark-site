@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="uk">
+<head><meta charset="utf-8"><title>Профіль</title></head>
+<body>
+  {% include 'nav.html' %}
+  <div style="max-width:760px;margin:40px auto;color:#cbd5e1">
+    <h2>Мій профіль</h2>
+    {% if account %}
+      <p><b>Email:</b> {{ account.email }}</p>
+      <p><b>Ім’я:</b> {{ account.name or '—' }}</p>
+      <p><b>PXP:</b> {{ balance|default(0) }}</p>
+
+      <h3>Аватар і опис</h3>
+      <form method="post" action="{{ url_for('profile') }}" enctype="multipart/form-data">
+        <label>Опис</label><br>
+        <textarea name="bio" rows="4" style="width:100%;padding:10px">{{ account.bio or '' }}</textarea><br><br>
+        <label>Аватар</label><br>
+        <input type="file" name="avatar"><br><br>
+        <button type="submit" style="padding:10px 16px">Зберегти</button>
+      </form>
+    {% else %}
+      <p>Спершу <a href="{{ url_for('login') }}">увійди</a>.</p>
+    {% endif %}
+  </div>
+</body>
+</html>
