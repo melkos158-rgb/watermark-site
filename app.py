@@ -7,13 +7,13 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 
-# ================== ENV / APP ==================
-# Safe import dotenv: не впаде, якщо пакету нема
+# ✅ Безпечний імпорт dotenv
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
+
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = os.getenv("FLASK_SECRET", "dev-secret-change-me")
@@ -163,4 +163,5 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
