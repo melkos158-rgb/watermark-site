@@ -7,12 +7,14 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 
-# ✅ Безпечний імпорт dotenv
+# ---- Safe dotenv import ----
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
+# ----------------------------
+
 
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -163,5 +165,6 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
