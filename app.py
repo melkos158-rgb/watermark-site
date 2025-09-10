@@ -3,7 +3,7 @@ import os
 
 app = Flask(__name__)
 
-# --- безпечні дефолти для шаблонів (щоб nav не валив сайт) ---
+# ---- дефолти для шаблонів ----
 class Guest:
     is_authenticated = False
     name = None
@@ -13,7 +13,14 @@ class Guest:
 def inject_defaults():
     return dict(current_user=Guest(), pxp=0)
 
-# --- маршрути, які є в nav ---
+def safe_render(tpl, fallback_text):
+    try:
+        return render_template(tpl)
+    except Exception as e:
+        # щоб бачити точну причину в логах, виводити не будемо на сторінку
+        return fallback_text
+
+# ---- маршрути ----
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -34,25 +41,26 @@ def enhance():
 def edit_photo():
     return render_template("edit_photo.html")
 
+# сторінки, що зараз падають → рендеримо безпечно
 @app.route("/top100")
 def top100():
-    return render_template("top100.html")
+    return safe_render("top100.html", "Top100 page (тимчасова заглушка)")
 
 @app.route("/donate")
 def donate():
-    return render_template("donate.html")
+    return safe_render("donate.html", "Donate page (тимчасова заглушка)")
+
+@app.route("/login")
+def login():
+    return safe_render("login.html", "Login page (тимчасова заглушка)")
+
+@app.route("/register")
+def register():
+    return safe_render("register.html", "Register page (тимчасова заглушка)")
 
 @app.route("/profile")
 def profile():
     return render_template("profile.html")
-
-@app.route("/login")
-def login():
-    return render_template("login.html")
-
-@app.route("/register")
-def register():
-    return render_template("register.html")
 
 @app.route("/logout")
 def logout():
@@ -61,3 +69,4 @@ def logout():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+
