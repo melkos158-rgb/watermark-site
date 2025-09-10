@@ -3,18 +3,8 @@
 <div class="auth-card">
   <h2>Реєстрація</h2>
 
-  {% with msgs = get_flashed_messages() %}
-    {% if msgs %}
-      <div class="flash">
-        {% for m in msgs %}
-          <div class="flash-item">{{ m }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
-
   <!-- Локальна реєстрація -->
-  <form method="post" action="{{ url_for('register') }}">
+  <form method="post" action="/register">
     <input type="text" name="name" placeholder="Ім’я (необов’язково)">
     <input type="email" name="email" placeholder="Email" required>
     <input type="password" name="password" placeholder="Пароль" required>
@@ -24,16 +14,15 @@
   <div class="divider">або</div>
 
   <!-- Соц-реєстрація -->
-  <a class="btn oauth google" href="{{ url_for('login_google') }}">Продовжити з Google</a>
+  <a class="btn oauth google" href="/login_google">Продовжити з Google</a>
   <a class="btn oauth apple" href="#">Продовжити з Apple (скоро)</a>
 
   <p class="muted">
-    Вже маєш акаунт? <a href="{{ url_for('login') }}">Увійти</a>
+    Вже маєш акаунт? <a href="/login">Увійти</a>
   </p>
 </div>
 
 <style>
-/* Ті ж стилі, щоб login і register виглядали однаково */
 .auth-card{max-width:520px;margin:32px auto;padding:24px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06)}
 .auth-card h2{margin:0 0 12px}
 .auth-card form{display:grid;gap:12px;margin-bottom:12px}
@@ -47,3 +36,5 @@
 .flash .flash-item{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:10px;margin-bottom:8px}
 </style>
 {% endblock %}
+
+
