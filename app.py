@@ -1,13 +1,6 @@
 import os
 from flask import Flask, render_template
 
-# підвантаження .env (для локальної роботи)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
 app = Flask(__name__)
 
 # --- маршрути для всіх HTML ---
