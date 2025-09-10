@@ -1,5 +1,6 @@
-Flask
-Flask-Login
-Authlib
-gunicorn
-python-dotenv
+Flask==3.0.3
+Flask-Login==0.6.3
+Authlib==1.3.1
+requests==2.32.3
+gunicorn==21.2.0
+python-dotenv==1.0.1
