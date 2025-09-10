@@ -1,7 +1,4 @@
-Flask-WTF
-email-validator
-Werkzeug
-itsdangerous
-Jinja2
-
-
+Flask
+Flask-Login
+gunicorn
+python-dotenv
