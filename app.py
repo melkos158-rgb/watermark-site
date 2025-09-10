@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 from flask import Flask, render_template, redirect, url_for, request, session, flash
 from flask_login import (
     LoginManager, UserMixin, login_user, logout_user,
@@ -8,10 +7,10 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 
-# ================== ENV / APP ==================
-load_dotenv()
+# ================== APP ==================
+# НІЯКОГО dotenv — Railway/Heroku передають env напряму
 app = Flask(__name__, static_folder="static", template_folder="templates")
-app.secret_key = os.getenv("FLASK_SECRET", "dev-secret-change-me")
+app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret-change-me")
 
 # ================== LOGIN MANAGER ==================
 login_manager = LoginManager(app)
@@ -25,7 +24,7 @@ class User(UserMixin):
         self.avatar = avatar
         self.pw_hash = pw_hash
 
-# In-memory “БД”. Для продакшену заміниш на реальну БД.
+# Проста in-memory «БД» (для продакшену заміни на справжню)
 USERS: dict[str, User] = {}
 
 @login_manager.user_loader
@@ -36,8 +35,8 @@ def load_user(user_id):
 oauth = OAuth(app)
 oauth.register(
     name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
 )
@@ -47,43 +46,54 @@ oauth.register(
 def inject_globals():
     return {"pxp": session.get("pxp", 0), "current_user": current_user}
 
-# ================== SITE PAGES (під твої файли) ==================
+# ================== SITE PAGES ==================
 @app.route("/")
-def index():               return render_template("index.html", page="index")
+def index():
+    return render_template("index.html", page="index")
 
 @app.route("/stl")
-def stl():                 return render_template("stl.html", page="stl")
+def stl():
+    return render_template("stl.html", page="stl")
 
 @app.route("/video")
-def video():               return render_template("video.html", page="video")
+def video():
+    return render_template("video.html", page="video")
 
 @app.route("/edit_photo")
-def edit_photo():          return render_template("edit_photo.html", page="edit_photo")
+def edit_photo():
+    return render_template("edit_photo.html", page="edit_photo")
 
 @app.route("/enhance")
-def enhance():             return render_template("enhance.html", page="enhance")
+def enhance():
+    return render_template("enhance.html", page="enhance")
 
 @app.route("/photo")
-def photo():               return render_template("photo.html", page="photo")
+def photo():
+    return render_template("photo.html", page="photo")
 
 @app.route("/donate")
-def donate():              return render_template("donate.html", page="donate")
+def donate():
+    return render_template("donate.html", page="donate")
 
 @app.route("/top100")
-def top100():              return render_template("top100.html", page="top100")
+def top100():
+    return render_template("top100.html", page="top100")
 
 @app.route("/profile")
 @login_required
-def profile():             return render_template("profile.html", page="profile")
+def profile():
+    return render_template("profile.html", page="profile")
 
-# Залишаємо для кнопки “До профілю” на donate.html
+# Для кнопки “До профілю” на donate.html
 @app.route("/pxp")
 @login_required
-def pxp_page():            return render_template("PXP.html", page="pxp")
+def pxp_page():
+    return render_template("PXP.html", page="pxp")
 
 # ================== AUTH ==================
 @app.route("/login", methods=["GET"])
-def login():               return render_template("login.html", page="login")
+def login():
+    return render_template("login.html", page="login")
 
 @app.route("/logout")
 def logout():
@@ -101,7 +111,6 @@ def register():
             flash("Вкажи email і пароль")
             return redirect(url_for("register"))
 
-        # Заборона дублю локального акаунта
         if email in USERS and USERS[email].pw_hash:
             flash("Користувач вже існує")
             return redirect(url_for("register"))
@@ -156,8 +165,8 @@ def auth_google_callback():
     session.setdefault("pxp", 0)
     return redirect(url_for("profile"))
 
-# ================== ENTRY ==================
+# ================== ENTRY (локально) ==================
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="127.0.0.1", port=port, debug=True)
 
