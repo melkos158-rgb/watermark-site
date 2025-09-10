@@ -1,22 +1,19 @@
 from flask import Flask, render_template
-from types import SimpleNamespace
 import os
 
 app = Flask(__name__)
 
-# === ДЕФОЛТНІ ЗНАЧЕННЯ ДЛЯ ШАБЛОНІВ ===
+# --- безпечні дефолти для шаблонів (щоб nav не валив сайт) ---
+class Guest:
+    is_authenticated = False
+    name = None
+    email = None
+
 @app.context_processor
 def inject_defaults():
-    # імітуємо current_user, щоб шаблони не падали
-    anon_user = SimpleNamespace(
-        is_authenticated=False,
-        name=None,
-        email=None
-    )
-    # pxp теж є у твоєму nav.html
-    return dict(current_user=anon_user, pxp=0)
+    return dict(current_user=Guest(), pxp=0)
 
-# === РОУТИ ===
+# --- маршрути, які є в nav ---
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -64,8 +61,3 @@ def logout():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # Railway слухає 8080
-    app.run(host="0.0.0.0", port=port)
-
