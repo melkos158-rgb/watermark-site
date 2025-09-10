@@ -7,27 +7,27 @@
     <li><a href="{{ url_for('edit_photo') }}">Edit Photo</a></li>
     <li><a href="{{ url_for('top100') }}">Top PXP</a></li>
     <li><a href="{{ url_for('donate') }}">Donate</a></li>
-    <!-- Профіль завжди показуємо в меню -->
     <li><a href="{{ url_for('profile') }}">Профіль</a></li>
 
     <li class="ml-auto">
-      {% if current_user.is_authenticated %}
-        👤 {{ current_user.name or current_user.email }} | 🔥 PXP: {{ pxp }}
-        &nbsp;•&nbsp;<a href="{{ url_for('logout') }}">Вийти</a>
+      {% set is_auth = (current_user is defined and current_user.is_authenticated) %}
+      {% if is_auth %}
+        {{ (current_user.name or current_user.email)|default('', true) }}
+        &nbsp;|&nbsp; PXP: {{ pxp|default(0, true) }}
+        &nbsp;<a href="{{ url_for('logout') }}">Вийти</a>
       {% else %}
-        🔥 PXP: {{ pxp }}
+        PXP: {{ pxp|default(0, true) }}
         &nbsp;<a href="{{ url_for('login') }}">Увійти</a>
-        &nbsp;/&nbsp;<a href="{{ url_for('register') }}">Реєстрація</a>
+        &nbsp;<a href="{{ url_for('register') }}">Реєстрація</a>
       {% endif %}
     </li>
   </ul>
 </nav>
 
 <style>
-.navbar{background:#0b0d12;border-bottom:1px solid #1b2131}
-.nav{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:16px;
-     padding:10px 22px;list-style:none}
-.nav a{color:#c7d2fe;text-decoration:none;font-weight:600;opacity:.9}
-.nav a:hover{opacity:1}
-.ml-auto{margin-left:auto;color:#9fbd04;font-weight:700}
+  .navbar{background:#0b0d12;border-bottom:1px solid #1b2131}
+  .nav{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:16px;
+       height:56px;padding:0 20px;list-style:none}
+  .nav a{color:#e8eaed;text-decoration:none}
+  .ml-auto{margin-left:auto}
 </style>
