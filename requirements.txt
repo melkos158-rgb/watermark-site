@@ -1,5 +1,7 @@
-Flask
-gunicorn
-python-dotenv
+Flask-WTF
+email-validator
+Werkzeug
+itsdangerous
+Jinja2
 
 
