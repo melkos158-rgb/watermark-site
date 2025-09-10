@@ -1,68 +1,52 @@
+from flask import Flask, render_template, request
 import os
-from flask import Flask, render_template
 
 app = Flask(__name__)
 
-# --- маршрути для всіх HTML ---
+# ==== Головна ====
 @app.route("/")
-def home():
+def index():
     return render_template("index.html")
 
-@app.route("/base")
-def base():
-    return render_template("base.html")
-
-@app.route("/donate")
-def donate():
-    return render_template("donate.html")
-
-@app.route("/edit_photo")
-def edit_photo():
-    return render_template("edit_photo.html")
-
-@app.route("/enhance")
-def enhance():
-    return render_template("enhance.html")
-
-@app.route("/login")
-def login():
-    return render_template("login.html")
-
-@app.route("/nav")
-def nav():
-    return render_template("nav.html")
-
-@app.route("/photo")
-def photo():
-    return render_template("photo.html")
-
-@app.route("/profile")
-def profile():
-    return render_template("profile.html")
-
-@app.route("/register")
-def register():
-    return render_template("register.html")
-
-@app.route("/stl")
-def stl():
-    return render_template("stl.html")
-
-@app.route("/top100")
-def top100():
-    return render_template("top100.html")
-
+# ==== Відео ====
 @app.route("/video")
 def video():
     return render_template("video.html")
 
-@app.route("/pxp")
-def pxp():
-    return render_template("PXP.html")
+# ==== STL (3D-моделі) ====
+@app.route("/stl")
+def stl():
+    return render_template("stl.html")
 
+# ==== Редагування фото ====
+@app.route("/edit_photo", methods=["GET", "POST"])
+def edit_photo():
+    if request.method == "POST":
+        # тут ти будеш обробляти завантаження і редагування фото
+        pass
+    return render_template("edit_photo.html")
 
-# --- запуск ---
+# ==== Профіль ====
+@app.route("/profile")
+def profile():
+    return render_template("profile.html")
+
+# ==== Логін ====
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    return render_template("login.html")
+
+# ==== Реєстрація ====
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    return render_template("register.html")
+
+# ==== Тестовий роут (щоб перевіряти роботу швидко) ====
+@app.route("/ping")
+def ping():
+    return "pong"
+
+# ==== Запуск ====
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
