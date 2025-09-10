@@ -7,11 +7,31 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
     body { background:#0f1115; color:#e8eaed; margin:0; }
-    <...всі твої стилі без змін...>
+    .page{max-width:1100px;margin:24px auto;padding:0 16px}
+    .sub{opacity:.85}
+    .panel{background:#0c101a;border:1px solid #1e2740;border-radius:12px;padding:14px}
+    .hero{display:flex;align-items:center;gap:14px;position:relative}
+    .ava{width:56px;height:56px;border-radius:12px;background:#1b2236}
+    .meta .name{font-weight:700}
+    .stats{display:flex;gap:12px;opacity:.9}
+    .btn{display:inline-block;padding:8px 12px;border-radius:10px;background:#1a1f2e;border:1px solid #25304b;text-decoration:none;color:#e8eaed;font-weight:600}
+    .badge{position:absolute;right:12px;top:12px;background:#132038;border:1px solid #223055;border-radius:12px;padding:6px 10px}
+    .table-wrap{overflow:auto;border:1px solid #1e2740;border-radius:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 12px;border-bottom:1px solid #1e2740}
+    th{background:#0b1220;text-align:left}
+    .rank{width:64px}
+    .note{opacity:.85}
+    .skeleton{border-radius:8px;background:linear-gradient(90deg,#1a2236 0,#243055 50%,#1a2236 100%);background-size:200% 100%;animation:sk 1.2s infinite}
+    .sk-a{width:36px;height:36px;border-radius:10px;background:#1b2236}
+    .sk-n{width:160px;height:16px}
+    .sk-b{width:64px;height:16px}
+    .sk-l{width:120px;height:16px}
+    @keyframes sk{0%{background-position:0 0}100%{background-position:200% 0}}
   </style>
 </head>
 <body>
- {% include 'nav.html' %}
+  {% include 'nav.html' %}
 
   <div class="page">
     <h1>Top-100 PXP</h1>
@@ -27,8 +47,8 @@
             <span id="heroDate">З нами з: —</span>
           </div>
         </div>
-        <!-- ВИПРАВЛЕНО: pxp → pxp_page -->
-        <a id="heroBtn" href="{{ url_for('pxp_page') }}" class="btn">Переглянути профіль</a>
+        <!-- Виправлено: посилання веде на існуючий endpoint -->
+        <a id="heroBtn" href="{{ url_for('profile') }}" class="btn">Переглянути профіль</a>
         <div class="badge"><span class="medal"></span> Топ-1</div>
       </div>
     </div>
@@ -61,11 +81,12 @@
     </div>
   </div>
 
-<script>
-  const API = '/api/pxp/top100';
-  <...весь твій JS без змін...>
-</script>
+  <script>
+    // Якщо у тебе вже є скрипт — встав його сюди. Нижче — безпечна заготовка.
+    const API = '/api/pxp/top100';
+    document.addEventListener('DOMContentLoaded', () => {
+      // TODO: завантаження рейтингу і оновлення таблиці/героя
+    });
+  </script>
 </body>
 </html>
-
-
