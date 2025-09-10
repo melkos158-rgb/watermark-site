@@ -7,6 +7,16 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 
+# Безпечне підвантаження .env (локально потрібно, у проді можна і без нього)
+if os.path.exists(".env"):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
+app = Flask(__name__)
+
 # ================== APP ==================
 # НІЯКОГО dotenv — Railway/Heroku передають env напряму
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -169,4 +179,5 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="127.0.0.1", port=port, debug=True)
+
 
