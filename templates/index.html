@@ -54,14 +54,13 @@
 <!-- NAV -->
  {% include 'nav.html' %}
 
-
   <main class="welcome-container">
     <h1>👋 Ласкаво просимо</h1>
     <p>Обери потрібний редактор, щоб почати роботу:</p>
 
     <div class="welcome-grid">
       <div class="welcome-card">
-        <a href="{{ url_for('photo') }}">📷 Photo</a>
+        <a href="{{ url_for('edit_photo') }}">📷 Photo</a>
         <span>Базовий редактор фото</span>
       </div>
       <div class="welcome-card">
