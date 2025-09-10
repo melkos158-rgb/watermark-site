@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from flask import Flask, render_template, redirect, url_for, request, session, flash
 from flask_login import (
     LoginManager, UserMixin, login_user, logout_user,
@@ -7,16 +8,8 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 
-# ---- Safe dotenv import ----
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-# ----------------------------
-
-
-
+# ================== ENV / APP ==================
+load_dotenv()
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = os.getenv("FLASK_SECRET", "dev-secret-change-me")
 
@@ -54,7 +47,7 @@ oauth.register(
 def inject_globals():
     return {"pxp": session.get("pxp", 0), "current_user": current_user}
 
-# ================== SITE PAGES ==================
+# ================== SITE PAGES (під твої файли) ==================
 @app.route("/")
 def index():               return render_template("index.html", page="index")
 
@@ -83,6 +76,7 @@ def top100():              return render_template("top100.html", page="top100")
 @login_required
 def profile():             return render_template("profile.html", page="profile")
 
+# Залишаємо для кнопки “До профілю” на donate.html
 @app.route("/pxp")
 @login_required
 def pxp_page():            return render_template("PXP.html", page="pxp")
@@ -107,6 +101,7 @@ def register():
             flash("Вкажи email і пароль")
             return redirect(url_for("register"))
 
+        # Заборона дублю локального акаунта
         if email in USERS and USERS[email].pw_hash:
             flash("Користувач вже існує")
             return redirect(url_for("register"))
@@ -163,8 +158,6 @@ def auth_google_callback():
 
 # ================== ENTRY ==================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
+    app.run(host="127.0.0.1", port=5000, debug=True)
 
 
