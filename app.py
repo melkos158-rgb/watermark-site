@@ -7,15 +7,13 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 
-# ---- SAFE .env LOADER (не потребує python-dotenv) ----
-# 1) спробує використати python-dotenv, якщо він є
-# 2) якщо нема — вручну прочитає .env і запише в os.environ
-def _load_env_safe():
-    if os.path.exists(".env"):
+# ---- SAFE .env loader ----
+if os.path.exists(".env"):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except Exception:
         try:
-            from dotenv import load_dotenv
-            load_dotenv()
-        except Exception:
             with open(".env", "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
@@ -23,9 +21,9 @@ def _load_env_safe():
                         continue
                     k, v = line.split("=", 1)
                     os.environ.setdefault(k.strip(), v.strip())
-
-_load_env_safe()
-# ------------------------------------------------------
+        except Exception:
+            pass
+# --------------------------
 
 app = Flask(__name__)
 
@@ -192,6 +190,7 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="127.0.0.1", port=port, debug=True)
+
 
 
 
