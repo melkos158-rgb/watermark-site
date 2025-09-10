@@ -1,52 +1,58 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 import os
 
 app = Flask(__name__)
 
-# ==== Головна ====
+def safe_render(template, fallback_text):
+    try:
+        return render_template(template)
+    except:
+        return fallback_text
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return safe_render("index.html", "Index page OK")
 
-# ==== Відео ====
-@app.route("/video")
-def video():
-    return render_template("video.html")
-
-# ==== STL (3D-моделі) ====
 @app.route("/stl")
 def stl():
-    return render_template("stl.html")
+    return safe_render("stl.html", "STL page OK")
 
-# ==== Редагування фото ====
-@app.route("/edit_photo", methods=["GET", "POST"])
+@app.route("/video")
+def video():
+    return safe_render("video.html", "Video page OK")
+
+@app.route("/enhance")
+def enhance():
+    return safe_render("enhance.html", "Enhance page OK")
+
+@app.route("/edit-photo")
 def edit_photo():
-    if request.method == "POST":
-        # тут ти будеш обробляти завантаження і редагування фото
-        pass
-    return render_template("edit_photo.html")
+    return safe_render("edit_photo.html", "Edit Photo page OK")
 
-# ==== Профіль ====
+@app.route("/top100")
+def top100():
+    return safe_render("top100.html", "Top100 page OK")
+
+@app.route("/donate")
+def donate():
+    return safe_render("donate.html", "Donate page OK")
+
 @app.route("/profile")
 def profile():
-    return render_template("profile.html")
+    return safe_render("profile.html", "Profile page OK")
 
-# ==== Логін ====
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login")
 def login():
-    return render_template("login.html")
+    return safe_render("login.html", "Login page OK")
 
-# ==== Реєстрація ====
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register")
 def register():
-    return render_template("register.html")
+    return safe_render("register.html", "Register page OK")
 
-# ==== Тестовий роут (щоб перевіряти роботу швидко) ====
-@app.route("/ping")
-def ping():
-    return "pong"
+@app.route("/logout")
+def logout():
+    return "Logout OK"
 
-# ==== Запуск ====
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8080))  # Railway слухає порт 8080
     app.run(host="0.0.0.0", port=port)
