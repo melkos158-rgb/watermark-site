@@ -1,7 +1,8 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for, flash
 import os
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "devsecret")  # для flash()
 
 # ---- дефолти для шаблонів ----
 class Guest:
@@ -65,6 +66,24 @@ def profile():
 @app.route("/logout")
 def logout():
     return "Logout OK"
+
+# ---- ДОДАНО: обробники для логіну ----
+@app.route("/login_local", methods=["POST"])
+def login_local():
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "")
+    # тимчасова перевірка (пізніше підключимо БД)
+    if email == "test@test.com" and password == "123":
+        flash("Успішний вхід ✅")
+        return redirect(url_for("index"))
+    else:
+        flash("Невірний email або пароль ❌")
+        return redirect(url_for("login"))
+
+@app.route("/login_google")
+def login_google():
+    flash("Вхід через Google буде додано пізніше 🙂")
+    return redirect(url_for("login"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
