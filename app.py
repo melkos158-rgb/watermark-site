@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 import os
 import sqlite3
 
+# --- NEW: Authlib для Google OAuth ---
+from authlib.integrations.flask_client import OAuth
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "devsecret")  # для flash()
 
@@ -29,6 +32,18 @@ def safe_render(tpl, fallback_text):
     except Exception:
         # щоб бачити точну причину — дивись View logs у Railway
         return fallback_text
+
+# --- NEW: реєструємо Google OAuth провайдера ---
+oauth = OAuth(app)
+google = oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    access_token_url="https://oauth2.googleapis.com/token",
+    authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
+    api_base_url="https://www.googleapis.com/oauth2/v2/",
+    client_kwargs={"scope": "openid email profile", "prompt": "select_account"},
+)
 
 # ---- маршрути ----
 @app.route("/")
@@ -129,12 +144,48 @@ def login_local():
     flash("Невірний email або пароль ❌")
     return redirect(url_for("login"))
 
+# ---- UPDATED: тепер цей маршрут реально стартує Google OAuth ----
 @app.route("/login_google")
 def login_google():
-    flash("Вхід через Google буде додано пізніше 🙂")
-    return redirect(url_for("login"))
+    # якщо ключів немає — не падаємо
+    if not os.getenv("GOOGLE_CLIENT_ID") or not os.getenv("GOOGLE_CLIENT_SECRET"):
+        flash("Google Login не налаштований (немає CLIENT_ID/SECRET) ❌")
+        return redirect(url_for("login"))
+    # абсолютний HTTPS callback
+    redirect_uri = url_for("auth_google_callback", _external=True, _scheme="https")
+    return google.authorize_redirect(redirect_uri)
+
+# ---- NEW: callback від Google ----
+@app.route("/login/google/callback")
+def auth_google_callback():
+    try:
+        token = google.authorize_access_token()
+        resp = google.get("userinfo")
+        info = resp.json() if resp else {}
+        email = (info.get("email") or "").lower()
+        if not email:
+            flash("Не вдалося отримати email з Google ❌")
+            return redirect(url_for("login"))
+
+        # створимо користувача, якщо його ще немає
+        try:
+            db = get_db()
+            db.execute(
+                "INSERT OR IGNORE INTO users (email, name, avatar, bio, pxp, name_changes, password) "
+                "VALUES (?, ?, ?, ?, 0, 0, '')",
+                (email, info.get("name"), info.get("picture"), "")
+            )
+            db.commit()
+        except Exception:
+            # якщо БД не готова — все одно логінимось "мʼяко"
+            pass
+
+        flash(f"Вхід через Google: {email} ✅")
+        return redirect(url_for("index"))
+    except Exception:
+        flash("Помилка авторизації через Google ❌")
+        return redirect(url_for("login"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
