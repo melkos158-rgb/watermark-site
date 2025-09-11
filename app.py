@@ -144,14 +144,10 @@ def login_local():
     flash("Невірний email або пароль ❌")
     return redirect(url_for("login"))
 
-# ---- UPDATED: тепер цей маршрут реально стартує Google OAuth ----
+# ---- UPDATED: прибрав блокуючу перевірку env, щоб Google стартував ----
 @app.route("/login_google")
 def login_google():
-    # якщо ключів немає — не падаємо
-    if not os.getenv("GOOGLE_CLIENT_ID") or not os.getenv("GOOGLE_CLIENT_SECRET"):
-        flash("Google Login не налаштований (немає CLIENT_ID/SECRET) ❌")
-        return redirect(url_for("login"))
-    # абсолютний HTTPS callback
+    # навіть якщо змінні не підхопились, нехай спробує; помилку побачимо в логах
     redirect_uri = url_for("auth_google_callback", _external=True, _scheme="https")
     return google.authorize_redirect(redirect_uri)
 
