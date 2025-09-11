@@ -4,7 +4,7 @@
   <h2>Увійти</h2>
 
   <!-- Локальний логін -->
-  <form method="post" action="/login_local">
+  <form method="post" action="{{ url_for('login_local') }}">
     <input type="email" name="email" placeholder="Email" required>
     <input type="password" name="password" placeholder="Пароль" required>
     <button type="submit">Увійти</button>
@@ -13,11 +13,11 @@
   <div class="divider">або</div>
 
   <!-- Соц-входи -->
-  <a class="btn oauth google" href="/login_google">Увійти через Google</a>
+  <a class="btn oauth google" href="{{ url_for('login_google') }}">Увійти через Google</a>
   <a class="btn oauth apple" href="#">Увійти через Apple (скоро)</a>
 
   <p class="muted">
-    Немає акаунта? <a href="/register">Зареєструватися</a>
+    Немає акаунта? <a href="{{ url_for('register') }}">Зареєструватися</a>
   </p>
 </div>
 
@@ -35,3 +35,4 @@
 .flash .flash-item{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:10px;margin-bottom:8px}
 </style>
 {% endblock %}
+
