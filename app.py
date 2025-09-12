@@ -33,15 +33,14 @@ def safe_render(tpl, fallback_text):
         # щоб бачити точну причину — дивись View logs у Railway
         return fallback_text
 
-# --- NEW: реєструємо Google OAuth провайдера ---
+# --- NEW: реєструємо Google OAuth провайдера через OpenID Discovery ---
 oauth = OAuth(app)
 google = oauth.register(
     name="google",
     client_id=os.getenv("GOOGLE_CLIENT_ID"),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-    access_token_url="https://oauth2.googleapis.com/token",
-    authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
-    api_base_url="https://www.googleapis.com/oauth2/v2/",
+    # Authlib підтягне коректні endpoint-и з discovery-документу
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile", "prompt": "select_account"},
 )
 
@@ -185,3 +184,6 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+
+    app.run(host="0.0.0.0", port=port)
+
