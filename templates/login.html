@@ -3,19 +3,11 @@
 <div class="auth-card">
   <h2>Увійти</h2>
 
-  <!-- Локальний логін -->
+  <!-- Локальний логін (e-mail + пароль) -->
   <form method="post" action="{{ url_for('login_local') }}">
     <input type="email" name="email" placeholder="Email" required>
     <input type="password" name="password" placeholder="Пароль" required>
     <button type="submit">Увійти</button>
-  </form>
-
-  <div class="divider">або</div>
-
-  <!-- ДОДАНО: окремий вхід за кодом користувача -->
-  <form method="post" action="{{ url_for('login_local') }}" class="code-login">
-    <input type="text" name="code" placeholder="Код користувача (наприклад: 7K4M9XQZ2D1L8R3T)">
-    <button type="submit">Увійти за кодом</button>
   </form>
 
   <div class="divider">або</div>
@@ -25,9 +17,8 @@
   <a class="btn oauth apple" href="#">Увійти через Apple (скоро)</a>
 
   <p class="muted">
-    Немає акаунта? <a href="{{ url_for('register') }}" class="reg-link">Зареєструватися</a>
-    <br>
-    <small>Порада: після реєстрації ти отримаєш свій довгий код — ним можна входити без пароля.</small>
+    Немає акаунта? <a href="{{ url_for('register') }}" class="reg-link">Зареєструватися</a><br>
+    <small>Порада: після реєстрації по e-mail ти отримаєш свій довгий код — він зберігається у профілі.</small>
   </p>
 </div>
 
@@ -43,48 +34,35 @@
 .btn.oauth.apple{background:#000;color:#fff}
 .muted{color:#6b7280;margin-top:14px}
 .flash .flash-item{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:10px;margin-bottom:8px}
-
-/* ДОДАНО: стиль для форми входу за кодом */
-.code-login input{letter-spacing:.05em;text-transform:uppercase}
 </style>
 
-<!-- ДОДАНО: автоповернення на сторінку 'next' після логіну/реєстрації -->
 <script>
+/* якщо у URL є ?next=..., додаємо його до дій форм/посилань  */
 (function() {
   var params = new URLSearchParams(location.search);
   var next = params.get('next');
   if (!next) return;
 
-  // додати ?next=... до обох форм login_local
-  document.querySelectorAll('form[action$="{{ url_for("login_local") }}"]').forEach(function(f){
-    try {
-      var url = new URL(f.action, location.origin);
-      url.searchParams.set('next', next);
-      f.action = url.toString();
-    } catch(e) {}
-  });
-
-  // додати ?next=... до посилання "Зареєструватися"
-  var reg = document.querySelector('.reg-link');
-  if (reg) {
-    try {
-      var u = new URL(reg.href, location.origin);
-      u.searchParams.set('next', next);
-      reg.href = u.toString();
-    } catch(e) {}
+  var form = document.querySelector('form[action$="{{ url_for("login_local") }}"]');
+  if (form) {
+    var u = new URL(form.action, location.origin);
+    u.searchParams.set('next', next);
+    form.action = u.toString();
   }
 
-  // додати ?next=... до Google-логіну (щоб після OAuth теж вертало)
+  var reg = document.querySelector('.reg-link');
+  if (reg) {
+    var ru = new URL(reg.href, location.origin);
+    ru.searchParams.set('next', next);
+    reg.href = ru.toString();
+  }
+
   var g = document.querySelector('.btn.oauth.google');
   if (g) {
-    try {
-      var ug = new URL(g.href, location.origin);
-      ug.searchParams.set('next', next);
-      g.href = ug.toString();
-    } catch(e) {}
+    var gu = new URL(g.href, location.origin);
+    gu.searchParams.set('next', next);
+    g.href = gu.toString();
   }
 })();
 </script>
 {% endblock %}
-
-
