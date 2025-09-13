@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, g
 import os
 import sqlite3
+# ADDED: для довгих кодів
+import secrets
+import string
 
 # --- NEW: Authlib для Google OAuth ---
 from authlib.integrations.flask_client import OAuth
@@ -127,6 +130,48 @@ def _db_check_password(email, password):
         pass
     return None
 
+# ----------------------------
+# ADDED: підтримка довгого login_code
+# ----------------------------
+def _has_column(table, col):
+    try:
+        db = get_db()
+        cols = db.execute(f"PRAGMA table_info({table})").fetchall()
+        return any(c["name"] == col for c in cols)
+    except Exception:
+        return False
+
+def _ensure_login_code_column():
+    """Додає колонку login_code (UNIQUE), якщо її ще немає."""
+    try:
+        if not _has_column("users", "login_code"):
+            db = get_db()
+            db.execute("ALTER TABLE users ADD COLUMN login_code TEXT")
+            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_login_code ON users(login_code)")
+            db.commit()
+    except Exception:
+        pass
+
+def _gen_code(length=16):
+    """Довгий алфавітно-цифровий код (UPPERCASE+digits)."""
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+def _save_code_for_user(uid, code):
+    try:
+        db = get_db()
+        db.execute("UPDATE users SET login_code=? WHERE id=?", (code, uid))
+        db.commit()
+    except Exception:
+        pass
+
+def _get_user_by_code(code):
+    try:
+        db = get_db()
+        return db.execute("SELECT id, email, name, login_code FROM users WHERE login_code=?", (code,)).fetchone()
+    except Exception:
+        return None
+
 @app.before_request
 def auth_gate_and_shortcuts():
     # --- LOGOUT: перехоплюємо та очищаємо сесію і кидаємо на головну
@@ -142,6 +187,22 @@ def auth_gate_and_shortcuts():
 
     # --- LOGIN_LOCAL: зробимо реальний логін до виклику твого хендлера
     if request.endpoint == "login_local" and request.method == "POST":
+        # ADDED: підтримуємо код
+        code = (request.form.get("code") or request.form.get("login_code") or "").strip().upper()
+        if code:
+            _ensure_login_code_column()
+            row = _get_user_by_code(code)
+            if row:
+                session["user_id"] = row["id"]
+                session["email"] = row["email"]
+                session["name"] = row["name"]
+                session["login_code"] = row["login_code"]
+                flash("Успішний вхід по коду ✅")
+                next_url = request.args.get("next") or url_for("index")
+                return redirect(next_url)
+            flash("Невірний код ❌")
+            return redirect(url_for("login"))
+
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
         row = _db_check_password(email, password)
@@ -173,11 +234,19 @@ def auth_gate_and_shortcuts():
             return redirect(url_for("register"))
 
         uid = _db_create_user(email, name, password)  # якщо БД нема — поверне None
+
+        # ADDED: створюємо довгий код і зберігаємо (якщо є БД/uid)
+        _ensure_login_code_column()
+        new_code = _gen_code(16)
+        if uid:
+            _save_code_for_user(uid, new_code)
+
         # Автологін навіть без БД: тримаємо у сесії
         session["user_id"] = uid
         session["email"] = email
         session["name"] = name
-        flash("Реєстрація успішна ✅ Ви вже увійшли.")
+        session["login_code"] = new_code  # показати в профілі/флеші
+        flash(f"Реєстрація успішна ✅ Твій код: {new_code}")
         # Поважаємо next, якщо юзер намагався потрапити в закриту сторінку
         next_url = request.args.get("next") or url_for("profile")
         return redirect(next_url)
@@ -229,7 +298,7 @@ def register():
     if request.method == "POST":
         name = (request.form.get("name") or "").strip() or None
         email = (request.form.get("email") or "").strip().lower()
-        password = request.form.get("password") or ""
+        password = (request.form.get("password") or "")
 
         if not email or not password:
             flash("Вкажи email і пароль ❌")
