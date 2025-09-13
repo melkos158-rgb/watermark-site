@@ -204,6 +204,11 @@ def enhance():
 def edit_photo():
     return render_template("edit_photo.html")
 
+# ✅ ДОДАНО: сторінка Photo (твій photo.html)
+@app.route("/photo")
+def photo():
+    return render_template("photo.html")
+
 # сторінки, що зараз падають → рендеримо безпечно
 @app.route("/top100")
 def top100():
@@ -326,7 +331,6 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
 
 
 
