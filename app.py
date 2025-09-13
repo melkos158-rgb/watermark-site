@@ -129,9 +129,10 @@ def _db_check_password(email, password):
 
 @app.before_request
 def auth_gate_and_shortcuts():
-    # --- LOGOUT: перехоплюємо та очищаємо сесію (твій /logout просто повертає текст)
+    # --- LOGOUT: перехоплюємо та очищаємо сесію і кидаємо на головну
     if request.endpoint == "logout":
         session.clear()
+        return redirect(url_for("index"))  # ← редірект після виходу
 
     # --- PROTECT PAGES: top100 / donate / profile вимагають логіну
     if request.endpoint in PROTECTED_ENDPOINTS:
@@ -331,7 +332,6 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
 
 
 
