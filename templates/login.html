@@ -12,12 +12,22 @@
 
   <div class="divider">або</div>
 
+  <!-- ДОДАНО: окремий вхід за кодом користувача -->
+  <form method="post" action="{{ url_for('login_local') }}" class="code-login">
+    <input type="text" name="code" placeholder="Код користувача (наприклад: 7K4M9XQZ2D1L8R3T)">
+    <button type="submit">Увійти за кодом</button>
+  </form>
+
+  <div class="divider">або</div>
+
   <!-- Соц-входи -->
   <a class="btn oauth google" href="{{ url_for('login_google') }}">Увійти через Google</a>
   <a class="btn oauth apple" href="#">Увійти через Apple (скоро)</a>
 
   <p class="muted">
-    Немає акаунта? <a href="{{ url_for('register') }}">Зареєструватися</a>
+    Немає акаунта? <a href="{{ url_for('register') }}" class="reg-link">Зареєструватися</a>
+    <br>
+    <small>Порада: після реєстрації ти отримаєш свій довгий код — ним можна входити без пароля.</small>
   </p>
 </div>
 
@@ -33,6 +43,48 @@
 .btn.oauth.apple{background:#000;color:#fff}
 .muted{color:#6b7280;margin-top:14px}
 .flash .flash-item{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:10px;margin-bottom:8px}
+
+/* ДОДАНО: стиль для форми входу за кодом */
+.code-login input{letter-spacing:.05em;text-transform:uppercase}
 </style>
+
+<!-- ДОДАНО: автоповернення на сторінку 'next' після логіну/реєстрації -->
+<script>
+(function() {
+  var params = new URLSearchParams(location.search);
+  var next = params.get('next');
+  if (!next) return;
+
+  // додати ?next=... до обох форм login_local
+  document.querySelectorAll('form[action$="{{ url_for("login_local") }}"]').forEach(function(f){
+    try {
+      var url = new URL(f.action, location.origin);
+      url.searchParams.set('next', next);
+      f.action = url.toString();
+    } catch(e) {}
+  });
+
+  // додати ?next=... до посилання "Зареєструватися"
+  var reg = document.querySelector('.reg-link');
+  if (reg) {
+    try {
+      var u = new URL(reg.href, location.origin);
+      u.searchParams.set('next', next);
+      reg.href = u.toString();
+    } catch(e) {}
+  }
+
+  // додати ?next=... до Google-логіну (щоб після OAuth теж вертало)
+  var g = document.querySelector('.btn.oauth.google');
+  if (g) {
+    try {
+      var ug = new URL(g.href, location.origin);
+      ug.searchParams.set('next', next);
+      g.href = ug.toString();
+    } catch(e) {}
+  }
+})();
+</script>
 {% endblock %}
+
 
