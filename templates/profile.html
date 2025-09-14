@@ -1,26 +1,89 @@
-<!doctype html>
-<html lang="uk">
-<head><meta charset="utf-8"><title>Профіль</title></head>
-<body>
-  {% include 'nav.html' %}
-  <div style="max-width:760px;margin:40px auto;color:#cbd5e1">
-    <h2>Мій профіль</h2>
-    {% if account %}
-      <p><b>Email:</b> {{ account.email }}</p>
-      <p><b>Ім’я:</b> {{ account.name or '—' }}</p>
-      <p><b>PXP:</b> {{ balance|default(0) }}</p>
+{% extends "base.html" %}
+{% block content %}
 
-      <h3>Аватар і опис</h3>
-      <form method="post" action="{{ url_for('profile') }}" enctype="multipart/form-data">
-        <label>Опис</label><br>
-        <textarea name="bio" rows="4" style="width:100%;padding:10px">{{ account.bio or '' }}</textarea><br><br>
-        <label>Аватар</label><br>
-        <input type="file" name="avatar"><br><br>
-        <button type="submit" style="padding:10px 16px">Зберегти</button>
+<div class="profile-wrap">
+  <h2>Мій профіль</h2>
+
+  {% if not current_user.is_authenticated %}
+    <p class="muted">Спершу <a href="{{ url_for('login') }}">увійди</a>.</p>
+  {% else %}
+    <div class="card">
+      <div class="header">
+        <div class="avatar">
+          {% if current_user.avatar %}
+            <img src="{{ current_user.avatar }}" alt="avatar">
+          {% else %}
+            <div class="avatar-fallback">{{ (current_user.name or current_user.email or '?')[:1] }}</div>
+          {% endif %}
+        </div>
+
+        <div class="header-info">
+          <div class="name-row">
+            <strong class="name">{{ current_user.name or "Без імені" }}</strong>
+            <span class="pxp">PXP: <b>{{ current_user.pxp }}</b></span>
+            <form method="post" action="{{ url_for('profile_pxp') }}" class="inline">
+              <button class="btn small" type="submit">+1 PXP (test)</button>
+            </form>
+          </div>
+          <div class="sub">
+            <span>id: {{ current_user.id if current_user.id is not none else "—" }}</span>
+            <span>•</span>
+            <span>{{ current_user.email }}</span>
+          </div>
+
+          <div class="actions">
+            <a class="btn" href="{{ url_for('donate') }}">Поповнити PXP</a>
+            <a class="btn light" href="{{ url_for('logout') }}">Вийти</a>
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <form method="post" action="{{ url_for('profile_update') }}" class="form">
+        <label>
+          Ім’я
+          <input type="text" name="name" value="{{ current_user.name or '' }}" placeholder="Твоє ім’я">
+        </label>
+
+        <label>
+          Посилання на аватар (URL)
+          <input type="url" name="avatar" value="{{ current_user.avatar or '' }}" placeholder="https://...">
+        </label>
+
+        <label>
+          Про себе
+          <textarea name="bio" rows="4" placeholder="Коротко про себе">{{ current_user.bio or '' }}</textarea>
+        </label>
+
+        <div class="right">
+          <button class="btn" type="submit">Зберегти</button>
+        </div>
       </form>
-    {% else %}
-      <p>Спершу <a href="{{ url_for('login') }}">увійди</a>.</p>
-    {% endif %}
-  </div>
-</body>
-</html>
+    </div>
+  {% endif %}
+</div>
+
+<style>
+.profile-wrap{max-width:880px;margin:28px auto;padding:0 16px}
+.muted{color:#6b7280}
+.card{background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);padding:18px}
+.header{display:flex;gap:16px;align-items:center}
+.avatar{width:84px;height:84px;border-radius:999px;overflow:hidden;background:#f3f4f6;flex:0 0 84px}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar-fallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#4f46e5}
+.header-info{flex:1}
+.name-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.name{font-size:22px}
+.pxp{color:#374151}
+.sub{color:#6b7280;margin-top:2px;display:flex;gap:8px}
+.actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+.btn{background:#4f46e5;color:#fff;border:0;border-radius:10px;padding:10px 14px;text-decoration:none;display:inline-block;cursor:pointer}
+.btn.light{background:#e5e7eb;color:#111}
+.btn.small{padding:6px 10px;border-radius:8px}
+.inline{display:inline}
+.form{display:grid;gap:12px;margin-top:12px}
+.form input,.form textarea{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px}
+.right{text-align:right}
+</style>
+{% endblock %}
