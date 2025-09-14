@@ -5,6 +5,12 @@ import sqlite3
 import secrets
 import string
 
+# ---- NEW: Postgres (опційно, якщо є DATABASE_URL)
+PSQL_URL = os.getenv("DATABASE_URL")
+if PSQL_URL:
+    import psycopg2
+    import psycopg2.extras
+
 # --- NEW: Authlib для Google OAuth ---
 from authlib.integrations.flask_client import OAuth
 
@@ -14,13 +20,94 @@ from authlib.integrations.flask_client import OAuth
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "devsecret")  # для flash()
 
-# --- SQLite (працює, якщо задано DB_PATH і створена таблиця users) ---
+# --- SQLite (фолбек, якщо НЕ задано DATABASE_URL) ---
 DB_PATH = os.environ.get("DB_PATH", "database.db")
 
+# ------- ADDED: маленький адаптер, щоб код з sqlite .execute() працював і з Postgres -------
+class _PsqlAdapter:
+    def __init__(self, conn):
+        self._conn = conn
+    def execute(self, sql, params=()):
+        # заміна плейсхолдерів: з '?' (sqlite-стиль) на '%s' (psycopg2)
+        q = []
+        i = 0
+        for ch in sql:
+            if ch == '?':
+                q.append('%s')
+                i += 1
+            else:
+                q.append(ch)
+        sql_psql = ''.join(q)
+        cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql_psql, params)
+        return cur
+    def commit(self):
+        self._conn.commit()
+
+USERS_TABLE_OK = False  # щоб створювати таблицю лише раз
+
+def _ensure_users_table(db, engine: str):
+    """
+    Створює таблицю users, якщо її немає.
+    engine: 'psql' або 'sqlite'
+    """
+    global USERS_TABLE_OK
+    if USERS_TABLE_OK:
+        return
+    try:
+        if engine == 'psql':
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    name TEXT,
+                    avatar TEXT,
+                    bio TEXT,
+                    pxp INTEGER DEFAULT 0,
+                    name_changes INTEGER DEFAULT 0,
+                    password TEXT NOT NULL,
+                    login_code TEXT
+                )
+            """)
+            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_login_code ON users(login_code)")
+            db.commit()
+        else:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE NOT NULL,
+                    name TEXT,
+                    avatar TEXT,
+                    bio TEXT,
+                    pxp INTEGER DEFAULT 0,
+                    name_changes INTEGER DEFAULT 0,
+                    password TEXT NOT NULL,
+                    login_code TEXT
+                )
+            """)
+            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_login_code ON users(login_code)")
+            db.commit()
+        USERS_TABLE_OK = True
+    except Exception:
+        # тихо ідемо далі — якщо нема прав або це не потрібно
+        pass
+
 def get_db():
+    """
+    Повертає об’єкт з методом .execute(...).fetchone() і .commit(),
+    як у sqlite, але працює і з Postgres (через адаптер).
+    """
+    if PSQL_URL:
+        conn = psycopg2.connect(PSQL_URL)
+        db = _PsqlAdapter(conn)
+        _ensure_users_table(db, 'psql')
+        return db
+    # fallback: sqlite
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return conn
+    db = conn
+    _ensure_users_table(db, 'sqlite')
+    return db
 
 # ---- дефолти для шаблонів ----
 class Guest:
@@ -80,7 +167,9 @@ def load_current_user():
         else:
             row = None
         if row:
-            return _make_user(row["email"], row["name"], row["id"])
+            # рядок може бути або sqlite Row, або dict (psql)
+            r = row if isinstance(row, dict) else dict(row)
+            return _make_user(r.get("email"), r.get("name"), r.get("id"))
     except Exception:
         pass
     # якщо БД нема — повертаємо сесійну інформацію
@@ -107,25 +196,31 @@ def _db_create_user(email, name, password):
         )
         db.commit()
         row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
-        return row["id"] if row else None
-    except sqlite3.IntegrityError:
-        # користувач існує — дістанемо id
+        if row:
+            r = row if isinstance(row, dict) else dict(row)
+            return r.get("id")
+        return None
+    except Exception:
+        # може бути дубль або інша помилка — спробуємо зчитати існуючого
         try:
             db = get_db()
             row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
-            return row["id"] if row else None
+            if row:
+                r = row if isinstance(row, dict) else dict(row)
+                return r.get("id")
         except Exception:
             return None
-    except Exception:
-        return None
+    return None
 
 def _db_check_password(email, password):
     """Проста перевірка пароля в БД (тимчасово — у відкритому вигляді, як у тебе)."""
     try:
         db = get_db()
         row = db.execute("SELECT id, email, name, password FROM users WHERE email=?", (email,)).fetchone()
-        if row and row["password"] == password:
-            return row
+        if row:
+            r = row if isinstance(row, dict) else dict(row)
+            if r.get("password") == password:
+                return r
     except Exception:
         pass
     return None
@@ -136,8 +231,19 @@ def _db_check_password(email, password):
 def _has_column(table, col):
     try:
         db = get_db()
-        cols = db.execute(f"PRAGMA table_info({table})").fetchall()
-        return any(c["name"] == col for c in cols)
+        if PSQL_URL:
+            row = db.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name=? AND column_name=?",
+                (table, col)
+            ).fetchone()
+            return bool(row)
+        else:
+            cols = db.execute(f"PRAGMA table_info({table})").fetchall()
+            for c in cols:
+                name = c["name"] if isinstance(c, sqlite3.Row) else c.get("name")
+                if name == col:
+                    return True
+            return False
     except Exception:
         return False
 
@@ -193,10 +299,11 @@ def auth_gate_and_shortcuts():
             _ensure_login_code_column()
             row = _get_user_by_code(code)
             if row:
-                session["user_id"] = row["id"]
-                session["email"] = row["email"]
-                session["name"] = row["name"]
-                session["login_code"] = row["login_code"]
+                r = row if isinstance(row, dict) else dict(row)
+                session["user_id"] = r.get("id")
+                session["email"] = r.get("email")
+                session["name"] = r.get("name")
+                session["login_code"] = r.get("login_code")
                 flash("Успішний вхід по коду ✅")
                 next_url = request.args.get("next") or url_for("index")
                 return redirect(next_url)
@@ -207,9 +314,9 @@ def auth_gate_and_shortcuts():
         password = request.form.get("password") or ""
         row = _db_check_password(email, password)
         if row:
-            session["user_id"] = row["id"]
-            session["email"] = row["email"]
-            session["name"] = row["name"]
+            session["user_id"] = row.get("id")
+            session["email"] = row.get("email")
+            session["name"] = row.get("name")
             flash("Успішний вхід ✅")
             # якщо є next — поважаємо
             next_url = request.args.get("next") or url_for("index")
@@ -228,7 +335,7 @@ def auth_gate_and_shortcuts():
     if request.endpoint == "register" and request.method == "POST":
         name = (request.form.get("name") or "").strip() or None
         email = (request.form.get("email") or "").strip().lower()
-        password = request.form.get("password") or ""
+        password = (request.form.get("password") or "")
         if not email or not password:
             flash("Вкажи email і пароль ❌")
             return redirect(url_for("register"))
@@ -314,9 +421,6 @@ def register():
             db.commit()
             flash("Користувача створено ✅ Тепер увійди.")
             return redirect(url_for("login"))
-        except sqlite3.IntegrityError:
-            flash("Такий email вже зареєстрований ❌")
-            return redirect(url_for("register"))
         except Exception:
             # якщо БД ще не налаштована — не падаємо, просто показуємо повідомлення
             flash("Реєстрація тимчасово без БД — налаштуй DB_PATH/таблицю users. ✅ Форма працює.")
@@ -345,9 +449,11 @@ def login_local():
             "SELECT id, email, name, password FROM users WHERE email = ?",
             (email,)
         ).fetchone()
-        if row and row["password"] == password:
-            flash("Успішний вхід ✅")
-            return redirect(url_for("index"))
+        if row:
+            r = row if isinstance(row, dict) else dict(row)
+            if r.get("password") == password:
+                flash("Успішний вхід ✅")
+                return redirect(url_for("index"))
     except Exception:
         # якщо БД ще не готова — fallback на тестові креденшли
         if email == "test@test.com" and password == "123":
@@ -401,6 +507,8 @@ def auth_google_callback():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+
+
 
 
 
