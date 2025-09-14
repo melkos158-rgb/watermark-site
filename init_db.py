@@ -1,32 +1,30 @@
-import sqlite3, os
+import psycopg2
+import os
 
-# шлях до БД з Railway (ENV: DB_PATH=/data/database.db)
-DB_PATH = os.environ.get("DB_PATH", "/data/database.db")
+DATABASE_URL = os.environ["DATABASE_URL"]
 
-conn = sqlite3.connect(DB_PATH)
-c = conn.cursor()
+conn = psycopg2.connect(DATABASE_URL)
+cur = conn.cursor()
 
-# створення або оновлення таблиці users
-c.execute("""
+cur.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     name TEXT,
     avatar TEXT,
     bio TEXT,
     pxp INTEGER DEFAULT 0,
     name_changes INTEGER DEFAULT 0,
-    password TEXT NOT NULL,
-    login_code TEXT UNIQUE
+    password TEXT NOT NULL
 )
 """)
 
-# створюємо унікальні індекси (якщо їх ще немає)
-c.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email ON users(email)")
-c.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_login_code ON users(login_code)")
-
 conn.commit()
+cur.close()
 conn.close()
 
+print("✅ Таблиця users створена в PostgreSQL")
+
 print("✅ Таблиця users готова. Поле login_code додано.")
+
 
