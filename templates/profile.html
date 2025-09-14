@@ -7,7 +7,7 @@
   {% if not current_user or not current_user.is_authenticated %}
     <div class="panel" style="text-align:center">
       <p class="muted">Щоб редагувати профіль, увійди.</p>
-      <a class="btn" href="{{ url_for('auth.login') }}">Увійти</a>
+      <a class="btn" href="{{ url_for('login') }}">Увійти</a>
     </div>
   {% else %}
   <div class="panel">
@@ -28,13 +28,13 @@
           <div class="badge">💰 PXP: <b>{{ current_user.pxp or 0 }}</b></div>
 
           <!-- +1 PXP (test) -->
-          <form action="{{ url_for('profile.plus1') }}" method="post" class="inline">
+          <form action="{{ url_for('profile_pxp') }}" method="post" class="inline">
             <button class="btn small" type="submit">+1 PXP (test)</button>
           </form>
         </div>
 
-        <a href="{{ url_for('profile.top') }}" class="btn gray" style="width:100%;text-align:center">Top-100</a>
-        <a href="{{ url_for('profile.donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
+        <a href="{{ url_for('top100') }}" class="btn gray" style="width:100%;text-align:center">Top-100</a>
+        <a href="{{ url_for('donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
       </div>
 
       <!-- Права колонка -->
@@ -43,7 +43,7 @@
           id: {{ current_user.id if current_user.id is not none else "—" }} • {{ current_user.email }}
         </div>
 
-        <form method="post" action="{{ url_for('profile.profile_update') }}" id="profileForm" class="form">
+        <form method="post" action="{{ url_for('profile_update') }}" id="profileForm" class="form">
           <div class="field">
             <div class="label">Ім’я / нік</div>
             <input class="input" type="text" name="name" value="{{ current_user.name or '' }}" placeholder="Твоє ім’я">
