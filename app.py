@@ -167,7 +167,6 @@ def load_current_user():
         else:
             row = None
         if row:
-            # рядок може бути або sqlite Row, або dict (psql)
             r = row if isinstance(row, dict) else dict(row)
             return _make_user(r.get("email"), r.get("name"), r.get("id"))
     except Exception:
@@ -432,6 +431,62 @@ def register():
 @app.route("/profile")
 def profile():
     return render_template("profile.html")
+
+# ===========================
+# ✅ ДОДАНО: ендпоінти для профілю, які викликає шаблон
+# ===========================
+@app.route("/profile/pxp", methods=["POST"])
+def profile_pxp():
+    user_id = session.get("user_id")
+    email = session.get("email")
+    try:
+        db = get_db()
+        if user_id:
+            db.execute("UPDATE users SET pxp = COALESCE(pxp,0) + 1 WHERE id = ?", (user_id,))
+            db.commit()
+            row = db.execute("SELECT pxp FROM users WHERE id = ?", (user_id,)).fetchone()
+        elif email:
+            db.execute("UPDATE users SET pxp = COALESCE(pxp,0) + 1 WHERE email = ?", (email,))
+            db.commit()
+            row = db.execute("SELECT pxp FROM users WHERE email = ?", (email,)).fetchone()
+        else:
+            row = None
+        if row:
+            pxp_val = (row["pxp"] if not isinstance(row, dict) else row.get("pxp")) or 0
+            session["pxp"] = pxp_val
+        flash("+1 PXP ✅")
+    except Exception:
+        session["pxp"] = (session.get("pxp") or 0) + 1
+        flash("+1 PXP (session) ✅")
+    return redirect(url_for("profile"))
+
+@app.route("/profile/update", methods=["POST"])
+def profile_update():
+    if not session.get("email") and not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    name   = (request.form.get("name") or "").strip() or None
+    avatar = (request.form.get("avatar") or "").strip() or None
+    bio    = (request.form.get("bio") or "").strip() or None
+
+    try:
+        db = get_db()
+        if session.get("user_id"):
+            db.execute("UPDATE users SET name=?, avatar=?, bio=? WHERE id=?",
+                       (name, avatar, bio, session["user_id"]))
+        else:
+            db.execute("UPDATE users SET name=?, avatar=?, bio=? WHERE email=?",
+                       (name, avatar, bio, session["email"]))
+        db.commit()
+    except Exception:
+        pass
+
+    if name:   session["name"] = name
+    if avatar: session["avatar"] = avatar
+    if bio:    session["bio"] = bio
+
+    flash("Збережено ✅")
+    return redirect(url_for("profile"))
 
 @app.route("/logout")
 def logout():
