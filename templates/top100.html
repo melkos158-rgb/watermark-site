@@ -47,9 +47,8 @@
             <span id="heroDate">З нами з: —</span>
           </div>
         </div>
-        <!-- Виправлено: посилання веде на існуючий endpoint -->
-        <a id="heroBtn" href="{{ url_for('profile') }}" class="btn">Переглянути профіль</a>
-        <div class="badge"><span class="medal"></span> Топ-1</div>
+        <a id="heroBtn" href="{{ url_for('profile.profile') }}" class="btn">Переглянути профіль</a>
+        <div class="badge"><span class="medal">🥇</span> Топ-1</div>
       </div>
     </div>
 
@@ -82,10 +81,58 @@
   </div>
 
   <script>
-    // Якщо у тебе вже є скрипт — встав його сюди. Нижче — безпечна заготовка.
     const API = '/api/pxp/top100';
+
+    function formatSince(dateStr) {
+      // якщо колись додаси поле "created_at" — тут його відформатуй.
+      return '—';
+    }
+
+    function renderRows(list) {
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="sub">Ще немає даних</td></tr>`;
+        return;
+      }
+      list.forEach((u, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="rank">${i + 1}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="ava" style="width:36px;height:36px;border-radius:10px;"></div>
+              <span>${u.name || 'Без імені'}</span>
+            </div>
+          </td>
+          <td>${u.pxp}</td>
+          <td>${formatSince(u.created_at)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderHero(list) {
+      if (!list.length) return;
+      const top = list[0];
+      document.getElementById('heroName').textContent = top.name || 'Без імені';
+      document.getElementById('heroPxp').textContent  = `PXP: ${top.pxp}`;
+      document.getElementById('heroDate').textContent = `З нами з: ${formatSince(top.created_at)}`;
+      document.getElementById('heroPanel').style.display = 'block';
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-      // TODO: завантаження рейтингу і оновлення таблиці/героя
+      fetch(API)
+        .then(r => r.json())
+        .then(data => {
+          renderRows(data);
+          renderHero(data);
+        })
+        .catch(err => {
+          console.error(err);
+          const tbody = document.getElementById('tbody');
+          tbody.innerHTML = `<tr><td colspan="4">Помилка завантаження</td></tr>`;
+        });
     });
   </script>
 </body>
