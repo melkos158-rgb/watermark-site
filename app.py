@@ -4,6 +4,7 @@ import sqlite3
 # ADDED: для довгих кодів
 import secrets
 import string
+import chat
 
 # ---- NEW: Postgres (опційно, якщо є DATABASE_URL)
 PSQL_URL = os.getenv("DATABASE_URL")
@@ -627,4 +628,5 @@ def _enrich_current_user_with_stats():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
+
 
