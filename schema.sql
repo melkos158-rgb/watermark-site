@@ -1,12 +1,10 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT,
-  avatar TEXT,
-  bio TEXT,
-  pxp INTEGER NOT NULL DEFAULT 0,
-  name_changes INTEGER NOT NULL DEFAULT 0,
-  password TEXT NOT NULL,
-  login_code TEXT
+  user_id INTEGER,
+  user_name TEXT,
+  user_email TEXT,
+  text TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ux_users_login_code ON users(login_code);
+
+CREATE INDEX IF NOT EXISTS ix_messages_created ON messages(created_at);
