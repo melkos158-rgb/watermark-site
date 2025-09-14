@@ -5,7 +5,7 @@
   <h2>Мій профіль</h2>
 
   {% if not current_user.is_authenticated %}
-    <p class="muted">Спершу <a href="{{ url_for('login') }}">увійди</a>.</p>
+    <p class="muted">Спершу <a href="{{ url_for('login_google') }}">увійди</a>.</p>
   {% else %}
     <div class="card">
       <div class="header">
@@ -87,3 +87,5 @@
 .right{text-align:right}
 </style>
 {% endblock %}
+
+
