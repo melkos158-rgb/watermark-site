@@ -6,5 +6,4 @@ CREATE TABLE IF NOT EXISTS messages (
   text TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX IF NOT EXISTS ix_messages_created ON messages(created_at);
