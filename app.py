@@ -30,13 +30,8 @@ class _PsqlAdapter:
     def execute(self, sql, params=()):
         # заміна плейсхолдерів: з '?' (sqlite-стиль) на '%s' (psycopg2)
         q = []
-        i = 0
         for ch in sql:
-            if ch == '?':
-                q.append('%s')
-                i += 1
-            else:
-                q.append(ch)
+            q.append('%s' if ch == '?' else ch)
         sql_psql = ''.join(q)
         cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql_psql, params)
@@ -559,11 +554,77 @@ def auth_google_callback():
         flash("Помилка авторизації через Google ❌")
         return redirect(url_for("login"))
 
+# =========================
+# === ADDED FIX (1): створити/знайти юзера після Google і покласти user_id у сесію
+# =========================
+def ensure_user_in_db_and_session():
+    email = session.get("email")
+    if not email:
+        return
+    try:
+        db = get_db()
+        # якщо запису немає — зробимо апсерт (SQLite/PG)
+        row = db.execute("SELECT id, name, avatar, pxp FROM users WHERE email = ?", (email,)).fetchone()
+        if not row:
+            if PSQL_URL:
+                db.execute(
+                    "INSERT INTO users (email, name, avatar, bio, pxp, name_changes, password) "
+                    "VALUES (?, ?, ?, ?, 0, 0, '') ON CONFLICT (email) DO NOTHING",
+                    (email, session.get("name"), session.get("avatar"), "")
+                )
+            else:
+                db.execute(
+                    "INSERT OR IGNORE INTO users (email, name, avatar, bio, pxp, name_changes, password) "
+                    "VALUES (?, ?, ?, ?, 0, 0, '')",
+                    (email, session.get("name"), session.get("avatar"), "")
+                )
+            db.commit()
+            row = db.execute("SELECT id, name, avatar, pxp FROM users WHERE email = ?", (email,)).fetchone()
+
+        if row and not session.get("user_id"):
+            r = row if isinstance(row, dict) else dict(row)
+            session["user_id"] = r.get("id")
+            # на всякий випадок — збережемо поточні поля в сесії
+            if r.get("name"):   session["name"] = r.get("name")
+            if r.get("avatar"): session["avatar"] = r.get("avatar")
+            if r.get("pxp") is not None: session["pxp"] = r.get("pxp")
+    except Exception:
+        pass
+
+@app.before_request
+def _autofix_user_session_and_db():
+    ensure_user_in_db_and_session()
+
+# =========================
+# === ADDED FIX (2): збагачуємо current_user полями pxp та avatar
+# =========================
+@app.context_processor
+def _enrich_current_user_with_stats():
+    u = load_current_user()
+    # дефолти з сесії
+    setattr(u, "avatar", getattr(u, "avatar", None) or session.get("avatar"))
+    setattr(u, "pxp",    getattr(u, "pxp", None)    if hasattr(u, "pxp") else session.get("pxp", 0))
+    # спробуємо підтягнути з БД
+    try:
+        db = get_db()
+        if getattr(u, "id", None):
+            row = db.execute("SELECT avatar, pxp FROM users WHERE id=?", (u.id,)).fetchone()
+        elif getattr(u, "email", None):
+            row = db.execute("SELECT avatar, pxp FROM users WHERE email=?", (u.email,)).fetchone()
+        else:
+            row = None
+        if row:
+            r = row if isinstance(row, dict) else dict(row)
+            if r.get("avatar") is not None:
+                setattr(u, "avatar", r.get("avatar"))
+            if r.get("pxp") is not None:
+                setattr(u, "pxp", r.get("pxp"))
+    except Exception:
+        pass
+    # перекриваємо current_user останнім контекстом
+    return dict(current_user=u)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-
-
-
-
 
