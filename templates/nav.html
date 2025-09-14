@@ -14,19 +14,19 @@
       {% set is_auth = (current_user is defined and current_user.is_authenticated) %}
       {% if is_auth %}
         <!-- ПРИВАТНІ (лише після входу) -->
-        <a class="{{ 'active' if request.endpoint=='top100' else '' }}" href="{{ url_for('top100') }}">Top PXP</a>
+        <a class="{{ 'active' if request.endpoint=='profile.top' else '' }}" href="{{ url_for('profile.top') }}">Top PXP</a>
         &nbsp;|&nbsp;
-        <a class="{{ 'active' if request.endpoint=='donate' else '' }}" href="{{ url_for('donate') }}">Donate</a>
+        <a class="{{ 'active' if request.endpoint=='profile.donate' else '' }}" href="{{ url_for('profile.donate') }}">Donate</a>
         &nbsp;|&nbsp;
-        <a class="{{ 'active' if request.endpoint=='profile' else '' }}" href="{{ url_for('profile') }}">Профіль</a>
+        <a class="{{ 'active' if request.endpoint=='profile.profile' else '' }}" href="{{ url_for('profile.profile') }}">Профіль</a>
         &nbsp;|&nbsp;
         {{ (current_user.name or current_user.email)|default('', true) }}
         &nbsp;|&nbsp; PXP: {{ pxp|default(0, true) }}
-        &nbsp;<a href="{{ url_for('logout') }}">Вийти</a>
+        &nbsp;<a href="{{ url_for('auth.logout') }}">Вийти</a>
       {% else %}
         PXP: {{ pxp|default(0, true) }}
-        &nbsp;<a class="{{ 'active' if request.endpoint=='login' else '' }}" href="{{ url_for('login', next=request.full_path if request.query_string else request.path) }}">Увійти</a>
-        &nbsp;<a class="{{ 'active' if request.endpoint=='register' else '' }}" href="{{ url_for('register', next=request.full_path if request.query_string else request.path) }}">Реєстрація</a>
+        &nbsp;<a class="{{ 'active' if request.endpoint=='auth.login' else '' }}" href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">Увійти</a>
+        &nbsp;<a class="{{ 'active' if request.endpoint=='auth.register' else '' }}" href="{{ url_for('auth.register', next=request.full_path if request.query_string else request.path) }}">Реєстрація</a>
       {% endif %}
     </li>
   </ul>
