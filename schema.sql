@@ -1,33 +1,28 @@
--- schema.sql
-
-DROP TABLE IF EXISTS messages CASCADE;
-DROP TABLE IF EXISTS transactions CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
--- Таблиця користувачів
-CREATE TABLE users (
+-- users table
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT,
+    email VARCHAR(255) UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    password VARCHAR(255),
     bio TEXT,
-    avatar TEXT,
+    avatar VARCHAR(255),
     pxp INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Таблиця транзакцій (донати, поповнення pxp)
-CREATE TABLE transactions (
+-- transactions table
+CREATE TABLE IF NOT EXISTS transactions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     amount INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    type VARCHAR(50) NOT NULL,   -- наприклад: 'donate', 'reward', 'purchase'
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Таблиця повідомлень між користувачами
-CREATE TABLE messages (
+-- messages table (чат)
+CREATE TABLE IF NOT EXISTS messages (
     id SERIAL PRIMARY KEY,
-    sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    receiver_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT NOW()
 );
