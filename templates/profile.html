@@ -7,7 +7,7 @@
   {% if not current_user or not current_user.is_authenticated %}
     <div class="panel" style="text-align:center">
       <p class="muted">Щоб редагувати профіль, увійди.</p>
-      <a class="btn" href="{{ url_for('login') }}">Увійти</a>
+      <a class="btn" href="{{ url_for('auth.login') }}">Увійти</a>
     </div>
   {% else %}
   <div class="panel">
