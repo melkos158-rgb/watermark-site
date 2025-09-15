@@ -4,7 +4,7 @@
   <h2>Увійти</h2>
 
   <!-- Локальний логін (e-mail + пароль) -->
-  <form method="post" action="{{ url_for('login_local') }}">
+  <form method="post" action="{{ url_for('auth.login_post') }}">
     <input type="email" name="email" placeholder="Email" required>
     <input type="password" name="password" placeholder="Пароль" required>
     <button type="submit">Увійти</button>
@@ -13,11 +13,12 @@
   <div class="divider">або</div>
 
   <!-- Соц-входи -->
-  <a class="btn oauth google" href="{{ url_for('login_google') }}">Увійти через Google</a>
+  <a class="btn oauth google" href="{{ url_for('auth.login_google') }}">Увійти через Google</a>
   <a class="btn oauth apple" href="#">Увійти через Apple (скоро)</a>
 
   <p class="muted">
-    Немає акаунта? <a href="{{ url_for('register') }}" class="reg-link">Зареєструватися</a><br>
+    Немає акаунта?
+    <a href="{{ url_for('auth.register') }}" class="reg-link">Зареєструватися</a><br>
     <small>Порада: після реєстрації по e-mail ти отримаєш свій довгий код — він зберігається у профілі.</small>
   </p>
 </div>
@@ -43,7 +44,7 @@
   var next = params.get('next');
   if (!next) return;
 
-  var form = document.querySelector('form[action$="{{ url_for("login_local") }}"]');
+  var form = document.querySelector('form[action$="{{ url_for("auth.login_post") }}"]');
   if (form) {
     var u = new URL(form.action, location.origin);
     u.searchParams.set('next', next);
