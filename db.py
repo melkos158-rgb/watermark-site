@@ -1,11 +1,11 @@
 # db.py
-from flask_sqlalchemy import SQLAlchemy
-from flask import Flask
+import os
 from datetime import datetime
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
 
-# Ініціалізація SQLAlchemy
+# Ініціалізація
 db = SQLAlchemy()
-
 
 # -----------------------------
 # МОДЕЛІ
@@ -13,13 +13,13 @@ db = SQLAlchemy()
 class User(db.Model):
     __tablename__ = "users"
 
-    id = db.Column(db.Integer, primary_key=True)   # Унікальний ID
-    email = db.Column(db.String(255), unique=True, nullable=False)  # Логін/Google email
-    name = db.Column(db.String(120))               # Ім’я/нік
-    bio = db.Column(db.Text)                       # Про себе
-    avatar = db.Column(db.Text)                    # URL або data:image
-    pxp = db.Column(db.Integer, default=0)         # Баланс PXP
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Дата реєстрації
+    id         = db.Column(db.Integer, primary_key=True)           # незмінний числовий ID
+    email      = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    name       = db.Column(db.String(120))
+    bio        = db.Column(db.Text)
+    avatar     = db.Column(db.Text)                                # URL або data:image
+    pxp        = db.Column(db.Integer, default=0, nullable=False)  # баланс PXP
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f"<User {self.id} {self.email} PXP={self.pxp}>"
@@ -28,41 +28,61 @@ class User(db.Model):
 class Transaction(db.Model):
     __tablename__ = "transactions"
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    amount = db.Column(db.Integer, nullable=False)  # Скільки PXP зараховано/витрачено
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    amount     = db.Column(db.Integer, nullable=False)             # +donate / -spend
+    kind       = db.Column(db.String(20), nullable=False, default="manual")  # donate|spend|manual
+    note       = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Зв’язок: кожна транзакція належить користувачу
     user = db.relationship("User", backref=db.backref("transactions", lazy=True))
 
     def __repr__(self):
-        return f"<Transaction {self.id} user={self.user_id} amount={self.amount}>"
+        return f"<Transaction {self.id} u={self.user_id} {self.kind} {self.amount}>"
+
+
+class Message(db.Model):
+    __tablename__ = "messages"
+
+    id           = db.Column(db.Integer, primary_key=True)
+    sender_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    body         = db.Column(db.Text, nullable=False)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sender    = db.relationship("User", foreign_keys=[sender_id], backref=db.backref("sent_messages", lazy=True))
+    recipient = db.relationship("User", foreign_keys=[recipient_id], backref=db.backref("inbox_messages", lazy=True))
+
+    def __repr__(self):
+        return f"<Message {self.id} {self.sender_id}->{self.recipient_id}>"
 
 # -----------------------------
 # INIT & CLOSE
 # -----------------------------
 def init_app_db(app: Flask):
     """
-    Підключає базу до Flask app.
-    Використовує Postgres (DATABASE_URL), якщо є,
-    інакше SQLite для локального запуску.
+    Підключає БД до Flask:
+    - Якщо є env DATABASE_URL (Railway Postgres) — використовує її
+      і виправляє схему postgres:// → postgresql://
+    - Інакше SQLite локально: sqlite:///database.db
     """
-    app.config["SQLALCHEMY_DATABASE_URI"] = app.config.get(
-        "DATABASE_URL", "sqlite:///database.db"
-    )
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", db_url or "sqlite:///database.db")
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
 
     db.init_app(app)
-
-    # створюємо таблиці при першому запуску
     with app.app_context():
         db.create_all()
 
-
 def close_db(error=None):
-    """Закриває сесію після кожного запиту"""
+    """Закриває сесію SQLAlchemy після кожного запиту (для gunicorn/teardown)."""
     try:
         db.session.remove()
+    except Exception:
+        pass
+
     except Exception:
         pass
