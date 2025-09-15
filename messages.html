@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Повідомлення</h2>
+<div class="card">
+  <form method="post" action="{{ url_for('profile.send_message') }}">
+    <label>Кому (ID)</label>
+    <select class="input" name="to_id">
+      {% for u in users %}
+        <option value="{{ u.id }}">{{ u.id }} — {{ u.email }}</option>
+      {% endfor %}
+    </select>
+    <label>Текст</label>
+    <textarea class="textarea" name="body"></textarea>
+    <button class="btn">Надіслати</button>
+  </form>
+</div>
+<div class="card" style="margin-top:12px">
+  <h3>Вхідні</h3>
+  <table class="table">
+    <thead><tr><th>Від</th><th>Коли</th><th>Текст</th></tr></thead>
+    <tbody>
+      {% for m in inbox %}
+        <tr>
+          <td>{{ m.sender_id }}</td>
+          <td>{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ m.body }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
