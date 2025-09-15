@@ -1,17 +1,17 @@
 # app.py
 import os
 from flask import Flask, render_template
-from db import init_app_db, close_db, db, User  # ← ПІДКЛЮЧАЄМО БД ТУТ
+from db import init_app_db, close_db, db, User  # підключаємо БД тут
 
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
-    # 1) Спочатку підключаємо БД до app
+    # 1) підключаємо БД до Flask
     init_app_db(app)
     app.teardown_appcontext(close_db)
 
-    # 2) Тільки після цього імпортуємо і реєструємо блюпринти
+    # 2) тільки після ініціалізації БД — імпорт і реєстрація blueprints
     import auth           # auth.bp
     import profile        # profile.bp
     import chat           # chat.bp
@@ -19,7 +19,7 @@ def create_app():
     app.register_blueprint(profile.bp)
     app.register_blueprint(chat.bp)
 
-    # 3) Шапка: current_user і pxp доступні у всіх шаблонах
+    # 3) доступні у всіх шаблонах
     @app.context_processor
     def inject_user():
         from flask import session
@@ -51,15 +51,17 @@ def create_app():
     def photo():
         return render_template("photo.html")
 
-    # Healthcheck для платформи
+    # healthcheck
     @app.route("/healthz")
     def healthz():
         return "ok", 200
 
     return app
 
-# Gunicorn очікує змінну app
+# Gunicorn: app:app
 app = create_app()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+
