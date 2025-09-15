@@ -86,3 +86,31 @@ def close_db(error=None):
 
     except Exception:
         pass
+# -----------------------------
+# INIT & CLOSE
+# -----------------------------
+def init_app_db(app: Flask):
+    """
+    Підключає БД до Flask:
+    - Якщо є env DATABASE_URL (Railway Postgres) — використовує її
+      і виправляє схему postgres:// → postgresql://
+    - Інакше SQLite локально: sqlite:///database.db
+    """
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", db_url or "sqlite:///database.db")
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+
+    db.init_app(app)
+    with app.app_context():
+        db.create_all()
+
+
+def close_db(error=None):
+    """Закриває сесію SQLAlchemy після кожного запиту (для gunicorn/teardown)."""
+    try:
+        db.session.remove()
+    except Exception:
+        pass
