@@ -1,6 +1,6 @@
 <nav class="navbar">
   <div class="nav-wrap">
-    <!-- ЛІВО: завжди видимі -->
+    <!-- ЛІВО: завжди видимі вкладки -->
     <a class="nav-btn {{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a>
@@ -8,7 +8,7 @@
     <a class="nav-btn {{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo</a>
 
-    <!-- ПРАВО: тема + вкладки після входу -->
+    <!-- ПРАВО: перемикач тем + вкладки після входу -->
     <div style="display:flex; align-items:center; gap:12px; margin-left:auto">
       <!-- Перемикач тем -->
       <select id="themeSelect" aria-label="Тема" style="height:32px; border-radius:8px; padding:0 8px;">
@@ -18,15 +18,27 @@
         <option value="minecraft">Minecraft</option>
       </select>
 
-      {% if (current_user is defined and current_user.is_authenticated) or (g.user and g.user.is_authenticated) %}
+      {# Надійна перевірка входу (нічого в коді не міняємо) #}
+      {% set has_user =
+           (g is defined and g.user) or
+           (session and session.get('user_id')) or
+           (current_user is defined and current_user.is_authenticated) %}
+
+      {% if has_user %}
         <a class="nav-btn {{ 'active' if request.endpoint=='top100' else '' }}" href="{{ url_for('top100') }}">Top-100</a>
         <span aria-hidden="true">|</span>
         <a class="nav-btn {{ 'active' if request.endpoint=='donate' else '' }}" href="{{ url_for('donate') }}">Donate</a>
         <span aria-hidden="true">|</span>
         <a class="nav-btn {{ 'active' if request.endpoint=='profile' else '' }}" href="{{ url_for('profile') }}">Профіль</a>
+
         <span style="opacity:.8">
-          {{ (current_user.name if current_user is defined else g.user.name) or (current_user.email if current_user is defined else g.user.email) }}
+          {{ (g.user.name if g is defined and g.user and g.user.name
+              else (current_user.name if current_user is defined and current_user.is_authenticated and current_user.name
+              else (g.user.email if g is defined and g.user and g.user.email
+              else (current_user.email if current_user is defined and current_user.is_authenticated else '')))) }}
+          {% if g is defined and g.user and (g.user.pxp is not none) %} • PXP: {{ g.user.pxp }}{% endif %}
         </span>
+
         <a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a>
       {% else %}
         <a class="nav-btn {{ 'active' if request.endpoint=='auth.login' else '' }}" href="{{ url_for('auth.login') }}">Увійти</a>
@@ -37,22 +49,37 @@
 
 <script>
   (function(){
+    // відповідність значення -> шлях до CSS теми
     var THEME_MAP = {
       main:      "{{ url_for('static', filename='themes/main.css') }}",
       cat:       "{{ url_for('static', filename='themes/cat.css') }}",
       hellowen:  "{{ url_for('static', filename='themes/hellowen.css') }}",
       minecraft: "{{ url_for('static', filename='themes/minecraft.css') }}"
     };
+
     var select = document.getElementById('themeSelect');
     var linkEl = document.getElementById('theme-css');
+
+    // початкове значення
     var saved = localStorage.getItem('theme') || 'main';
     if (select) select.value = THEME_MAP[saved] ? saved : 'main';
-    function applyTheme(v){
-      var href = THEME_MAP[v] || THEME_MAP.main;
+
+    function applyTheme(val){
+      var href = THEME_MAP[val] || THEME_MAP.main;
       if (linkEl) linkEl.href = href;
-      localStorage.setItem('theme', v);
-      document.documentElement.setAttribute('data-theme', v);
+      localStorage.setItem('theme', val);
+      document.documentElement.setAttribute('data-theme', val);
     }
+
+    if (select) {
+      select.addEventListener('change', function(){
+        applyTheme(this.value);
+      });
+    }
+  })();
+</script>
+
     if (select) select.addEventListener('change', function(){ applyTheme(this.value); });
   })();
 </script>
+
