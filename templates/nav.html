@@ -1,72 +1,39 @@
 <nav class="navbar">
-  <div class="nav-wrap">
+  <ul class="nav">
     <!-- Ліва частина -->
-    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('index') else '' }}" href="{{ url_for('index') }}">Головна</a>
-    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('stl') else '' }}" href="{{ url_for('stl') }}">STL3D</a>
-    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('video') else '' }}" href="{{ url_for('video') }}">Video</a>
-    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('enhance') else '' }}" href="{{ url_for('enhance') }}">Photo Enhance</a>
-    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('edit_photo') else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
-    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('photo') else '' }}" href="{{ url_for('photo') }}">Photo</a>
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a></li>
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a></li>
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a></li>
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='enhance' else '' }}" href="{{ url_for('enhance') }}">Photo Enhance</a></li>
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a></li>
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo</a></li>
+  </ul>
 
-    <!-- Права частина -->
-    <div style="display:flex; align-items:center; gap:12px; margin-left:auto">
-      <!-- Перемикач тем -->
-      <label for="themeSelect" class="sr-only">Тема</label>
-      <select id="themeSelect" aria-label="Вибір теми" style="height:32px; border-radius:8px; padding:0 8px;">
-        <option value="main">Main</option>
-        <option value="cat">Cat</option>
+  <ul class="nav" style="margin-left:auto;">
+    <!-- Тема -->
+    <li>
+      <select id="themeSwitcher">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="midnight">Midnight</option>
         <option value="hellowen">Hellowen</option>
         <option value="minecraft">Minecraft</option>
+        <option value="cat">Cat</option>
       </select>
+    </li>
 
-      <!-- Додаткові сторінки -->
-      <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('top100') else '' }}" href="{{ url_for('profile.top100') }}">Top-100</a>
-      <span aria-hidden="true">|</span>
-      <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('donate') else '' }}" href="{{ url_for('profile.donate') }}">Donate</a>
-      <span aria-hidden="true">|</span>
+    <!-- Додаткові сторінки -->
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='top100' else '' }}" href="{{ url_for('top100') }}">Top-100</a></li>
+    <li><a class="nav-btn {{ 'active' if request.endpoint=='donate' else '' }}" href="{{ url_for('donate') }}">Donate</a></li>
 
-      {% if g.user and g.user.is_authenticated %}
-        <!-- ВАРІАНТ 1: якщо профіль у звичайному app.py -->
-        <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('profile') else '' }}" href="{{ url_for('profile') }}">Профіль</a>
-
-        <!-- ВАРІАНТ 2: якщо профіль у Blueprint 'profile' -->
-        {# <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('profile') else '' }}" href="{{ url_for('profile.profile') }}">Профіль</a> #}
-
-        <span style="opacity:.8">{{ g.user.name or '' }}</span>
-        <a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a>
-      {% else %}
-        <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('login') else '' }}" href="{{ url_for('auth.login') }}">Увійти</a>
-      {% endif %}
-    </div>
-  </div>
+    {% if g.user and g.user.is_authenticated %}
+      <!-- Якщо увійшов -->
+      <li><a class="nav-btn {{ 'active' if request.endpoint=='profile' else '' }}" href="{{ url_for('profile') }}">Профіль</a></li>
+      <li><span>{{ g.user.name }}</span> | PXP: {{ g.user.pxp or 0 }}</li>
+      <li><a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a></li>
+    {% else %}
+      <!-- Якщо не увійшов -->
+      <li><a class="nav-btn {{ 'active' if request.endpoint=='auth.login' else '' }}" href="{{ url_for('auth.login') }}">Увійти</a></li>
+    {% endif %}
+  </ul>
 </nav>
-
-<script>
-  (function(){
-    var THEME_MAP = {
-      main:      "{{ url_for('static', filename='themes/main.css') }}",
-      cat:       "{{ url_for('static', filename='themes/cat.css') }}",
-      hellowen:  "{{ url_for('static', filename='themes/hellowen.css') }}",
-      minecraft: "{{ url_for('static', filename='themes/minecraft.css') }}"
-    };
-
-    var select = document.getElementById('themeSelect');
-    var linkEl = document.getElementById('theme-css');
-
-    var saved = localStorage.getItem('theme') || 'main';
-    if (select) select.value = THEME_MAP[saved] ? saved : 'main';
-
-    function applyTheme(val){
-      var href = THEME_MAP[val] || THEME_MAP.main;
-      if (linkEl) linkEl.href = href;
-      localStorage.setItem('theme', val);
-      document.documentElement.setAttribute('data-theme', val);
-    }
-
-    if (select) {
-      select.addEventListener('change', function(){
-        applyTheme(this.value);
-      });
-    }
-  })();
-</script>
