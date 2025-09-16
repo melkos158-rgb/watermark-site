@@ -1,56 +1,402 @@
-/* ===== MAIN THEME — чорна шапка, сині кнопки, білий текст, ховер фіолетовий ===== */
-
-/* Базові змінні */
+/* ===== MAIN THEME (форма + дизайн) ===== */
 :root{
+  --bg:#0f1115;
+  --ink:#e8eaed;
+
   --nav-bg:#000000;
-  --btn-bg:#1c64ec;
-  --btn-text:#ffffff;
-  --btn-text-hover:#6c63ff; /* фіолетовий */
-  --line:#111317;
+  --line:#1b2131;
+
+  --card:#11141b;
+  --muted:#9fb0d4;
+  --link:#8ab4ff;
+
+  --btn-bg:#1c64ec;       /* сині кнопки */
+  --btn-text:#ffffff;     /* білий текст */
+  --btn-text-hover:#6c63ff; /* фіолетовий при hover */
 }
 
-/* 1) ШАПКА (охоплюємо найпоширеніші варіанти контейнера) */
-html[data-theme="main"] :is(nav, .navbar, header, .topbar, .top, .site-nav, .nav-wrap){
-  background:var(--nav-bg) !important;
-  border-bottom:1px solid var(--line) !important;
-  color:#fff !important;
+/* =========================
+   Global reset + base
+   ========================= */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: Arial, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+a{ color: var(--link); text-decoration: none; }
+a:hover{ text-decoration: underline; }
+
+/* =========================
+   Top Navigation
+   ========================= */
+nav {
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--line);
+}
+.nav-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 24px;
+}
+.brand {
+  color: #e8eaed;
+  font-weight: 800;
+  letter-spacing: .2px;
+  margin-right: auto;
 }
 
-/* 2) ПОСИЛАННЯ/КНОПКИ В ШАПЦІ
-   (спрацює навіть якщо немає .nav-btn і це просто <a>) */
-html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a,
-html[data-theme="main"] .nav-btn{
-  background:var(--btn-bg) !important;
-  color:var(--btn-text) !important;
-  border:1px solid transparent !important;
-  border-radius:10px !important;
-  padding:8px 12px !important;
-  display:inline-block !important;
-  text-decoration:none !important;
-  line-height:1.2 !important;
+/* Tabs (Фото / STL / Відео) */
+.nav-btn {
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  transition: color .15s ease, background-color .15s ease, transform .06s ease;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid transparent;
 }
-html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a:hover,
-html[data-theme="main"] .nav-btn:hover{
-  color:var(--btn-text-hover) !important;  /* фіолетовий текст при наведенні */
-}
-html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a.active,
-html[data-theme="main"] .nav-btn.active{
-  filter:brightness(1.06) !important;
-  color:#fff !important;
+.nav-btn:hover { color: var(--btn-text-hover); }
+.nav-btn:active { transform: translateY(1px); }
+.nav-btn.active {
+  filter: brightness(1.06);
+  color: #fff;
 }
 
-/* 3) ЗВИЧАЙНІ КНОПКИ ПО САЙТУ (якщо є клас .btn) */
-html[data-theme="main"] .btn{
-  background:var(--btn-bg) !important;
-  color:var(--btn-text) !important;
-  border-color:transparent !important;
-}
-html[data-theme="main"] .btn:hover{
-  color:var(--btn-text-hover) !important;
+/* =========================
+   3-column Layout
+   ========================= */
+.layout {
+  max-width: 1280px;
+  margin: 20px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 320px 1fr 320px;
+  gap: 22px;
 }
 
-/* 4) Невеличкий захист від утилітних класів, що фарбують <a> */
-html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a[class*="text-"],
-html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a[class*="link-"]{
-  color:var(--btn-text) !important;
+/* Cards / Canvas */
+.card, .canvas-wrap {
+  background: #ffffff0a;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  border: 1px solid #293043;
+}
+.card { padding: 16px 16px 18px; }
+.canvas-wrap { padding: 16px; text-align: center; }
+
+.card h2, .canvas-wrap h2 {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  color: #e9ecff;
+}
+
+/* Canvas / Video area */
+.canvas-wrap canvas,
+.canvas-wrap video {
+  display: block;
+  max-width: 100%;
+  max-height: 560px;
+  width: 100%;
+  border: 1px solid #2a334a;
+  border-radius: 10px;
+  background: #1a2031;
+}
+.tip {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #9fb0d4;
+}
+
+/* =========================
+   Inputs
+   ========================= */
+label { display: block; font-size: 13px; color: #b8c6e8; margin: 8px 0 6px; }
+
+input[type="text"],
+input[type="color"],
+select {
+  width: 100%;
+  height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #2b3551;
+  border-radius: 8px;
+  background: #0f1422;
+  color: var(--ink);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+input[type="text"]:focus,
+input[type="color"]:focus,
+select:focus {
+  border-color: var(--btn-text-hover);
+  box-shadow: 0 0 0 3px rgba(108,99,255,.18);
+}
+
+/* File input */
+input[type="file"] {
+  width: 100%;
+  font-size: 14px;
+  color: #cdd8ff;
+}
+input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .15s ease, transform .06s ease, color .15s ease;
+}
+input[type="file"]::file-selector-button:hover { color: var(--btn-text-hover); }
+input[type="file"]::file-selector-button:active { transform: translateY(1px); }
+
+/* Checkboxes inline */
+.check-inline { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+.check-inline label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+/* =========================
+   Sliders (range)
+   ========================= */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  margin: 2px 0 12px;
+}
+/* WebKit track */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  background: #2b3551;
+  border-radius: 999px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px; height: 18px;
+  background: var(--btn-bg);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  margin-top: -5px;
+  box-shadow: 0 2px 6px rgba(28,100,236,.35);
+  cursor: pointer;
+}
+/* Firefox */
+input[type="range"]::-moz-range-track {
+  height: 8px; border-radius: 999px; background: #2b3551;
+}
+input[type="range"]::-moz-range-progress {
+  height: 8px; border-radius: 999px; background: var(--btn-bg);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--btn-bg);
+  box-shadow: 0 2px 6px rgba(28,100,236,.35);
+  cursor: pointer;
+}
+
+/* =========================
+   Buttons
+   ========================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease, transform .06s ease;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+}
+.btn:hover { color: var(--btn-text-hover); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--btn-bg); color: var(--btn-text); }
+.btn.ghost {
+  background: transparent;
+  color: var(--btn-bg);
+  border-color: #3a4b82;
+}
+.btn.ghost:hover { color: var(--btn-text-hover); background: rgba(108,99,255,.12); }
+
+/* Ряд кнопок у центрі */
+.canvas-wrap .row { margin-top: 14px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* =========================
+   EDIT PHOTO
+   ========================= */
+.photo-editor { display: grid; grid-template-columns: 280px 1fr; gap: 22px; }
+@media (max-width: 1024px){ .photo-editor { grid-template-columns: 1fr; }}
+
+/* Ліва панель інструментів */
+.pe-panel {
+  background: #0f1422;
+  border: 1px solid #2b3551;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  padding: 16px;
+}
+.pe-panel h3 { margin: 0 0 10px; font-size: 16px; color: #e9ecff; }
+.pe-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pe-tool {
+  display: flex; align-items: center; justify-content: center;
+  height: 38px; border: 1px solid #2b3551; border-radius: 10px;
+  background: #0d1220; font-weight: 600; cursor: pointer;
+  transition: background-color .15s ease, transform .06s ease, color .15s ease;
+  color:#d4deff;
+}
+.pe-tool:hover { background: #121a2d; color:#c8d1ff; }
+.pe-tool:active { transform: translateY(1px); }
+.pe-tool.is-active { background: var(--btn-bg); color: #fff; border-color: transparent; }
+
+/* Центральна зона полотна */
+.pe-canvas {
+  background: #0f1422;
+  border: 1px solid #2b3551;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  padding: 16px;
+}
+.pe-canvas .stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: #1a2031;
+  border: 1px solid #2b3551;
+  border-radius: 10px;
+  min-height: 520px;
+  overflow: hidden;
+}
+.pe-canvas canvas { max-width: 100%; max-height: 560px; display: block; }
+
+/* Нижня тулбар-лінійка */
+.pe-toolbar { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.pe-toolbar .btn { min-width: 120px; }
+
+/* Слайдери панелі */
+.pe-sliders { margin-top: 12px; display: grid; gap: 10px; }
+.pe-slider-row { display: grid; grid-template-columns: 100px 1fr 56px; gap: 10px; align-items: center; }
+.pe-slider-row .val { text-align: right; font-variant-numeric: tabular-nums; color:#9fb0d4; }
+
+/* Перемикачі */
+.pe-switch {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border: 1px solid #2b3551; border-radius: 999px;
+  background: #0f1422; color:#cbd6ff; cursor: pointer; user-select: none;
+}
+.pe-switch .dot {
+  width: 12px; height: 12px; border-radius: 50%; background: #4c5674;
+  transition: background-color .15s ease;
+}
+.pe-switch.is-on .dot { background: var(--btn-bg); }
+
+/* Кадрування */
+.pe-crop-box { position: absolute; inset: 0; pointer-events: none; }
+.pe-crop-rect {
+  position: absolute; border: 2px dashed rgba(108,99,255,.9);
+  background: rgba(108,99,255,.12);
+  pointer-events: auto;
+}
+.pe-crop-handle {
+  position: absolute; width: 12px; height: 12px; border-radius: 2px;
+  background: var(--btn-bg); border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.pe-crop-handle.nw { top: -6px; left: -6px; }  .pe-crop-handle.ne { top: -6px; right: -6px; }
+.pe-crop-handle.sw { bottom: -6px; left: -6px; } .pe-crop-handle.se { bottom: -6px; right: -6px; }
+
+/* Сітка поверх зображення (опційна) */
+.pe-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.08) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: .9;
+}
+
+/* Бейджі/підказки */
+.pe-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 10px;
+  border-radius: 999px; background: #1b2336; color: #d7e0ff; font-weight: 600;
+}
+
+/* Стани/утиліти */
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* Нотифікації (toast) */
+.pe-toast { position: fixed; top: 16px; right: 16px; z-index: 9999; display: grid; gap: 10px; }
+.pe-toast .item {
+  background: #0f1422; color: #e8eaed;
+  border: 1px solid #2b3551; border-radius: 10px;
+  padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+
+/* Спінер */
+.pe-spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid #2b3551; border-top-color: var(--btn-bg);
+  animation: pe-spin 1s linear infinite; margin: 0 auto;
+}
+@keyframes pe-spin { to { transform: rotate(360deg); } }
+
+/* =========================
+   WELCOME PAGE
+   ========================= */
+.w-container { width: min(1100px, 92vw); margin: 0 auto; padding: 0 20px; }
+
+.welcome-hero {
+  background: radial-gradient(90% 120% at 10% 0%, #1a2240 0, #12182b 45%, #0f1115 100%);
+  border-bottom: 1px solid #2b3551;
+  padding: 28px 0 24px;
+}
+.welcome-hero h1 { margin: 0 0 8px; font-size: 28px; color:#e9ecff; }
+.welcome-hero p { margin: 0 0 14px; color: #9fb0d4; }
+.cta-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.skip-toggle { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; user-select: none; color: #9fb0d4; font-size: 13px; }
+.skip-toggle input { width: 16px; height: 16px; }
+
+.welcome-grid {
+  width: min(1100px, 92vw);
+  margin: 18px auto;
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 920px){ .welcome-grid { grid-template-columns: 1fr; } }
+
+.w-ol { margin: 0 0 6px 18px; }
+.w-ul { margin: 0; padding-left: 18px; }
+.w-ul li, .w-ol li { margin: 6px 0; }
+
+.faq-item { background:#0f1422; border:1px solid #2b3551; border-radius: 10px; padding: 10px 12px; color:#dfe7ff; }
+.faq-item + .faq-item { margin-top: 8px; }
+.faq-item summary { cursor: pointer; font-weight: 700; color: #e9ecff; }
+
+.welcome-foot { width: min(1100px, 92vw); margin: 0 auto 18px; }
+.welcome-foot .w-container { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.welcome-foot .foot-left { display: grid; gap: 6px; color:#b9c8f0; }
+.welcome-foot .foot-right { display: flex; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 720px){
+  .welcome-foot .w-container { flex-direction: column; align-items: stretch; }
+  .welcome-foot .foot-right { justify-content: flex-start; }
 }
