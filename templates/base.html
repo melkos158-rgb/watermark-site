@@ -5,26 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}{{ title or 'PXP' }}{% endblock %}</title>
 
-  <!-- Головний CSS -->
+  <!-- 1) ТЕМИ: лінк, який міняємо динамічно -->
+  <link id="theme-css" rel="stylesheet" href="{{ url_for('static', filename='themes/dark.css') }}">
+  <script>
+    (function(){
+      var saved = localStorage.getItem('theme') || 'dark';
+      var map = {
+        dark: '{{ url_for("static", filename="themes/dark.css") }}',
+        light: '{{ url_for("static", filename="themes/light.css") }}',
+        midnight: '{{ url_for("static", filename="themes/midnight.css") }}'
+      };
+      var el = document.getElementById('theme-css');
+      if (el) el.href = map[saved] || map.dark;
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
+
+  <!-- 2) Твої глобальні стилі (поверх темових змінних) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
   <style>
-    body{margin:0;background:#0f1115;color:#e8eaed;font-family:system-ui,Segoe UI,Roboto,Arial}
+    /* використовуємо змінні з файлів тем як базу */
+    :root{
+      /* запасні значення, якщо файл тем не підвантажився */
+      --bg:#0f1115;
+      --ink:#e8eaed;
+      --line:#1b2131;
+      --card:#11141b;
+      --muted:#9fb0d4;
+      --btn:#1c64ec;
+      --nav-bg:#0b0d12;
+      --link:#8ab4ff;
+    }
+
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:system-ui,Segoe UI,Roboto,Arial
+    }
     main{max-width:1100px;margin:16px auto;padding:0 20px}
-    a{color:#8ab4ff;text-decoration:none}
+    a{color:var(--link);text-decoration:none}
     a:hover{text-decoration:underline}
 
     /* flash */
     .flash{margin:10px 0}
     .flash .item{
-      background:#132038;border:1px solid #223055;color:#dbe5ff;
+      background:color-mix(in srgb, var(--card) 88%, #1f2b45 12%);
+      border:1px solid color-mix(in srgb, var(--line) 85%, #2a3b63 15%);
+      color:color-mix(in srgb, var(--ink) 85%, #dbe5ff 15%);
       padding:10px;border-radius:10px;margin-bottom:8px
     }
 
     /* ===== Chat widget (bottom-left) ===== */
     .chat-fab{
       position:fixed; left:18px; bottom:18px; width:52px; height:52px;
-      border-radius:50%; border:1px solid #25304b; background:#1a1f2e; color:#e8eaed;
+      border-radius:50%; border:1px solid color-mix(in srgb, var(--line) 90%, #25304b 10%);
+      background:color-mix(in srgb, var(--card) 85%, #1a1f2e 15%);
+      color:var(--ink);
       display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:9999;
       box-shadow:0 8px 24px rgba(0,0,0,.35);
       font-size:22px;
@@ -32,18 +70,21 @@
     .chat-fab:hover{filter:brightness(1.05)}
     .chat-panel{
       position:fixed; left:18px; bottom:80px; width:320px; max-height:420px;
-      background:#0f131c; border:1px solid #1e2740; border-radius:14px;
+      background:var(--card); border:1px solid var(--line); border-radius:14px;
       box-shadow:0 12px 28px rgba(0,0,0,.45); display:none; z-index:9999;
       overflow:hidden;
     }
-    .chat-head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#0b1220; border-bottom:1px solid #1e2740}
+    .chat-head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--nav-bg); border-bottom:1px solid var(--line)}
     .chat-head b{font-size:14px}
     .chat-body{height:280px; overflow:auto; padding:10px 10px 0; display:flex; flex-direction:column; gap:8px}
-    .chat-msg{background:#111a2b; border:1px solid #1e2740; border-radius:10px; padding:8px 10px; font-size:14px}
+    .chat-msg{background:color-mix(in srgb, var(--card) 85%, #111a2b 15%); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:14px}
     .chat-meta{opacity:.8; font-size:12px; margin-bottom:2px}
-    .chat-form{display:flex; gap:8px; padding:10px; border-top:1px solid #1e2740; background:#0f131c}
-    .chat-form input{flex:1; background:#0f131c; border:1px solid #26324a; color:#e8eaed; border-radius:10px; padding:8px 10px; outline:none}
-    .chat-form button{background:#1c64ec; border:0; color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer}
+    .chat-form{display:flex; gap:8px; padding:10px; border-top:1px solid var(--line); background:var(--card)}
+    .chat-form input{
+      flex:1; background:var(--bg); border:1px solid color-mix(in srgb, var(--line) 90%, #26324a 10%);
+      color:var(--ink); border-radius:10px; padding:8px 10px; outline:none
+    }
+    .chat-form button{background:var(--btn); border:0; color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer}
   </style>
 
   {% block extra_head %}{% endblock %}
@@ -69,7 +110,7 @@
   <div class="chat-panel" id="chatPanel" aria-live="polite">
     <div class="chat-head">
       <b>Загальний чат</b>
-      <button id="chatClose" style="background:transparent;border:0;color:#9fb0d4;cursor:pointer;font-size:16px">✕</button>
+      <button id="chatClose" style="background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:16px">✕</button>
     </div>
     <div class="chat-body" id="chatBody"></div>
     <form class="chat-form" id="chatForm" autocomplete="off">
@@ -146,3 +187,5 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
+
+
