@@ -1,36 +1,45 @@
-/* ===== MAIN THEME ===== */
-:root {
-  --bg: #0f1115;       /* фон сайту */
-  --ink: #e8eaed;      /* основний текст */
-  --line: #1b2131;     /* лінії/бордери */
-  --card: #11141b;     /* фон карток */
-  --muted: #9fb0d4;    /* приглушений текст */
-  --btn: #1c64ec;      /* сині кнопки */
-  --btn-text: #ffffff; /* текст кнопок */
-  --btn-hover: #6c63ff;/* фіолетовий при hover */
-  --nav-bg: #000000;   /* чорна шапка */
-  --link: #8ab4ff;
+/* ===== MAIN THEME (чорна шапка, сині кнопки) ===== */
+
+/* базові змінні теми */
+:root{
+  --nav-bg:#000000;
+  --ink:#e8eaed;
+  --btn-bg:#1c64ec;
+  --btn-text:#ffffff;
+  --btn-text-hover:#6c63ff; /* фіолетовий */
+  --line:#111317;
 }
 
-body {
-  background: var(--bg);
-  color: var(--ink);
+/* тільки фарбування: структура у style.css */
+nav{
+  background: var(--nav-bg) !important;
+  border-bottom: 1px solid var(--line);
 }
 
-/* ===== NAVBAR ===== */
-.navbar {
-  background: var(--nav-bg);
-}
-.nav-btn {
-  background: var(--btn);
+/* нав-кнопки (всі вкладки у шапці) */
+.nav-btn{
+  background: var(--btn-bg) !important;
   color: var(--btn-text) !important;
-  border: 1px solid transparent;
-  transition: color 0.15s ease, background 0.15s ease;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
-.nav-btn:hover {
-  color: var(--btn-hover) !important;
+.nav-btn:hover{
+  color: var(--btn-text-hover) !important;
 }
-.nav-btn.active {
-  background: #2b5fe9;
-  color: #fff !important;
+.nav-btn.active{
+  /* активну можна трохи підсвітити */
+  filter: brightness(1.05);
+  color: var(--btn-text) !important;
 }
+
+/* звичайні кнопки на сторінках (якщо є клас .btn) */
+.btn{
+  background: var(--btn-bg) !important;
+  color: var(--btn-text) !important;
+  border-color: transparent !important;
+}
+.btn:hover{
+  color: var(--btn-text-hover) !important;
+}
+
+/* не чіпаємо фон всього сайту — тільки шапку і кнопки */
