@@ -27,13 +27,11 @@
 
         <div class="stat">
           <div class="badge">💰 PXP: <b>{{ current_user.pxp or 0 }}</b></div>
-          {# Flask підказав endpoint 'profile.spend' — використовуємо його #}
           <form action="{{ url_for('profile.spend') }}" method="post" class="inline">
             <button class="btn small" type="submit">+1 PXP (test)</button>
           </form>
         </div>
 
-        <!-- Прямі шляхи, щоб не ловити BuildError, якщо ендпойнтів ще нема -->
         <a href="/top100" class="btn gray" style="width:100%;text-align:center">Top-100</a>
         <a href="/donate" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
       </div>
@@ -41,7 +39,7 @@
       <!-- Права колонка -->
       <div class="right">
         <div class="idline muted" style="margin-bottom:8px">
-          id: {{ current_user.id if current_user.id is not None else "—" }} • {{ current_user.email }}
+          id: {{ current_user.id or "—" }} • {{ current_user.email }}
         </div>
 
         <form method="post" action="{{ url_for('profile.profile_update') }}" id="profileForm" class="form">
@@ -125,3 +123,5 @@
 </script>
 
 {% endblock %}
+
+
