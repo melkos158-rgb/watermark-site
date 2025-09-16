@@ -6,47 +6,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    .welcome-container {
-      max-width: 900px;
+    .welcome-container{
+      max-width: 1100px;
       margin: 40px auto;
       padding: 20px;
       text-align: center;
     }
-    .welcome-container h1 {
+    .welcome-container h1{
       font-size: 2.5rem;
       margin-bottom: 16px;
     }
-    .welcome-container p {
-      color: #aeb4c1;
+    .welcome-container p{
+      color:#aeb4c1;
       margin-bottom: 24px;
     }
-    .welcome-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
-      gap: 20px;
+
+    /* Центруємо картки по середині */
+    .welcome-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:20px;
+      justify-content:center; /* <-- центр */
     }
-    .welcome-card {
-      background: #151923;
-      border: 1px solid #263043;
-      border-radius: 14px;
-      padding: 20px;
-      transition: .2s;
+
+    .welcome-card{
+      width:220px; /* фіксована ширина для охайного ряду */
+      background:#151923;
+      border:1px solid #263043;
+      border-radius:14px;
+      padding:20px;
+      transition:.2s;
     }
-    .welcome-card:hover {
-      transform: translateY(-4px);
-      border-color: #3b82f6;
+    .welcome-card:hover{
+      transform:translateY(-4px);
+      border-color:#3b82f6;
     }
-    .welcome-card a {
-      text-decoration: none;
-      color: #e8eaed;
-      font-weight: 600;
-      font-size: 1.1rem;
-      display: block;
-      margin-top: 8px;
+    .welcome-card a{
+      text-decoration:none;
+      color:#e8eaed;
+      font-weight:600;
+      font-size:1.1rem;
+      display:block;
+      margin-top:8px;
     }
-    .welcome-card span {
-      font-size: 0.9rem;
-      color: #aeb4c1;
+    .welcome-card span{
+      font-size:.9rem;
+      color:#aeb4c1;
     }
   </style>
 </head>
@@ -59,28 +64,31 @@
     <p>Обери потрібний редактор, щоб почати роботу:</p>
 
     <div class="welcome-grid">
-      <!-- Перейменовано: тепер це Edit Photo і веде на /edit-photo -->
+      <!-- Edit Photo -->
       <div class="welcome-card">
         <a href="{{ url_for('edit_photo') }}">✏️ Edit Photo</a>
         <span>Базовий редактор фото</span>
       </div>
 
+      <!-- Photo Enhance -->
       <div class="welcome-card">
         <a href="{{ url_for('enhance') }}">✨ Photo Enhance</a>
         <span>AI покращення й апскейл</span>
       </div>
 
+      <!-- STL -->
       <div class="welcome-card">
         <a href="{{ url_for('stl') }}">📐 STL</a>
         <span>Редактор 3D-моделей</span>
       </div>
 
+      <!-- Video -->
       <div class="welcome-card">
         <a href="{{ url_for('video') }}">🎬 Video</a>
         <span>Простий редактор відео</span>
       </div>
 
-      <!-- НОВА кнопка: окремий розділ Photo (веде на /photo) -->
+      <!-- Нова окрема кнопка Photo -->
       <div class="welcome-card">
         <a href="{{ url_for('photo') }}">📷 Photo</a>
         <span>Швидкі інструменти фото</span>
