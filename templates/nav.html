@@ -1,6 +1,6 @@
 <nav class="navbar">
   <div class="nav-wrap">
-    <!-- Ліва частина: основні лінки -->
+    <!-- Ліва частина -->
     <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('index') else '' }}" href="{{ url_for('index') }}">Головна</a>
     <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('stl') else '' }}" href="{{ url_for('stl') }}">STL3D</a>
     <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('video') else '' }}" href="{{ url_for('video') }}">Video</a>
@@ -19,7 +19,7 @@
         <option value="minecraft">Minecraft</option>
       </select>
 
-      <!-- Інші лінки -->
+      <!-- Додаткові сторінки (у Blueprint 'profile') -->
       <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('top100') else '' }}" href="{{ url_for('profile.top100') }}">Top-100</a>
       <span aria-hidden="true">|</span>
       <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('donate') else '' }}" href="{{ url_for('profile.donate') }}">Donate</a>
@@ -28,9 +28,9 @@
       {% if g.user and g.user.is_authenticated %}
         <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('profile') else '' }}" href="{{ url_for('profile.profile') }}">Профіль</a>
         <span style="opacity:.8">{{ g.user.name or '' }}</span>
-        <a class="nav-btn" href="{{ url_for('logout') }}">Вийти</a>
+        <a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a>
       {% else %}
-        <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('login') else '' }}" href="{{ url_for('login') }}">Увійти</a>
+        <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('login') else '' }}" href="{{ url_for('auth.login') }}">Увійти</a>
       {% endif %}
     </div>
   </div>
@@ -63,6 +63,17 @@
       select.addEventListener('change', function(){
         applyTheme(this.value);
       });
+    }
+
+    // Синхронізація селекта, якщо тема підвантажена інакша
+    if (linkEl) {
+      var currentHref = linkEl.getAttribute('href') || '';
+      var currentKey = Object.keys(THEME_MAP).find(k => currentHref.includes('/' + k + '.css'));
+      if (currentKey && currentKey !== select.value) {
+        select.value = currentKey;
+        localStorage.setItem('theme', currentKey);
+        document.documentElement.setAttribute('data-theme', currentKey);
+      }
     }
   })();
 </script>
