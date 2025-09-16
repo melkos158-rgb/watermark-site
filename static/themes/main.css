@@ -1,45 +1,47 @@
-/* ===== MAIN THEME (чорна шапка, сині кнопки) ===== */
+/* ==== MAIN THEME: чорна шапка, сині кнопки, білий текст, hover фіолетовий ==== */
 
 /* базові змінні теми */
 :root{
   --nav-bg:#000000;
-  --ink:#e8eaed;
   --btn-bg:#1c64ec;
   --btn-text:#ffffff;
   --btn-text-hover:#6c63ff; /* фіолетовий */
   --line:#111317;
+  --ink:#e8eaed;
 }
 
-/* тільки фарбування: структура у style.css */
-nav{
-  background: var(--nav-bg) !important;
-  border-bottom: 1px solid var(--line);
+/* шапка */
+html[data-theme="main"] nav{
+  background:var(--nav-bg) !important;
+  border-bottom:1px solid var(--line) !important;
 }
 
-/* нав-кнопки (всі вкладки у шапці) */
-.nav-btn{
-  background: var(--btn-bg) !important;
-  color: var(--btn-text) !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
+/* вкладки в шапці */
+html[data-theme="main"] .nav-btn{
+  background:var(--btn-bg) !important;
+  color:var(--btn-text) !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
 }
-.nav-btn:hover{
-  color: var(--btn-text-hover) !important;
+html[data-theme="main"] .nav-btn:hover{
+  color:var(--btn-text-hover) !important;
 }
-.nav-btn.active{
-  /* активну можна трохи підсвітити */
-  filter: brightness(1.05);
-  color: var(--btn-text) !important;
-}
-
-/* звичайні кнопки на сторінках (якщо є клас .btn) */
-.btn{
-  background: var(--btn-bg) !important;
-  color: var(--btn-text) !important;
-  border-color: transparent !important;
-}
-.btn:hover{
-  color: var(--btn-text-hover) !important;
+html[data-theme="main"] .nav-btn.active{
+  filter:brightness(1.06);
+  color:#fff !important;
 }
 
-/* не чіпаємо фон всього сайту — тільки шапку і кнопки */
+/* звичайні кнопки по сайту */
+html[data-theme="main"] .btn{
+  background:var(--btn-bg) !important;
+  color:var(--btn-text) !important;
+  border-color:transparent !important;
+}
+html[data-theme="main"] .btn:hover{
+  color:var(--btn-text-hover) !important;
+}
+
+/* необов’язково: колір посилань */
+html[data-theme="main"] a{
+  color:inherit;
+}
