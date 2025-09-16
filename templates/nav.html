@@ -1,32 +1,37 @@
 <nav class="navbar">
   <ul class="nav">
-    <!-- ПУБЛІЧНІ (видно всім) -->
+    <!-- Ліва частина (публічні) -->
     <li><a class="{{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a></li>
     <li><a class="{{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a></li>
     <li><a class="{{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a></li>
     <li><a class="{{ 'active' if request.endpoint=='enhance' else '' }}" href="{{ url_for('enhance') }}">Photo Enhance</a></li>
     <li><a class="{{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a></li>
-    <!-- NEW: окрема вкладка Photo -->
     <li><a class="{{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo</a></li>
 
-    <!-- ПРАВА ЧАСТИНА -->
+    <!-- Права частина -->
     <li class="ml-auto">
-      {% set is_auth = (current_user is defined and current_user.is_authenticated) %}
+      {# авторизація: у нас просто об'єкт користувача в контексті #}
+      {% set is_auth = (current_user is defined and current_user) %}
       {% if is_auth %}
-        <!-- ПРИВАТНІ (лише після входу) -->
-        <a class="{{ 'active' if request.endpoint=='profile.top' else '' }}" href="{{ url_for('profile.top') }}">Top PXP</a>
+        <!-- Приватні -->
+        <a class="{{ 'active' if request.path == '/top100' else '' }}" href="/top100">Top-100</a>
         &nbsp;|&nbsp;
-        <a class="{{ 'active' if request.endpoint=='profile.donate' else '' }}" href="{{ url_for('profile.donate') }}">Donate</a>
+        <a class="{{ 'active' if request.path == '/donate' else '' }}" href="/donate">Donate</a>
         &nbsp;|&nbsp;
         <a class="{{ 'active' if request.endpoint=='profile.profile' else '' }}" href="{{ url_for('profile.profile') }}">Профіль</a>
         &nbsp;|&nbsp;
         {{ (current_user.name or current_user.email)|default('', true) }}
         &nbsp;|&nbsp; PXP: {{ pxp|default(0, true) }}
-        &nbsp;<a href="{{ url_for('auth.logout') }}">Вийти</a>
+        &nbsp;|&nbsp;
+        <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline;margin:0">
+          <button type="submit" class="as-link">Вийти</button>
+        </form>
       {% else %}
         PXP: {{ pxp|default(0, true) }}
-        &nbsp;<a class="{{ 'active' if request.endpoint=='auth.login' else '' }}" href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">Увійти</a>
-        &nbsp;<a class="{{ 'active' if request.endpoint=='auth.register' else '' }}" href="{{ url_for('auth.register', next=request.full_path if request.query_string else request.path) }}">Реєстрація</a>
+        &nbsp;<a class="{{ 'active' if request.endpoint=='auth.login' else '' }}"
+                 href="{{ url_for('auth.login', next=request.full_path if request.query_string else request.path) }}">Увійти</a>
+        &nbsp;<a class="{{ 'active' if request.endpoint=='auth.register' else '' }}"
+                 href="{{ url_for('auth.register', next=request.full_path if request.query_string else request.path) }}">Реєстрація</a>
       {% endif %}
     </li>
   </ul>
@@ -39,4 +44,6 @@
   .nav a{color:#e8eaed;text-decoration:none;padding:4px 6px;border-bottom:2px solid transparent}
   .nav a.active{border-bottom-color:#6ea8fe}
   .ml-auto{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .as-link{background:none;border:0;color:#8ab4ff;cursor:pointer;padding:0;font:inherit}
+  .as-link:hover{text-decoration:underline}
 </style>
