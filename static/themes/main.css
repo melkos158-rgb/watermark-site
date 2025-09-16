@@ -1,6 +1,6 @@
-/* ===== MAIN THEME: чорна шапка, сині кнопки, білий текст, hover фіолетовий ===== */
+/* ===== MAIN THEME — чорна шапка, сині кнопки, білий текст, ховер фіолетовий ===== */
 
-/* базові змінні */
+/* Базові змінні */
 :root{
   --nav-bg:#000000;
   --btn-bg:#1c64ec;
@@ -9,14 +9,16 @@
   --line:#111317;
 }
 
-/* шапка */
-html[data-theme="main"] nav{
+/* 1) ШАПКА (охоплюємо найпоширеніші варіанти контейнера) */
+html[data-theme="main"] :is(nav, .navbar, header, .topbar, .top, .site-nav, .nav-wrap){
   background:var(--nav-bg) !important;
   border-bottom:1px solid var(--line) !important;
+  color:#fff !important;
 }
 
-/* посилання у шапці — спрацює навіть без класу .nav-btn */
-html[data-theme="main"] nav a,
+/* 2) ПОСИЛАННЯ/КНОПКИ В ШАПЦІ
+   (спрацює навіть якщо немає .nav-btn і це просто <a>) */
+html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a,
 html[data-theme="main"] .nav-btn{
   background:var(--btn-bg) !important;
   color:var(--btn-text) !important;
@@ -25,22 +27,19 @@ html[data-theme="main"] .nav-btn{
   padding:8px 12px !important;
   display:inline-block !important;
   text-decoration:none !important;
+  line-height:1.2 !important;
 }
-
-/* hover по вкладках у шапці */
-html[data-theme="main"] nav a:hover,
+html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a:hover,
 html[data-theme="main"] .nav-btn:hover{
-  color:var(--btn-text-hover) !important;
+  color:var(--btn-text-hover) !important;  /* фіолетовий текст при наведенні */
 }
-
-/* активна вкладка (трохи яскравіша) */
-html[data-theme="main"] nav a.active,
+html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a.active,
 html[data-theme="main"] .nav-btn.active{
   filter:brightness(1.06) !important;
   color:#fff !important;
 }
 
-/* звичайні кнопки по сайту (якщо є .btn) */
+/* 3) ЗВИЧАЙНІ КНОПКИ ПО САЙТУ (якщо є клас .btn) */
 html[data-theme="main"] .btn{
   background:var(--btn-bg) !important;
   color:var(--btn-text) !important;
@@ -48,4 +47,10 @@ html[data-theme="main"] .btn{
 }
 html[data-theme="main"] .btn:hover{
   color:var(--btn-text-hover) !important;
+}
+
+/* 4) Невеличкий захист від утилітних класів, що фарбують <a> */
+html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a[class*="text-"],
+html[data-theme="main"] :is(nav, .navbar, header, .topbar, .site-nav) a[class*="link-"]{
+  color:var(--btn-text) !important;
 }
