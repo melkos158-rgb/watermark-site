@@ -10,13 +10,13 @@
 
     <!-- Права частина -->
     <li class="ml-auto">
-      {# авторизація: у нас просто об'єкт користувача в контексті #}
+      {# без Flask-Login: просто перевіряємо наявність current_user #}
       {% set is_auth = (current_user is defined and current_user) %}
       {% if is_auth %}
         <!-- Приватні -->
-        <a class="{{ 'active' if request.path == '/top100' else '' }}" href="/top100">Top-100</a>
+        <a class="{{ 'active' if request.endpoint=='profile.top' else '' }}" href="{{ url_for('profile.top') }}">Top-100</a>
         &nbsp;|&nbsp;
-        <a class="{{ 'active' if request.path == '/donate' else '' }}" href="/donate">Donate</a>
+        <a class="{{ 'active' if request.endpoint=='profile.donate' else '' }}" href="{{ url_for('profile.donate') }}">Donate</a>
         &nbsp;|&nbsp;
         <a class="{{ 'active' if request.endpoint=='profile.profile' else '' }}" href="{{ url_for('profile.profile') }}">Профіль</a>
         &nbsp;|&nbsp;
