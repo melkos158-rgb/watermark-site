@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}{{ title or 'PXP' }}{% endblock %}</title>
 
-  <!-- 1) ТЕМИ -->
+  <!-- 1) Глобальні стилі (каркас без кольорів) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- 2) ТЕМА (МАЄ ЙТИ ПІСЛЯ КАРКАСА, щоб переважати кольорами) -->
   <link id="theme-css" rel="stylesheet" href="{{ url_for('static', filename='themes/main.css') }}">
   <script>
     (function(){
@@ -22,10 +25,7 @@
     })();
   </script>
 
-  <!-- 2) Глобальні стилі (каркас без кольорів) -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
-  <!-- 3) Додаткові базові стилі (на змінних теми) -->
+  <!-- 3) Додаткові базові стилі (покладаються на змінні теми) -->
   <style>
     :root{
       --bg:#0f1115;
@@ -185,3 +185,5 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
+
+
