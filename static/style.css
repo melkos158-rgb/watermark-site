@@ -1,77 +1,56 @@
 /* =========================
-   Global reset + base
+   Global reset + base (без кольорів)
    ========================= */
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0;
   font-family: Arial, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  background: #f5f6f8;
-  color: #1d1d1f;
 }
 
 /* =========================
-   Top Navigation (thicker)
+   Top Navigation (структура)
    ========================= */
-nav {
-  background: #0f1115;
-  border-bottom: 1px solid #1d2230;
-}
+nav { /* без фону/рамок — тема додає кольори */ }
 .nav-wrap {
   max-width: 1280px;
   margin: 0 auto;
-  height: 64px;                  /* товстіша шапка */
+  height: 64px;
   display: flex;
   align-items: center;
   gap: 18px;
   padding: 0 24px;
 }
-.brand {
-  color: #e8eaed;
-  font-weight: 800;
-  letter-spacing: .2px;
-  margin-right: auto;
-}
+.brand { font-weight: 800; letter-spacing: .2px; margin-right: auto; }
 
-/* Tabs (Фото / STL / Відео) */
+/* Tabs (Фото / STL / Відео) — тільки форма/розміри */
 .nav-btn {
-  --blue: #1a73e8;
-  --violet: #6c63ff;
-  color: #c8d1ff;
   text-decoration: none;
   font-weight: 600;
-  padding: 10px 14px;            /* товстіші таби */
+  padding: 10px 14px;
   border-radius: 10px;
-  transition: color .15s ease, background-color .15s ease, transform .06s ease;
+  transition: transform .06s ease;
 }
-.nav-btn:hover {
-  color: #fff;
-  background: rgba(108, 99, 255, .18);   /* фіолетове підсвічування при наведенні */
-}
+.nav-btn:hover { /* тема підсвічує кольорами */ }
 .nav-btn:active { transform: translateY(1px); }
-.nav-btn.active {
-  color: #fff;
-  background: var(--blue);
-}
+.nav-btn.active { /* тема фарбує */ }
 
 /* =========================
-   3-column Layout (thicker side columns)
+   3-column Layout
    ========================= */
 .layout {
   max-width: 1280px;
   margin: 20px auto;
   padding: 0 20px;
   display: grid;
-  grid-template-columns: 320px 1fr 320px;   /* товстіші колонки */
+  grid-template-columns: 320px 1fr 320px;
   gap: 22px;
 }
 
-/* Cards (side panels & center) */
+/* Cards / Canvas контейнер (без тіней/кольорів) */
 .card, .canvas-wrap {
-  background: #ffffff;
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.06);
-  border: 1px solid #e9ecf2;
+  border: 1px solid transparent; /* тема задасть колір */
 }
 .card { padding: 16px 16px 18px; }
 .canvas-wrap { padding: 16px; text-align: center; }
@@ -79,7 +58,6 @@ nav {
 .card h2, .canvas-wrap h2 {
   margin: 0 0 12px 0;
   font-size: 20px;
-  color: #2a2e3a;
 }
 
 /* Canvas / Video area */
@@ -89,20 +67,16 @@ nav {
   max-width: 100%;
   max-height: 560px;
   width: 100%;
-  border: 1px solid #e1e5ee;
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: #eef1f6;
+  background: transparent; /* тема може дати фон */
 }
-.tip {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #5b6270;
-}
+.tip { margin-top: 8px; font-size: 13px; }
 
 /* =========================
-   Inputs
+   Inputs (форма та розміри)
    ========================= */
-label { display: block; font-size: 13px; color: #505866; margin: 8px 0 6px; }
+label { display: block; font-size: 13px; margin: 8px 0 6px; }
 
 input[type="text"],
 input[type="color"],
@@ -110,39 +84,26 @@ select {
   width: 100%;
   height: 36px;
   padding: 6px 10px;
-  border: 1px solid #dbe1ea;
+  border: 1px solid transparent;  /* колір у темі */
   border-radius: 8px;
-  background: #fff;
-  color: #1d1d1f;
+  background: transparent;         /* фон у темі */
   outline: none;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
-input[type="text"]:focus,
-input[type="color"]:focus,
-select:focus {
-  border-color: #6c63ff;
-  box-shadow: 0 0 0 3px rgba(108,99,255,.15);
-}
 
-/* File input – стильована кнопка */
+/* File input – кнопка (без кольорів) */
 input[type="file"] {
   width: 100%;
   font-size: 14px;
-  color: #2a2e3a;
 }
 input[type="file"]::file-selector-button {
-  --blue:#1a73e8; --violet:#6c63ff;
   margin-right: 10px;
   padding: 8px 12px;
   border: none;
   border-radius: 8px;
-  background: var(--blue);
-  color: #fff;
-  font-weight: 600;
   cursor: pointer;
-  transition: background-color .15s ease, transform .06s ease;
+  transition: transform .06s ease;
 }
-input[type="file"]::file-selector-button:hover { background: #2b5fe9; }
 input[type="file"]::file-selector-button:active { transform: translateY(1px); }
 
 /* Checkboxes inline */
@@ -150,69 +111,55 @@ input[type="file"]::file-selector-button:active { transform: translateY(1px); }
 .check-inline label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 
 /* =========================
-   Sliders (range) — фіолетові
+   Sliders (range) — тільки геометрія
    ========================= */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 28px;                  /* вищий трек для “товстіших” повзунків */
+  height: 28px;
   background: transparent;
   margin: 2px 0 12px;
 }
 
-/* WebKit track */
+/* WebKit track/thumb — розміри без кольорів */
 input[type="range"]::-webkit-slider-runnable-track {
   height: 8px;
-  background: linear-gradient(90deg, #6c63ff, #6c63ff) no-repeat,
-              #e2e6f0;
   border-radius: 999px;
-}
-input[type="range"] {
-  /* підфарбувати “заповнену” частину треку у WebKit */
-  background-image: linear-gradient(#6c63ff, #6c63ff);
-  background-size: var(--sx, 0%) 8px;
-  background-repeat: no-repeat;
+  background: transparent; /* тема пофарбує */
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 18px; height: 18px;
-  background: #6c63ff;
-  border: 2px solid #ffffff;
   border-radius: 50%;
+  border: 2px solid transparent;
   margin-top: -5px;
-  box-shadow: 0 2px 6px rgba(108,99,255,.35);
+  box-shadow: none; /* тінь у темі */
   cursor: pointer;
 }
 
-/* Firefox track & thumb */
+/* Firefox track/thumb */
 input[type="range"]::-moz-range-track {
-  height: 8px; border-radius: 999px; background: #e2e6f0;
+  height: 8px; border-radius: 999px;
+  background: transparent;
 }
 input[type="range"]::-moz-range-progress {
-  height: 8px; border-radius: 999px; background: #6c63ff;
+  height: 8px; border-radius: 999px;
+  background: transparent;
 }
 input[type="range"]::-moz-range-thumb {
   width: 18px; height: 18px;
   border-radius: 50%;
-  border: 2px solid #fff;
-  background: #6c63ff;
-  box-shadow: 0 2px 6px rgba(108,99,255,.35);
+  border: 2px solid transparent;
+  box-shadow: none;
   cursor: pointer;
 }
 
-/* JS-хак для WebKit, щоб фарбувати заповнення треку */
-input[type="range"].violet {
-  /* додай клас "violet" у HTML якщо треба примусово */
-}
-/* (порада: у JS став: el.style.setProperty('--sx', val+'%') де val—від 0..100) */
-
 /* =========================
-   Buttons
+   Buttons — форма/поведінка
    ========================= */
 .btn {
-  --blue:#1a73e8; --violet:#6c63ff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -220,38 +167,29 @@ input[type="range"].violet {
   padding: 10px 16px;
   font-weight: 700;
   font-size: 14px;
-  border: 1px solid transparent;
+  border: 1px solid transparent;   /* колір/заливка у темі */
   border-radius: 10px;
   cursor: pointer;
-  transition: background-color .15s ease, color .15s ease, border-color .15s ease, transform .06s ease;
   text-decoration: none;
+  transition: transform .06s ease;
 }
-.btn.primary { background: var(--blue); color: #fff; }
-.btn.primary:hover { background: #2b5fe9; }
-.btn.primary:active { transform: translateY(1px); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { /* тема додасть фон/текст */ }
+.btn.ghost   { /* тема додасть рамку/текст */ }
 
-.btn.ghost {
-  background: transparent;
-  color: var(--blue);
-  border-color: #bcd3ff;
+/* Ряд кнопок у центрі */
+.canvas-wrap .row {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
-.btn.ghost:hover {
-  color: #fff;
-  background: rgba(108,99,255,.2);
-  border-color: transparent;
-}
-
-/* Кнопки в один ряд під центром */
-.canvas-wrap .row { margin-top: 14px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 /* =========================
    Допоміжні
    ========================= */
-.help, .note {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #667085;
-}
+.help, .note { margin-top: 8px; font-size: 13px; }
 
 /* =========================
    Responsive
@@ -263,155 +201,125 @@ input[type="range"].violet {
   .layout { grid-template-columns: 1fr; }
   .canvas-wrap { order: 2; }
   .card.side:first-of-type { order: 1; }
-  .card.side:last-of-type { order: 3; }
+  .card.side:last-of-type  { order: 3; }
 }
 
 /* =========================
-   EDIT PHOTO — окремі стилі
-   (префікс .pe- щоб не конфліктувало)
+   EDIT PHOTO — тільки структура
    ========================= */
 .photo-editor { display: grid; grid-template-columns: 280px 1fr; gap: 22px; }
 @media (max-width: 1024px){ .photo-editor { grid-template-columns: 1fr; }}
 
 /* Ліва панель інструментів */
 .pe-panel {
-  background: #fff;
-  border: 1px solid #e9ecf2;
+  border: 1px solid transparent;
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.06);
   padding: 16px;
 }
-.pe-panel h3 { margin: 0 0 10px; font-size: 16px; color: #2a2e3a; }
+.pe-panel h3 { margin: 0 0 10px; font-size: 16px; }
 .pe-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pe-tool {
   display: flex; align-items: center; justify-content: center;
-  height: 38px; border: 1px solid #dbe1ea; border-radius: 10px;
-  background: #f7f8fc; font-weight: 600; cursor: pointer;
-  transition: background-color .15s ease, transform .06s ease;
+  height: 38px; border: 1px solid transparent; border-radius: 10px;
+  cursor: pointer;
+  transition: transform .06s ease;
 }
-.pe-tool:hover { background: #eef1f9; }
 .pe-tool:active { transform: translateY(1px); }
-.pe-tool.is-active { background: #6c63ff; color: #fff; border-color: transparent; }
+.pe-tool.is-active { /* тема фарбує */ }
 
 /* Центральна зона полотна */
 .pe-canvas {
-  background: #fff;
-  border: 1px solid #e9ecf2;
+  border: 1px solid transparent;
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.06);
   padding: 16px;
 }
 .pe-canvas .stage {
   position: relative;
   display: grid;
   place-items: center;
-  background: #eef1f6;
-  border: 1px solid #e1e5ee;
+  border: 1px solid transparent;
   border-radius: 10px;
   min-height: 520px;
   overflow: hidden;
 }
 .pe-canvas canvas { max-width: 100%; max-height: 560px; display: block; }
 
-/* Нижня тулбар-лінійка під полотном */
-.pe-toolbar {
-  margin-top: 14px;
-  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
-}
+/* Нижня тулбар-лінійка */
+.pe-toolbar { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .pe-toolbar .btn { min-width: 120px; }
 
-/* Слайдери для яскравість/контраст/насиченість і т.д. */
+/* Слайдери панелі */
 .pe-sliders { margin-top: 12px; display: grid; gap: 10px; }
-.pe-slider-row { display: grid; grid-template-columns: 100px 1fr 56px; gap: 10px; align-items: center; }
-.pe-slider-row .val { text-align: right; font-variant-numeric: tabular-nums; color: #5b6270; }
+.pe-slider-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 56px;
+  gap: 10px; align-items: center;
+}
+.pe-slider-row .val { text-align: right; font-variant-numeric: tabular-nums; }
 
-/* Перемикачі (напр., “показати сітку”, “прив’язка”) */
+/* Перемикачі */
 .pe-switch {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 10px; border: 1px solid #dbe1ea; border-radius: 999px;
-  background: #fff; cursor: pointer; user-select: none;
+  padding: 6px 10px; border: 1px solid transparent; border-radius: 999px;
+  cursor: pointer; user-select: none;
 }
 .pe-switch input { display: none; }
-.pe-switch .dot {
-  width: 12px; height: 12px; border-radius: 50%; background: #d1d6e3;
-  transition: background-color .15s ease;
-}
-.pe-switch.is-on .dot { background: #6c63ff; }
+.pe-switch .dot { width: 12px; height: 12px; border-radius: 50%; }
+.pe-switch.is-on .dot { /* тема підсвітить */ }
 
-/* Накладка кадрування */
+/* Кадрування */
 .pe-crop-box { position: absolute; inset: 0; pointer-events: none; }
 .pe-crop-rect {
-  position: absolute; border: 2px dashed rgba(108,99,255,.9);
-  background: rgba(108,99,255,.12);
-  pointer-events: auto; /* щоб хапати мишкою */
+  position: absolute;
+  border: 2px dashed transparent; /* тема задасть колір */
+  background: transparent;
+  pointer-events: auto;
 }
 .pe-crop-handle {
   position: absolute; width: 12px; height: 12px; border-radius: 2px;
-  background: #6c63ff; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  border: 2px solid transparent;
+  box-shadow: none;
 }
-.pe-crop-handle.nw { top: -6px; left: -6px; }  .pe-crop-handle.ne { top: -6px; right: -6px; }
-.pe-crop-handle.sw { bottom: -6px; left: -6px; } .pe-crop-handle.se { bottom: -6px; right: -6px; }
+.pe-crop-handle.nw { top: -6px; left: -6px; }
+.pe-crop-handle.ne { top: -6px; right: -6px; }
+.pe-crop-handle.sw { bottom: -6px; left: -6px; }
+.pe-crop-handle.se { bottom: -6px; right: -6px; }
 
-/* Сітка поверх зображення (опційна) */
-.pe-grid {
-  position: absolute; inset: 0; pointer-events: none;
-  background-image:
-    linear-gradient(to right, rgba(0,0,0,.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,.08) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: .9;
-}
+/* Сітка (опційно — тема додасть background-image) */
+.pe-grid { position: absolute; inset: 0; pointer-events: none; }
 
-/* Невеликі бейджі/підказки */
-.pe-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 10px;
-  border-radius: 999px; background: #eef1f9; color: #394055; font-weight: 600;
-}
+/* Бейджі/підказки */
+.pe-badge { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; }
 
 /* Стани/утиліти */
 .hidden { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
-/* Нотифікації (toast) зверху справа */
-.pe-toast {
-  position: fixed; top: 16px; right: 16px; z-index: 9999;
-  display: grid; gap: 10px;
-}
+/* Нотифікації (позиція) */
+.pe-toast { position: fixed; top: 16px; right: 16px; z-index: 9999; display: grid; gap: 10px; }
 .pe-toast .item {
-  background: #0f1115; color: #e8eaed;
-  border: 1px solid #1d2230; border-radius: 10px;
-  padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  border: 1px solid transparent; border-radius: 10px; padding: 10px 12px;
 }
 
-/* Спінер на час обробки */
+/* Спінер (геометрія) */
 .pe-spinner {
   width: 36px; height: 36px; border-radius: 50%;
-  border: 3px solid #dbe1ea; border-top-color: #6c63ff;
+  border: 3px solid transparent; border-top-color: transparent;
   animation: pe-spin 1s linear infinite; margin: 0 auto;
 }
 @keyframes pe-spin { to { transform: rotate(360deg); } }
 
 /* =========================================
-   WELCOME PAGE — додаткові стилі (нові)
+   WELCOME PAGE — тільки розмітка
    ========================================= */
 .w-container { width: min(1100px, 92vw); margin: 0 auto; padding: 0 20px; }
 
-.welcome-hero {
-  background: radial-gradient(90% 120% at 10% 0%, #eef0ff 0, #f6f7fb 45%, #f5f6f8 100%);
-  border-bottom: 1px solid #e9ecf2;
-  padding: 28px 0 24px;
-}
-.welcome-hero h1 {
-  margin: 0 0 8px; font-size: 28px; color: #222634;
-}
-.welcome-hero p { margin: 0 0 14px; color: #5b6270; }
+.welcome-hero { padding: 28px 0 24px; }
+.welcome-hero h1 { margin: 0 0 8px; font-size: 28px; }
+.welcome-hero p { margin: 0 0 14px; }
 .cta-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.skip-toggle {
-  display: inline-flex; align-items: center; gap: 8px;
-  margin-top: 12px; user-select: none; color: #5b6270; font-size: 13px;
-}
+.skip-toggle { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; }
 .skip-toggle input { width: 16px; height: 16px; }
 
 .welcome-grid {
@@ -426,14 +334,11 @@ input[type="range"].violet {
 .w-ul { margin: 0; padding-left: 18px; }
 .w-ul li, .w-ol li { margin: 6px 0; }
 
-.faq-item { background:#fff; border:1px solid #e9ecf2; border-radius: 10px; padding: 10px 12px; }
+.faq-item { border:1px solid transparent; border-radius: 10px; padding: 10px 12px; }
 .faq-item + .faq-item { margin-top: 8px; }
-.faq-item summary { cursor: pointer; font-weight: 700; color: #2a2e3a; }
+.faq-item summary { cursor: pointer; font-weight: 700; }
 
-.welcome-foot {
-  width: min(1100px, 92vw);
-  margin: 0 auto 18px;
-}
+.welcome-foot { width: min(1100px, 92vw); margin: 0 auto 18px; }
 .welcome-foot .w-container { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .welcome-foot .foot-left { display: grid; gap: 6px; }
 .welcome-foot .foot-right { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -441,3 +346,4 @@ input[type="range"].violet {
   .welcome-foot .w-container { flex-direction: column; align-items: stretch; }
   .welcome-foot .foot-right { justify-content: flex-start; }
 }
+
