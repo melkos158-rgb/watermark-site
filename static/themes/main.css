@@ -1,1 +1,108 @@
 
+/* =========================
+   Основна тема (Dark / Main)
+   ========================= */
+
+/* Базові кольори */
+body { background: #0f1115; color: #e8eaed; }
+nav { background: #0f1115; border-bottom: 1px solid #1d2230; }
+
+/* Заголовки */
+h1, h2, h3, h4, h5 { color: #fff; }
+
+/* Карти і блоки */
+.card, .canvas-wrap, .profile-card, .network-card, .tile, .faq-item {
+  background: #0f1520;
+  border-color: #1d2230;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+
+/* Кнопки */
+.btn.primary {
+  background: #1a73e8;
+  color: #fff;
+  border-color: transparent;
+}
+.btn.primary:hover { background: #2b5fe9; }
+.btn.ghost {
+  background: transparent;
+  color: #cdd9ff;
+  border-color: #2a3550;
+}
+.btn.ghost:hover {
+  background: rgba(108,99,255,.15);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Навігаційні таби */
+.nav-btn { color: #c8d1ff; }
+.nav-btn:hover { background: rgba(108,99,255,.18); color: #fff; }
+.nav-btn.active { background: #1a73e8; color: #fff; }
+
+/* Інпути */
+input, select, textarea, textarea.profile-about {
+  background: #0c111a;
+  color: #e8eaed;
+  border-color: #223047;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(108,99,255,.2);
+  border-color: #6c63ff;
+}
+
+/* File input */
+input[type="file"]::file-selector-button {
+  background: #1a73e8;
+  color: #fff;
+}
+input[type="file"]::file-selector-button:hover { background: #2b5fe9; }
+
+/* Range sliders */
+input[type="range"]::-webkit-slider-runnable-track { background: #223047; }
+input[type="range"]::-webkit-slider-thumb {
+  background: #6c63ff;
+  border-color: #fff;
+  box-shadow: 0 2px 6px rgba(108,99,255,.35);
+}
+input[type="range"]::-moz-range-thumb {
+  background: #6c63ff;
+  border-color: #fff;
+  box-shadow: 0 2px 6px rgba(108,99,255,.35);
+}
+input[type="range"]::-moz-range-progress { background: #6c63ff; }
+
+/* Top100 */
+.filters .segment {
+  background: #0f1520;
+  color: #c8d1ff;
+  border-color: #1d2230;
+}
+.filters .segment:hover { background: #131b2a; color: #fff; }
+.table { background: #0f1520; }
+.table th { color: #9fb2ff; }
+.table th, .table td { border-top-color: #1d2230; }
+
+/* Donate */
+.network-card .desc { color: #9aa4b2; }
+
+/* Profile */
+.avatar { border: 4px solid #0f1520; }
+.avatar .edit { background: #1a73e8; color: #fff; }
+.stat .chip {
+  background: #0f1520;
+  border-color: #223047;
+  color: #cdd9ff;
+}
+
+/* Welcome плитки */
+.tile .title { color: #fff; }
+.tile .sub { color: #9aa4b2; }
+
+/* Тости */
+.pe-toast .item {
+  background: #0f1115;
+  color: #e8eaed;
+  border-color: #1d2230;
+}
