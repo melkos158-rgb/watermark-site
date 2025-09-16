@@ -4,12 +4,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from authlib.integrations.flask_client import OAuth
 from db import db, User
 
+# Blueprint з іменем "auth" => ендпойнти будуть "auth.*"
 bp = Blueprint("auth", __name__, url_prefix="")
 
-# ---- Google OAuth: вмикається лише якщо всі змінні присутні ----
+# ---- Google OAuth (вмикається лише якщо всі змінні присутні) ----
 GOOGLE_CLIENT_ID     = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
-OAUTH_REDIRECT_URI   = os.environ.get("OAUTH_REDIRECT_URI")  # напр. https://<railway>.app/auth/callback
+OAUTH_REDIRECT_URI   = os.environ.get("OAUTH_REDIRECT_URI")  # напр.: https://<your-app>.up.railway.app/auth/callback
 
 oauth = OAuth()
 google = None
@@ -47,7 +48,6 @@ def register_post():
 
     u = User.query.filter_by(email=email).first()
     if u:
-        # якщо користувач існує — просто логінимо
         session["user_id"] = u.id
         flash("Вже зареєстрований — увійшли.", "success")
         return redirect(url_for("profile.profile"))
@@ -81,13 +81,14 @@ def logout():
     return redirect(url_for("index"))
 
 # ---------------------------
-# Google OAuth (опційно)
+# Google OAuth
 # ---------------------------
 @bp.get("/auth/google")
 def google_login():
     if not google:
         flash("Google OAuth не налаштований.", "error")
         return redirect(url_for("auth.login"))
+    # перенаправляємо на Google
     return google.authorize_redirect(redirect_uri=OAUTH_REDIRECT_URI)
 
 @bp.get("/auth/callback")
@@ -99,23 +100,28 @@ def google_callback():
         token = google.authorize_access_token()
         info  = google.get("userinfo").json()
         email = (info.get("email") or "").lower()
-        name  = info.get("name")
+        name  = info.get("name") or ""
+        avatar = info.get("picture") or ""
+
         if not email:
             flash("Google не повернув email.", "error")
             return redirect(url_for("auth.login"))
+
         u = User.query.filter_by(email=email).first()
         if not u:
-            u = User(email=email, name=name)
+            u = User(email=email, name=name, google_id=info.get("id"), avatar=avatar)
             db.session.add(u)
-            db.session.commit()
+        else:
+            # оновимо google_id / avatar якщо з’явились
+            if not getattr(u, "google_id", None) and info.get("id"):
+                u.google_id = info.get("id")
+            if avatar and not getattr(u, "avatar", None):
+                u.avatar = avatar
+
+        db.session.commit()
         session["user_id"] = u.id
         flash("Успішний вхід через Google.", "success")
         return redirect(url_for("profile.profile"))
-    except Exception as e:
-        # ВАЖЛИВО: flash всередині функції, з правильним відступом
+    except Exception:
         flash("Помилка авторизації через Google ❌", "error")
-        return redirect(url_for("auth.login"))
-
-
-        flash("Помилка авторизації через Google ❌")
         return redirect(url_for("auth.login"))
