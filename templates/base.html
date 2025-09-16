@@ -5,35 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}{{ title or 'PXP' }}{% endblock %}</title>
 
-  <!-- 1) ТЕМИ: лінк, який міняємо динамічно -->
-  <link id="theme-css" rel="stylesheet" href="{{ url_for('static', filename='themes/dark.css') }}">
+  <!-- 1) ТЕМИ -->
+  <link id="theme-css" rel="stylesheet" href="{{ url_for('static', filename='themes/main.css') }}">
   <script>
     (function(){
-      var saved = localStorage.getItem('theme') || 'dark';
+      var saved = localStorage.getItem('theme') || 'main';
       var map = {
-        dark: '{{ url_for("static", filename="themes/dark.css") }}',
-        light: '{{ url_for("static", filename="themes/light.css") }}',
-        midnight: '{{ url_for("static", filename="themes/midnight.css") }}'
+        main: '{{ url_for("static", filename="themes/main.css") }}',
+        cat: '{{ url_for("static", filename="themes/cat.css") }}',
+        hellowen: '{{ url_for("static", filename="themes/hellowen.css") }}',
+        minecraft: '{{ url_for("static", filename="themes/minecraft.css") }}'
       };
       var el = document.getElementById('theme-css');
-      if (el) el.href = map[saved] || map.dark;
+      if (el) el.href = map[saved] || map.main;
       document.documentElement.setAttribute('data-theme', saved);
     })();
   </script>
 
-  <!-- 2) Твої глобальні стилі (поверх темових змінних) -->
+  <!-- 2) Глобальні стилі (каркас без кольорів) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
+  <!-- 3) Додаткові базові стилі (на змінних теми) -->
   <style>
-    /* використовуємо змінні з файлів тем як базу */
     :root{
-      /* запасні значення, якщо файл тем не підвантажився */
       --bg:#0f1115;
       --ink:#e8eaed;
       --line:#1b2131;
       --card:#11141b;
       --muted:#9fb0d4;
-      --btn:#1c64ec;
+      --btn:#1a73e8;
       --nav-bg:#0b0d12;
       --link:#8ab4ff;
     }
@@ -42,7 +42,7 @@
       margin:0;
       background:var(--bg);
       color:var(--ink);
-      font-family:system-ui,Segoe UI,Roboto,Arial
+      font-family:system-ui,Segoe UI,Roboto,Arial;
     }
     main{max-width:1100px;margin:16px auto;padding:0 20px}
     a{color:var(--link);text-decoration:none}
@@ -57,11 +57,11 @@
       padding:10px;border-radius:10px;margin-bottom:8px
     }
 
-    /* ===== Chat widget (bottom-left) ===== */
+    /* Chat widget */
     .chat-fab{
       position:fixed; left:18px; bottom:18px; width:52px; height:52px;
-      border-radius:50%; border:1px solid color-mix(in srgb, var(--line) 90%, #25304b 10%);
-      background:color-mix(in srgb, var(--card) 85%, #1a1f2e 15%);
+      border-radius:50%; border:1px solid var(--line);
+      background:var(--card);
       color:var(--ink);
       display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:9999;
       box-shadow:0 8px 24px rgba(0,0,0,.35);
@@ -81,7 +81,7 @@
     .chat-meta{opacity:.8; font-size:12px; margin-bottom:2px}
     .chat-form{display:flex; gap:8px; padding:10px; border-top:1px solid var(--line); background:var(--card)}
     .chat-form input{
-      flex:1; background:var(--bg); border:1px solid color-mix(in srgb, var(--line) 90%, #26324a 10%);
+      flex:1; background:var(--bg); border:1px solid var(--line);
       color:var(--ink); border-radius:10px; padding:8px 10px; outline:none
     }
     .chat-form button{background:var(--btn); border:0; color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer}
@@ -104,9 +104,8 @@
     {% block content %}{% endblock %}
   </main>
 
-  <!-- ===== CHAT WIDGET ===== -->
+  <!-- CHAT -->
   <div class="chat-fab" id="chatFab" title="Чат">💬</div>
-
   <div class="chat-panel" id="chatPanel" aria-live="polite">
     <div class="chat-head">
       <b>Загальний чат</b>
@@ -120,7 +119,6 @@
   </div>
 
   <script>
-    // ===== Глобальний чат (pull кожні 2.5s) =====
     (function(){
       const API_FETCH = "/chat/fetch";
       const API_POST  = "/chat/post";
@@ -187,5 +185,3 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
-
-
