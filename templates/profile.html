@@ -4,7 +4,8 @@
 <div class="page">
   <h1>Мій профіль</h1>
 
-  {% if not current_user or not current_user.is_authenticated %}
+  {# було: {% if not current_user or not current_user.is_authenticated %} #}
+  {% if not current_user %}
     <div class="panel" style="text-align:center">
       <p class="muted">Щоб редагувати профіль, увійди.</p>
       <a class="btn" href="{{ url_for('auth.login') }}">Увійти</a>
@@ -122,3 +123,4 @@
 </script>
 
 {% endblock %}
+
