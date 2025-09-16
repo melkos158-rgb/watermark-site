@@ -1,6 +1,6 @@
 <nav class="navbar">
   <div class="nav-wrap">
-    <!-- ЛІВО: завжди видимі вкладки -->
+    <!-- ЛІВО: завжди видимі -->
     <a class="nav-btn {{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a>
@@ -8,7 +8,7 @@
     <a class="nav-btn {{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo</a>
 
-    <!-- ПРАВО: перемикач тем + вкладки після входу -->
+    <!-- ПРАВО: тема + вкладки після входу -->
     <div style="display:flex; align-items:center; gap:12px; margin-left:auto">
       <!-- Перемикач тем -->
       <select id="themeSelect" aria-label="Тема" style="height:32px; border-radius:8px; padding:0 8px;">
@@ -18,18 +18,24 @@
         <option value="minecraft">Minecraft</option>
       </select>
 
-      {# Надійна перевірка входу (нічого в коді не міняємо) #}
+      {# Надійна перевірка входу, без змін бекенду #}
       {% set has_user =
            (g is defined and g.user) or
            (session and session.get('user_id')) or
            (current_user is defined and current_user.is_authenticated) %}
 
       {% if has_user %}
-        <a class="nav-btn {{ 'active' if request.endpoint=='top100' else '' }}" href="{{ url_for('top100') }}">Top-100</a>
+        <!-- ці ендпоїнти ЖИВУТЬ у blueprint `profile` -->
+        <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}"
+           href="{{ url_for('profile.top100') }}">Top-100</a>
         <span aria-hidden="true">|</span>
-        <a class="nav-btn {{ 'active' if request.endpoint=='donate' else '' }}" href="{{ url_for('donate') }}">Donate</a>
+        <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}"
+           href="{{ url_for('profile.donate') }}">Donate</a>
         <span aria-hidden="true">|</span>
-        <a class="nav-btn {{ 'active' if request.endpoint=='profile' else '' }}" href="{{ url_for('profile') }}">Профіль</a>
+
+        <!-- профіль у тебе окремим endpoint'ом `profile` -->
+        <a class="nav-btn {{ 'active' if request.endpoint=='profile' else '' }}"
+           href="{{ url_for('profile') }}">Профіль</a>
 
         <span style="opacity:.8">
           {{ (g.user.name if g is defined and g.user and g.user.name
@@ -41,7 +47,8 @@
 
         <a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a>
       {% else %}
-        <a class="nav-btn {{ 'active' if request.endpoint=='auth.login' else '' }}" href="{{ url_for('auth.login') }}">Увійти</a>
+        <a class="nav-btn {{ 'active' if request.endpoint=='auth.login' else '' }}"
+           href="{{ url_for('auth.login') }}">Увійти</a>
       {% endif %}
     </div>
   </div>
@@ -49,36 +56,24 @@
 
 <script>
   (function(){
-    // відповідність значення -> шлях до CSS теми
     var THEME_MAP = {
       main:      "{{ url_for('static', filename='themes/main.css') }}",
       cat:       "{{ url_for('static', filename='themes/cat.css') }}",
       hellowen:  "{{ url_for('static', filename='themes/hellowen.css') }}",
       minecraft: "{{ url_for('static', filename='themes/minecraft.css') }}"
     };
-
     var select = document.getElementById('themeSelect');
     var linkEl = document.getElementById('theme-css');
 
-    // початкове значення
     var saved = localStorage.getItem('theme') || 'main';
     if (select) select.value = THEME_MAP[saved] ? saved : 'main';
 
-    function applyTheme(val){
-      var href = THEME_MAP[val] || THEME_MAP.main;
+    function applyTheme(v){
+      var href = THEME_MAP[v] || THEME_MAP.main;
       if (linkEl) linkEl.href = href;
-      localStorage.setItem('theme', val);
-      document.documentElement.setAttribute('data-theme', val);
+      localStorage.setItem('theme', v);
+      document.documentElement.setAttribute('data-theme', v);
     }
-
-    if (select) {
-      select.addEventListener('change', function(){
-        applyTheme(this.value);
-      });
-    }
-  })();
-</script>
-
     if (select) select.addEventListener('change', function(){ applyTheme(this.value); });
   })();
 </script>
