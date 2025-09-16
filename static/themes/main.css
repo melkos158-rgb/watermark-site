@@ -1,13 +1,12 @@
-/* ==== MAIN THEME: чорна шапка, сині кнопки, білий текст, hover фіолетовий ==== */
+/* ===== MAIN THEME: чорна шапка, сині кнопки, білий текст, hover фіолетовий ===== */
 
-/* базові змінні теми */
+/* базові змінні */
 :root{
   --nav-bg:#000000;
   --btn-bg:#1c64ec;
   --btn-text:#ffffff;
   --btn-text-hover:#6c63ff; /* фіолетовий */
   --line:#111317;
-  --ink:#e8eaed;
 }
 
 /* шапка */
@@ -16,22 +15,32 @@ html[data-theme="main"] nav{
   border-bottom:1px solid var(--line) !important;
 }
 
-/* вкладки в шапці */
+/* посилання у шапці — спрацює навіть без класу .nav-btn */
+html[data-theme="main"] nav a,
 html[data-theme="main"] .nav-btn{
   background:var(--btn-bg) !important;
   color:var(--btn-text) !important;
-  border-color:transparent !important;
-  box-shadow:none !important;
+  border:1px solid transparent !important;
+  border-radius:10px !important;
+  padding:8px 12px !important;
+  display:inline-block !important;
+  text-decoration:none !important;
 }
+
+/* hover по вкладках у шапці */
+html[data-theme="main"] nav a:hover,
 html[data-theme="main"] .nav-btn:hover{
   color:var(--btn-text-hover) !important;
 }
+
+/* активна вкладка (трохи яскравіша) */
+html[data-theme="main"] nav a.active,
 html[data-theme="main"] .nav-btn.active{
-  filter:brightness(1.06);
+  filter:brightness(1.06) !important;
   color:#fff !important;
 }
 
-/* звичайні кнопки по сайту */
+/* звичайні кнопки по сайту (якщо є .btn) */
 html[data-theme="main"] .btn{
   background:var(--btn-bg) !important;
   color:var(--btn-text) !important;
@@ -39,9 +48,4 @@ html[data-theme="main"] .btn{
 }
 html[data-theme="main"] .btn:hover{
   color:var(--btn-text-hover) !important;
-}
-
-/* необов’язково: колір посилань */
-html[data-theme="main"] a{
-  color:inherit;
 }
