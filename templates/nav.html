@@ -1,14 +1,14 @@
 <nav class="navbar">
   <div class="nav-wrap">
-    <!-- Ліва частина: лінки -->
-    <a class="nav-btn {{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='enhance' else '' }}" href="{{ url_for('enhance') }}">Photo Enhance</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo</a>
+    <!-- Ліва частина: основні лінки -->
+    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('index') else '' }}" href="{{ url_for('index') }}">Головна</a>
+    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('stl') else '' }}" href="{{ url_for('stl') }}">STL3D</a>
+    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('video') else '' }}" href="{{ url_for('video') }}">Video</a>
+    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('enhance') else '' }}" href="{{ url_for('enhance') }}">Photo Enhance</a>
+    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('edit_photo') else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
+    <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('photo') else '' }}" href="{{ url_for('photo') }}">Photo</a>
 
-    <!-- Праворуч: перемикач тем + інше меню -->
+    <!-- Права частина -->
     <div style="display:flex; align-items:center; gap:12px; margin-left:auto">
       <!-- Перемикач тем -->
       <label for="themeSelect" class="sr-only">Тема</label>
@@ -19,17 +19,18 @@
         <option value="minecraft">Minecraft</option>
       </select>
 
-      <!-- Праві лінки -->
-      <a class="nav-btn {{ 'active' if request.endpoint=='top100' else '' }}" href="{{ url_for('top100') }}">Top-100</a>
+      <!-- Інші лінки -->
+      <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('top100') else '' }}" href="{{ url_for('profile.top100') }}">Top-100</a>
       <span aria-hidden="true">|</span>
-      <a class="nav-btn {{ 'active' if request.endpoint=='donate' else '' }}" href="{{ url_for('donate') }}">Donate</a>
+      <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('donate') else '' }}" href="{{ url_for('profile.donate') }}">Donate</a>
       <span aria-hidden="true">|</span>
+
       {% if g.user and g.user.is_authenticated %}
-        <a class="nav-btn {{ 'active' if request.endpoint=='profile' else '' }}" href="{{ url_for('profile') }}">Профіль</a>
-        <span style="opacity:.8"> {{ g.user.name or '' }} </span>
+        <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('profile') else '' }}" href="{{ url_for('profile.profile') }}">Профіль</a>
+        <span style="opacity:.8">{{ g.user.name or '' }}</span>
         <a class="nav-btn" href="{{ url_for('logout') }}">Вийти</a>
       {% else %}
-        <a class="nav-btn {{ 'active' if request.endpoint=='login' else '' }}" href="{{ url_for('login') }}">Увійти</a>
+        <a class="nav-btn {{ 'active' if request.endpoint and request.endpoint.endswith('login') else '' }}" href="{{ url_for('login') }}">Увійти</a>
       {% endif %}
     </div>
   </div>
@@ -37,7 +38,6 @@
 
 <script>
   (function(){
-    // відповідність значення -> шлях до CSS (має збігатися з base.html)
     var THEME_MAP = {
       main:      "{{ url_for('static', filename='themes/main.css') }}",
       cat:       "{{ url_for('static', filename='themes/cat.css') }}",
@@ -48,7 +48,7 @@
     var select = document.getElementById('themeSelect');
     var linkEl = document.getElementById('theme-css');
 
-    // встановити початкове значення з localStorage
+    // початкове значення
     var saved = localStorage.getItem('theme') || 'main';
     if (select) select.value = THEME_MAP[saved] ? saved : 'main';
 
@@ -63,18 +63,6 @@
       select.addEventListener('change', function(){
         applyTheme(this.value);
       });
-    }
-
-    // страховка: якщо base.html підвантажив іншу тему — синхронізуємо селект
-    if (linkEl) {
-      var currentHref = linkEl.getAttribute('href') || '';
-      // знаходимо ключ теми по href
-      var currentKey = Object.keys(THEME_MAP).find(k => currentHref.includes('/' + k + '.css'));
-      if (currentKey && currentKey !== select.value) {
-        select.value = currentKey;
-        localStorage.setItem('theme', currentKey);
-        document.documentElement.setAttribute('data-theme', currentKey);
-      }
     }
   })();
 </script>
