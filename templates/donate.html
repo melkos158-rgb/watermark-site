@@ -117,8 +117,7 @@
       </select>
       <input id="tx" class="input" placeholder="TX hash (0x... або Tron txid)" style="flex:1;min-width:260px">
       <button id="verify" class="btn" type="button">Перевірити</button>
-      <!-- було pxp_page (неіснуючий ендпоінт) → замінив на існуючий profile -->
-      <a href="{{ url_for('profile') }}" class="btn gray">До профілю</a>
+      <a href="{{ url_for('profile.profile') }}" class="btn gray">До профілю</a>
     </div>
     <div id="vmsg" class="muted" style="margin-top:8px"></div>
   </div>
