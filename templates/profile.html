@@ -4,7 +4,7 @@
 <div class="page">
   <h1>Мій профіль</h1>
 
-  {# було: {% if not current_user or not current_user.is_authenticated %} #}
+  {# без Flask-Login: достатньо перевірити, що current_user є #}
   {% if not current_user %}
     <div class="panel" style="text-align:center">
       <p class="muted">Щоб редагувати профіль, увійди.</p>
@@ -27,22 +27,24 @@
 
         <div class="stat">
           <div class="badge">💰 PXP: <b>{{ current_user.pxp or 0 }}</b></div>
-          <form action="{{ url_for('profile_pxp') }}" method="post" class="inline">
+          {# Flask підказав endpoint 'profile.spend' — використовуємо його #}
+          <form action="{{ url_for('profile.spend') }}" method="post" class="inline">
             <button class="btn small" type="submit">+1 PXP (test)</button>
           </form>
         </div>
 
-        <a href="{{ url_for('top100') }}" class="btn gray" style="width:100%;text-align:center">Top-100</a>
-        <a href="{{ url_for('donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
+        <!-- Прямі шляхи, щоб не ловити BuildError, якщо ендпойнтів ще нема -->
+        <a href="/top100" class="btn gray" style="width:100%;text-align:center">Top-100</a>
+        <a href="/donate" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
       </div>
 
       <!-- Права колонка -->
       <div class="right">
         <div class="idline muted" style="margin-bottom:8px">
-          id: {{ current_user.id if current_user.id is not none else "—" }} • {{ current_user.email }}
+          id: {{ current_user.id if current_user.id is not None else "—" }} • {{ current_user.email }}
         </div>
 
-        <form method="post" action="{{ url_for('profile_update') }}" id="profileForm" class="form">
+        <form method="post" action="{{ url_for('profile.profile_update') }}" id="profileForm" class="form">
           <div class="field">
             <div class="label">Ім’я / нік</div>
             <input class="input" type="text" name="name" value="{{ current_user.name or '' }}" placeholder="Твоє ім’я">
@@ -123,4 +125,3 @@
 </script>
 
 {% endblock %}
-
