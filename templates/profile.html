@@ -68,29 +68,81 @@
 </div>
 
 <style>
+  /* геометрія лишилась та сама — тільки кольори на змінних теми */
   .page{max-width:980px;margin:0 auto;padding:16px 24px 40px}
-  .panel{background:#11141b;border:1px solid #1d2230;border-radius:16px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
   .row{display:flex;gap:20px;flex-wrap:wrap}
   .left{flex:0 0 260px}
   .right{flex:1}
-  .muted{color:#9fb0d4}
+
+  .muted{color:var(--muted)}
+
+  .panel{
+    background: color-mix(in srgb, var(--card) 96%, #000 4%);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
 
   .avatar-wrap{position:relative;width:200px;height:200px;margin:6px auto 10px;cursor:pointer}
-  .avatar{width:100%;height:100%;border-radius:50%;object-fit:cover;background:#1a2033;border:2px solid #1d2230}
-  .edit-btn{position:absolute;right:8px;bottom:8px;background:#1c64ec;border:0;color:#fff;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 18px rgba(28,100,236,.35)}
+  .avatar{
+    width:100%;height:100%;border-radius:50%;object-fit:cover;
+    background: color-mix(in srgb, var(--card) 85%, #000 15%);
+    border:2px solid var(--line);
+  }
+  .edit-btn{
+    position:absolute;right:8px;bottom:8px;
+    background:var(--btn-bg); color:var(--btn-text); border:0;
+    border-radius:50%; width:44px; height:44px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    box-shadow:0 8px 18px rgba(0,0,0,.35)
+  }
   .edit-btn span{font-size:20px;line-height:1}
   input[type="file"]{display:none}
 
   .field{margin-bottom:14px}
-  .label{font-size:12px;color:#9fb0d4;margin-bottom:6px}
-  .input, .textarea{width:100%;background:#0f131c;border:1px solid #1b2131;color:#e8eaed;border-radius:10px;padding:10px 12px;outline:none}
+  .label{font-size:12px;color:var(--muted);margin-bottom:6px}
+
+  .input, .textarea{
+    width:100%;
+    background: color-mix(in srgb, var(--bg) 75%, var(--card) 25%);
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:10px;
+    padding:10px 12px;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
   .textarea{min-height:110px;resize:vertical}
-  .btn{display:inline-block;padding:10px 16px;background:#1c64ec;color:#fff;font-weight:700;border-radius:10px;text-decoration:none;border:0;cursor:pointer}
-  .btn.gray{background:#23293a;color:#dbe5ff}
+  .input:focus, .textarea:focus{
+    border-color: var(--btn-bg);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--btn-bg) 30%, transparent);
+  }
+
+  /* кнопки під тему (можеш забрати, якщо вже є глобальні .btn у main.css) */
+  .btn{
+    display:inline-block;padding:10px 16px;
+    background:var(--btn-bg); color:var(--btn-text);
+    font-weight:700;border-radius:10px;text-decoration:none;border:0;cursor:pointer;
+    transition:color .15s ease, transform .06s ease;
+  }
+  .btn:hover{ color:var(--btn-text-hover); }
   .btn.small{padding:8px 12px;border-radius:10px}
+  .btn.gray{
+    background: transparent;
+    color: var(--ink);
+    border:1px solid var(--line);
+  }
+  .btn.gray:hover{ color: var(--btn-text-hover); }
+
   .stat{display:flex;gap:10px;align-items:center;margin:8px 0 18px}
-  .badge{background:#0f131c;border:1px solid #1b2131;border-radius:10px;padding:8px 10px}
+  .badge{
+    background: color-mix(in srgb, var(--card) 85%, #000 15%);
+    border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;color:var(--ink);
+  }
 </style>
+
 
 <script>
   const avatarWrap  = document.querySelector('.avatar-wrap');
@@ -123,5 +175,6 @@
 </script>
 
 {% endblock %}
+
 
 
