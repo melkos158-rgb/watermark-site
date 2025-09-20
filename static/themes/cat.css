@@ -1,1 +1,84 @@
+/* =========================
+   CAT THEME — ніжно-рожевий стиль
+   ========================= */
+
+/* Глобальні */
+body {
+  margin: 0;
+  font-family: Arial, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  background: #fff0f5;    /* світло-рожевий фон */
+  color: #4a2c2c;         /* темно-рожевий/коричневий текст */
+}
+
+/* Навігація */
+nav {
+  background: #ffb6c1;    /* рожевий бар */
+  border-bottom: 1px solid #e89aa6;
+}
+.nav-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 24px;
+}
+.nav-btn {
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #ff69b4;    /* яскраво-рожеві кнопки */
+  color: #fff;
+  transition: all .15s ease;
+}
+.nav-btn:hover {
+  background: #ff85c1;    /* світліший рожевий при наведенні */
+  color: #4a2c2c;
+}
+.nav-btn.active {
+  border: 1px solid #ff1493;
+}
+
+/* Карточки */
+.card, .canvas-wrap {
+  border-radius: 14px;
+  border: 1px solid #f5c6d2;
+  background: #ffe4e9;   /* дуже світло-рожевий фон карток */
+  padding: 16px;
+  color: #4a2c2c;
+}
+
+/* Кнопки */
+.btn {
+  background: #ff69b4;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.btn:hover {
+  background: #ff85c1;
+  color: #4a2c2c;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Інпути */
+input, select, textarea {
+  background: #fff0f5;
+  border: 1px solid #f5c6d2;
+  color: #4a2c2c;
+  border-radius: 8px;
+  padding: 8px 10px;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #ff69b4;
+  box-shadow: 0 0 0 2px rgba(255,105,180,0.4);
+}
 
