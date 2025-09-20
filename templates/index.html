@@ -5,67 +5,85 @@
   <title>Welcome</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Головне підключення теми -->
+  <!-- 1) Каркас (геометрія без кольорів) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- 2) Тема (кольори). Буде замінена скриптом нижче відповідно до localStorage -->
   <link id="theme-css" rel="stylesheet" href="{{ url_for('static', filename='themes/main.css') }}">
-<style>
-  .welcome-container{
-    max-width: 1100px;
-    margin: 40px auto;
-    padding: 20px;
-    text-align: center;
-  }
-  .welcome-container h1{
-    font-size: 2.5rem;
-    margin-bottom: 16px;
-    color: var(--ink);
-  }
-  .welcome-container p{
-    color: var(--muted);
-    margin-bottom: 24px;
-  }
+  <script>
+    (function(){
+      var saved = localStorage.getItem('theme') || 'main';
+      var map = {
+        main: '{{ url_for("static", filename="themes/main.css") }}',
+        cat: '{{ url_for("static", filename="themes/cat.css") }}',
+        hellowen: '{{ url_for("static", filename="themes/hellowen.css") }}',
+        minecraft: '{{ url_for("static", filename="themes/minecraft.css") }}'
+      };
+      var el = document.getElementById('theme-css');
+      if (el) el.href = map[saved] || map.main;
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
 
-  /* Центруємо картки по середині */
-  .welcome-grid{
-    display:flex;
-    flex-wrap:wrap;
-    gap:20px;
-    justify-content:center; /* центр */
-  }
+  <style>
+    .welcome-container{
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      text-align: center;
+    }
+    .welcome-container h1{
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      color: var(--ink);
+    }
+    .welcome-container p{
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
 
-  /* Картки беруть кольори з теми */
-  .welcome-card{
-    width:220px;
-    background: var(--card);
-    border: 3px solid var(--line);
-    border-radius: 14px;
-    padding: 20px;
-    color: var(--ink);
-    transition: .2s;
-    box-shadow: inset -2px -2px color-mix(in srgb, var(--line) 30%, transparent),
-                inset  2px  2px color-mix(in srgb, #fff 20%, transparent);
-  }
-  .welcome-card:hover{
-    transform: translateY(-4px);
-    border-color: var(--btn-text-hover);
-  }
+    /* Центруємо картки по середині */
+    .welcome-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:20px;
+      justify-content:center; /* центр */
+    }
 
-  .welcome-card a{
-    text-decoration:none;
-    color: var(--ink);
-    font-weight:600;
-    font-size:1.1rem;
-    display:block;
-    margin-top:8px;
-  }
-  .welcome-card a:hover{
-    color: var(--btn-text-hover);
-  }
+    /* Картки беруть кольори з теми */
+    .welcome-card{
+      width:220px;
+      background: var(--card);
+      border: 3px solid var(--line);
+      border-radius: 14px;
+      padding: 20px;
+      color: var(--ink);
+      transition: .2s;
+      box-shadow: inset -2px -2px color-mix(in srgb, var(--line) 30%, transparent),
+                  inset  2px  2px color-mix(in srgb, #fff 20%, transparent);
+    }
+    .welcome-card:hover{
+      transform: translateY(-4px);
+      border-color: var(--btn-text-hover);
+    }
 
-  .welcome-card span{
-    font-size:.9rem;
-    color: var(--muted);
-  }
-</style>
+    .welcome-card a{
+      text-decoration:none;
+      color: var(--ink);
+      font-weight:600;
+      font-size:1.1rem;
+      display:block;
+      margin-top:8px;
+    }
+    .welcome-card a:hover{
+      color: var(--btn-text-hover);
+    }
+
+    .welcome-card span{
+      font-size:.9rem;
+      color: var(--muted);
+    }
+  </style>
 
 </head>
 <body>
@@ -110,7 +128,6 @@
   </main>
 </body>
 </html>
-
 
 
 
