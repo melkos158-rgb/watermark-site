@@ -24,12 +24,15 @@
            (current_user is defined and current_user.is_authenticated) %}
 
       {% if has_user %}
+        <!-- Top-100 / Donate у blueprint 'profile' -->
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}"
            href="{{ url_for('profile.top100') }}">Top-100</a>
         <span aria-hidden="true">|</span>
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}"
            href="{{ url_for('profile.donate') }}">Donate</a>
         <span aria-hidden="true">|</span>
+
+        <!-- Профіль: прямий шлях -->
         <a class="nav-btn {{ 'active' if (request.path == '/profile') else '' }}"
            href="/profile">Профіль</a>
 
@@ -58,24 +61,30 @@
       hellowen:  "{{ url_for('static', filename='themes/hellowen.css') }}",
       minecraft: "{{ url_for('static', filename='themes/minecraft.css') }}"
     };
-    var select = document.getElementById('themeSelect');
-    var linkEl = document.getElementById('theme-css');
 
-    // поточне значення з localStorage
-    var saved = localStorage.getItem('theme') || 'main';
+    var select = document.getElementById('themeSelect');
+    var saved  = localStorage.getItem('theme') || 'main';
     if (select) select.value = (saved in THEME_MAP) ? saved : 'main';
 
     function applyTheme(v){
       var base = THEME_MAP[v] || THEME_MAP.main;
-      if (linkEl) {
-        // кеш-бастер, щоб гарантовано оновити CSS
-        linkEl.href = base + '?v=' + Date.now();
-      }
+      var head = document.getElementsByTagName('head')[0];
+      var old  = document.getElementById('theme-css');
+
+      // створюємо новий <link>, щоб він став ОСТАННІМ у <head> (найвища пріоритетність)
+      var link = document.createElement('link');
+      link.rel  = 'stylesheet';
+      link.id   = 'theme-css';
+      link.href = base + '?v=' + Date.now(); // кеш-бастер
+
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      head.appendChild(link);
+
       localStorage.setItem('theme', v);
       document.documentElement.setAttribute('data-theme', v);
     }
 
-    // Одразу застосувати збережену тему (на випадок якщо head-скрипт не перебив)
+    // одразу застосувати збережену тему
     applyTheme(saved);
 
     if (select) {
