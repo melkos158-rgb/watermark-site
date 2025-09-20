@@ -17,7 +17,9 @@
    ========================= */
 body {
   background: var(--bg) url("/static/themes/minecraft_dirt.png");
-  background-size: 64px 64px;   /* тайлінг текстури */
+  background-repeat: repeat;
+  background-size: 128px 128px;   /* розмір блоків: можна ставити 64px / 128px / 256px */
+  image-rendering: pixelated;     /* робить пікселі квадратними */
   color: var(--ink);
   font-family: "Minecraftia", monospace, Arial, sans-serif;
 }
@@ -131,4 +133,3 @@ input:focus, textarea:focus {
   font-weight: 700;
   padding: 6px 10px;
 }
-
