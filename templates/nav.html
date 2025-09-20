@@ -18,22 +18,18 @@
         <option value="minecraft">Minecraft</option>
       </select>
 
-      {# Надійна перевірка входу, без змін бекенду #}
       {% set has_user =
            (g is defined and g.user) or
            (session and session.get('user_id')) or
            (current_user is defined and current_user.is_authenticated) %}
 
       {% if has_user %}
-        <!-- Top-100 / Donate у blueprint 'profile' -->
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}"
            href="{{ url_for('profile.top100') }}">Top-100</a>
         <span aria-hidden="true">|</span>
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}"
            href="{{ url_for('profile.donate') }}">Donate</a>
         <span aria-hidden="true">|</span>
-
-        <!-- Профіль: прямий шлях, щоб не ловити BuildError -->
         <a class="nav-btn {{ 'active' if (request.path == '/profile') else '' }}"
            href="/profile">Профіль</a>
 
@@ -65,15 +61,27 @@
     var select = document.getElementById('themeSelect');
     var linkEl = document.getElementById('theme-css');
 
+    // поточне значення з localStorage
     var saved = localStorage.getItem('theme') || 'main';
-    if (select) select.value = THEME_MAP[saved] ? saved : 'main';
+    if (select) select.value = (saved in THEME_MAP) ? saved : 'main';
 
     function applyTheme(v){
-      var href = THEME_MAP[v] || THEME_MAP.main;
-      if (linkEl) linkEl.href = href;
+      var base = THEME_MAP[v] || THEME_MAP.main;
+      if (linkEl) {
+        // кеш-бастер, щоб гарантовано оновити CSS
+        linkEl.href = base + '?v=' + Date.now();
+      }
       localStorage.setItem('theme', v);
       document.documentElement.setAttribute('data-theme', v);
     }
-    if (select) select.addEventListener('change', function(){ applyTheme(this.value); });
+
+    // Одразу застосувати збережену тему (на випадок якщо head-скрипт не перебив)
+    applyTheme(saved);
+
+    if (select) {
+      select.addEventListener('change', function(){
+        applyTheme(this.value);
+      });
+    }
   })();
 </script>
