@@ -16,7 +16,8 @@
    BODY
    ========================= */
 body {
-  background: var(--bg) url("https://i.imgur.com/0Z6z6bQ.png"); /* легка текстура */
+  background: var(--bg) url("/static/themes/minecraft_dirt.png");
+  background-size: 64px 64px;   /* тайлінг текстури */
   color: var(--ink);
   font-family: "Minecraftia", monospace, Arial, sans-serif;
 }
