@@ -31,9 +31,7 @@ nav { /* без фону/рамок — тема додає кольори */ }
   border-radius: 10px;
   transition: transform .06s ease;
 }
-.nav-btn:hover { /* тема підсвічує кольорами */ }
 .nav-btn:active { transform: translateY(1px); }
-.nav-btn.active { /* тема фарбує */ }
 
 /* =========================
    3-column Layout
@@ -313,7 +311,6 @@ input[type="range"]::-moz-range-thumb {
    WELCOME PAGE — тільки розмітка
    ========================================= */
 .w-container { width: min(1100px, 92vw); margin: 0 auto; padding: 0 20px; }
-
 .welcome-hero { padding: 28px 0 24px; }
 .welcome-hero h1 { margin: 0 0 8px; font-size: 28px; }
 .welcome-hero p { margin: 0 0 14px; }
@@ -346,64 +343,81 @@ input[type="range"]::-moz-range-thumb {
   .welcome-foot .w-container { flex-direction: column; align-items: stretch; }
   .welcome-foot .foot-right { justify-content: flex-start; }
 }
+
 /* =========================================================
-   NEUTRALIZE ALL COLORS (Top100 / Donate / Profile / Welcome)
-   Тільки геометрія. Фарбування роблять themes/*.css
+   OPTIONAL: "neutral" theme sandbox (НЕ впливає на main/cat/…)
+   Увімкнеться тільки якщо в html стоїть data-theme="neutral".
    ========================================================= */
-
-/* глобально */
-body, nav, .card, .canvas-wrap, .tile, .network-card, .profile-card,
-.section, .page-title, .welcome-hero, .welcome-foot, .faq-item,
-.avatar, .avatar .edit, .stat .chip, .pe-panel, .pe-canvas, .pe-toolbar,
-.pe-tool, .pe-switch, .pe-crop-rect, .pe-crop-handle, .pe-grid,
-.pe-toast .item {
-  background: transparent !important;
-  color: inherit !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
+html[data-theme="neutral"] body,
+html[data-theme="neutral"] nav,
+html[data-theme="neutral"] .card,
+html[data-theme="neutral"] .canvas-wrap,
+html[data-theme="neutral"] .tile,
+html[data-theme="neutral"] .network-card,
+html[data-theme="neutral"] .profile-card,
+html[data-theme="neutral"] .section,
+html[data-theme="neutral"] .page-title,
+html[data-theme="neutral"] .welcome-hero,
+html[data-theme="neutral"] .welcome-foot,
+html[data-theme="neutral"] .faq-item,
+html[data-theme="neutral"] .avatar,
+html[data-theme="neutral"] .avatar .edit,
+html[data-theme="neutral"] .stat .chip,
+html[data-theme="neutral"] .pe-panel,
+html[data-theme="neutral"] .pe-canvas,
+html[data-theme="neutral"] .pe-toolbar,
+html[data-theme="neutral"] .pe-tool,
+html[data-theme="neutral"] .pe-switch,
+html[data-theme="neutral"] .pe-crop-rect,
+html[data-theme="neutral"] .pe-crop-handle,
+html[data-theme="neutral"] .pe-grid,
+html[data-theme="neutral"] .pe-toast .item {
+  background: transparent;
+  color: inherit;
+  border-color: transparent;
+  box-shadow: none;
 }
 
-/* кнопки і таби — тільки форма */
-.btn, .btn.primary, .btn.ghost, .nav-btn, .segment {
-  background: transparent !important;
-  color: inherit !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
+html[data-theme="neutral"] .btn,
+html[data-theme="neutral"] .btn.primary,
+html[data-theme="neutral"] .btn.ghost,
+html[data-theme="neutral"] .nav-btn,
+html[data-theme="neutral"] .segment {
+  background: transparent;
+  color: inherit;
+  border-color: transparent;
+  box-shadow: none;
 }
 
-/* інпути/селекти/textarea — тільки рамка без кольору */
-input, select, textarea, textarea.profile-about,
-input[type="file"]::file-selector-button {
-  background: transparent !important;
-  color: inherit !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  outline: none !important;
+html[data-theme="neutral"] input,
+html[data-theme="neutral"] select,
+html[data-theme="neutral"] textarea,
+html[data-theme="neutral"] textarea.profile-about,
+html[data-theme="neutral"] input[type="file"]::file-selector-button {
+  background: transparent;
+  color: inherit;
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
 }
 
-/* слайдери — треки/бігунки без кольорів */
-input[type="range"]::-webkit-slider-runnable-track,
-input[type="range"]::-moz-range-track,
-input[type="range"]::-moz-range-progress {
-  background: transparent !important;
-  border-color: transparent !important;
-}
-input[type="range"]::-webkit-slider-thumb,
-input[type="range"]::-moz-range-thumb {
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
+html[data-theme="neutral"] input[type="range"]::-webkit-slider-runnable-track,
+html[data-theme="neutral"] input[type="range"]::-moz-range-track,
+html[data-theme="neutral"] input[type="range"]::-moz-range-progress {
+  background: transparent;
+  border-color: transparent;
 }
 
-/* таблиці Top100 — тільки лінії без кольору */
-.table { border-radius: 12px; overflow: hidden; }
-.table th, .table td { border-top: 1px solid transparent !important; }
+html[data-theme="neutral"] input[type="range"]::-webkit-slider-thumb,
+html[data-theme="neutral"] input[type="range"]::-moz-range-thumb {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
 
-/* гріди Donate */
-.grid-cards,
-.auto-topup, .auto-topup .row { /* лише сітка — без фарби */ }
+html[data-theme="neutral"] .table { border-radius: 12px; overflow: hidden; }
+html[data-theme="neutral"] .table th,
+html[data-theme="neutral"] .table td { border-top: 1px solid transparent; }
 
-/* аватар у профілі — лише розміри */
-.avatar { border: 0 !important; }
-
+html[data-theme="neutral"] .avatar { border: 0; }
 
