@@ -1,1 +1,133 @@
+/* ===== MINECRAFT THEME ===== */
+:root {
+  --bg: #d7d7d7;              /* світло-сірий фон */
+  --ink: #111;                /* чорний текст */
+  --line: #555;               /* сірі рамки */
+  --card: #f2f2f2;            /* фон карток */
+  --muted: #333;              /* затемнений текст */
+  --btn-bg: #c6c6c6;          /* стандартна кнопка */
+  --btn-text: #111;           /* чорний текст кнопки */
+  --btn-text-hover: #ffff55;  /* жовтий (як hover у MC) */
+  --nav-bg: #999;             /* верхня навігація */
+  --link: #3f3fff;            /* сині лінки */
+}
+
+/* =========================
+   BODY
+   ========================= */
+body {
+  background: var(--bg) url("https://i.imgur.com/0Z6z6bQ.png"); /* легка текстура */
+  color: var(--ink);
+  font-family: "Minecraftia", monospace, Arial, sans-serif;
+}
+
+/* =========================
+   NAVIGATION
+   ========================= */
+nav {
+  background: var(--nav-bg);
+  border-bottom: 3px solid var(--line);
+}
+.nav-btn {
+  background: var(--btn-bg);
+  border: 3px solid #555;
+  color: var(--btn-text);
+  font-weight: 700;
+  text-shadow: 1px 1px #fff;
+  padding: 12px 18px;
+  border-radius: 0;
+  box-shadow: inset -2px -2px #aaa, inset 2px 2px #fff;
+}
+.nav-btn:hover {
+  background: #999;
+  color: var(--btn-text-hover);
+  box-shadow: inset -2px -2px #888, inset 2px 2px #eee;
+}
+.nav-btn:active {
+  background: #666;
+  box-shadow: inset 2px 2px #333;
+}
+
+/* =========================
+   CARDS / PANELS
+   ========================= */
+.card, .canvas-wrap, .panel {
+  background: var(--card);
+  border: 3px solid #555;
+  box-shadow: inset -3px -3px #aaa, inset 3px 3px #fff;
+  color: var(--ink);
+}
+
+/* =========================
+   BUTTONS
+   ========================= */
+.btn {
+  background: var(--btn-bg);
+  border: 3px solid #555;
+  color: var(--btn-text);
+  text-shadow: 1px 1px #fff;
+  padding: 12px 18px;
+  font-weight: 700;
+  border-radius: 0;
+  cursor: pointer;
+  box-shadow: inset -2px -2px #aaa, inset 2px 2px #fff;
+}
+.btn:hover {
+  background: #999;
+  color: var(--btn-text-hover);
+}
+.btn:active {
+  background: #666;
+  box-shadow: inset 2px 2px #333;
+}
+
+/* =========================
+   INPUTS
+   ========================= */
+input, select, textarea {
+  background: #fff;
+  border: 3px solid #555;
+  color: #111;
+  padding: 8px 10px;
+  font-family: "Minecraftia", monospace, Arial, sans-serif;
+  box-shadow: inset -2px -2px #aaa, inset 2px 2px #fff;
+}
+input:focus, textarea:focus {
+  border-color: #ffff55;
+  outline: none;
+}
+
+/* =========================
+   TABLE (Top100)
+   ========================= */
+.table {
+  border: 3px solid #555;
+  background: var(--card);
+  box-shadow: inset -3px -3px #aaa, inset 3px 3px #fff;
+}
+.table th, .table td {
+  border-top: 1px solid #888;
+  padding: 10px 14px;
+  color: #111;
+}
+.table th {
+  background: #bbb;
+  font-weight: 700;
+}
+
+/* =========================
+   PROFILE / AVATAR
+   ========================= */
+.avatar {
+  border: 3px solid #555;
+  background: #ddd;
+  box-shadow: inset -3px -3px #aaa, inset 3px 3px #fff;
+}
+.badge {
+  background: #bbb;
+  border: 2px solid #555;
+  color: #111;
+  font-weight: 700;
+  padding: 6px 10px;
+}
 
