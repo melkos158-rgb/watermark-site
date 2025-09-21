@@ -59,26 +59,125 @@
   <div class="layout">
 
     <!-- Ліва колонка -->
-    <div class="card side">
-      <h2>Модель</h2>
+  <!-- Ліва колонка -->
+<div class="card side">
+  <h2>Модель</h2>
 
-      <label>STL/3D файл</label>
-      <!-- ADDED: розширив accept, щоб брало GLB/GLTF/OBJ/PLY -->
-      <input id="file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
-      <p class="help">Перетягни файл у перегляд або вибери тут.</p>
+  <label>STL/3D файл</label>
+  <input id="file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
+  <p class="help">Перетягни файл у перегляд або вибери тут.</p>
 
-      <div class="row" style="margin-top:10px">
-        <button id="btnDemo"  class="btn primary">Демо куб</button>
-        <button id="btnReset" class="btn ghost">Ресет камери</button>
-      </div>
+  <div class="row" style="margin-top:10px">
+    <button id="btnDemo"  class="btn primary">Демо куб</button>
+    <button id="btnReset" class="btn ghost">Ресет камери</button>
+  </div>
 
-      <div class="row">
-        <button id="btnWire" class="btn ghost">Wireframe ON/OFF</button>
-        <button id="btnClear" class="btn ghost">Очистити</button>
-      </div>
+  <div class="row">
+    <button id="btnWire" class="btn ghost">Wireframe ON/OFF</button>
+    <button id="btnClear" class="btn ghost">Очистити</button>
+  </div>
 
-      <p class="help">Керування: ЛКМ — обертати, колесо — зум, Shift+ЛКМ — панорамувати.</p>
-    </div>
+  <p class="help">Керування: ЛКМ — обертати, колесо — зум, Shift+ЛКМ — панорамувати.</p>
+
+  <hr>
+
+  <!-- 🔹 Трансформації -->
+  <h3>Трансформації</h3>
+  <div class="row">
+    <button id="btnCenter" class="btn ghost">Центрувати + На стіл</button>
+    <button id="btnAutoOrient" class="btn ghost">Автоорієнтація</button>
+  </div>
+  <label>Масштаб (%)</label>
+  <div class="row">
+    <input id="scalePct" type="number" min="1" max="1000" value="100" style="width:100px">
+    <button id="btnScaleApply" class="btn ghost">Застосувати</button>
+  </div>
+  <label>Обертання (°)</label>
+  <div class="row">
+    <button data-rot="x-90" class="btn ghost rot">X ±90</button>
+    <button data-rot="y-90" class="btn ghost rot">Y ±90</button>
+    <button data-rot="z-90" class="btn ghost rot">Z ±90</button>
+  </div>
+  <div class="row">
+    <button data-mirror="x" class="btn ghost mirror">Mirror X</button>
+    <button data-mirror="y" class="btn ghost mirror">Mirror Y</button>
+    <button data-mirror="z" class="btn ghost mirror">Mirror Z</button>
+  </div>
+
+  <hr>
+
+  <!-- 🔹 Slice -->
+  <h3>Різати площиною</h3>
+  <label>Висота (Y)</label>
+  <input id="sliceY" type="range" min="-200" max="200" value="0">
+  <label>Кут навколо X</label>
+  <input id="sliceAx" type="range" min="-90" max="90" value="0">
+  <label>Кут навколо Z</label>
+  <input id="sliceAz" type="range" min="-90" max="90" value="0">
+  <div class="row">
+    <button id="btnSlicePreview" class="btn ghost">Прев’ю площини</button>
+    <button id="btnSliceApply" class="btn ghost">Розрізати → 2 частини</button>
+  </div>
+
+  <hr>
+
+  <!-- 🔹 Boolean -->
+  <h3>Boolean-операції</h3>
+  <div class="row">
+    <button data-prim="box" class="btn ghost prim">Куб</button>
+    <button data-prim="cyl" class="btn ghost prim">Циліндр</button>
+    <button data-prim="sph" class="btn ghost prim">Сфера</button>
+  </div>
+  <div class="row">
+    <button id="btnUnion" class="btn ghost">Union</button>
+    <button id="btnSubtract" class="btn ghost">Subtract</button>
+    <button id="btnIntersect" class="btn ghost">Intersect</button>
+  </div>
+
+  <hr>
+
+  <!-- 🔹 Hollow -->
+  <h3>Hollow (порожнина)</h3>
+  <label>Товщина стінки (мм)</label>
+  <input id="hollowWall" type="number" min="0.6" max="5" step="0.2" value="1.2" style="width:110px">
+  <div class="row">
+    <button id="btnHollow" class="btn ghost">Зробити порожнистою</button>
+  </div>
+  <label>Отвори для повітря</label>
+  <div class="row">
+    <button data-vent="3" class="btn ghost vent">Ø3 мм</button>
+    <button data-vent="5" class="btn ghost vent">Ø5 мм</button>
+    <button data-vent="8" class="btn ghost vent">Ø8 мм</button>
+  </div>
+
+  <hr>
+
+  <!-- 🔹 Гравірування -->
+  <h3>Гравірування / Тиснення</h3>
+  <div class="row">
+    <button id="btnEngraveText" class="btn ghost">Текст</button>
+    <button id="btnEngravePNG" class="btn ghost">PNG-логотип</button>
+  </div>
+
+  <hr>
+
+  <!-- 🔹 Simplify -->
+  <h3>Simplify / Decimate</h3>
+  <label>Залишити % трикутників</label>
+  <input id="simpKeep" type="range" min="5" max="100" value="60">
+  <div class="row">
+    <button id="btnSimplify" class="btn ghost">Спрощення</button>
+  </div>
+
+  <hr>
+
+  <!-- 🔹 Mix&Match -->
+  <h3>Mix & Match</h3>
+  <input id="addFile" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
+  <div class="row" style="margin-top:6px">
+    <button id="btnUnionAll" class="btn ghost">Union всіх</button>
+  </div>
+</div>
 
     <!-- Центр -->
     <div class="card">
@@ -494,3 +593,4 @@
   </script>
 </body>
 </html>
+
