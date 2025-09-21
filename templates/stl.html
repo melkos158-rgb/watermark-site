@@ -387,7 +387,7 @@
       });
     }
 
-    // ADDED: універсальне завантаження
+    // ✅ ВИПРАВЛЕНО: універсальне завантаження
     function loadAnyFromFile(file){
       const ext = file.name.split('.').pop().toLowerCase();
       const url = URL.createObjectURL(file);
@@ -422,7 +422,7 @@
       dz.addEventListener('drop', e=>{
         const f = e.dataTransfer?.files?.[0];
         if (!f) return;
-        // ADDED: підтримка кількох форматів
+        // підтримка кількох форматів
         if (/\.(stl|obj|ply|gltf|glb)$/i.test(f.name)) loadAnyFromFile(f);
         else alert('Підтримка: STL, OBJ, PLY, glTF/GLB.');
       });
@@ -431,7 +431,7 @@
     // UI
     $('file').addEventListener('change', ()=>{
       const f = $('file').files?.[0];
-      if (f) loadAnyFromFile(f); // ADDED: універсальне
+      if (f) loadAnyFromFile(f);
     });
     $('btnDemo').addEventListener('click', ()=>{
       clearAll();
@@ -533,7 +533,7 @@
     $('btnExportAscii').addEventListener('click', ()=>exportSTL(false));
     $('btnExportBinary').addEventListener('click', ()=>exportSTL(true));
 
-    /* ADDED: універсальна підготовка до експорту — збираємо видиму геометрію з трансформами */
+    /* універсальна підготовка до експорту — збираємо видиму геометрію з трансформами */
     function getExportGroup(){
       if(!modelRoot || modelRoot.children.length===0){ alert('Нема моделі'); return null; }
       const group = new THREE.Group();
@@ -549,7 +549,7 @@
       return group;
     }
 
-    /* ADDED: експорт у GLB/GLTF/OBJ/PLY */
+    /* експорт у GLB/GLTF/OBJ/PLY */
     function exportGLB(){
       const root = getExportGroup(); if(!root) return;
       const ex = new GLTFExporter();
@@ -578,7 +578,7 @@
       download('model.ply', text, false);
     }
 
-    // ADDED: обробники кнопок конвертації
+    // обробники кнопок конвертації
     $('btnExpGLB') .addEventListener('click', exportGLB);
     $('btnExpGLTF').addEventListener('click', exportGLTF);
     $('btnExpOBJ') .addEventListener('click', exportOBJ);
@@ -593,4 +593,3 @@
   </script>
 </body>
 </html>
-
