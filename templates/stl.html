@@ -24,7 +24,7 @@
     hr{border:none;border-top:1px solid #e9ecf2;margin:10px 0}
   </style>
 
-  <!-- importmap: фіксує модулі, щоб не було "Failed to resolve module specifier 'three'" -->
+  <!-- importmap -->
   <script type="importmap">
   {
     "imports": {
@@ -35,12 +35,10 @@
       "font/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/FontLoader.js",
       "text/geometry": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/geometries/TextGeometry.js",
 
-      /* ADDED: лоадери інших форматів */
       "gltf/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/GLTFLoader.js",
       "obj/loader":  "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/OBJLoader.js",
       "ply/loader":  "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/PLYLoader.js",
 
-      /* ADDED: експортери інших форматів */
       "gltf/exporter":"https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/GLTFExporter.js",
       "obj/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/OBJExporter.js",
       "ply/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/PLYExporter.js"
@@ -53,13 +51,10 @@
  <!-- NAV -->
  {% include 'nav.html' %}
 
-
-
-  <!-- Основна сітка (твоя .layout + .card) -->
+  <!-- Основна сітка -->
   <div class="layout">
 
     <!-- Ліва колонка -->
-  <!-- Ліва колонка -->
 <div class="card side">
   <h2>Модель</h2>
 
@@ -81,7 +76,7 @@
 
   <hr>
 
-  <!-- 🔹 Трансформації -->
+  <!-- Трансформації -->
   <h3>Трансформації</h3>
   <div class="row">
     <button id="btnCenter" class="btn ghost">Центрувати + На стіл</button>
@@ -106,7 +101,7 @@
 
   <hr>
 
-  <!-- 🔹 Slice -->
+  <!-- Slice -->
   <h3>Різати площиною</h3>
   <label>Висота (Y)</label>
   <input id="sliceY" type="range" min="-200" max="200" value="0">
@@ -121,7 +116,7 @@
 
   <hr>
 
-  <!-- 🔹 Boolean -->
+  <!-- Boolean -->
   <h3>Boolean-операції</h3>
   <div class="row">
     <button data-prim="box" class="btn ghost prim">Куб</button>
@@ -136,7 +131,7 @@
 
   <hr>
 
-  <!-- 🔹 Hollow -->
+  <!-- Hollow -->
   <h3>Hollow (порожнина)</h3>
   <label>Товщина стінки (мм)</label>
   <input id="hollowWall" type="number" min="0.6" max="5" step="0.2" value="1.2" style="width:110px">
@@ -152,7 +147,7 @@
 
   <hr>
 
-  <!-- 🔹 Гравірування -->
+  <!-- Гравірування -->
   <h3>Гравірування / Тиснення</h3>
   <div class="row">
     <button id="btnEngraveText" class="btn ghost">Текст</button>
@@ -161,7 +156,7 @@
 
   <hr>
 
-  <!-- 🔹 Simplify -->
+  <!-- Simplify -->
   <h3>Simplify / Decimate</h3>
   <label>Залишити % трикутників</label>
   <input id="simpKeep" type="range" min="5" max="100" value="60">
@@ -171,7 +166,7 @@
 
   <hr>
 
-  <!-- 🔹 Mix&Match -->
+  <!-- Mix&Match -->
   <h3>Mix & Match</h3>
   <input id="addFile" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
   <div class="row" style="margin-top:6px">
@@ -229,7 +224,6 @@
         <button id="btnExportBinary" class="btn ghost">Експорт STL (Binary)</button>
       </div>
 
-      <!-- ADDED: блок швидкої конвертації/експорту -->
       <h3 style="margin-top:12px">Конвертація / Експорт</h3>
       <div class="row">
         <button id="btnExpGLB"  class="btn ghost">Export GLB</button>
@@ -244,7 +238,7 @@
     </div>
   </div>
 
-  <!-- JS (модулі через importmap) -->
+  <!-- JS -->
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -253,7 +247,6 @@
     import { FontLoader }    from 'font/loader';
     import { TextGeometry }  from 'text/geometry';
 
-    /* ADDED: імпорти лоадерів/експортерів */
     import { GLTFLoader }    from 'gltf/loader';
     import { OBJLoader }     from 'obj/loader';
     import { PLYLoader }     from 'ply/loader';
@@ -265,7 +258,7 @@
     const $ = (id)=>document.getElementById(id);
     const statusEl = $('status');
 
-    // ---- Сцена
+    // Сцена
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x111111);
 
@@ -324,7 +317,7 @@
       else { camera.position.set(1.2,0.9,1.8); controls.target.set(0,0,0); controls.update(); }
     }
 
-    // Шрифт для 3D-тексту
+    // Шрифт
     const fontLoader = new FontLoader();
     let font = null;
     fontLoader.load(
@@ -336,9 +329,9 @@
 
     // Лоадери
     const stlLoader  = new STLLoader();
-    const gltfLoader = new GLTFLoader();     // ADDED
-    const objLoader  = new OBJLoader();      // ADDED
-    const plyLoader  = new PLYLoader();      // ADDED
+    const gltfLoader = new GLTFLoader();
+    const objLoader  = new OBJLoader();
+    const plyLoader  = new PLYLoader();
 
     function clearGroup(grp){
       while(grp.children.length){
@@ -356,9 +349,7 @@
       $('btnBake').disabled = false;
     }
 
-    // ADDED: додав підтримку Object3D (glTF/OBJ)
     function addObject(obj){
-      // нормалізуємо матеріали і подвійні сторони
       obj.traverse(n=>{
         if(n.isMesh){
           n.material = wireframeOn ? wireMaterial : baseMaterial.clone();
@@ -367,17 +358,15 @@
         }
       });
       modelRoot.add(obj);
-      // покласти на "стіл" і центр
       const box = new THREE.Box3().setFromObject(modelRoot);
       const center = box.getCenter(new THREE.Vector3());
       const minY = box.min.y;
       modelRoot.position.sub(center);
-      modelRoot.position.y -= minY; // lay-flat
+      modelRoot.position.y -= minY;
       fitCameraToObject(modelRoot, 1.6);
-      $('btnBake').disabled = true; // запікання працює для однієї сітки — залишаю як є
+      $('btnBake').disabled = true;
     }
 
-    // ІСНУЮЧИЙ: тільки STL
     function loadSTLFromFile(file){
       const url = URL.createObjectURL(file);
       stlLoader.load(url, (geom)=>{
@@ -387,7 +376,7 @@
       });
     }
 
-    // ✅ ВИПРАВЛЕНО: універсальне завантаження
+    // Універсальне завантаження
     function loadAnyFromFile(file){
       const ext = file.name.split('.').pop().toLowerCase();
       const url = URL.createObjectURL(file);
@@ -422,7 +411,6 @@
       dz.addEventListener('drop', e=>{
         const f = e.dataTransfer?.files?.[0];
         if (!f) return;
-        // підтримка кількох форматів
         if (/\.(stl|obj|ply|gltf|glb)$/i.test(f.name)) loadAnyFromFile(f);
         else alert('Підтримка: STL, OBJ, PLY, glTF/GLB.');
       });
@@ -445,7 +433,7 @@
     });
     $('btnClear').addEventListener('click', ()=>{ clearAll(); $('file').value=''; resetCamera(); });
 
-    // Прев’ю 3D-водяного знаку
+    // Водяний знак
     function previewWatermark(){
       if (!font){ alert('Шрифт ще вантажиться. Спробуй за мить.'); return; }
       if (!modelRoot.children.length){ alert('Спершу завантаж модель.'); return; }
@@ -462,7 +450,6 @@
       const mat = new THREE.MeshStandardMaterial({ color:0xff4488, transparent:true, opacity:.65 });
       const mesh = new THREE.Mesh(tg, mat);
 
-      // позиція на верхній грані моделі
       const mbox = new THREE.Box3().setFromObject(modelRoot);
       const msize = mbox.getSize(new THREE.Vector3());
       const margin = msize.length() * offsetP;
@@ -475,7 +462,6 @@
     }
     $('btnPreview').addEventListener('click', previewWatermark);
 
-    // Запікання у геометрію (просте обʼєднання позицій)
     function bakeWatermark(){
       if (!watermarkGroup.children.length){ alert('Немає превʼю знаку. Натисни «Попередній перегляд».'); return; }
       const base = modelRoot.children.find(o=>o.isMesh);
@@ -505,7 +491,7 @@
     }
     $('btnBake').addEventListener('click', bakeWatermark);
 
-    // Експорт (існуючий STL)
+    // Експорт STL
     const stlExporter = new STLExporter();
     function download(name, data, bin=false){
       const blob = new Blob([data], {type: bin? 'application/octet-stream':'text/plain'});
@@ -521,7 +507,7 @@
         const addMeta = $('metaToggle').checked;
         const author = ($('author').value||'').replace(/\s+/g,' ').trim();
         const prev = mesh.name;
-        mesh.name = addMeta && author ? `author=${author}` : (prev || 'model');
+        mesh.name = addMeta && author ? `author=${author}` : (prev || 'model');  <!-- ЄДИНА ПРАВКА -->
         const ascii = stlExporter.parse(mesh, {binary:false});
         mesh.name = prev;
         download((author?author.replaceAll(' ','_')+'_':'')+'model_ascii.stl', ascii, false);
@@ -533,7 +519,7 @@
     $('btnExportAscii').addEventListener('click', ()=>exportSTL(false));
     $('btnExportBinary').addEventListener('click', ()=>exportSTL(true));
 
-    /* універсальна підготовка до експорту — збираємо видиму геометрію з трансформами */
+    // Підготовка та експорт у GLB/GLTF/OBJ/PLY
     function getExportGroup(){
       if(!modelRoot || modelRoot.children.length===0){ alert('Нема моделі'); return null; }
       const group = new THREE.Group();
@@ -548,22 +534,15 @@
       if(!group.children.length){ alert('Нема сітки'); return null; }
       return group;
     }
-
-    /* експорт у GLB/GLTF/OBJ/PLY */
     function exportGLB(){
       const root = getExportGroup(); if(!root) return;
       const ex = new GLTFExporter();
-      ex.parse(root, (bin)=>{
-        download('model.glb', bin, true);
-      }, { binary:true, onlyVisible:true, trs:false });
+      ex.parse(root, (bin)=>{ download('model.glb', bin, true); }, { binary:true, onlyVisible:true, trs:false });
     }
     function exportGLTF(){
       const root = getExportGroup(); if(!root) return;
       const ex = new GLTFExporter();
-      ex.parse(root, (gltf)=>{
-        const json = JSON.stringify(gltf);
-        download('model.gltf', json, false);
-      }, { binary:false, onlyVisible:true, trs:false, embedImages:true });
+      ex.parse(root, (gltf)=>{ download('model.gltf', JSON.stringify(gltf), false); }, { binary:false, onlyVisible:true, trs:false, embedImages:true });
     }
     function exportOBJ(){
       const root = getExportGroup(); if(!root) return;
@@ -577,8 +556,6 @@
       const text = ex.parse(root);
       download('model.ply', text, false);
     }
-
-    // обробники кнопок конвертації
     $('btnExpGLB') .addEventListener('click', exportGLB);
     $('btnExpGLTF').addEventListener('click', exportGLTF);
     $('btnExpOBJ') .addEventListener('click', exportOBJ);
@@ -593,3 +570,4 @@
   </script>
 </body>
 </html>
+
