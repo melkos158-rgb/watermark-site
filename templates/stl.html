@@ -33,7 +33,17 @@
       "stl/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/STLLoader.js",
       "stl/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/STLExporter.js",
       "font/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/FontLoader.js",
-      "text/geometry": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/geometries/TextGeometry.js"
+      "text/geometry": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/geometries/TextGeometry.js",
+
+      /* ADDED: лоадери інших форматів */
+      "gltf/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/GLTFLoader.js",
+      "obj/loader":  "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/OBJLoader.js",
+      "ply/loader":  "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/PLYLoader.js",
+
+      /* ADDED: експортери інших форматів */
+      "gltf/exporter":"https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/GLTFExporter.js",
+      "obj/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/OBJExporter.js",
+      "ply/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/PLYExporter.js"
     }
   }
   </script>
@@ -52,8 +62,9 @@
     <div class="card side">
       <h2>Модель</h2>
 
-      <label>STL файл</label>
-      <input id="file" type="file" accept=".stl">
+      <label>STL/3D файл</label>
+      <!-- ADDED: розширив accept, щоб брало GLB/GLTF/OBJ/PLY -->
+      <input id="file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
       <p class="help">Перетягни файл у перегляд або вибери тут.</p>
 
       <div class="row" style="margin-top:10px">
@@ -119,7 +130,18 @@
         <button id="btnExportBinary" class="btn ghost">Експорт STL (Binary)</button>
       </div>
 
-      <p class="help">ASCII STL може містити помітне в назві <code>solid</code> (автор). Binary STL зазвичай метадані обрізає.</p>
+      <!-- ADDED: блок швидкої конвертації/експорту -->
+      <h3 style="margin-top:12px">Конвертація / Експорт</h3>
+      <div class="row">
+        <button id="btnExpGLB"  class="btn ghost">Export GLB</button>
+        <button id="btnExpGLTF" class="btn ghost">Export GLTF</button>
+      </div>
+      <div class="row">
+        <button id="btnExpOBJ"  class="btn ghost">Export OBJ</button>
+        <button id="btnExpPLY"  class="btn ghost">Export PLY</button>
+      </div>
+
+      <p class="help">Файли обробляються локально в браузері. Підтримка імпорту: STL, OBJ, PLY, glTF/GLB.</p>
     </div>
   </div>
 
@@ -131,6 +153,15 @@
     import { STLExporter }   from 'stl/exporter';
     import { FontLoader }    from 'font/loader';
     import { TextGeometry }  from 'text/geometry';
+
+    /* ADDED: імпорти лоадерів/експортерів */
+    import { GLTFLoader }    from 'gltf/loader';
+    import { OBJLoader }     from 'obj/loader';
+    import { PLYLoader }     from 'ply/loader';
+
+    import { GLTFExporter }  from 'gltf/exporter';
+    import { OBJExporter }   from 'obj/exporter';
+    import { PLYExporter }   from 'ply/exporter';
 
     const $ = (id)=>document.getElementById(id);
     const statusEl = $('status');
@@ -204,8 +235,12 @@
       err => console.warn('Шрифт не завантажився:', err)
     );
 
-    // Завантаження STL
-    const stlLoader = new STLLoader();
+    // Лоадери
+    const stlLoader  = new STLLoader();
+    const gltfLoader = new GLTFLoader();     // ADDED
+    const objLoader  = new OBJLoader();      // ADDED
+    const plyLoader  = new PLYLoader();      // ADDED
+
     function clearGroup(grp){
       while(grp.children.length){
         const m = grp.children.pop();
@@ -213,6 +248,7 @@
       }
     }
     function clearAll(){ clearGroup(modelRoot); clearGroup(watermarkGroup); statusEl.textContent=''; }
+
     function addGeometry(geometry){
       geometry.computeVertexNormals?.();
       const mesh = new THREE.Mesh(geometry, wireframeOn ? wireMaterial : baseMaterial);
@@ -220,6 +256,29 @@
       fitCameraToObject(modelRoot, 1.6);
       $('btnBake').disabled = false;
     }
+
+    // ADDED: додав підтримку Object3D (glTF/OBJ)
+    function addObject(obj){
+      // нормалізуємо матеріали і подвійні сторони
+      obj.traverse(n=>{
+        if(n.isMesh){
+          n.material = wireframeOn ? wireMaterial : baseMaterial.clone();
+          n.material.side = THREE.DoubleSide;
+          n.geometry?.computeVertexNormals?.();
+        }
+      });
+      modelRoot.add(obj);
+      // покласти на "стіл" і центр
+      const box = new THREE.Box3().setFromObject(modelRoot);
+      const center = box.getCenter(new THREE.Vector3());
+      const minY = box.min.y;
+      modelRoot.position.sub(center);
+      modelRoot.position.y -= minY; // lay-flat
+      fitCameraToObject(modelRoot, 1.6);
+      $('btnBake').disabled = true; // запікання працює для однієї сітки — залишаю як є
+    }
+
+    // ІСНУЮЧИЙ: тільки STL
     function loadSTLFromFile(file){
       const url = URL.createObjectURL(file);
       stlLoader.load(url, (geom)=>{
@@ -229,6 +288,33 @@
       });
     }
 
+    // ADDED: універсальне завантаження
+    function loadAnyFromFile(file){
+      const ext = file.name.split('.').pop().toLowerCase();
+      const url = URL.createObjectURL(file);
+
+      const done = ()=> URL.revokeObjectURL(url);
+
+      const onError = (err)=>{
+        console.error('Load error:', err);
+        alert('Не вдалося прочитати файл. Підтримка: STL, OBJ, PLY, glTF/GLB.');
+        done();
+      };
+
+      if (ext === 'stl'){
+        stlLoader.load(url, (geom)=>{ clearAll(); addGeometry(geom); done(); }, undefined, onError);
+      } else if (ext === 'obj'){
+        objLoader.load(url, (obj)=>{ clearAll(); addObject(obj); done(); }, undefined, onError);
+      } else if (ext === 'ply'){
+        plyLoader.load(url, (geom)=>{ geom.computeVertexNormals(); clearAll(); addGeometry(geom); done(); }, undefined, onError);
+      } else if (ext === 'gltf' || ext === 'glb'){
+        gltfLoader.load(url, (gltf)=>{ clearAll(); addObject(gltf.scene); done(); }, undefined, onError);
+      } else {
+        alert('Формат не підтримується (доступні: STL, OBJ, PLY, glTF/GLB).');
+        done();
+      }
+    }
+
     // Drag&Drop
     (()=>{
       const dz = $('viewer').parentElement;
@@ -236,12 +322,18 @@
       ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev, e=>{e.preventDefault(); dz.style.outline='none';}));
       dz.addEventListener('drop', e=>{
         const f = e.dataTransfer?.files?.[0];
-        if (f && /\.stl$/i.test(f.name)) loadSTLFromFile(f);
+        if (!f) return;
+        // ADDED: підтримка кількох форматів
+        if (/\.(stl|obj|ply|gltf|glb)$/i.test(f.name)) loadAnyFromFile(f);
+        else alert('Підтримка: STL, OBJ, PLY, glTF/GLB.');
       });
     })();
 
     // UI
-    $('file').addEventListener('change', ()=>{ const f = $('file').files?.[0]; if (f) loadSTLFromFile(f); });
+    $('file').addEventListener('change', ()=>{
+      const f = $('file').files?.[0];
+      if (f) loadAnyFromFile(f); // ADDED: універсальне
+    });
     $('btnDemo').addEventListener('click', ()=>{
       clearAll();
       const g = new THREE.BoxGeometry(50,30,20);
@@ -314,8 +406,8 @@
     }
     $('btnBake').addEventListener('click', bakeWatermark);
 
-    // Експорт
-    const exporter = new STLExporter();
+    // Експорт (існуючий STL)
+    const stlExporter = new STLExporter();
     function download(name, data, bin=false){
       const blob = new Blob([data], {type: bin? 'application/octet-stream':'text/plain'});
       const a = document.createElement('a');
@@ -331,16 +423,67 @@
         const author = ($('author').value||'').replace(/\s+/g,' ').trim();
         const prev = mesh.name;
         mesh.name = addMeta && author ? `author=${author}` : (prev || 'model');
-        const ascii = exporter.parse(mesh, {binary:false});
+        const ascii = stlExporter.parse(mesh, {binary:false});
         mesh.name = prev;
         download((author?author.replaceAll(' ','_')+'_':'')+'model_ascii.stl', ascii, false);
       } else {
-        const buf = exporter.parse(mesh, {binary:true});
+        const buf = stlExporter.parse(mesh, {binary:true});
         download('model_binary.stl', buf, true);
       }
     }
     $('btnExportAscii').addEventListener('click', ()=>exportSTL(false));
     $('btnExportBinary').addEventListener('click', ()=>exportSTL(true));
+
+    /* ADDED: універсальна підготовка до експорту — збираємо видиму геометрію з трансформами */
+    function getExportGroup(){
+      if(!modelRoot || modelRoot.children.length===0){ alert('Нема моделі'); return null; }
+      const group = new THREE.Group();
+      modelRoot.updateMatrixWorld(true);
+      modelRoot.traverse(n=>{
+        if(n.isMesh && n.geometry){
+          const g = n.geometry.clone();
+          g.applyMatrix4(n.matrixWorld);
+          group.add(new THREE.Mesh(g));
+        }
+      });
+      if(!group.children.length){ alert('Нема сітки'); return null; }
+      return group;
+    }
+
+    /* ADDED: експорт у GLB/GLTF/OBJ/PLY */
+    function exportGLB(){
+      const root = getExportGroup(); if(!root) return;
+      const ex = new GLTFExporter();
+      ex.parse(root, (bin)=>{
+        download('model.glb', bin, true);
+      }, { binary:true, onlyVisible:true, trs:false });
+    }
+    function exportGLTF(){
+      const root = getExportGroup(); if(!root) return;
+      const ex = new GLTFExporter();
+      ex.parse(root, (gltf)=>{
+        const json = JSON.stringify(gltf);
+        download('model.gltf', json, false);
+      }, { binary:false, onlyVisible:true, trs:false, embedImages:true });
+    }
+    function exportOBJ(){
+      const root = getExportGroup(); if(!root) return;
+      const ex = new OBJExporter();
+      const text = ex.parse(root);
+      download('model.obj', text, false);
+    }
+    function exportPLY(){
+      const root = getExportGroup(); if(!root) return;
+      const ex = new PLYExporter();
+      const text = ex.parse(root);
+      download('model.ply', text, false);
+    }
+
+    // ADDED: обробники кнопок конвертації
+    $('btnExpGLB') .addEventListener('click', exportGLB);
+    $('btnExpGLTF').addEventListener('click', exportGLTF);
+    $('btnExpOBJ') .addEventListener('click', exportOBJ);
+    $('btnExpPLY') .addEventListener('click', exportPLY);
 
     // Рендер
     (function loop(){
@@ -351,5 +494,3 @@
   </script>
 </body>
 </html>
-
-
