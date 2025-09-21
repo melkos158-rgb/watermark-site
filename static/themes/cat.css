@@ -100,4 +100,37 @@ input:focus, select:focus, textarea:focus {
   border-color: #ff69b4;
   box-shadow: 0 0 0 2px rgba(255,105,180,0.4);
 }
+/* === Cat cursor fix: завжди лапка + стискання при натисканні === */
+
+/* 1) База — скрізь лапка */
+html, body {
+  cursor: var(--paw-normal) 16 16, auto;
+}
+
+/* 2) Інтерактивні елементи — не даємо браузеру міняти курсор на стандартний */
+a, button, .btn, .nav-btn, [role="button"],
+input[type="button"], input[type="submit"], input[type="reset"],
+label, select, summary {
+  cursor: var(--paw-normal) 16 16, pointer !important;
+}
+
+/* 3) При наведенні тримаємо ту саму лапку (деякі UA підміняють) */
+a:hover, button:hover, .btn:hover, .nav-btn:hover, [role="button"]:hover,
+input[type="button"]:hover, input[type="submit"]:hover, input[type="reset"]:hover,
+label:hover, select:hover, summary:hover {
+  cursor: var(--paw-normal) 16 16, pointer !important;
+}
+
+/* 4) Натискання — стискана лапка */
+a:active, button:active, .btn:active, .nav-btn:active, [role="button"]:active,
+input[type="button"]:active, input[type="submit"]:active, input[type="reset"]:active,
+label:active, select:active, summary:active {
+  cursor: var(--paw-pressed) 16 16, pointer !important;
+}
+
+/* 5) Якщо в тебе у .btn або .nav-btn є "cursor: pointer",
+      перекриваємо його, щоб не зносив кастомний курсор */
+.btn, .nav-btn {
+  cursor: var(--paw-normal) 16 16, pointer !important;
+}
 
