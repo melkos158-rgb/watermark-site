@@ -2,6 +2,14 @@
    CAT THEME — ніжно-рожевий стиль
    ========================= */
 
+/* --- Вбудовані курсори лапки (SVG data-URI) --- */
+:root{
+  /* Звичайна лапка (темно-сіра) */
+  --paw-normal: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g fill="%23333"><circle cx="8" cy="10" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="24" cy="10" r="3"/><path d="M16 14c-6 0-10 4-10 8s4 6 10 6 10-2 10-6-4-8-10-8z"/></g></svg>');
+  /* Стиснена лапка (для натискання) */
+  --paw-pressed: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g fill="%23333" transform="translate(0,2) scale(1,0.85)"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="10" r="3"/><circle cx="24" cy="12" r="3"/><path d="M16 16c-6 0-10 4-10 8s4 6 10 6 10-2 10-6-4-8-10-8z"/></g></svg>');
+}
+
 /* Глобальні */
 body {
   margin: 0;
@@ -9,13 +17,16 @@ body {
   background: #fff0f5;    /* світло-рожевий фон */
   color: #4a2c2c;         /* темно-рожевий/коричневий текст */
 
-  /* Курсор за замовчуванням */
-  cursor: url("/static/themes/paw_normal.png") 16 16, auto;
+  /* Курсор лапка (гаряча точка приблизно по центру: 16 16) */
+  cursor: var(--paw-normal) 16 16, auto;
 }
 
-/* При натисканні на будь-яку кнопку/посилання лапка стискається */
-a:active, button:active, .btn:active, .nav-btn:active {
-  cursor: url("/static/themes/paw_pressed.png") 16 16, auto;
+/* При натисканні лапка "стискається" */
+a:active,
+button:active,
+.btn:active,
+.nav-btn:active {
+  cursor: var(--paw-pressed) 16 16, auto;
 }
 
 /* Навігація */
@@ -65,7 +76,7 @@ nav {
   border: none;
   border-radius: 10px;
   padding: 10px 16px;
-  cursor: pointer;
+  cursor: pointer;              /* дублюємо на випадок override */
   transition: all .15s ease;
 }
 .btn:hover {
@@ -89,3 +100,4 @@ input:focus, select:focus, textarea:focus {
   border-color: #ff69b4;
   box-shadow: 0 0 0 2px rgba(255,105,180,0.4);
 }
+
