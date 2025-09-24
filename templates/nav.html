@@ -36,6 +36,17 @@
         <a class="nav-btn {{ 'active' if (request.path == '/profile') else '' }}"
            href="/profile">Профіль</a>
 
+        <!-- (NEW) Спроба додати банер (працює лише для ТОП-1; іншим бекенд відмовить коректно) -->
+        <span aria-hidden="true">|</span>
+        <a class="nav-btn" href="{{ url_for('ad_upload') }}">Додати банер</a>
+
+        <!-- (NEW) Посилання на адмінку тільки для адміністратора -->
+        {% if session.is_admin %}
+          <span aria-hidden="true">|</span>
+          <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}"
+             href="{{ url_for('admin_panel') }}">Admin</a>
+        {% endif %}
+
         <span style="opacity:.8">
           {{ (g.user.name if g is defined and g.user and g.user.name
               else (current_user.name if current_user is defined and current_user.is_authenticated and current_user.name
