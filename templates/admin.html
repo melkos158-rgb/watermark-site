@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-panel" style="max-width:800px;margin:30px auto;padding:20px;background:#1a1c24;border-radius:12px;">
+  <h1 style="margin-bottom:20px;">Адмін-кабінет</h1>
+
+  <!-- Блок дефолтного банера -->
+  <section style="margin-bottom:32px;">
+    <h2>Дефолтний банер</h2>
+    <p>Цей банер бачать усі користувачі, якщо TOP-1 ще не завантажив свій або його перегнали.</p>
+    <form action="{{ url_for('admin_banner_default') }}" method="post" enctype="multipart/form-data" style="margin-top:14px;">
+      <label>Зображення (.png/.jpg/.jpeg/.webp):</label><br>
+      <input type="file" name="image" accept=".png,.jpg,.jpeg,.webp" required><br><br>
+
+      <label>Посилання (URL, опційно):</label><br>
+      <input type="url" name="link_url" placeholder="https://example.com" style="width:100%;padding:6px;border-radius:6px;"><br><br>
+
+      <button class="btn btn-primary">Оновити дефолтний банер</button>
+    </form>
+  </section>
+
+  <hr style="border:none;border-top:1px solid #333;margin:20px 0;">
+
+  <!-- Блок вимкнення TOP-1 банеру -->
+  <section style="margin-bottom:32px;">
+    <h2>Керування банером TOP-1</h2>
+    <p>Якщо TOP-1 поставив небажаний банер, можна вимкнути його і показуватиметься дефолтний.</p>
+    <form action="{{ url_for('admin_disable_top_banner') }}" method="post">
+      <button class="btn btn-danger">Вимкнути банер TOP-1</button>
+    </form>
+  </section>
+
+  <hr style="border:none;border-top:1px solid #333;margin:20px 0;">
+
+  <!-- Блок скидання місячного рейтингу -->
+  <section>
+    <h2>Рейтинг за місяць</h2>
+    <p>Скидає поле <code>pxp_month</code> у всіх користувачів. Банер також повертається на дефолтний.</p>
+    <form action="{{ url_for('admin_reset_month') }}" method="post" onsubmit="return confirm('Точно скинути рейтинг за місяць?');">
+      <button class="btn btn-warning">Скинути місячний рейтинг</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
