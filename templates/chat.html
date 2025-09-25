@@ -206,3 +206,34 @@
     });
   })();
 </script>
+<style id="tg-ultra-squash">
+  /* ще щільніше */
+  #chatPanel .chat-body{ gap:3px !important; }
+  #chatPanel .chat-avatar{ width:16px !important; height:16px !important; }
+
+  /* бульбашка */
+  #chatPanel .chat-bubble{
+    padding:2px 6px !important;      /* було 6px 10px */
+    border-radius:14px !important;   /* трохи менший радіус = візуально нижче */
+  }
+
+  /* один рядок всередині */
+  #chatPanel .chat-line{
+    display:flex; align-items:baseline; gap:6px;   /* базова лінія + менший відступ між текстом і часом */
+  }
+
+  /* текст і час — дрібніше й щільніше */
+  #chatPanel .chat-text{
+    font-size:12px !important;
+    line-height:1.05 !important;     /* дуже щільно */
+    margin:0 !important;
+  }
+  #chatPanel .chat-time{
+    font-size:10px !important;
+    opacity:.55 !important;
+    margin-left:2px !important;      /* майже впритул до тексту */
+  }
+
+  /* хвостик теж меншенький */
+  #chatPanel .chat-bubble:after{ width:8px !important; height:8px !important; bottom:-1px !important; }
+</style>
