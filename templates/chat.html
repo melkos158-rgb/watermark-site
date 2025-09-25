@@ -27,7 +27,7 @@
       var(--card);
   }
 
-  .chat-row{ display:flex; align-items:flex-end; gap:8px; max-width:92%; }
+  .chat-row{ display:flex; align-items:flex-end; gap:8px; max-width:100%; }
   .chat-row.me{ margin-left:auto; justify-content:flex-end; }
 
   .chat-avatar{
@@ -46,11 +46,15 @@
     line-height:1.28;
     word-break:break-word;
     white-space:pre-wrap;
+
+    /* робимо вужчими по горизонталі */
+    max-width:68%;
   }
   .chat-row.me .chat-bubble{
     background:#5ec06a;          /* свої */
     border-color:rgba(0,0,0,.15);
     color:#fff;
+    max-width:68%;
   }
 
   .chat-bubble:after{
@@ -87,6 +91,8 @@
   @media (max-width:700px){
     .chat-panel{ width:min(94vw, 360px); }
     .chat-fab{ left:12px; }
+    .chat-bubble{ max-width:80%; }
+    .chat-row.me .chat-bubble{ max-width:80%; }
   }
 </style>
 
