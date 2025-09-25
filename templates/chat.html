@@ -227,3 +227,51 @@
   #chatPanel .chat-time{ right:6px; bottom:2px; font-size:10px; opacity:.7; }
   #chatPanel .chat-avatar{ width:20px; height:20px; }
 </style>
+<style id="chat-ultra-compact">
+  /* суперкомпактний режим */
+  #chatPanel .chat-body{ gap:2px !important; }
+
+  #chatPanel .chat-avatar{ width:16px !important; height:16px !important; }
+
+  #chatPanel .chat-bubble{
+    min-height: 0 !important;
+    padding: 2px 8px 2px 6px !important; /* було 4/20/4/8 */
+    font-size: 11px !important;         /* дрібніше */
+    line-height: 1.06 !important;       /* дуже щільно */
+    border-radius: 10px !important;
+  }
+
+  /* хвостик теж менший */
+  #chatPanel .chat-bubble:after{ width:6px !important; height:6px !important; bottom:-1px !important; }
+
+  /* прибрати ім’я і час для мінімальної висоти */
+  #chatPanel .chat-meta{ display:none !important; }
+  #chatPanel .chat-time{ display:none !important; }
+
+  /* якщо десь є відступи всередині тексту — нівелюємо */
+  #chatPanel .chat-text{ margin:0 !important; }
+</style>
+<style id="chat-ultra-compact">
+  /* суперкомпактний режим */
+  #chatPanel .chat-body{ gap:2px !important; }
+
+  #chatPanel .chat-avatar{ width:16px !important; height:16px !important; }
+
+  #chatPanel .chat-bubble{
+    min-height: 0 !important;
+    padding: 2px 8px 2px 6px !important; /* було 4/20/4/8 */
+    font-size: 11px !important;         /* дрібніше */
+    line-height: 1.06 !important;       /* дуже щільно */
+    border-radius: 10px !important;
+  }
+
+  /* хвостик теж менший */
+  #chatPanel .chat-bubble:after{ width:6px !important; height:6px !important; bottom:-1px !important; }
+
+  /* прибрати ім’я і час для мінімальної висоти */
+  #chatPanel .chat-meta{ display:none !important; }
+  #chatPanel .chat-time{ display:none !important; }
+
+  /* якщо десь є відступи всередині тексту — нівелюємо */
+  #chatPanel .chat-text{ margin:0 !important; }
+</style>
