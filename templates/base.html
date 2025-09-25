@@ -39,35 +39,6 @@
       color:color-mix(in srgb, var(--ink) 85%, #dbe5ff 15%);
       padding:10px;border-radius:10px;margin-bottom:8px
     }
-
-    /* Chat widget */
-    .chat-fab{
-      position:fixed; left:18px; bottom:18px; width:52px; height:52px;
-      border-radius:50%; border:1px solid var(--line);
-      background:var(--card);
-      color:var(--ink);
-      display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:9999;
-      box-shadow:0 8px 24px rgba(0,0,0,.35);
-      font-size:22px;
-    }
-    .chat-fab:hover{filter:brightness(1.05)}
-    .chat-panel{
-      position:fixed; left:18px; bottom:80px; width:320px; max-height:420px;
-      background:var(--card); border:1px solid var(--line); border-radius:14px;
-      box-shadow:0 12px 28px rgba(0,0,0,.45); display:none; z-index:9999;
-      overflow:hidden;
-    }
-    .chat-head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--nav-bg); border-bottom:1px solid var(--line)}
-    .chat-head b{font-size:14px}
-    .chat-body{height:280px; overflow:auto; padding:10px 10px 0; display:flex; flex-direction:column; gap:8px}
-    .chat-msg{background:color-mix(in srgb, var(--card) 85%, #111a2b 15%); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:14px}
-    .chat-meta{opacity:.8; font-size:12px; margin-bottom:2px}
-    .chat-form{display:flex; gap:8px; padding:10px; border-top:1px solid var(--line); background:var(--card)}
-    .chat-form input{
-      flex:1; background:var(--bg); border:1px solid var(--line);
-      color:var(--ink); border-radius:10px; padding:8px 10px; outline:none
-    }
-    .chat-form button{background:var(--btn); border:0; color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer}
   </style>
 
   <!-- 3) ТЕМА (МАЄ ЙТИ ПІСЛЯ КАРКАСА ТА INLINE-СТИЛЕЙ, щоб переважати кольорами) -->
@@ -106,86 +77,9 @@
 
   {% block scripts %}{% endblock %}
 
-  {# === CHAT: показуємо на всіх сторінках, крім login/register/logout === #}
-  {% if request.endpoint not in ["auth.login", "auth.register", "auth.logout"] %}
-    <!-- CHAT -->
-    <div class="chat-fab" id="chatFab" title="Чат">💬</div>
-    <div class="chat-panel" id="chatPanel" aria-live="polite">
-      <div class="chat-head">
-        <b>Загальний чат</b>
-        <button id="chatClose" style="background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:16px">✕</button>
-      </div>
-      <div class="chat-body" id="chatBody"></div>
-      <form class="chat-form" id="chatForm" autocomplete="off">
-        <input id="chatInput" type="text" maxlength="500" placeholder="Напиши повідомлення…" />
-        <button type="submit">Надіслати</button>
-      </form>
-    </div>
-
-    <script>
-      (function(){
-        const API_FETCH = "/chat/fetch";
-        const API_POST  = "/chat/post";
-        const fab   = document.getElementById("chatFab");
-        const panel = document.getElementById("chatPanel");
-        const close = document.getElementById("chatClose");
-        const body  = document.getElementById("chatBody");
-        const form  = document.getElementById("chatForm");
-        const input = document.getElementById("chatInput");
-
-        let lastId = null;
-        let timer  = null;
-
-        function esc(s){return (s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-        function append(msg){
-          const div = document.createElement("div");
-          div.className = "chat-msg";
-          div.innerHTML = `<div class="chat-meta">${esc(msg.user_name||"Гість")} • ${msg.time||""}</div>${esc(msg.text)}`;
-          body.appendChild(div);
-          body.scrollTop = body.scrollHeight;
-          lastId = msg.id;
-        }
-        function fetchInit(){
-          fetch(API_FETCH).then(r=>r.json()).then(d=>{
-            if(!d.ok) return;
-            body.innerHTML = "";
-            d.messages.forEach(append);
-          }).catch(()=>{});
-        }
-        function fetchNew(){
-          const url = lastId ? `${API_FETCH}?since_id=${lastId}` : API_FETCH;
-          fetch(url).then(r=>r.json()).then(d=>{
-            if(!d.ok) return;
-            d.messages.forEach(append);
-          }).catch(()=>{});
-        }
-
-        fab.onclick = () => {
-          panel.style.display = "block";
-          if(!timer){
-            fetchInit();
-            timer = setInterval(fetchNew, 2500);
-          }
-        };
-        close.onclick = () => {
-          panel.style.display = "none";
-          if(timer){ clearInterval(timer); timer = null; }
-        };
-
-        form.addEventListener("submit", (e)=>{
-          e.preventDefault();
-          const text = input.value.trim();
-          if(!text) return;
-          input.value = "";
-          fetch(API_POST, {
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify({ text })
-          }).then(r=>r.json()).then(()=>{ fetchNew(); }).catch(()=>{});
-        });
-      })();
-    </script>
-  {% endif %}
+  {# ЧАТ БІЛЬШЕ НЕ ВСТАВЛЯЄМО ТУТ.
+     Він уже підключається в nav.html як {% include "chat.html" %} з умовою:
+     not in ["auth.login","auth.register","auth.logout"] #}
 
 </body>
 </html>
