@@ -46,7 +46,8 @@
   .btn:hover{ color:var(--btn-text-hover); }
 
   .hero{ display:grid; grid-template-columns:56px 1fr auto auto; gap:14px; align-items:center; }
-  .hero .ava{ width:56px; height:56px; border-radius:12px; background:#222a; border:1px solid var(--line); }
+  .hero .ava{ width:56px; height:56px; border-radius:12px; background:#222a; border:1px solid var(--line); overflow:hidden; }
+  .hero .ava img{ width:100%; height:100%; object-fit:cover; display:block; }
   .hero .name{ font-weight:800; color:var(--ink); font-size:1.15rem }
   .hero .stats{ display:flex; gap:12px; color:var(--muted) }
   .badge{ background:#1d4ed8; color:#fff; padding:8px 12px; border-radius:10px; font-weight:800 }
@@ -66,6 +67,10 @@
 
   .tabs .tab.active{ background: color-mix(in srgb, var(--btn-bg) 35%, #1a1f2e 65%); border-color: var(--btn-bg); color:#fff; }
   .note{ color:var(--muted) }
+
+  /* аватар у таблиці */
+  .cell-ava { width:36px; height:36px; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#1b2233; }
+  .cell-ava img { width:100%; height:100%; object-fit:cover; display:block; }
 </style>
 
 </head>
@@ -78,7 +83,7 @@
 
     <div class="panel" id="heroPanel" style="display:none; margin-bottom:14px;">
       <div class="hero">
-        <div id="heroAva" class="ava"></div>
+        <div class="ava"><img id="heroAvaImg" alt="avatar"></div>
         <div class="meta">
           <div class="name" id="heroName">—</div>
           <div class="stats">
@@ -96,7 +101,7 @@
         <div class="tabs" id="tabs" style="display:flex; gap:8px;">
           <button class="tab active" data-range="all" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">За весь час</button>
           <button class="tab" data-range="month" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Місяць</button>
-          <button class="tab" data-range="week" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Тиждень</button>
+          <button class="tab" data-range="week" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304б; cursor:pointer; font-weight:600;">Тиждень</button>
         </div>
         <div class="sub">PXP = PixPaw 🐾</div>
       </div>
@@ -121,9 +126,24 @@
 
   <script>
     const API = '/api/pxp/top100';
+    const DEFAULT_AVA = '{{ url_for("static", filename="avatar_default.png") }}';
 
     function formatSince(dateStr) {
       return dateStr ? new Date(dateStr).toLocaleDateString() : '—';
+    }
+
+    // Нормалізація URL аватарки:
+    // - data:... залишаємо як є
+    // - http/https залишаємо як є
+    // - інакше вважаємо відносним шляхом у /static/
+    function resolveAvatar(a) {
+      if (!a) return DEFAULT_AVA;
+      const s = String(a);
+      if (s.startsWith('data:')) return s;
+      if (s.startsWith('http://') || s.startsWith('https://')) return s;
+      // прибрати початкові слеші, щоб не вийшло //static
+      const clean = s.replace(/^\/+/, '');
+      return `/static/${clean}`;
     }
 
     function normalize(data){
@@ -149,13 +169,15 @@
         return;
       }
       list.forEach((u, i) => {
+        const ava = resolveAvatar(u.avatar);
+        const name = (u.name || (u.email ? u.email.split('@')[0] : 'Без імені'));
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="rank">${i + 1}</td>
           <td>
             <div style="display:flex;align-items:center;gap:10px;">
-              <div class="ava" style="width:36px;height:36px;border-radius:10px;background:#1b2233;border:1px solid var(--line);"></div>
-              <span>${(u.name || (u.email ? u.email.split('@')[0] : 'Без імені'))}</span>
+              <div class="cell-ava"><img src="${ava}" alt="avatar"></div>
+              <span>${name}</span>
             </div>
           </td>
           <td class="pxp">${u.pxp ?? 0}</td>
@@ -172,6 +194,8 @@
       document.getElementById('heroName').textContent = top.name || 'Без імені';
       document.getElementById('heroPxp').textContent  = `PXP: ${top.pxp ?? 0}`;
       document.getElementById('heroDate').textContent = `З нами з: ${top.created_at ? formatSince(top.created_at) : '—'}`;
+      const heroImg = document.getElementById('heroAvaImg');
+      heroImg.src = resolveAvatar(top.avatar);
       hero.style.display = 'block';
     }
 
