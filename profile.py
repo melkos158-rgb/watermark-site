@@ -162,6 +162,8 @@ def api_top100():
                 "pxp_month": (_to_int(getattr(u, "pxp_month", 0)) if hasattr(u, "pxp_month") else None),
                 # ВАЖЛИВО: безпечне перетворення created_at (може бути str або datetime)
                 "created_at": _to_iso(getattr(u, "created_at", None)),
+                # ДОДАНО: посилання/дані аватарки (URL, dataURL або відносний шлях)
+                "avatar": getattr(u, "avatar", None),
             }
             for u in rows
         ],
