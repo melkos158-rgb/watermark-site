@@ -262,3 +262,62 @@
   /* ще трохи зменшимо аватар */
   #chatPanel .chat-avatar{ width:16px !important; height:16px !important; }
 </style>
+<style id="tg-ultra-flat">
+  /* майже впритул між повідомленнями */
+  #chatPanel .chat-body{ gap:2px !important; }
+
+  /* дуже низькі пігулки */
+  #chatPanel .chat-bubble{
+    /* робимо контейнером рядка: текст + час */
+    display:inline-flex !important;
+    align-items:baseline !important;
+    gap:6px !important;
+
+    padding:1px 6px !important;        /* ↓ головне для висоти */
+    font-size:12px !important;
+    line-height:1.00 !important;        /* максимально щільно */
+    border-radius:14px !important;      /* не квадрат */
+    border:0 !important;
+    background:#fff !important;
+    box-shadow:0 1px 1px rgba(0,0,0,.08) !important;
+    max-width:220px !important;
+    min-height:0 !important;
+    margin:0 !important;
+  }
+  #chatPanel .chat-row.me .chat-bubble{
+    background:#e6fecd !important; color:#111 !important;
+  }
+
+  /* текст і час */
+  #chatPanel .chat-text{ margin:0 !important; white-space:pre-wrap !important; word-break:break-word !important; }
+  #chatPanel .chat-time{
+    white-space:nowrap !important;
+    font-size:10px !important;
+    color:rgba(0,0,0,.45) !important;
+    margin-left:4px !important;
+    line-height:1 !important;
+  }
+
+  /* прибрати все, що піднімає висоту/ламає форму */
+  #chatPanel .chat-meta{ display:none !important; }
+  #chatPanel .chat-bubble:after{ display:none !important; } /* ромбик-хвостик OFF */
+
+  /* “телеграмний” плавний хвостик, але маленький */
+  #chatPanel .chat-bubble::before{
+    content:""; position:absolute; bottom:0; left:-5px;
+    width:8px; height:8px; background:inherit;
+    border-bottom-left-radius:8px;
+    box-shadow:0 1px 0 rgba(0,0,0,.06);
+  }
+  #chatPanel .chat-row.me .chat-bubble::before{
+    left:auto; right:-5px;
+    border-bottom-left-radius:0; border-bottom-right-radius:8px;
+  }
+
+  /* ще зменшимо аватар і загальні відступи */
+  #chatPanel .chat-avatar{ width:16px !important; height:16px !important; }
+  #chatPanel .chat-row{ align-items:center !important; gap:6px !important; }
+
+  /* якщо десь у глобальних стилях є min-height/margins — глушимо */
+  #chatPanel .chat-message{ margin:0 !important; min-height:0 !important; }
+</style>
