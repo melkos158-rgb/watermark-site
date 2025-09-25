@@ -244,6 +244,48 @@ def create_app():
         flash("Місячний рейтинг скинуто. Повернувся дефолтний банер.")
         return redirect(url_for("admin_panel"))
 
+    # === NEW: admin PXP add ===
+    @app.route("/admin/pxp-add", methods=["POST"])
+    @admin_required
+    def admin_pxp_add():
+        from flask import request, redirect, url_for, flash
+        email = (request.form.get("email") or "").strip().lower()
+        amount_raw = request.form.get("amount") or "0"
+        add_total = "add_total" in request.form
+        add_month = "add_month" in request.form
+
+        try:
+            amount = int(amount_raw)
+        except Exception:
+            amount = 0
+
+        if not email or amount <= 0:
+            flash("Вкажи коректні email та додатне число PXP.")
+            return redirect(url_for("admin_panel"))
+
+        # пошук користувача по email (без урахування регістру)
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if not user:
+            flash(f"Користувача з email {email} не знайдено.")
+            return redirect(url_for("admin_panel"))
+
+        # додавання в загальний баланс
+        if add_total and hasattr(User, "pxp"):
+            user.pxp = (user.pxp or 0) + amount
+
+        # додавання в поточний місяць (якщо поле є)
+        if add_month and hasattr(User, "pxp_month"):
+            user.pxp_month = (user.pxp_month or 0) + amount
+
+        db.session.commit()
+
+        where = []
+        if add_total and hasattr(User, "pxp"): where.append("загальний")
+        if add_month and hasattr(User, "pxp_month"): where.append("місячний")
+        where_str = " і ".join(where) if where else "—"
+        flash(f"Нараховано +{amount} PXP користувачу {user.email} ({where_str}).")
+        return redirect(url_for("admin_panel"))
+
     # healthcheck
     @app.route("/healthz")
     def healthz():
