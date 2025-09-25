@@ -41,16 +41,12 @@
       color: var(--muted);
       margin-bottom: 24px;
     }
-
-    /* Центруємо картки по середині */
     .welcome-grid{
       display:flex;
       flex-wrap:wrap;
       gap:20px;
-      justify-content:center; /* центр */
+      justify-content:center;
     }
-
-    /* Картки беруть кольори з теми */
     .welcome-card{
       width:220px;
       background: var(--card);
@@ -62,33 +58,53 @@
       box-shadow: inset -2px -2px color-mix(in srgb, var(--line) 30%, transparent),
                   inset  2px  2px color-mix(in srgb, #fff 20%, transparent);
     }
-    .welcome-card:hover{
-      transform: translateY(-4px);
-      border-color: var(--btn-text-hover);
-    }
+    .welcome-card:hover{ transform: translateY(-4px); border-color: var(--btn-text-hover); }
+    .welcome-card a{ text-decoration:none; color: var(--ink); font-weight:600; font-size:1.1rem; display:block; margin-top:8px; }
+    .welcome-card a:hover{ color: var(--btn-text-hover); }
+    .welcome-card span{ font-size:.9rem; color: var(--muted); }
 
-    .welcome-card a{
-      text-decoration:none;
-      color: var(--ink);
-      font-weight:600;
-      font-size:1.1rem;
-      display:block;
-      margin-top:8px;
+    /* === Banner styles === */
+    .promo-wrap{ position:relative; max-width:1100px; margin:20px auto 8px; }
+    .promo-banner{
+      position: relative; display:block; width:100%; height:220px;
+      border-radius:16px; overflow:hidden;
+      border:1px solid rgba(255,255,255,.08); background:#0e0f12;
     }
-    .welcome-card a:hover{
-      color: var(--btn-text-hover);
+    .promo-banner img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .promo-overlay{
+      position:absolute; inset:0; display:flex; align-items:flex-end; justify-content:center;
+      padding:14px; color:#eaf1ff; font-weight:700; letter-spacing:.2px;
+      background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.45) 100%);
+      text-shadow:0 2px 8px rgba(0,0,0,.6);
     }
-
-    .welcome-card span{
-      font-size:.9rem;
-      color: var(--muted);
+    .promo-cta{
+      position:absolute; right:12px; top:12px; padding:8px 12px;
+      border-radius:10px; background:#1d4ed8; color:#fff; font-weight:700; text-decoration:none;
+      box-shadow:0 6px 14px rgba(0,0,0,.25);
     }
+    .promo-cta:hover{ filter:brightness(1.05); }
   </style>
 
 </head>
 <body>
   <!-- NAV -->
   {% include 'nav.html' %}
+
+  <!-- === Banner над заголовком === -->
+  {% if banner %}
+  <div class="promo-wrap">
+    <a class="promo-banner" href="{{ url_for('ad_click') }}">
+      <img src="{{ url_for('static', filename=banner.image_path) }}" alt="PXP Top-1 Banner">
+      <div class="promo-overlay">
+        <span>Займи TOP-1 PXP цього місяця — і твоя реклама буде тут!</span>
+      </div>
+    </a>
+    {% if session.is_admin %}
+      <!-- Кнопка додавання бачить лише адмін; TOP-1 може зайти напряму на /ad/upload -->
+      <a class="promo-cta" href="{{ url_for('ad_upload') }}">➕ Додати банер</a>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <main class="welcome-container">
     <h1>👋 Ласкаво просимо</h1>
@@ -128,6 +144,3 @@
   </main>
 </body>
 </html>
-
-
-
