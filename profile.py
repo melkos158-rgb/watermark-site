@@ -1,5 +1,5 @@
 # profile.py
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from db import db, User, Transaction, Message
 
 bp = Blueprint("profile", __name__, url_prefix="")
@@ -96,16 +96,12 @@ def send_message():
     flash("Надіслано.", "success")
     return redirect(url_for("profile.messages"))
 
-def donate():
-    return render_template("donate.html")
-from flask import jsonify
-
+# --- API для топу ---
 @bp.get("/api/pxp/top100")
 def api_top100():
     period = request.args.get("period", "all")
     q = User.query
 
-    # приклад фільтрації, зараз тільки all
     if period == "month":
         q = q.order_by(User.pxp_month.desc(), User.id.asc())
     else:
@@ -116,7 +112,6 @@ def api_top100():
     uid = session.get("user_id")
     me_rank, me_pxp = None, None
     if uid:
-        # знаходимо поточний ранг користувача
         if period == "month":
             ordered = User.query.order_by(User.pxp_month.desc(), User.id.asc()).all()
             me_pxp = next((u.pxp_month for u in ordered if u.id == uid), 0)
@@ -136,7 +131,7 @@ def api_top100():
                 "email": u.email,
                 "pxp": u.pxp,
                 "pxp_month": getattr(u, "pxp_month", None),
-                "created_at": u.created_at.isoformat() if hasattr(u, "created_at") else None,
+                "created_at": u.created_at.isoformat() if hasattr(u, "created_at") and u.created_at else None,
             }
             for u in rows
         ],
