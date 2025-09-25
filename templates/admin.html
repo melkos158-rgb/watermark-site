@@ -1,44 +1,78 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="admin-panel" style="max-width:800px;margin:30px auto;padding:20px;background:#1a1c24;border-radius:12px;">
-  <h1 style="margin-bottom:20px;">Адмін-кабінет</h1>
+<style>
+  .admin-wrap{max-width:900px;margin:28px auto;padding:20px;background:#171922;border-radius:14px}
+  .admin-h1{margin:0 0 16px 0}
+  .row{display:grid;grid-template-columns:1fr;gap:16px}
+  .card{background:#0f1117;border:1px solid #242735;border-radius:12px;padding:16px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .banner-preview{position:relative;border-radius:12px;overflow:hidden;border:1px solid #2a2e3d}
+  .banner-preview img{width:100%;height:120px;object-fit:cover;display:block}
+  .hint{opacity:.8;margin-top:6px}
+  .btn{display:inline-block;padding:10px 14px;border-radius:10px;text-decoration:none;border:0;cursor:pointer}
+  .btn-primary{background:#1d4ed8;color:#fff}
+  .btn-danger{background:#b91c1c;color:#fff}
+  .btn-warn{background:#a16207;color:#fff}
+  .btn-ghost{background:#1f2430;color:#dbe3ff;border:1px solid #2b3244}
+  input[type="file"], input[type="url"]{width:100%;padding:10px;border-radius:10px;background:#0d111a;border:1px solid #2a2e3d;color:#e6ecff}
+  label{display:block;margin:8px 0 6px}
+</style>
 
-  <!-- Блок дефолтного банера -->
-  <section style="margin-bottom:32px;">
-    <h2>Дефолтний банер</h2>
-    <p>Цей банер бачать усі користувачі, якщо TOP-1 ще не завантажив свій або його перегнали.</p>
-    <form action="{{ url_for('admin_banner_default') }}" method="post" enctype="multipart/form-data" style="margin-top:14px;">
-      <label>Зображення (.png/.jpg/.jpeg/.webp):</label><br>
-      <input type="file" name="image" accept=".png,.jpg,.jpeg,.webp" required><br><br>
+<div class="admin-wrap">
+  <h1 class="admin-h1">Адмін-кабінет</h1>
 
-      <label>Посилання (URL, опційно):</label><br>
-      <input type="url" name="link_url" placeholder="https://example.com" style="width:100%;padding:6px;border-radius:6px;"><br><br>
+  <!-- Поточний активний банер (що бачать користувачі зараз) -->
+  <div class="card">
+    <h2>Поточний банер на головній</h2>
+    {% set _src = banner.image_path %}
+    {% if _src and not _src.startswith('http') %}
+      {% set _src = url_for('static', filename=_src) %}
+    {% endif %}
+    <div class="banner-preview" style="margin-top:10px">
+      <img src="{{ _src }}" alt="Active banner">
+    </div>
+    {% if banner.link_url %}
+      <div class="hint">Посилання при кліку: <code>{{ banner.link_url }}</code></div>
+    {% else %}
+      <div class="hint">Посилання при кліку не задано.</div>
+    {% endif %}
+  </div>
 
-      <button class="btn btn-primary">Оновити дефолтний банер</button>
+  <!-- Заміна ДЕФОЛТНОГО банера (адмін) -->
+  <div class="card">
+    <h2>Змінити дефолтний банер</h2>
+    <p class="hint">Цей банер показується, якщо TOP-1 ще не поставив свій або його перегнали.</p>
+    <form action="{{ url_for('admin_banner_default') }}" method="post" enctype="multipart/form-data" style="margin-top:10px">
+      <label>Зображення (.png/.jpg/.jpeg/.webp), бажано ~5:1 (напр., 1100×220)</label>
+      <input type="file" name="image" accept=".png,.jpg,.jpeg,.webp" required>
+      <label>Опційне посилання (URL) при кліку</label>
+      <input type="url" name="link_url" placeholder="https://...">
+      <div class="actions" style="margin-top:12px">
+        <button class="btn btn-primary" type="submit">Оновити дефолтний банер</button>
+        <a class="btn btn-ghost" href="{{ url_for('index') }}">Відкрити головну</a>
+      </div>
     </form>
-  </section>
+  </div>
 
-  <hr style="border:none;border-top:1px solid #333;margin:20px 0;">
-
-  <!-- Блок вимкнення TOP-1 банеру -->
-  <section style="margin-bottom:32px;">
+  <!-- Керування банером TOP-1 -->
+  <div class="card">
     <h2>Керування банером TOP-1</h2>
-    <p>Якщо TOP-1 поставив небажаний банер, можна вимкнути його і показуватиметься дефолтний.</p>
-    <form action="{{ url_for('admin_disable_top_banner') }}" method="post">
-      <button class="btn btn-danger">Вимкнути банер TOP-1</button>
+    <p class="hint">Якщо TOP-1 розмістив небажане зображення — вимкни його. Повернеться дефолтний банер.</p>
+    <form action="{{ url_for('admin_disable_top_banner') }}" method="post" class="actions">
+      <button class="btn btn-danger" type="submit">Вимкнути банер TOP-1</button>
+      <a class="btn btn-ghost" href="{{ url_for('ad_upload') }}">Завантажити банер як TOP-1</a>
     </form>
-  </section>
+  </div>
 
-  <hr style="border:none;border-top:1px solid #333;margin:20px 0;">
-
-  <!-- Блок скидання місячного рейтингу -->
-  <section>
+  <!-- Скидання місяця -->
+  <div class="card">
     <h2>Рейтинг за місяць</h2>
-    <p>Скидає поле <code>pxp_month</code> у всіх користувачів. Банер також повертається на дефолтний.</p>
-    <form action="{{ url_for('admin_reset_month') }}" method="post" onsubmit="return confirm('Точно скинути рейтинг за місяць?');">
-      <button class="btn btn-warning">Скинути місячний рейтинг</button>
+    <p class="hint">Скидає <code>pxp_month</code> у всіх користувачів та вимикає всі банери TOP-1.</p>
+    <form action="{{ url_for('admin_reset_month') }}" method="post"
+          onsubmit="return confirm('Підтвердити скидання місячного рейтингу?');">
+      <button class="btn btn-warn" type="submit">Скинути місячний рейтинг</button>
     </form>
-  </section>
+  </div>
 </div>
 {% endblock %}
