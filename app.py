@@ -1,4 +1,3 @@
-# app.py
 import os
 from flask import Flask, render_template
 
@@ -18,8 +17,10 @@ ALLOWED_EXT = {"png", "jpg", "jpeg", "webp"}
 DEFAULT_BANNER_IMG = os.getenv("DEFAULT_BANNER_IMG", "ads/default_banner.jpg")  # поклади свій файл у static/ads/
 DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")  # опційно
 
+
 def allowed_file(fname: str) -> bool:
     return "." in fname and fname.rsplit(".", 1)[1].lower() in ALLOWED_EXT
+
 
 def admin_required(f):
     @wraps(f)
@@ -31,6 +32,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return _wrap
 
+
 # === NEW: моделі для банера (простенько в цьому файлі) ===
 class BannerAd(db.Model):
     __tablename__ = "banner_ad"
@@ -40,6 +42,7 @@ class BannerAd(db.Model):
     link_url = db.Column(db.String(500))
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 def create_app():
     app = Flask(__name__)
@@ -139,14 +142,13 @@ def create_app():
     def ad_click():
         from flask import session, redirect, url_for, request
         if not session.get("user_id"):
-            # збережемо куди вернутися після логіну
-            return redirect(url_for("auth.login", next=request.path))  # якщо в auth.bp інше ім'я — підстав своє
+            return redirect(url_for("auth.login", next=request.path))
         b = get_active_banner()
         if b.get("link_url"):
             return redirect(b["link_url"])
         return redirect(url_for("index"))
 
-    # === NEW: завантаження банера для ТОП-1 (видно всім залогіненим, але приймається тільки від ТОП-1)
+    # === NEW: завантаження банера для ТОП-1
     @app.route("/ad/upload", methods=["GET", "POST"])
     def ad_upload():
         from flask import request, session, redirect, url_for, flash, render_template
@@ -171,24 +173,19 @@ def create_app():
             os.makedirs(os.path.dirname(save_abs), exist_ok=True)
             f.save(save_abs)
 
-            # деактивуємо попередні записи ТОП-1
             BannerAd.query.filter_by(user_id=me.id, active=True).update({"active": False})
             db.session.add(BannerAd(user_id=me.id, image_path=save_rel, link_url=link_url, active=True))
             db.session.commit()
             flash("Банер оновлено! Він уже на головній.")
             return redirect(url_for("index"))
 
-        # GET — простенька форма без окремого шаблону (можеш зробити admin-сторінку теж)
-        return render_template("ad_upload_inline.html")  # або заміни на власний шаблон
+        return render_template("ad_upload_inline.html")
 
-    # === NEW: адмін-панель (окрема сторінка) — доступна лише email з ADMIN_EMAILS
     @app.route("/admin")
     @admin_required
     def admin_panel():
-        # показуємо просту сторінку (ти вже маєш templates/admin.html)
         return render_template("admin.html")
 
-    # === NEW: службові дії з адмінки ===
     @app.route("/admin/disable-top-banner", methods=["POST"])
     @admin_required
     def admin_disable_top_banner():
@@ -203,7 +200,6 @@ def create_app():
     @app.route("/admin/banner-default", methods=["POST"])
     @admin_required
     def admin_banner_default():
-        # просто дозволяємо адміну замінити файл дефолтного банера у static/ads/
         from flask import request, redirect, url_for, flash
         f = request.files.get("image")
         link_url = request.form.get("link_url") or ""
@@ -211,7 +207,6 @@ def create_app():
             flash("Дай .png/.jpg/.jpeg/.webp")
             return redirect(url_for("admin_panel"))
 
-        # зберігаємо під фіксованою назвою — default_banner.ext
         ext = f.filename.rsplit(".", 1)[1].lower()
         fname = f"default_banner.{ext}"
         save_rel = os.path.join("ads", fname).replace("\\", "/")
@@ -219,25 +214,25 @@ def create_app():
         os.makedirs(os.path.dirname(save_abs), exist_ok=True)
         f.save(save_abs)
 
-        # оновимо ENV на льоту (для поточного процесу)
         global DEFAULT_BANNER_IMG, DEFAULT_BANNER_URL
         DEFAULT_BANNER_IMG = save_rel
         DEFAULT_BANNER_URL = link_url
 
-        from flask import flash
         flash("Дефолтний банер оновлено.")
         return redirect(url_for("admin_panel"))
 
     @app.route("/admin/reset-month", methods=["POST"])
     @admin_required
     def admin_reset_month():
-        # скидання pxp_month (якщо є) та вимкнення активних банерів
         changed = False
         if hasattr(User, "pxp_month"):
             for u in User.query.all():
+                try:
+                    u.pxp_month = int(u.pxp_month or 0)
+                except Exception:
+                    u.pxp_month = 0
                 u.pxp_month = 0
                 changed = True
-        # вимикаємо всі банери
         BannerAd.query.filter_by(active=True).update({"active": False})
         db.session.commit()
         from flask import redirect, url_for, flash
@@ -249,6 +244,13 @@ def create_app():
     @admin_required
     def admin_pxp_add():
         from flask import request, redirect, url_for, flash
+
+        def to_int(v):
+            try:
+                return int(v)
+            except Exception:
+                return 0
+
         email = (request.form.get("email") or "").strip().lower()
         amount_raw = request.form.get("amount") or "0"
         add_total = "add_total" in request.form
@@ -263,19 +265,16 @@ def create_app():
             flash("Вкажи коректні email та додатне число PXP.")
             return redirect(url_for("admin_panel"))
 
-        # пошук користувача по email (без урахування регістру)
         user = User.query.filter(db.func.lower(User.email) == email).first()
         if not user:
             flash(f"Користувача з email {email} не знайдено.")
             return redirect(url_for("admin_panel"))
 
-        # додавання в загальний баланс
         if add_total and hasattr(User, "pxp"):
-            user.pxp = (user.pxp or 0) + amount
+            user.pxp = to_int(user.pxp) + amount
 
-        # додавання в поточний місяць (якщо поле є)
         if add_month and hasattr(User, "pxp_month"):
-            user.pxp_month = (user.pxp_month or 0) + amount
+            user.pxp_month = to_int(user.pxp_month) + amount
 
         db.session.commit()
 
@@ -286,14 +285,13 @@ def create_app():
         flash(f"Нараховано +{amount} PXP користувачу {user.email} ({where_str}).")
         return redirect(url_for("admin_panel"))
 
-    # healthcheck
     @app.route("/healthz")
     def healthz():
         return "ok", 200
 
     return app
 
-# Gunicorn: app:app
+
 app = create_app()
 
 if __name__ == "__main__":
