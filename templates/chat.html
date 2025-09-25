@@ -237,3 +237,69 @@
   /* хвостик теж меншенький */
   #chatPanel .chat-bubble:after{ width:8px !important; height:8px !important; bottom:-1px !important; }
 </style>
+<style id="tg-look-final">
+  /* базова форма як у ТГ */
+  #chatPanel .chat-bubble{
+    border:0 !important;                          /* без рамки */
+    background:#fff !important;                   /* фон */
+    box-shadow:0 1px 1px rgba(0,0,0,.08) !important; /* дуже легка тінь */
+    border-radius:18px !important;                /* піллюля */
+    padding:6px 10px !important;                  /* компактно по висоті */
+    line-height:1.15 !important;
+    font-size:14px !important;
+    max-width:220px !important;                   /* щоб короткі виглядали низькими */
+  }
+  /* свої (зелена як у ТГ) – опційно: зроби теж світлу */
+  #chatPanel .chat-row.me .chat-bubble{
+    background:#e6fecd !important;                /* світло-зелена як у ТГ */
+    color:#111 !important;
+    border:0 !important;
+    box-shadow:0 1px 1px rgba(0,0,0,.08) !important;
+  }
+
+  /* один рядок: текст + час праворуч */
+  #chatPanel .chat-line{
+    display:flex !important;
+    align-items:baseline !important;              /* час по базовій лінії */
+    gap:8px !important;
+  }
+  #chatPanel .chat-text{
+    margin:0 !important;
+    white-space:pre-wrap !important;
+    word-break:break-word !important;
+  }
+  #chatPanel .chat-time{
+    white-space:nowrap !important;
+    font-size:12px !important;
+    color:rgba(0,0,0,.45) !important;             /* світло-сірий як у ТГ */
+    opacity:1 !important;
+    margin-left:4px !important;
+    line-height:1 !important;
+  }
+
+  /* прибираємо верхній мета-рядок (щоб не піднімав висоту) */
+  #chatPanel .chat-meta{ display:none !important; }
+
+  /* хвостик – заміна на плавний, а не ромбик */
+  #chatPanel .chat-bubble:after{ display:none !important; }  /* старий ромбик */
+  #chatPanel .chat-bubble::before{
+    content:"";
+    position:absolute;
+    bottom:0; left:-6px;                           /* для "чужих" ліворуч */
+    width:12px; height:12px;
+    background:inherit;
+    border-bottom-left-radius:12px;
+    box-shadow:0 1px 0 rgba(0,0,0,.06);            /* легенька тінь під хвостиком */
+  }
+  #chatPanel .chat-row.me .chat-bubble::before{
+    left:auto; right:-6px;                         /* для "своїх" праворуч */
+    border-bottom-left-radius:0;
+    border-bottom-right-radius:12px;
+  }
+
+  /* аватар трохи менший, як у ТГ */
+  #chatPanel .chat-avatar{ width:20px !important; height:20px !important; }
+
+  /* стиснути вертикальні відступи між повідомленнями */
+  #chatPanel .chat-body{ gap:4px !important; }
+</style>
