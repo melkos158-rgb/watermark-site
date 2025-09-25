@@ -35,26 +35,28 @@
     flex:0 0 28px;background:#2a2f3b;border:1px solid var(--line);
   }
 
+  /* Бульбашки: вужчі по горизонталі */
   .chat-bubble{
     position:relative;
+    display:inline-block;   /* щоб не розтягувалась на всю ширину */
+    flex:0 0 auto;          /* забороняємо flex-рост */
+    max-width:58% !important; /* >>> зменшена ширина (налаштовується) */
+
     padding:8px 36px 8px 10px;
     border-radius:16px;
     border:1px solid var(--line);
-    background:#fff;             /* чужі */
+    background:#fff;        /* чужі */
     color:#111;
     box-shadow:0 1px 2px rgba(0,0,0,.12);
     line-height:1.28;
     word-break:break-word;
     white-space:pre-wrap;
-
-    /* робимо вужчими по горизонталі */
-    max-width:68%;
   }
   .chat-row.me .chat-bubble{
-    background:#5ec06a;          /* свої */
+    background:#5ec06a;     /* свої */
     border-color:rgba(0,0,0,.15);
     color:#fff;
-    max-width:68%;
+    max-width:58% !important;
   }
 
   .chat-bubble:after{
@@ -91,8 +93,8 @@
   @media (max-width:700px){
     .chat-panel{ width:min(94vw, 360px); }
     .chat-fab{ left:12px; }
-    .chat-bubble{ max-width:80%; }
-    .chat-row.me .chat-bubble{ max-width:80%; }
+    .chat-bubble{ max-width:72% !important; }
+    .chat-row.me .chat-bubble{ max-width:72% !important; }
   }
 </style>
 
