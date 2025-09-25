@@ -183,6 +183,11 @@
   </script>
 
   {% block scripts %}{% endblock %}
+  {% if request.endpoint not in ["auth.login", "auth.register", "auth.logout"] %}
+  {% include "chat.html" %}
+{% endif %}
+
 </body>
 </html>
+
 
