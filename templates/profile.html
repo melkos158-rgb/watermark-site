@@ -31,15 +31,15 @@
           </form>
         </div>
 
-        <!-- NEW: місячний PXP -->
-        {% if current_user.pxp_month is not none %}
+        <!-- NEW: місячний PXP (безпечна перевірка) -->
+        {% if current_user.pxp_month is defined and current_user.pxp_month is not none %}
         <div class="stat" style="margin-top:6px">
           <div class="badge">📅 PXP (місяць): <b>{{ current_user.pxp_month }}</b></div>
         </div>
         {% endif %}
 
         <a href="{{ url_for('profile.top100') }}" class="btn gray" style="width:100%;text-align:center">Top-100</a>
-        <a href="{{ url_for('donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
+        <a href="{{ url_for('profile.donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
 
         <!-- NEW: кнопка для TOP-1 -->
         <a href="{{ url_for('ad_upload') }}" class="btn gray" style="width:100%;text-align:center;margin-top:8px">
