@@ -42,20 +42,21 @@ def _fmt_time(ts):
     return ts.strftime("%H:%M") if isinstance(ts, datetime) else ""
 
 def _dto(m):
+    uid = _get_user_id(m)
     return {
         "id": m.id,
         "text": _get_text(m),
-        "user_name": _human_name(_get_user_id(m)),
+        "user_id": uid,                      # додано: щоб будувати /profile/<id>
+        "user_name": _human_name(uid),
         "time": _fmt_time(getattr(m, "created_at", None)),
     }
 
 def _apply_global_defaults(m, uid):
-    # якщо є recipient_id і він обов'язковий — підставимо відправника
+    # Якщо є recipient_id і він None — ставимо відправника (переконайся, що це те, що ти хочеш логічно)
     if hasattr(m, "recipient_id") and getattr(m, "recipient_id", None) is None:
-        # якщо хочеш дозволити гостям — зроби колонку NULLABLE у БД
         if uid is not None:
             m.recipient_id = uid
-    # якщо created_at без дефолту
+    # Якщо created_at без дефолту в БД — поставимо зараз (UTC)
     if hasattr(m, "created_at") and getattr(m, "created_at", None) is None:
         m.created_at = datetime.utcnow()
 
@@ -96,17 +97,19 @@ def post():
 # Діагностика: подивитись, що реально лежить у БД
 @bp.get("/debug")
 def debug():
-    rows = db.session.execute(select(Message).order_by(Message.id.desc()).limit(5)).scalars().all()
-    return jsonify({"ok": True, "last": [
-        {
-            "id": m.id,
-            "sender_id": getattr(m, "sender_id", None),
-            "recipient_id": getattr(m, "recipient_id", None),
-            "user_id": getattr(m, "user_id", None),
-            "text": _get_text(m),
-            "created_at": getattr(m, "created_at", None).isoformat() if getattr(m, "created_at", None) else None
-        } for m in rows
-    ]})
-
-
-    return jsonify({"ok": True, "message": _dto(m)})
+    rows = db.session.execute(
+        select(Message).order_by(Message.id.desc()).limit(5)
+    ).scalars().all()
+    return jsonify({
+        "ok": True,
+        "last": [
+            {
+                "id": m.id,
+                "sender_id": getattr(m, "sender_id", None),
+                "recipient_id": getattr(m, "recipient_id", None),
+                "user_id": getattr(m, "user_id", None),
+                "text": _get_text(m),
+                "created_at": getattr(m, "created_at", None).isoformat() if getattr(m, "created_at", None) else None
+            } for m in rows
+        ]
+    })
