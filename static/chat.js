@@ -1,23 +1,24 @@
 // chat.js
 document.addEventListener("DOMContentLoaded", () => {
-  // ---- елементи
-  const themeSelect   = document.getElementById("chat-theme");
-  const panel         = document.getElementById("chatPanel") || document.getElementById("chat-panel");
-  const chatMessages  = document.getElementById("chat-messages");
-  const sendBtn       = document.getElementById("chat-send");
-  const input         = document.getElementById("chat-text");
+  // ---- вузли
+  const panel        = document.getElementById("chatPanel") || document.getElementById("chat-panel");
+  const themeSelect  = document.getElementById("chat-theme");
+  const list         = document.getElementById("chat-messages");  // контейнер повідомлень
+  const sendBtn      = document.getElementById("chat-send");
+  const input        = document.getElementById("chat-text");
 
-  // якщо немає розмітки чату — виходимо тихо
-  if (!panel || !chatMessages || !sendBtn || !input) return;
+  // якщо верстки чату немає — тихо виходимо
+  if (!panel || !list) return;
 
-  // ---- тема (скоупимо тільки на чат, щоб не ламати сайт)
+  // ---- хто я (щоб малювати свої справа)
+  const CURRENT_UID = (panel.getAttribute("data-uid") || "").toString();
+
+  // ---- тема, ізольована на панелі
   const THEME_KEY = "chat-theme";
   const applyTheme = (v) => panel.setAttribute("data-theme", v);
-
-  const savedTheme = (localStorage.getItem(THEME_KEY) || "dark");
+  const savedTheme = localStorage.getItem(THEME_KEY) || "dark";
   applyTheme(savedTheme);
   if (themeSelect) themeSelect.value = savedTheme;
-
   themeSelect?.addEventListener("change", () => {
     const v = themeSelect.value || "dark";
     applyTheme(v);
@@ -25,81 +26,137 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ---- утиліти
-  const isNearBottom = () => {
-    const threshold = 60; // px
-    return chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < threshold;
-  };
+  const nearBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 60;
+  const scrollToBottom = () => { list.scrollTop = list.scrollHeight; };
+  const esc = (s) => (s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-  const scrollToBottom = () => {
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  };
+  // запам’ятовуємо попереднього автора для групування
+  let lastSenderId = null;
 
-  const esc = (s) =>
-    (s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  // ---- побудова DOM одного повідомлення
+  function buildMessageDOM(payload) {
+    const {
+      id = null,
+      user_id = null,
+      name = "Гість",
+      text = "",
+      time = "",
+      avatar = "/static/default-avatar.png",
+      profileUrl = user_id ? `/profile/${user_id}` : "#",
+      // якщо це продовження серії того ж автора — без аватарки та хвостика
+      isContinuation = false,
+      isMe = false,
+    } = payload;
 
-  // безпечне створення повідомлення без innerHTML
-  function createMessageDom({ name = "Ти", text = "", avatar = "/static/default-avatar.png", profileUrl = "/profile/1" } = {}) {
+    // ряд
     const row = document.createElement("div");
-    row.className = "chat-message";
+    row.className = "chat-row";
+    if (isMe) row.classList.add("me");
+    if (isContinuation) row.classList.add("cont");
+    if (id != null) row.dataset.id = String(id);
 
-    const img = document.createElement("img");
-    img.className = "chat-avatar";
-    img.src = avatar;
-    img.alt = "avatar";
+    // аватар — тільки на першому в серії
+    if (!isContinuation) {
+      const img = document.createElement("img");
+      img.className = "chat-avatar";
+      img.src = avatar;
+      img.alt = "avatar";
+      if (!isMe) row.appendChild(img);
+    }
 
-    const content = document.createElement("div");
-    content.className = "chat-content";
+    // бульбашка
+    const bubble = document.createElement("div");
+    bubble.className = "chat-bubble";
 
-    const a = document.createElement("a");
-    a.className = "chat-name";
-    a.href = profileUrl;
-    a.textContent = name;
+    // всередині один рядок: текст + час праворуч
+    const line = document.createElement("div");
+    line.className = "chat-line";
 
-    const body = document.createElement("div");
-    body.className = "chat-text";
-    // або body.textContent = text; (щоб взагалі виключити HTML)
-    body.innerHTML = esc(text).replace(/\n/g, "<br>");
+    const spanText = document.createElement("span");
+    spanText.className = "chat-text";
+    // безпечний текст (це не HTML)
+    spanText.textContent = text;
 
-    content.appendChild(a);
-    content.appendChild(body);
+    const spanTime = document.createElement("span");
+    spanTime.className = "chat-time";
+    spanTime.textContent = time || "";
 
-    row.appendChild(img);
-    row.appendChild(content);
+    line.appendChild(spanText);
+    if (time) line.appendChild(spanTime);
+    bubble.appendChild(line);
+
+    // якщо це моє — бульбашка ліворуч у DOM, аватар праворуч (row-reverse у CSS зробить решту)
+    if (isMe) {
+      row.appendChild(bubble);
+      if (!isContinuation) {
+        const img = document.createElement("img");
+        img.className = "chat-avatar";
+        img.src = avatar;
+        img.alt = "avatar";
+        row.appendChild(img);
+      }
+    } else {
+      // чужі: аватар (якщо є) вже додали зліва; тепер бульбашку
+      row.appendChild(bubble);
+    }
+
     return row;
   }
 
-  function appendMessageSafe(payload) {
-    const stick = isNearBottom();
-    const node = createMessageDom(payload);
-    chatMessages.appendChild(node);
+  // ---- додавання повідомлення (публічна точка)
+  function appendMessage(payload) {
+    const stick = nearBottom();
+
+    const uid = (payload.user_id ?? "").toString();
+    const isMe = uid && uid === CURRENT_UID;
+    const isContinuation = lastSenderId != null && (String(lastSenderId) === uid);
+
+    const node = buildMessageDOM({
+      ...payload,
+      isMe,
+      isContinuation,
+    });
+
+    list.appendChild(node);
+    lastSenderId = payload.user_id ?? null;
+
     if (stick) scrollToBottom();
   }
 
-  // ---- надсилання "тестових" локальних повідомлень
+  // зробимо доступним у вікні: window.ChatAppend(payload)
+  window.ChatAppend = appendMessage;
+
+  // ---- локальне тестове надсилання (без сервера)
   function sendFromInput() {
-    const val = input.value.replace(/\r/g, "");
-    if (!val.trim()) return;
-    appendMessageSafe({ name: "Ти", text: val, profileUrl: "/profile/1" });
+    if (!sendBtn || !input) return;
+    const raw = input.value.replace(/\r/g, "");
+    if (!raw.trim()) return;
+
+    appendMessage({
+      id: Date.now(),
+      user_id: CURRENT_UID || "me",
+      name: "Ти",
+      text: raw,
+      time: new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}),
+      avatar: "/static/default-avatar.png",
+    });
+
     input.value = "";
     input.focus();
   }
 
-  sendBtn.addEventListener("click", sendFromInput);
-
-  // Enter = відправити, Shift+Enter = новий рядок
-  input.addEventListener("keydown", (e) => {
+  sendBtn?.addEventListener("click", sendFromInput);
+  input?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendFromInput();
     }
   });
 
-  // автоскрол, якщо повідомлення додаються ззовні
-  const mo = new MutationObserver(() => {
-    if (isNearBottom()) scrollToBottom();
-  });
-  mo.observe(chatMessages, { childList: true });
+  // автоскрол, якщо щось додається зовні
+  const mo = new MutationObserver(() => { if (nearBottom()) scrollToBottom(); });
+  mo.observe(list, { childList: true });
 
-  // початковий скрол вниз
+  // стартовий скрол вниз
   scrollToBottom();
 });
