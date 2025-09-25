@@ -35,31 +35,30 @@
     flex:0 0 28px;background:#2a2f3b;border:1px solid var(--line);
   }
 
-  /* ===== Бульбашки: тонкі/вужчі ===== */
-  .chat-bubble{
+  /* ===== Бульбашки: дуже вузькі + підвищена специфічність ===== */
+  .chat-body .chat-row .chat-bubble{
     position:relative;
     box-sizing:border-box;
     display:inline-block;
     flex:0 0 auto;
 
-    max-width:170px !important;           /* ширина чужих */
-    padding:6px 28px 6px 10px;             /* місце під час */
+    max-width:140px !important;              /* <<< головний параметр */
+    padding:6px 26px 6px 10px;                /* місце під час */
     border-radius:18px;
     border:1px solid var(--line);
-    background:#fff;                       /* чужі */
+    background:#fff;                          /* чужі */
     color:#111;
     box-shadow:0 1px 2px rgba(0,0,0,.12);
-    font-size:13px; line-height:1.22;
+    font-size:13px; line-height:1.2;
     word-break:break-word; white-space:pre-wrap;
   }
-  .chat-row.me .chat-bubble{
-    background:#5ec06a;                    /* свої */
+  .chat-body .chat-row.me .chat-bubble{
+    background:#5ec06a;                       /* свої */
     border-color:rgba(0,0,0,.15);
     color:#fff;
-    max-width:170px !important;            /* ширина своїх */
+    max-width:140px !important;
   }
 
-  /* хвостики */
   .chat-bubble:after{
     content:"";
     position:absolute; bottom:-1px; left:-6px;
@@ -93,8 +92,8 @@
   @media (max-width:700px){
     .chat-panel{ width:min(94vw, 360px); }
     .chat-fab{ left:12px; }
-    .chat-bubble{ max-width:200px !important; }         /* трішки ширше на мобілці */
-    .chat-row.me .chat-bubble{ max-width:200px !important; }
+    .chat-body .chat-row .chat-bubble{ max-width:180px !important; }   /* трохи ширше на мобілці */
+    .chat-body .chat-row.me .chat-bubble{ max-width:180px !important; }
   }
 </style>
 
