@@ -1,5 +1,5 @@
 <style>
-  /* ===== Telegram-like chat ===== */
+  /* ===== Telegram-like chat (compact height) ===== */
   .chat-fab{
     position:fixed; left:16px; bottom:calc(env(safe-area-inset-bottom) + 16px);
     width:52px;height:52px;border-radius:50%;
@@ -19,8 +19,10 @@
   .chat-head b{font-size:14px}
 
   .chat-body{
-    height:340px; overflow:auto; padding:12px 12px 10px;
-    display:flex; flex-direction:column; gap:10px;
+    height:340px; overflow:auto;
+    padding:10px 10px 8px;
+    display:flex; flex-direction:column;
+    gap:6px; /* менша дистанція між повідомленнями */
     background:
       radial-gradient(1200px 500px at 100% -20%, rgba(255,255,255,.04), transparent 60%),
       radial-gradient(1200px 600px at -30% 110%, rgba(255,255,255,.04), transparent 60%),
@@ -31,42 +33,47 @@
   .chat-row.me{ margin-left:auto; justify-content:flex-end; }
 
   .chat-avatar{
-    width:28px;height:28px;border-radius:50%;object-fit:cover;
-    flex:0 0 28px;background:#2a2f3b;border:1px solid var(--line);
+    width:24px;height:24px; /* компактніше */
+    border-radius:50%;object-fit:cover;
+    flex:0 0 24px;background:#2a2f3b;border:1px solid var(--line);
   }
 
-  /* ===== Бульбашки: дуже вузькі + підвищена специфічність ===== */
-  .chat-body .chat-row .chat-bubble{
+  /* ===== Бульбашки: компактні по ВИСОТІ ===== */
+  .chat-bubble{
     position:relative;
     box-sizing:border-box;
     display:inline-block;
     flex:0 0 auto;
 
-    max-width:140px !important;              /* <<< головний параметр */
-    padding:6px 26px 6px 10px;                /* місце під час */
-    border-radius:18px;
+    /* якщо потрібно звузити/розширити – поміняй max-width/width тут */
+    max-width: 170px;
+
+    padding:4px 20px 4px 8px;   /* менші внутрішні відступи */
+    border-radius:14px;         /* трохи менше заокруглення для компактності */
     border:1px solid var(--line);
-    background:#fff;                          /* чужі */
+    background:#fff;            /* чужі */
     color:#111;
     box-shadow:0 1px 2px rgba(0,0,0,.12);
-    font-size:13px; line-height:1.2;
+    font-size:13px;             /* дрібніший шрифт */
+    line-height:1.15;           /* щільніше між рядками */
     word-break:break-word; white-space:pre-wrap;
   }
-  .chat-body .chat-row.me .chat-bubble{
-    background:#5ec06a;                       /* свої */
+  .chat-row.me .chat-bubble{
+    background:#5ec06a;         /* свої */
     border-color:rgba(0,0,0,.15);
     color:#fff;
-    max-width:140px !important;
   }
 
+  /* хвостики */
   .chat-bubble:after{
     content:"";
     position:absolute; bottom:-1px; left:-6px;
-    width:12px;height:12px; background:inherit;
+    width:10px;height:10px;       /* менший хвостик */
+    background:inherit;
     border-left:1px solid var(--line);
     border-bottom:1px solid var(--line);
     transform:rotate(45deg);
-    border-bottom-left-radius:3px;
+    border-bottom-left-radius:2px;
   }
   .chat-row.me .chat-bubble:after{
     left:auto; right:-6px;
@@ -75,25 +82,29 @@
     border-top:1px solid rgba(0,0,0,.15);
   }
 
-  .chat-meta{ display:flex; align-items:center; gap:6px; margin:0 0 2px; font-size:12px; opacity:.9; }
+  /* верхній рядок з ім’ям – ще компактніший */
+  .chat-meta{
+    display:flex; align-items:center; gap:6px;
+    margin:0 0 1px; font-size:11px; opacity:.9;
+  }
   .chat-name{ font-weight:600; color:#2b6fb8; text-decoration:none; }
   .chat-row.me .chat-name{ color:#eaf7ff; }
 
+  /* час ближче до краю і дрібніший */
   .chat-time{
-    position:absolute; right:8px; bottom:5px;
-    font-size:11px; opacity:.85; color:inherit;
+    position:absolute; right:6px; bottom:3px;
+    font-size:10px; opacity:.75; color:inherit;
     font-variant-numeric: tabular-nums;
   }
 
-  .chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:var(--card)}
+  .chat-form{display:flex;gap:8px;padding:8px;border-top:1px solid var(--line);background:var(--card)}
   .chat-form input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;outline:none}
   .chat-form button{background:var(--btn);border:0;color:#fff;padding:8px 12px;border-radius:10px;cursor:pointer}
 
   @media (max-width:700px){
     .chat-panel{ width:min(94vw, 360px); }
     .chat-fab{ left:12px; }
-    .chat-body .chat-row .chat-bubble{ max-width:180px !important; }   /* трохи ширше на мобілці */
-    .chat-body .chat-row.me .chat-bubble{ max-width:180px !important; }
+    .chat-bubble{ max-width: 200px; } /* мобільний можна трохи ширше */
   }
 </style>
 
@@ -128,7 +139,6 @@
     let timer  = null;
 
     function esc(s){return (s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-    function avatarFor(){ return "/static/default-avatar.png"; } // підставиш url аватара, якщо додаси в DTO
 
     function append(msg){
       const isMe = (msg.user_id != null && String(msg.user_id) === String(CURRENT_UID));
@@ -138,7 +148,7 @@
 
       const avatar = document.createElement("img");
       avatar.className = "chat-avatar";
-      avatar.src = avatarFor(msg);
+      avatar.src = "/static/default-avatar.png";
       avatar.alt = "avatar";
 
       const bubble = document.createElement("div");
@@ -151,13 +161,8 @@
         <span class="chat-time">${esc(msg.time||"")}</span>
       `;
 
-      if (isMe) {
-        row.appendChild(bubble);
-        row.appendChild(avatar);
-      } else {
-        row.appendChild(avatar);
-        row.appendChild(bubble);
-      }
+      if (isMe) { row.appendChild(bubble); row.appendChild(avatar); }
+      else      { row.appendChild(avatar); row.appendChild(bubble); }
 
       body.appendChild(row);
       body.scrollTop = body.scrollHeight;
