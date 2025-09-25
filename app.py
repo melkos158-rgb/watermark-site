@@ -36,7 +36,7 @@ class BannerAd(db.Model):
     __tablename__ = "banner_ad"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, nullable=False)   # хто завантажив (ТОП-1)
-    image_path = db.Column(db.String(255), nullable=False)  # шлях усередині static/
+    image_path = db.Column(db.String(255), nullable=False)  # шлях усередині static/ (наприклад "ads/xxx.jpg")
     link_url = db.Column(db.String(500))
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -149,7 +149,7 @@ def create_app():
     # === NEW: завантаження банера для ТОП-1 (видно всім залогіненим, але приймається тільки від ТОП-1)
     @app.route("/ad/upload", methods=["GET", "POST"])
     def ad_upload():
-        from flask import request, session, redirect, url_for, flash
+        from flask import request, session, redirect, url_for, flash, render_template
         if not session.get("user_id"):
             return redirect(url_for("auth.login"))
         me = User.query.get(session["user_id"])
@@ -179,7 +179,7 @@ def create_app():
             return redirect(url_for("index"))
 
         # GET — простенька форма без окремого шаблону (можеш зробити admin-сторінку теж)
-        return render_template("ad_upload_inline.html")  # створимо мінімальний шаблон або заміни на admin.html блок
+        return render_template("ad_upload_inline.html")  # або заміни на власний шаблон
 
     # === NEW: адмін-панель (окрема сторінка) — доступна лише email з ADMIN_EMAILS
     @app.route("/admin")
@@ -224,6 +224,7 @@ def create_app():
         DEFAULT_BANNER_IMG = save_rel
         DEFAULT_BANNER_URL = link_url
 
+        from flask import flash
         flash("Дефолтний банер оновлено.")
         return redirect(url_for("admin_panel"))
 
@@ -238,10 +239,7 @@ def create_app():
                 changed = True
         # вимикаємо всі банери
         BannerAd.query.filter_by(active=True).update({"active": False})
-        if changed:
-            db.session.commit()
-        else:
-            db.session.commit()
+        db.session.commit()
         from flask import redirect, url_for, flash
         flash("Місячний рейтинг скинуто. Повернувся дефолтний банер.")
         return redirect(url_for("admin_panel"))
