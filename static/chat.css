@@ -1,0 +1,107 @@
+.chat {
+  width: 320px;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+}
+
+/* Заголовок */
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-weight: bold;
+  background: var(--chat-header-bg);
+  color: #fff;
+}
+
+/* Повідомлення */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--chat-bg);
+  color: #fff;
+}
+
+.chat-message {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.chat-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 8px;
+  object-fit: cover;
+}
+
+.chat-content {
+  max-width: 220px;
+}
+
+.chat-name {
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  text-decoration: none;
+}
+.chat-name:hover {
+  text-decoration: underline;
+}
+
+.chat-text {
+  margin: 2px 0;
+}
+
+/* Ввід */
+.chat-input {
+  display: flex;
+  padding: 8px;
+  background: var(--chat-header-bg);
+}
+.chat-input input {
+  flex: 1;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  margin-right: 6px;
+}
+.chat-input button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #4e7fff;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Теми (через root vars) */
+:root[data-theme="dark"] {
+  --chat-bg: #1e1e1e;
+  --chat-header-bg: #333;
+}
+:root[data-theme="blue"] {
+  --chat-bg: #1a2a40;
+  --chat-header-bg: #264d73;
+}
+:root[data-theme="emerald"] {
+  --chat-bg: #12332d;
+  --chat-header-bg: #1e5246;
+}
+:root[data-theme="violet"] {
+  --chat-bg: #2a1e3d;
+  --chat-header-bg: #4b2a73;
+}
+:root[data-theme="light"] {
+  --chat-bg: #f5f5f5;
+  --chat-header-bg: #888;
+  color: #000;
+}
