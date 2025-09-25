@@ -40,8 +40,7 @@
 </head>
 <body>
   <!-- NAV -->
-{% include 'nav.html' %}
-
+  {% include 'nav.html' %}
 
   <div class="page">
     <h1>Мій профіль</h1>
@@ -50,13 +49,14 @@
         <!-- Ліва колонка: аватар -->
         <div class="left">
           <div class="avatar-wrap">
-            <img id="avatar" class="avatar" src="{{ url_for('static', filename='avatar_default.png') }}" alt="avatar">
+            {% set initial_avatar = (current_user.avatar if current_user and current_user.avatar else url_for('static', filename='avatar_default.png')) %}
+            <img id="avatar" class="avatar" src="{{ initial_avatar }}" alt="avatar">
             <button class="edit-btn" id="editAvatar" title="Змінити аватар"><span>✎</span></button>
             <input id="avatarInput" type="file" accept="image/*">
           </div>
           <div class="stat">
-            <div class="badge">💰 PXP: <b id="pxpHeader">{{ balance or 0 }}</b></div>
-            <a href="{{ url_for('top100') }}" class="btn gray">Топ-100</a>
+            <div class="badge">💰 PXP: <b id="pxpHeader">{{ (current_user.pxp if current_user else balance) or 0 }}</b></div>
+            <a href="{{ url_for('profile.top100') }}" class="btn gray">Топ-100</a>
           </div>
           <a href="/donate" class="btn" style="width:100%;text-align:center">Поповнити PXP</a>
           <div class="muted" style="margin-top:8px">1$ = 1 PXP</div>
@@ -66,11 +66,12 @@
         <div class="right">
           <div class="field">
             <div class="label">Ім’я / нік</div>
-            <input id="name" class="input" type="text" placeholder="Введи своє ім’я">
+            <input id="name" class="input" type="text" placeholder="Введи своє ім’я"
+                   value="{{ (current_user.name if current_user and current_user.name else '') }}">
           </div>
           <div class="field">
             <div class="label">Опис про себе</div>
-            <textarea id="bio" class="textarea" placeholder="Кілька слів про себе, чим займаєшся, що любиш 🙂"></textarea>
+            <textarea id="bio" class="textarea" placeholder="Кілька слів про себе, чим займаєшся, що любиш 🙂">{{ (current_user.bio if current_user and current_user.bio else '') }}</textarea>
           </div>
           <button id="save" class="btn">Зберегти</button>
           <button id="reset" class="btn gray" style="margin-left:8px">Скинути</button>
@@ -89,15 +90,17 @@
   const avatarInput = document.getElementById('avatarInput');
   const editBtn = document.getElementById('editAvatar');
 
-  // завантажити з localStorage
+  // завантажити з localStorage, якщо є щось збережене раніше
   (function loadProfile(){
-    const p = JSON.parse(localStorage.getItem('profile') || '{}');
-    if (p.name) nameEl.value = p.name;
-    if (p.bio)  bioEl.value  = p.bio;
-    if (p.avatarDataUrl) avatarImg.src = p.avatarDataUrl;
+    try{
+      const p = JSON.parse(localStorage.getItem('profile') || '{}');
+      if (p.name) nameEl.value = p.name;
+      if (p.bio)  bioEl.value  = p.bio;
+      if (p.avatarDataUrl) avatarImg.src = p.avatarDataUrl;
+    }catch(e){ /* ignore */ }
   })();
 
-  // зберегти
+  // зберегти локально
   document.getElementById('save').addEventListener('click', ()=>{
     const data = {
       name: nameEl.value.trim(),
@@ -109,13 +112,13 @@
     setTimeout(()=> msgEl.textContent='', 2000);
   });
 
-  // скинути
+  // скинути локально
   document.getElementById('reset').addEventListener('click', ()=>{
     localStorage.removeItem('profile');
     nameEl.value = '';
     bioEl.value = '';
-    // повертаємо дефолтний аватар
-    avatarImg.src = "{{ url_for('static', filename='avatar_default.png') }}";
+    // повертаємо дефолтний/серверний аватар
+    avatarImg.src = "{{ initial_avatar }}";
     msgEl.textContent = 'Скинуто ❌';
     setTimeout(()=> msgEl.textContent='', 2000);
   });
