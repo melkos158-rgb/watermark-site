@@ -15,14 +15,15 @@
   .btn-danger{background:#b91c1c;color:#fff}
   .btn-warn{background:#a16207;color:#fff}
   .btn-ghost{background:#1f2430;color:#dbe3ff;border:1px solid #2b3244}
-  input[type="file"], input[type="url"]{width:100%;padding:10px;border-radius:10px;background:#0d111a;border:1px solid #2a2e3d;color:#e6ecff}
+  input[type="file"], input[type="url"], input[type="email"], input[type="number"]{width:100%;padding:10px;border-radius:10px;background:#0d111a;border:1px solid #2a2e3d;color:#e6ecff}
   label{display:block;margin:8px 0 6px}
+  .checkline{display:flex;gap:14px;align-items:center;margin-top:10px}
 </style>
 
 <div class="admin-wrap">
   <h1 class="admin-h1">Адмін-кабінет</h1>
 
-  <!-- Поточний активний банер (що бачать користувачі зараз) -->
+  <!-- Поточний активний банер -->
   <div class="card">
     <h2>Поточний банер на головній</h2>
     {% set _src = banner.image_path %}
@@ -74,5 +75,29 @@
       <button class="btn btn-warn" type="submit">Скинути місячний рейтинг</button>
     </form>
   </div>
+
+  <!-- НОВЕ: Нарахування PXP за email -->
+  <div class="card">
+    <h2>Нарахувати PXP за email</h2>
+    <p class="hint">Вкажи Gmail користувача та скільки PXP нарахувати. Можна додати в загальний баланс і/або у поточний місяць.</p>
+    <form action="{{ url_for('admin_pxp_add') }}" method="post" style="margin-top:10px">
+      <label>Email користувача (Gmail)</label>
+      <input type="email" name="email" placeholder="user@gmail.com" required>
+
+      <label>Кількість PXP</label>
+      <input type="number" name="amount" min="1" step="1" value="10" required>
+
+      <div class="checkline">
+        <label><input type="checkbox" name="add_total" checked> Додати в загальний PXP</label>
+        <label><input type="checkbox" name="add_month" checked> Додати в PXP цього місяця</label>
+      </div>
+
+      <div class="actions" style="margin-top:12px">
+        <button class="btn btn-primary" type="submit">Нарахувати</button>
+      </div>
+    </form>
+  </div>
 </div>
+{% endblock %}
+
 {% endblock %}
