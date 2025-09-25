@@ -234,3 +234,58 @@
     left:auto; right:-6px; border-bottom-left-radius:0; border-bottom-right-radius:12px;
   }
 </style>
+<style id="tg-ultra-override">
+  /* між повідомленнями практично без повітря */
+  #chatPanel .chat-body{ gap:2px !important; }
+
+  /* прибрати марджини/мін-висоти, що могли прийти з інших файлів */
+  #chatPanel .chat-row,
+  #chatPanel .chat-message{ margin:0 !important; min-height:0 !important; }
+  #chatPanel .chat-row{ align-items:center !important; gap:6px !important; }
+
+  /* маленький аватар */
+  #chatPanel .chat-avatar{ width:16px !important; height:16px !important; }
+
+  /* БУЛЬБАШКА: мінімальні внутрішні відступи + мала висота */
+  #chatPanel .chat-bubble{
+    padding:2px 8px !important;     /* головне: низька бульбашка */
+    line-height:1.00 !important;     /* щільно як у ТГ */
+    font-size:12px !important;
+    border-radius:18px !important;   /* “пігулка”, не квадрати */
+    border:0 !important;
+    box-shadow:0 1px 1px rgba(0,0,0,.08) !important;
+    background:#ffffff !important;
+    max-width:220px !important;
+  }
+  #chatPanel .chat-row.me .chat-bubble{
+    background:#e6fecd !important;   /* свої — світло-зелена */
+    color:#111 !important;
+  }
+
+  /* текст + час в ОДНОМУ рядку */
+  #chatPanel .chat-line{ display:flex !important; align-items:baseline !important; gap:6px !important; }
+  #chatPanel .chat-text{ margin:0 !important; white-space:pre-wrap !important; word-break:break-word !important; }
+  #chatPanel .chat-time{
+    white-space:nowrap !important;
+    font-size:11px !important;
+    color:rgba(0,0,0,.45) !important;
+    margin-left:4px !important;
+    line-height:1 !important;
+  }
+
+  /* прибираємо зайвий верхній мета-рядок і ромбик-хвостик */
+  #chatPanel .chat-meta{ display:none !important; }
+  #chatPanel .chat-bubble:after{ display:none !important; }
+
+  /* плавний хвостик як у ТГ */
+  #chatPanel .chat-bubble::before{
+    content:""; position:absolute; bottom:0; left:-6px;
+    width:10px; height:10px; background:inherit;
+    border-bottom-left-radius:10px;
+    box-shadow:0 1px 0 rgba(0,0,0,.06);
+  }
+  #chatPanel .chat-row.me .chat-bubble::before{
+    left:auto; right:-6px;
+    border-bottom-left-radius:0; border-bottom-right-radius:10px;
+  }
+</style>
