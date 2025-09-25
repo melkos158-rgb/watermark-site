@@ -98,3 +98,49 @@ def send_message():
 
 def donate():
     return render_template("donate.html")
+from flask import jsonify
+
+@bp.get("/api/pxp/top100")
+def api_top100():
+    period = request.args.get("period", "all")
+    q = User.query
+
+    # приклад фільтрації, зараз тільки all
+    if period == "month":
+        q = q.order_by(User.pxp_month.desc(), User.id.asc())
+    else:
+        q = q.order_by(User.pxp.desc(), User.id.asc())
+
+    rows = q.limit(100).all()
+
+    uid = session.get("user_id")
+    me_rank, me_pxp = None, None
+    if uid:
+        # знаходимо поточний ранг користувача
+        if period == "month":
+            ordered = User.query.order_by(User.pxp_month.desc(), User.id.asc()).all()
+            me_pxp = next((u.pxp_month for u in ordered if u.id == uid), 0)
+        else:
+            ordered = User.query.order_by(User.pxp.desc(), User.id.asc()).all()
+            me_pxp = next((u.pxp for u in ordered if u.id == uid), 0)
+        for i, u in enumerate(ordered, start=1):
+            if u.id == uid:
+                me_rank = i
+                break
+
+    data = {
+        "items": [
+            {
+                "id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "pxp": u.pxp,
+                "pxp_month": getattr(u, "pxp_month", None),
+                "created_at": u.created_at.isoformat() if hasattr(u, "created_at") else None,
+            }
+            for u in rows
+        ],
+        "me_rank": me_rank,
+        "me_pxp": me_pxp,
+    }
+    return jsonify(data)
