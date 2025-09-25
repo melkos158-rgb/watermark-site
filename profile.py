@@ -1,6 +1,7 @@
 # profile.py
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from db import db, User, Transaction, Message
+from datetime import datetime
 
 bp = Blueprint("profile", __name__, url_prefix="")
 
@@ -14,6 +15,29 @@ def _require_user():
         flash("Спочатку увійди.", "error")
         return redirect(url_for("auth.login"))
     return u
+
+# --- helpers (додано) --------------------------------------------------------
+def _to_iso(value):
+    """Повертає ISO-рядок для datetime або як є, якщо це вже рядок; інакше None."""
+    if value is None:
+        return None
+    # якщо це datetime — нормалізуємо
+    if isinstance(value, datetime):
+        return value.isoformat()
+    # якщо це вже рядок — віддаємо як є (без isoformat)
+    try:
+        return str(value)
+    except Exception:
+        return None
+
+def _to_int(value, default=0):
+    """Безпечне перетворення в int (бо pxp/pxp_month можуть бути рядками)."""
+    try:
+        return int(value)
+    except Exception:
+        return default
+# -----------------------------------------------------------------------------
+
 
 @bp.get("/profile")
 def profile():
@@ -46,11 +70,8 @@ def donate_post():
     if amount <= 0:
         flash("Сума має бути > 0", "error")
         return redirect(url_for("profile.donate"))
-    # гарантуємо int
-    try:
-        u.pxp = int(u.pxp or 0) + amount
-    except Exception:
-        u.pxp = amount
+    # на випадок якщо pxp зберігається рядком
+    u.pxp = _to_int(getattr(u, "pxp", 0)) + amount
     db.session.add(Transaction(user_id=u.id, amount=amount, kind="donate", note="manual"))
     db.session.commit()
     flash(f"+{amount} PXP зараховано.", "success")
@@ -61,13 +82,12 @@ def spend():
     u = _require_user()
     if not isinstance(u, User): return u
     amount = int(request.form.get("amount") or 0)
-    # гарантуємо int при порівнянні
-    current = int(u.pxp or 0)
-    if amount <= 0 or amount > current:
+    cur = _to_int(getattr(u, "pxp", 0))
+    if amount <= 0 or amount > cur:
         flash("Невірна сума.", "error")
         return redirect(url_for("profile.profile"))
     note = request.form.get("note") or ""
-    u.pxp = current - amount
+    u.pxp = cur - amount
     db.session.add(Transaction(user_id=u.id, amount=-amount, kind="spend", note=note))
     db.session.commit()
     flash(f"-{amount} PXP витрачено.", "success")
@@ -102,51 +122,46 @@ def send_message():
     flash("Надіслано.", "success")
     return redirect(url_for("profile.messages"))
 
-# === API: Top-100 ===
+def donate():
+    return render_template("donate.html")
+
 @bp.get("/api/pxp/top100")
 def api_top100():
-    period = (request.args.get("period") or "all").lower().strip()
+    period = request.args.get("period", "all")
+    q = User.query
 
-    # Вибираємо поле сортування без падіння, якщо pxp_month відсутній
+    # сортування за місячним або загальним (як є в моделі)
     if period == "month" and hasattr(User, "pxp_month"):
-        order_q = User.query.order_by(User.pxp_month.desc(), User.id.asc())
+        q = q.order_by(User.pxp_month.desc(), User.id.asc())
     else:
-        order_q = User.query.order_by(User.pxp.desc(), User.id.asc())
+        q = q.order_by(User.pxp.desc(), User.id.asc())
 
-    rows = order_q.limit(100).all()
+    rows = q.limit(100).all()
 
     uid = session.get("user_id")
     me_rank, me_pxp = None, None
     if uid:
-        # Рахуємо ранг користувача у відповідному періоді без помилок, якщо поля немає
         if period == "month" and hasattr(User, "pxp_month"):
-            ordered_all = User.query.order_by(User.pxp_month.desc(), User.id.asc()).all()
-            # беремо значення з запасом, перетворюємо у int
-            me_pxp = int(next((getattr(u, "pxp_month", 0) or 0 for u in ordered_all if u.id == uid), 0))
+            ordered = User.query.order_by(User.pxp_month.desc(), User.id.asc()).all()
+            me_pxp = _to_int(next((u.pxp_month for u in ordered if u.id == uid), 0))
         else:
-            ordered_all = User.query.order_by(User.pxp.desc(), User.id.asc()).all()
-            me_pxp = int(next((int(getattr(u, "pxp", 0) or 0) for u in ordered_all if u.id == uid), 0))
-
-        for i, u in enumerate(ordered_all, start=1):
+            ordered = User.query.order_by(User.pxp.desc(), User.id.asc()).all()
+            me_pxp = _to_int(next((u.pxp for u in ordered if u.id == uid), 0))
+        for i, u in enumerate(ordered, start=1):
             if u.id == uid:
                 me_rank = i
                 break
-
-    def _to_int(x):
-        try:
-            return int(x or 0)
-        except Exception:
-            return 0
 
     data = {
         "items": [
             {
                 "id": u.id,
-                "name": u.name,
-                "email": u.email,
+                "name": getattr(u, "name", None),
+                "email": getattr(u, "email", None),
                 "pxp": _to_int(getattr(u, "pxp", 0)),
-                "pxp_month": (_to_int(getattr(u, "pxp_month", 0)) if hasattr(User, "pxp_month") else None),
-                "created_at": (u.created_at.isoformat() if hasattr(u, "created_at") and getattr(u, "created_at", None) else None),
+                "pxp_month": (_to_int(getattr(u, "pxp_month", 0)) if hasattr(u, "pxp_month") else None),
+                # ВАЖЛИВО: безпечне перетворення created_at (може бути str або datetime)
+                "created_at": _to_iso(getattr(u, "created_at", None)),
             }
             for u in rows
         ],
