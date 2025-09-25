@@ -9,7 +9,6 @@
   .page { max-width: 1100px; margin: 0 auto; padding: 20px; }
   h1 { margin-bottom: 18px; color: var(--ink); }
 
-  /* твій стиль таблиці — застосуємо до таблиці в .table-wrap, щоб не міняти розмітку */
   .table-wrap table {
     width: 100%;
     border-collapse: collapse;
@@ -39,7 +38,6 @@
   .rank { font-weight: 700; color: var(--btn-bg); }
   .pxp  { font-weight: 600; color: var(--btn-text-hover); }
 
-  /* легкі стилі для панелей/бейджів */
   .panel{ background: color-mix(in srgb, var(--card) 96%, #000 4%); border:1px solid var(--line);
           border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .sub{ color:var(--muted) }
@@ -47,7 +45,6 @@
         border-radius:10px; text-decoration:none; font-weight:700; }
   .btn:hover{ color:var(--btn-text-hover); }
 
-  /* hero секція Top-1 */
   .hero{ display:grid; grid-template-columns:56px 1fr auto auto; gap:14px; align-items:center; }
   .hero .ava{ width:56px; height:56px; border-radius:12px; background:#222a; border:1px solid var(--line); }
   .hero .name{ font-weight:800; color:var(--ink); font-size:1.15rem }
@@ -55,7 +52,6 @@
   .badge{ background:#1d4ed8; color:#fff; padding:8px 12px; border-radius:10px; font-weight:800 }
   .medal{ margin-right:6px }
 
-  /* skeletons для стану завантаження */
   .skeleton{ position:relative; overflow:hidden; background: color-mix(in srgb, var(--card) 86%, #000 14%); border-radius:8px; }
   .skeleton::after{
     content:""; position:absolute; inset:0; transform:translateX(-100%);
@@ -124,15 +120,13 @@
   </div>
 
   <script>
-    const API = '/api/pxp/top100';   // бекенд: приймає ?period=all|month|week
+    const API = '/api/pxp/top100';
 
     function formatSince(dateStr) {
-      // якщо додаси created_at — відформатуй тут
       return dateStr ? new Date(dateStr).toLocaleDateString() : '—';
     }
 
     function normalize(data){
-      // Підтримуємо і масив, і об'єкт {items:[...], me_rank, me_pxp}
       if (Array.isArray(data)) return { items: data, me_rank: null, me_pxp: null };
       if (data && Array.isArray(data.items)) return data;
       return { items: [], me_rank: null, me_pxp: null };
@@ -164,8 +158,8 @@
               <span>${(u.name || (u.email ? u.email.split('@')[0] : 'Без імені'))}</span>
             </div>
           </td>
-          <td class="pxp">${u.pxp}</td>
-          <td>${formatSince(u.created_at)}</td>
+          <td class="pxp">${u.pxp ?? 0}</td>
+          <td>${u.created_at ? formatSince(u.created_at) : '—'}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -176,15 +170,15 @@
       if (!list.length) { hero.style.display='none'; return; }
       const top = list[0];
       document.getElementById('heroName').textContent = top.name || 'Без імені';
-      document.getElementById('heroPxp').textContent  = `PXP: ${top.pxp}`;
-      document.getElementById('heroDate').textContent = `З нами з: ${formatSince(top.created_at)}`;
+      document.getElementById('heroPxp').textContent  = `PXP: ${top.pxp ?? 0}`;
+      document.getElementById('heroDate').textContent = `З нами з: ${top.created_at ? formatSince(top.created_at) : '—'}`;
       hero.style.display = 'block';
     }
 
     function renderMyRank(me_rank, me_pxp){
       const n = document.getElementById('myrank');
       if (me_rank == null) { n.textContent = ''; return; }
-      n.textContent = `Твій ранг: #${me_rank} • PXP: ${me_pxp}`;
+      n.textContent = `Твій ранг: #${me_rank} • PXP: ${me_pxp ?? 0}`;
     }
 
     async function load(period='all'){
@@ -208,10 +202,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      // старт — "За весь час"
       load('all');
-
-      // таби
       const tabs = document.querySelectorAll('#tabs .tab');
       tabs.forEach(btn=>{
         btn.addEventListener('click', ()=>{
