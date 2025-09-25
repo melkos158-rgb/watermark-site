@@ -1,0 +1,45 @@
+<!-- CHAT WIDGET -->
+<div id="chat-container" class="chat">
+  <!-- Заголовок з перемикачем тем -->
+  <div class="chat-header">
+    <span>Загальний чат</span>
+    <select id="chat-theme">
+      <option value="dark">Dark</option>
+      <option value="blue">Blue</option>
+      <option value="emerald">Emerald</option>
+      <option value="violet">Violet</option>
+      <option value="light">Light</option>
+    </select>
+  </div>
+
+  <!-- Список повідомлень -->
+  <div id="chat-messages" class="chat-messages">
+    <!-- Приклад повідомлень -->
+    <div class="chat-message">
+      <img src="{{ url_for('static', filename='default-avatar.png') }}" class="chat-avatar" alt="avatar">
+      <div class="chat-content">
+        <a href="/profile/2" class="chat-name">Андрій</a>
+        <div class="chat-text">Привіт 👋</div>
+      </div>
+    </div>
+
+    <div class="chat-message">
+      <img src="{{ url_for('static', filename='default-avatar.png') }}" class="chat-avatar" alt="avatar">
+      <div class="chat-content">
+        <a href="/profile/1" class="chat-name">Ти</a>
+        <div class="chat-text">Йо, все працює 🚀</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ввід повідомлення -->
+  <div class="chat-input">
+    <input id="chat-text" type="text" placeholder="Напиши повідомлення..." />
+    <button id="chat-send">Надіслати</button>
+  </div>
+</div>
+
+<!-- CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+<!-- JS -->
+<script src="{{ url_for('static', filename='chat.js') }}"></script>
