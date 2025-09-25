@@ -31,7 +31,7 @@
           </form>
         </div>
 
-        <!-- NEW: місячний PXP (безпечна перевірка) -->
+        <!-- Місячний PXP (показуємо лише якщо поле реально є й не None) -->
         {% if current_user.pxp_month is defined and current_user.pxp_month is not none %}
         <div class="stat" style="margin-top:6px">
           <div class="badge">📅 PXP (місяць): <b>{{ current_user.pxp_month }}</b></div>
@@ -41,7 +41,7 @@
         <a href="{{ url_for('profile.top100') }}" class="btn gray" style="width:100%;text-align:center">Top-100</a>
         <a href="{{ url_for('profile.donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
 
-        <!-- NEW: кнопка для TOP-1 -->
+        <!-- Кнопка для TOP-1 (бекенд сам перевіряє доступ) -->
         <a href="{{ url_for('ad_upload') }}" class="btn gray" style="width:100%;text-align:center;margin-top:8px">
           ➕ Додати банер (TOP-1)
         </a>
@@ -49,7 +49,7 @@
           Доступно лише користувачу з TOP-1 цього місяця.
         </div>
 
-        <!-- NEW: швидкий перехід в адмінку -->
+        <!-- Швидкий перехід в адмінку -->
         {% if session.is_admin %}
           <a href="{{ url_for('admin_panel') }}" class="btn" style="width:100%;text-align:center;margin-top:10px">
             Admin
