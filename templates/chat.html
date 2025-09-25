@@ -22,7 +22,7 @@
     height:340px; overflow:auto;
     padding:10px 10px 8px;
     display:flex; flex-direction:column;
-    gap:6px;
+    gap:3px; /* мінімальний інтервал між повідомленнями */
     background:
       radial-gradient(1200px 500px at 100% -20%, rgba(255,255,255,.04), transparent 60%),
       radial-gradient(1200px 600px at -30% 110%, rgba(255,255,255,.04), transparent 60%),
@@ -33,61 +33,50 @@
   .chat-row.me{ margin-left:auto; justify-content:flex-end; }
 
   .chat-avatar{
-    width:20px;height:20px;
+    width:16px;height:16px;
     border-radius:50%;object-fit:cover;
-    flex:0 0 20px;background:#2a2f3b;border:1px solid var(--line);
+    flex:0 0 16px;background:#2a2f3b;border:1px solid var(--line);
   }
 
-  /* Бульбашки */
+  /* Бульбашки (телеграм-стиль, дуже сплюснуті) */
   .chat-bubble{
     position:relative;
     display:inline-block;
-    max-width: 220px;                 /* корисний максимум; змінюй за бажанням */
-    padding:6px 10px;                 /* компактні внутрішні відступи */
+    max-width: 220px;
+    padding:3px 8px;               /* головне для низької висоти */
     border-radius:18px;
-    border:1px solid var(--line);
+    border:0;
     background:#fff; color:#111;
-    box-shadow:0 1px 2px rgba(0,0,0,.12);
-    font-size:13px; line-height:1.15;
+    box-shadow:0 1px 1px rgba(0,0,0,.08);
+    font-size:13px; line-height:1.08;
     word-break:break-word; white-space:pre-wrap;
   }
   .chat-row.me .chat-bubble{
-    background:#5ec06a; color:#fff;
-    border-color:rgba(0,0,0,.15);
+    background:#e6fecd; color:#111; border:0; box-shadow:0 1px 1px rgba(0,0,0,.08);
   }
 
-  /* Хвостики */
-  .chat-bubble:after{
-    content:"";
-    position:absolute; bottom:-1px; left:-6px;
-    width:9px;height:9px; background:inherit;
-    border-left:1px solid var(--line);
-    border-bottom:1px solid var(--line);
-    transform:rotate(45deg);
-    border-bottom-left-radius:2px;
+  /* хвостик — плавний, без ромбика */
+  .chat-bubble:after{ display:none; }
+  .chat-bubble::before{
+    content:""; position:absolute; bottom:0; left:-6px;
+    width:12px; height:12px; background:inherit; border-bottom-left-radius:12px;
+    box-shadow:0 1px 0 rgba(0,0,0,.06);
   }
-  .chat-row.me .chat-bubble:after{
-    left:auto; right:-6px;
-    border-left:none; border-bottom:none;
-    border-right:1px solid rgba(0,0,0,.15);
-    border-top:1px solid rgba(0,0,0,.15);
+  .chat-row.me .chat-bubble::before{
+    left:auto; right:-6px; border-bottom-left-radius:0; border-bottom-right-radius:12px;
   }
 
   /* Один рядок: текст + час праворуч (як у ТГ) */
-  .chat-line{
-    display:flex;
-    align-items:flex-end;             /* час сидить на базовій лінії */
-    gap:8px;
-  }
-  .chat-text{ white-space:pre-wrap; word-break:break-word; }
+  .chat-line{ display:flex; align-items:baseline; gap:6px; }
+  .chat-text{ white-space:pre-wrap; word-break:break-word; margin:0; }
   .chat-time{
-    white-space:nowrap;               /* не переносити час */
-    font-size:11px; opacity:.55; color:inherit;
-    margin-left:6px;
+    white-space:nowrap;
+    font-size:11px; color:rgba(0,0,0,.45);
+    margin-left:4px; line-height:1;
     font-variant-numeric: tabular-nums;
   }
 
-  /* Прибираємо верхній мета-рядок (ім'я), щоб не збільшував висоту */
+  /* Ховаємо верхній мета-рядок (ім’я), щоб не піднімав висоту */
   .chat-meta{ display:none !important; }
 
   .chat-form{display:flex;gap:8px;padding:8px;border-top:1px solid var(--line);background:var(--card)}
@@ -97,7 +86,7 @@
   @media (max-width:700px){
     .chat-panel{ width:min(94vw, 360px); }
     .chat-fab{ left:12px; }
-    .chat-bubble{ max-width: 240px; } /* трохи ширше на мобайлі */
+    .chat-bubble{ max-width: 240px; }
   }
 </style>
 
@@ -134,7 +123,6 @@
     function esc(s){return (s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
     function makeBubbleHTML(msg){
-      // рядок: текст + час (без верхнього .chat-meta)
       return `
         <div class="chat-line">
           <span class="chat-text">${esc(msg.text||"")}</span>
@@ -206,100 +194,3 @@
     });
   })();
 </script>
-<style id="tg-ultra-squash">
-  /* ще щільніше */
-  #chatPanel .chat-body{ gap:3px !important; }
-  #chatPanel .chat-avatar{ width:16px !important; height:16px !important; }
-
-  /* бульбашка */
-  #chatPanel .chat-bubble{
-    padding:2px 6px !important;      /* було 6px 10px */
-    border-radius:14px !important;   /* трохи менший радіус = візуально нижче */
-  }
-
-  /* один рядок всередині */
-  #chatPanel .chat-line{
-    display:flex; align-items:baseline; gap:6px;   /* базова лінія + менший відступ між текстом і часом */
-  }
-
-  /* текст і час — дрібніше й щільніше */
-  #chatPanel .chat-text{
-    font-size:12px !important;
-    line-height:1.05 !important;     /* дуже щільно */
-    margin:0 !important;
-  }
-  #chatPanel .chat-time{
-    font-size:10px !important;
-    opacity:.55 !important;
-    margin-left:2px !important;      /* майже впритул до тексту */
-  }
-
-  /* хвостик теж меншенький */
-  #chatPanel .chat-bubble:after{ width:8px !important; height:8px !important; bottom:-1px !important; }
-</style>
-<style id="tg-look-final">
-  /* базова форма як у ТГ */
-  #chatPanel .chat-bubble{
-    border:0 !important;                          /* без рамки */
-    background:#fff !important;                   /* фон */
-    box-shadow:0 1px 1px rgba(0,0,0,.08) !important; /* дуже легка тінь */
-    border-radius:18px !important;                /* піллюля */
-    padding:6px 10px !important;                  /* компактно по висоті */
-    line-height:1.15 !important;
-    font-size:14px !important;
-    max-width:220px !important;                   /* щоб короткі виглядали низькими */
-  }
-  /* свої (зелена як у ТГ) – опційно: зроби теж світлу */
-  #chatPanel .chat-row.me .chat-bubble{
-    background:#e6fecd !important;                /* світло-зелена як у ТГ */
-    color:#111 !important;
-    border:0 !important;
-    box-shadow:0 1px 1px rgba(0,0,0,.08) !important;
-  }
-
-  /* один рядок: текст + час праворуч */
-  #chatPanel .chat-line{
-    display:flex !important;
-    align-items:baseline !important;              /* час по базовій лінії */
-    gap:8px !important;
-  }
-  #chatPanel .chat-text{
-    margin:0 !important;
-    white-space:pre-wrap !important;
-    word-break:break-word !important;
-  }
-  #chatPanel .chat-time{
-    white-space:nowrap !important;
-    font-size:12px !important;
-    color:rgba(0,0,0,.45) !important;             /* світло-сірий як у ТГ */
-    opacity:1 !important;
-    margin-left:4px !important;
-    line-height:1 !important;
-  }
-
-  /* прибираємо верхній мета-рядок (щоб не піднімав висоту) */
-  #chatPanel .chat-meta{ display:none !important; }
-
-  /* хвостик – заміна на плавний, а не ромбик */
-  #chatPanel .chat-bubble:after{ display:none !important; }  /* старий ромбик */
-  #chatPanel .chat-bubble::before{
-    content:"";
-    position:absolute;
-    bottom:0; left:-6px;                           /* для "чужих" ліворуч */
-    width:12px; height:12px;
-    background:inherit;
-    border-bottom-left-radius:12px;
-    box-shadow:0 1px 0 rgba(0,0,0,.06);            /* легенька тінь під хвостиком */
-  }
-  #chatPanel .chat-row.me .chat-bubble::before{
-    left:auto; right:-6px;                         /* для "своїх" праворуч */
-    border-bottom-left-radius:0;
-    border-bottom-right-radius:12px;
-  }
-
-  /* аватар трохи менший, як у ТГ */
-  #chatPanel .chat-avatar{ width:20px !important; height:20px !important; }
-
-  /* стиснути вертикальні відступи між повідомленнями */
-  #chatPanel .chat-body{ gap:4px !important; }
-</style>
