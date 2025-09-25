@@ -209,3 +209,21 @@
     });
   })();
 </script>
+
+<!-- ЖОРСТКИЙ ОВЕРРАЙД (щоб точно зменшилась висота, навіть якщо десь лишились старі стилі) -->
+<style id="chat-compact-override">
+  #chatPanel .chat-body{ gap:4px !important; }
+
+  #chatPanel .chat-bubble{
+    padding:4px 18px 4px 8px !important;
+    line-height:1.12 !important;
+    font-size:12px !important;
+    border-radius:12px !important;
+  }
+
+  /* прибереш наступний рядок, якщо хочеш залишити рядок з ім’ям */
+  #chatPanel .chat-meta{ display:none !important; }
+
+  #chatPanel .chat-time{ right:6px; bottom:2px; font-size:10px; opacity:.7; }
+  #chatPanel .chat-avatar{ width:20px; height:20px; }
+</style>
