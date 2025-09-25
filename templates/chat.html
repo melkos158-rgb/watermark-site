@@ -1,45 +1,199 @@
-<!-- CHAT WIDGET -->
-<div id="chat-container" class="chat">
-  <!-- Заголовок з перемикачем тем -->
-  <div class="chat-header">
-    <span>Загальний чат</span>
-    <select id="chat-theme">
-      <option value="dark">Dark</option>
-      <option value="blue">Blue</option>
-      <option value="emerald">Emerald</option>
-      <option value="violet">Violet</option>
-      <option value="light">Light</option>
-    </select>
-  </div>
+<style>
+  /* ===== Telegram-like chat ===== */
+  .chat-fab{
+    position:fixed; left:16px; bottom:calc(env(safe-area-inset-bottom) + 16px);
+    width:52px;height:52px;border-radius:50%;
+    border:1px solid var(--line); background:var(--card); color:var(--ink);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:9999;
+    box-shadow:0 8px 24px rgba(0,0,0,.35); font-size:22px;
+  }
+  .chat-fab:hover{ filter:brightness(1.05) }
 
-  <!-- Список повідомлень -->
-  <div id="chat-messages" class="chat-messages">
-    <!-- Приклад повідомлень -->
-    <div class="chat-message">
-      <img src="{{ url_for('static', filename='default-avatar.png') }}" class="chat-avatar" alt="avatar">
-      <div class="chat-content">
-        <a href="/profile/2" class="chat-name">Андрій</a>
-        <div class="chat-text">Привіт 👋</div>
-      </div>
-    </div>
+  .chat-panel{
+    position:fixed; left:16px; bottom:calc(env(safe-area-inset-bottom) + 78px);
+    width:340px; max-height:480px; z-index:9999; overflow:hidden;
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    box-shadow:0 12px 28px rgba(0,0,0,.45); display:none;
+  }
+  .chat-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--nav-bg);border-bottom:1px solid var(--line)}
+  .chat-head b{font-size:14px}
 
-    <div class="chat-message">
-      <img src="{{ url_for('static', filename='default-avatar.png') }}" class="chat-avatar" alt="avatar">
-      <div class="chat-content">
-        <a href="/profile/1" class="chat-name">Ти</a>
-        <div class="chat-text">Йо, все працює 🚀</div>
-      </div>
-    </div>
-  </div>
+  .chat-body{
+    height:340px; overflow:auto; padding:12px 12px 10px;
+    display:flex; flex-direction:column; gap:10px;
+    background:
+      radial-gradient(1200px 500px at 100% -20%, rgba(255,255,255,.04), transparent 60%),
+      radial-gradient(1200px 600px at -30% 110%, rgba(255,255,255,.04), transparent 60%),
+      var(--card);
+  }
 
-  <!-- Ввід повідомлення -->
-  <div class="chat-input">
-    <input id="chat-text" type="text" placeholder="Напиши повідомлення..." />
-    <button id="chat-send">Надіслати</button>
+  .chat-row{ display:flex; align-items:flex-end; gap:8px; max-width:92%; }
+  .chat-row.me{ margin-left:auto; justify-content:flex-end; }
+
+  .chat-avatar{
+    width:28px;height:28px;border-radius:50%;object-fit:cover;
+    flex:0 0 28px;background:#2a2f3b;border:1px solid var(--line);
+  }
+
+  .chat-bubble{
+    position:relative;
+    padding:8px 36px 8px 10px;
+    border-radius:16px;
+    border:1px solid var(--line);
+    background:#fff;             /* чужі */
+    color:#111;
+    box-shadow:0 1px 2px rgba(0,0,0,.12);
+    line-height:1.28;
+    word-break:break-word;
+    white-space:pre-wrap;
+  }
+  .chat-row.me .chat-bubble{
+    background:#5ec06a;          /* свої */
+    border-color:rgba(0,0,0,.15);
+    color:#fff;
+  }
+
+  .chat-bubble:after{
+    content:"";
+    position:absolute; bottom:-1px; left:-6px;
+    width:12px;height:12px;
+    background:inherit;
+    border-left:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    transform:rotate(45deg);
+    border-bottom-left-radius:3px;
+  }
+  .chat-row.me .chat-bubble:after{
+    left:auto; right:-6px;
+    border-left:none; border-bottom:none;
+    border-right:1px solid rgba(0,0,0,.15);
+    border-top:1px solid rgba(0,0,0,.15);
+  }
+
+  .chat-meta{ display:flex; align-items:center; gap:6px; margin:0 0 2px; font-size:12px; opacity:.9; }
+  .chat-name{ font-weight:600; color:#2b6fb8; text-decoration:none; }
+  .chat-row.me .chat-name{ color:#eaf7ff; }
+
+  .chat-time{
+    position:absolute; right:10px; bottom:6px;
+    font-size:11px; opacity:.85; color:inherit;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:var(--card)}
+  .chat-form input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;outline:none}
+  .chat-form button{background:var(--btn);border:0;color:#fff;padding:8px 12px;border-radius:10px;cursor:pointer}
+
+  @media (max-width:700px){
+    .chat-panel{ width:min(94vw, 360px); }
+    .chat-fab{ left:12px; }
+  }
+</style>
+
+<!-- FAB і панель -->
+<div class="chat-fab" id="chatFab" title="Чат">💬</div>
+<div class="chat-panel" id="chatPanel" aria-live="polite"
+     data-uid="{{ (g.user.id if g is defined and g.user else (current_user.id if current_user is defined and current_user.is_authenticated else '')) }}">
+  <div class="chat-head">
+    <b>Загальний чат</b>
+    <button id="chatClose" style="background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:16px">✕</button>
   </div>
+  <div class="chat-body" id="chatBody"></div>
+  <form class="chat-form" id="chatForm" autocomplete="off">
+    <input id="chatInput" type="text" maxlength="500" placeholder="Напиши повідомлення…" />
+    <button type="submit">Надіслати</button>
+  </form>
 </div>
 
-<!-- CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
-<!-- JS -->
-<script src="{{ url_for('static', filename='chat.js') }}"></script>
+<script>
+  (function(){
+    const API_FETCH = "/chat/fetch";
+    const API_POST  = "/chat/post";
+    const fab   = document.getElementById("chatFab");
+    const panel = document.getElementById("chatPanel");
+    const close = document.getElementById("chatClose");
+    const body  = document.getElementById("chatBody");
+    const form  = document.getElementById("chatForm");
+    const input = document.getElementById("chatInput");
+
+    const CURRENT_UID = panel?.getAttribute('data-uid') || "";
+    let lastId = null;
+    let timer  = null;
+
+    function esc(s){return (s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+    function avatarFor(){ return "/static/default-avatar.png"; } // підставиш url аватара, якщо додаси в DTO
+
+    function append(msg){
+      const isMe = (msg.user_id != null && String(msg.user_id) === String(CURRENT_UID));
+
+      const row = document.createElement("div");
+      row.className = "chat-row" + (isMe ? " me" : "");
+
+      const avatar = document.createElement("img");
+      avatar.className = "chat-avatar";
+      avatar.src = avatarFor(msg);
+      avatar.alt = "avatar";
+
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble";
+      bubble.innerHTML = `
+        <div class="chat-meta">
+          <a class="chat-name" href="/profile/${msg.user_id || ''}" ${msg.user_id? '' : 'tabindex="-1"'}>${esc(msg.user_name||"Гість")}</a>
+        </div>
+        <div class="chat-text">${esc(msg.text||"")}</div>
+        <span class="chat-time">${esc(msg.time||"")}</span>
+      `;
+
+      if (isMe) {
+        row.appendChild(bubble);
+        row.appendChild(avatar);
+      } else {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+      }
+
+      body.appendChild(row);
+      body.scrollTop = body.scrollHeight;
+      lastId = msg.id;
+    }
+
+    function fetchInit(){
+      fetch(API_FETCH).then(r=>r.json()).then(d=>{
+        if(!d.ok) return;
+        body.innerHTML = "";
+        d.messages.forEach(append);
+      }).catch(()=>{});
+    }
+    function fetchNew(){
+      const url = lastId ? `${API_FETCH}?since_id=${lastId}` : API_FETCH;
+      fetch(url).then(r=>r.json()).then(d=>{
+        if(!d.ok) return;
+        d.messages.forEach(append);
+      }).catch(()=>{});
+    }
+
+    fab.onclick = () => {
+      panel.style.display = "block";
+      if(!timer){
+        fetchInit();
+        timer = setInterval(fetchNew, 2500);
+      }
+    };
+    close.onclick = () => {
+      panel.style.display = "none";
+      if(timer){ clearInterval(timer); timer = null; }
+    };
+
+    form.addEventListener("submit", (e)=>{
+      e.preventDefault();
+      const text = input.value.trim();
+      if(!text) return;
+      input.value = "";
+      fetch(API_POST, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ text })
+      }).then(r=>r.json()).then(()=>{ fetchNew(); }).catch(()=>{});
+    });
+  })();
+</script>
