@@ -4,7 +4,6 @@
 <div class="page">
   <h1>Мій профіль</h1>
 
-  {# без Flask-Login: достатньо перевірити, що current_user є #}
   {% if not current_user %}
     <div class="panel" style="text-align:center">
       <p class="muted">Щоб редагувати профіль, увійди.</p>
@@ -32,23 +31,25 @@
           </form>
         </div>
 
-        <!-- NEW: місячний PXP, якщо поле існує -->
+        <!-- NEW: місячний PXP -->
+        {% if current_user.pxp_month is not none %}
         <div class="stat" style="margin-top:6px">
-          <div class="badge">📅 PXP (місяць): <b>{{ current_user.pxp_month if current_user.pxp_month is not none else 0 }}</b></div>
+          <div class="badge">📅 PXP (місяць): <b>{{ current_user.pxp_month }}</b></div>
         </div>
+        {% endif %}
 
-        <a href="/top100" class="btn gray" style="width:100%;text-align:center">Top-100</a>
-        <a href="/donate" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
+        <a href="{{ url_for('profile.top100') }}" class="btn gray" style="width:100%;text-align:center">Top-100</a>
+        <a href="{{ url_for('donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
 
-        <!-- NEW: кнопка для TOP-1 — бекенд сам перевіряє доступ -->
+        <!-- NEW: кнопка для TOP-1 -->
         <a href="{{ url_for('ad_upload') }}" class="btn gray" style="width:100%;text-align:center;margin-top:8px">
           ➕ Додати банер (TOP-1)
         </a>
         <div class="muted" style="font-size:.85rem;margin-top:6px">
-          Доступно лише користувачу з TOP-1 цього місяця. Якщо ти не TOP-1, побачиш повідомлення.
+          Доступно лише користувачу з TOP-1 цього місяця.
         </div>
 
-        <!-- NEW: швидкий перехід в адмінку для адміністратора -->
+        <!-- NEW: швидкий перехід в адмінку -->
         {% if session.is_admin %}
           <a href="{{ url_for('admin_panel') }}" class="btn" style="width:100%;text-align:center;margin-top:10px">
             Admin
@@ -88,12 +89,10 @@
 </div>
 
 <style>
-  /* геометрія лишилась та сама — тільки кольори на змінних теми */
   .page{max-width:980px;margin:0 auto;padding:16px 24px 40px}
   .row{display:flex;gap:20px;flex-wrap:wrap}
   .left{flex:0 0 260px}
   .right{flex:1}
-
   .muted{color:var(--muted)}
 
   .panel{
@@ -139,7 +138,6 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--btn-bg) 30%, transparent);
   }
 
-  /* кнопки під тему (можеш забрати, якщо вже є глобальні .btn у main.css) */
   .btn{
     display:inline-block;padding:10px 16px;
     background:var(--btn-bg); color:var(--btn-text);
@@ -162,7 +160,6 @@
     border-radius:10px;padding:8px 10px;color:var(--ink);
   }
 </style>
-
 
 <script>
   const avatarWrap  = document.querySelector('.avatar-wrap');
