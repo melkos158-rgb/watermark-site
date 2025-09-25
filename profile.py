@@ -46,7 +46,11 @@ def donate_post():
     if amount <= 0:
         flash("Сума має бути > 0", "error")
         return redirect(url_for("profile.donate"))
-    u.pxp += amount
+    # гарантуємо int
+    try:
+        u.pxp = int(u.pxp or 0) + amount
+    except Exception:
+        u.pxp = amount
     db.session.add(Transaction(user_id=u.id, amount=amount, kind="donate", note="manual"))
     db.session.commit()
     flash(f"+{amount} PXP зараховано.", "success")
@@ -57,11 +61,13 @@ def spend():
     u = _require_user()
     if not isinstance(u, User): return u
     amount = int(request.form.get("amount") or 0)
-    if amount <= 0 or amount > u.pxp:
+    # гарантуємо int при порівнянні
+    current = int(u.pxp or 0)
+    if amount <= 0 or amount > current:
         flash("Невірна сума.", "error")
         return redirect(url_for("profile.profile"))
     note = request.form.get("note") or ""
-    u.pxp -= amount
+    u.pxp = current - amount
     db.session.add(Transaction(user_id=u.id, amount=-amount, kind="spend", note=note))
     db.session.commit()
     flash(f"-{amount} PXP витрачено.", "success")
@@ -96,32 +102,41 @@ def send_message():
     flash("Надіслано.", "success")
     return redirect(url_for("profile.messages"))
 
-# --- API для топу ---
+# === API: Top-100 ===
 @bp.get("/api/pxp/top100")
 def api_top100():
-    period = request.args.get("period", "all")
-    q = User.query
+    period = (request.args.get("period") or "all").lower().strip()
 
-    if period == "month":
-        q = q.order_by(User.pxp_month.desc(), User.id.asc())
+    # Вибираємо поле сортування без падіння, якщо pxp_month відсутній
+    if period == "month" and hasattr(User, "pxp_month"):
+        order_q = User.query.order_by(User.pxp_month.desc(), User.id.asc())
     else:
-        q = q.order_by(User.pxp.desc(), User.id.asc())
+        order_q = User.query.order_by(User.pxp.desc(), User.id.asc())
 
-    rows = q.limit(100).all()
+    rows = order_q.limit(100).all()
 
     uid = session.get("user_id")
     me_rank, me_pxp = None, None
     if uid:
-        if period == "month":
-            ordered = User.query.order_by(User.pxp_month.desc(), User.id.asc()).all()
-            me_pxp = next((u.pxp_month for u in ordered if u.id == uid), 0)
+        # Рахуємо ранг користувача у відповідному періоді без помилок, якщо поля немає
+        if period == "month" and hasattr(User, "pxp_month"):
+            ordered_all = User.query.order_by(User.pxp_month.desc(), User.id.asc()).all()
+            # беремо значення з запасом, перетворюємо у int
+            me_pxp = int(next((getattr(u, "pxp_month", 0) or 0 for u in ordered_all if u.id == uid), 0))
         else:
-            ordered = User.query.order_by(User.pxp.desc(), User.id.asc()).all()
-            me_pxp = next((u.pxp for u in ordered if u.id == uid), 0)
-        for i, u in enumerate(ordered, start=1):
+            ordered_all = User.query.order_by(User.pxp.desc(), User.id.asc()).all()
+            me_pxp = int(next((int(getattr(u, "pxp", 0) or 0) for u in ordered_all if u.id == uid), 0))
+
+        for i, u in enumerate(ordered_all, start=1):
             if u.id == uid:
                 me_rank = i
                 break
+
+    def _to_int(x):
+        try:
+            return int(x or 0)
+        except Exception:
+            return 0
 
     data = {
         "items": [
@@ -129,9 +144,9 @@ def api_top100():
                 "id": u.id,
                 "name": u.name,
                 "email": u.email,
-                "pxp": u.pxp,
-                "pxp_month": getattr(u, "pxp_month", None),
-                "created_at": u.created_at.isoformat() if hasattr(u, "created_at") and u.created_at else None,
+                "pxp": _to_int(getattr(u, "pxp", 0)),
+                "pxp_month": (_to_int(getattr(u, "pxp_month", 0)) if hasattr(User, "pxp_month") else None),
+                "created_at": (u.created_at.isoformat() if hasattr(u, "created_at") and getattr(u, "created_at", None) else None),
             }
             for u in rows
         ],
