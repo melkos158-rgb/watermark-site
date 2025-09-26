@@ -122,7 +122,16 @@
     let lastSenderId = null;   // для групування
     let timer  = null;
 
+    // набір відмальованих id, щоб не дублювати
+    const seen = new Set();
+
     const esc = (s)=> (s??"").replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const nowTime = ()=> {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      return `${hh}:${mm}`;
+    };
 
     function bubbleHTML(msg){
       return `<div class="chat-line">
@@ -132,11 +141,14 @@
     }
 
     function append(msg){
-      const isMe = (msg.user_id != null && String(msg.user_id) === String(CURRENT_UID));
+      if (msg.id && seen.has(msg.id)) return;
+
+      const isMe = (msg.user_id != null && String(msg.user_id) === String(CURRENT_UID)) || msg.__local_me === true;
       const isContinuation = (lastSenderId != null && String(lastSenderId) === String(msg.user_id||""));
 
       const row = document.createElement("div");
       row.className = "chat-row" + (isMe ? " me" : "") + (isContinuation ? " cont" : "");
+      if (msg.__temp) row.classList.add("temp");
 
       const bubble = document.createElement("div");
       bubble.className = "chat-bubble";
@@ -147,7 +159,7 @@
         avatar.className = "chat-avatar";
         avatar.src = "/static/default-avatar.png";
         avatar.alt = "avatar";
-        if (isMe){ row.appendChild(avatar); row.appendChild(bubble); }  // row-reverse вже стоїть у .me
+        if (isMe){ row.appendChild(avatar); row.appendChild(bubble); }
         else     { row.appendChild(avatar); row.appendChild(bubble); }
       } else {
         row.appendChild(bubble);
@@ -156,16 +168,19 @@
       body.appendChild(row);
       body.scrollTop = body.scrollHeight;
 
-      lastSenderId = msg.user_id ?? null;
-      lastId = msg.id;
+      lastSenderId = msg.user_id ?? (isMe ? CURRENT_UID : null);
+      if (msg.id) { seen.add(msg.id); lastId = msg.id; }
     }
 
     function fetchInit(){
       lastSenderId = null;
+      seen.clear();
       fetch(API_FETCH).then(r=>r.json()).then(d=>{
         if(!d.ok) return;
         body.innerHTML = "";
         d.messages.forEach(append);
+        // прибираємо тимчасові, якщо вже прийшли справжні
+        clearTempsIfAny();
       }).catch(()=>{});
     }
 
@@ -174,7 +189,25 @@
       fetch(url).then(r=>r.json()).then(d=>{
         if(!d.ok) return;
         d.messages.forEach(append);
+        clearTempsIfAny();
       }).catch(()=>{});
+    }
+
+    function clearTempsIfAny(){
+      // якщо в DOM є тимчасові .temp, видаляємо їх коли вже є хоч одне справжнє
+      document.querySelectorAll('#chatBody .temp').forEach(n => n.remove());
+    }
+
+    // Оптимістичне (миттєве) додавання СВОГО повідомлення праворуч і зелене
+    function addOptimistic(text){
+      append({
+        id: null,
+        user_id: CURRENT_UID,
+        text,
+        time: nowTime(),
+        __local_me: true,
+        __temp: true
+      });
     }
 
     fab.onclick = () => {
@@ -193,12 +226,21 @@
       e.preventDefault();
       const text = input.value.trim();
       if(!text) return;
+
+      // миттєво показуємо своє повідомлення праворуч + зеленим
+      addOptimistic(text);
+
       input.value = "";
+      input.focus();
+
+      // відправляємо на бекенд
       fetch(API_POST, {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ text })
-      }).then(r=>r.json()).then(()=>{ fetchNew(); }).catch(()=>{});
+      }).then(r=>r.json())
+        .then(()=>{ fetchNew(); })
+        .catch(()=>{ /* тихо */ });
     });
   })();
 </script>
@@ -230,7 +272,7 @@
     background:inherit; border-bottom-left-radius:10px; box-shadow:0 1px 0 rgba(0,0,0,.06);
   }
   #chatPanel .chat-row.me .chat-bubble::before{ left:auto; right:-6px; border-bottom-left-radius:0; border-bottom-right-radius:10px; }
-  #chatPanel .chat-row.cont > .chat-avatar{ display:none !important; }
+  #chatPanel .chat-row.cont > .chat-avatar{ display:none !重要; } /* fallback, якщо лишилися старі стилі */
   #chatPanel .chat-row.cont .chat-bubble::before{ display:none !important; }
   #chatPanel .chat-row.cont:not(.me) .chat-bubble{ margin-left:24px !important; }
   #chatPanel .chat-row.cont.me .chat-bubble{ margin-right:24px !important; }
