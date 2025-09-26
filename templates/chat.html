@@ -110,13 +110,16 @@
   (function(){
     const API_FETCH = "/chat/fetch";
     const API_POST  = "/chat/post";
+    const API_ME    = "/chat/me";
+
     const fab   = document.getElementById("chatFab");
     const panel = document.getElementById("chatPanel");
     const close = document.getElementById("chatClose");
     const body  = document.getElementById("chatBody");
     const form  = document.getElementById("chatForm");
     const input = document.getElementById("chatInput");
-    const CURRENT_UID = panel?.getAttribute('data-uid') || "";
+
+    let CURRENT_UID = panel?.getAttribute('data-uid') || "";
 
     let lastId = null;
     let lastSenderId = null;   // для групування
@@ -132,6 +135,13 @@
       const mm = String(d.getMinutes()).padStart(2,"0");
       return `${hh}:${mm}`;
     };
+
+    // Якщо uid порожній (наприклад, не підставили у шаблоні) — тягнемо з /chat/me
+    if (!CURRENT_UID) {
+      fetch(API_ME).then(r=>r.json()).then(d=>{
+        if (d && d.ok && d.user_id) CURRENT_UID = String(d.user_id);
+      }).catch(()=>{});
+    }
 
     function bubbleHTML(msg){
       return `<div class="chat-line">
@@ -159,8 +169,15 @@
         avatar.className = "chat-avatar";
         avatar.src = "/static/default-avatar.png";
         avatar.alt = "avatar";
-        if (isMe){ row.appendChild(avatar); row.appendChild(bubble); }
-        else     { row.appendChild(avatar); row.appendChild(bubble); }
+
+        if (isMe){
+          // Щоб пігулка була ПРЯМО біля правого краю, а аватар лівіше:
+          row.appendChild(bubble);
+          row.appendChild(avatar);
+        } else {
+          row.appendChild(avatar);
+          row.appendChild(bubble);
+        }
       } else {
         row.appendChild(bubble);
       }
@@ -168,7 +185,7 @@
       body.appendChild(row);
       body.scrollTop = body.scrollHeight;
 
-      lastSenderId = msg.user_id ?? (isMe ? CURRENT_UID : null);
+      lastSenderId = (msg.user_id != null) ? msg.user_id : (isMe ? CURRENT_UID : null);
       if (msg.id) { seen.add(msg.id); lastId = msg.id; }
     }
 
@@ -179,7 +196,6 @@
         if(!d.ok) return;
         body.innerHTML = "";
         d.messages.forEach(append);
-        // прибираємо тимчасові, якщо вже прийшли справжні
         clearTempsIfAny();
       }).catch(()=>{});
     }
@@ -194,7 +210,6 @@
     }
 
     function clearTempsIfAny(){
-      // якщо в DOM є тимчасові .temp, видаляємо їх коли вже є хоч одне справжнє
       document.querySelectorAll('#chatBody .temp').forEach(n => n.remove());
     }
 
@@ -272,7 +287,7 @@
     background:inherit; border-bottom-left-radius:10px; box-shadow:0 1px 0 rgba(0,0,0,.06);
   }
   #chatPanel .chat-row.me .chat-bubble::before{ left:auto; right:-6px; border-bottom-left-radius:0; border-bottom-right-radius:10px; }
-  #chatPanel .chat-row.cont > .chat-avatar{ display:none !重要; } /* fallback, якщо лишилися старі стилі */
+  #chatPanel .chat-row.cont > .chat-avatar{ display:none !important; } /* виправлено !重要 -> !important */
   #chatPanel .chat-row.cont .chat-bubble::before{ display:none !important; }
   #chatPanel .chat-row.cont:not(.me) .chat-bubble{ margin-left:24px !important; }
   #chatPanel .chat-row.cont.me .chat-bubble{ margin-right:24px !important; }
