@@ -46,13 +46,13 @@ def _dto(m):
     return {
         "id": m.id,
         "text": _get_text(m),
-        "user_id": uid,                      # додано: щоб будувати /profile/<id>
+        "user_id": uid,                      # ВАЖЛИВО: фронт визначає .me по цьому полю
         "user_name": _human_name(uid),
         "time": _fmt_time(getattr(m, "created_at", None)),
     }
 
 def _apply_global_defaults(m, uid):
-    # Якщо є recipient_id і він None — ставимо відправника (переконайся, що це те, що ти хочеш логічно)
+    # Якщо є recipient_id і він None — ставимо відправника (за потреби)
     if hasattr(m, "recipient_id") and getattr(m, "recipient_id", None) is None:
         if uid is not None:
             m.recipient_id = uid
@@ -112,4 +112,16 @@ def debug():
                 "created_at": getattr(m, "created_at", None).isoformat() if getattr(m, "created_at", None) else None
             } for m in rows
         ]
+    })
+
+# ---- ДОДАНО: віддати свій user_id із сесії (корисно фронту) ----
+@bp.get("/me")
+def me():
+    uid = session.get("user_id")
+    u = db.session.get(User, uid) if uid else None
+    return jsonify({
+        "ok": True,
+        "user_id": uid,
+        "name": (u.name or u.email) if u else "Гість",
+        "avatar": getattr(u, "avatar", None) if u else None
     })
