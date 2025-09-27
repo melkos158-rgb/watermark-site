@@ -1,30 +1,65 @@
-/* маленький чат праворуч, висота = 120px (як банер) */
+/* Компактний блок праворуч, САМЕ під банером */
 .improve-panel{
-  position: fixed; right:16px; top:88px;
-  width:320px; height:120px;
-  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  position: fixed;
+  right:16px;
+  top:220px;            /* нижче навбару + банера ~120px */
+  width:300px;          /* вужче, щоб не залазило на кнопки */
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
   box-shadow:0 12px 28px rgba(0,0,0,.45);
-  z-index:10000; overflow:hidden; display:flex; flex-direction:column;
+  z-index:10000;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
 }
-.improve-header{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);background:#0b0d12}
-.improve-header .grow{flex:1}
-.icon-btn{background:transparent;border:1px solid var(--line);border-radius:10px;padding:4px 8px;color:var(--ink);cursor:pointer}
-.improve-compose{padding:8px 10px;border-bottom:1px solid var(--line)}
-.improve-compose input,.improve-compose textarea{width:100%;background:#0f1115;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:6px 8px;margin-bottom:6px;font-size:14px}
-.improve-compose textarea{height:34px;resize:none}
-.send-btn{width:100%;padding:8px;border-radius:10px;border:none;background:var(--btn);color:#fff;cursor:pointer;font-size:14px}
-.hint{font-size:11px;color:var(--muted);margin-top:4px}
-.improve-list{overflow:auto;padding:6px 8px;display:flex;flex-direction:column;gap:6px}
-.s-card{border:1px solid var(--line);border-radius:10px;padding:8px;background:color-mix(in srgb, var(--card) 96%, #000 4%)}
-.s-top{display:flex;gap:6px;align-items:center}
-.s-title{font-weight:600;font-size:14px}
-.s-meta{margin-left:auto;font-size:12px;color:var(--muted)}
-.s-actions{display:flex;gap:6px;margin-top:6px}
-.like-btn,.cmt-btn{border:1px solid var(--line);background:#0f1115;color:var(--ink);padding:4px 6px;border-radius:8px;cursor:pointer;font-size:13px}
-.comments{margin-top:6px;border-top:1px dashed var(--line);padding-top:6px;display:none;max-height:120px;overflow:auto}
-.comment{font-size:13px;padding:4px 0;border-bottom:1px dotted var(--line)}
-.comment:last-child{border-bottom:none}
-.comment-add{display:flex;gap:6px;margin-top:6px}
-.comment-add input{flex:1;background:#0f1115;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:4px 6px;font-size:13px}
-.comment-add button{border:1px solid var(--line);background:#0f1115;color:var(--ink);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:13px}
-@media (max-width:1024px){.improve-panel{display:none}}
+
+.improve-header{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; background:#0b0d12; border-bottom:1px solid var(--line);
+}
+.improve-header .grow{ flex:1; }
+.icon-btn{
+  background:transparent; border:1px solid var(--line); border-radius:10px;
+  padding:4px 8px; color:var(--ink); cursor:pointer;
+}
+
+.improve-compose{ padding:8px 10px; border-bottom:1px solid var(--line); }
+#improve-idea{
+  width:100%; background:#0f1115; border:1px solid var(--line); color:var(--ink);
+  border-radius:10px; padding:6px 8px; font-size:14px; resize:none;
+}
+.hint{ font-size:11px; color:var(--muted); margin-top:6px; }
+
+.improve-list{
+  max-height:340px; overflow:auto;
+  padding:6px 8px; display:flex; flex-direction:column; gap:8px;
+}
+.s-card{
+  border:1px solid var(--line); border-radius:10px; padding:8px;
+  background:color-mix(in srgb, var(--card) 96%, #000 4%);
+}
+.s-top{ display:flex; align-items:center; gap:6px; }
+.s-idea{ font-size:14px; white-space:pre-wrap; }
+.chev{
+  margin-left:auto; border:1px solid var(--line); background:#0f1115; color:var(--ink);
+  padding:2px 8px; border-radius:8px; cursor:pointer; font-size:13px;
+}
+
+.comments{ margin-top:6px; border-top:1px dashed var(--line); padding-top:6px; display:none; }
+.comment{ font-size:13px; padding:4px 0; border-bottom:1px dotted var(--line); }
+.comment:last-child{ border-bottom:none; }
+.comment-add{ display:flex; gap:6px; margin-top:6px; }
+.comment-add input{
+  flex:1; background:#0f1115; border:1px solid var(--line); color:var(--ink);
+  border-radius:8px; padding:4px 6px; font-size:13px;
+}
+.comment-add button{
+  border:1px solid var(--line); background:#0f1115; color:var(--ink);
+  border-radius:8px; padding:4px 8px; cursor:pointer; font-size:13px;
+}
+
+/* Ховаємо віджет на вузьких екранах */
+@media (max-width: 1100px){
+  .improve-panel{ display:none; }
+}
