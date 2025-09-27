@@ -36,7 +36,7 @@
   }
 
   .rank { font-weight: 700; color: var(--btn-bg); }
-  .pxp  { font-weight: 600; color: var(--btn-text-hover); }
+  .pxp  { font-weight: 700; color: var(--btn-text-hover); }
 
   .panel{ background: color-mix(in srgb, var(--card) 96%, #000 4%); border:1px solid var(--line);
           border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
@@ -79,7 +79,7 @@
 
   <div class="page">
     <h1>Top-100 PXP</h1>
-    <div class="sub">Рейтинг за кількістю <b>PXP</b>. Обери період.</div>
+    <div class="sub">Рейтинг за <b>сумою донатів</b> (1$ = 1 PXP). Обери період.</div>
 
     <div class="panel" id="heroPanel" style="display:none; margin-bottom:14px;">
       <div class="hero">
@@ -87,7 +87,7 @@
         <div class="meta">
           <div class="name" id="heroName">—</div>
           <div class="stats">
-            <span id="heroPxp">PXP: —</span>
+            <span id="heroPxp">Донати: —</span>
             <span id="heroDate">З нами з: —</span>
           </div>
         </div>
@@ -101,7 +101,8 @@
         <div class="tabs" id="tabs" style="display:flex; gap:8px;">
           <button class="tab active" data-range="all" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">За весь час</button>
           <button class="tab" data-range="month" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Місяць</button>
-          <button class="tab" data-range="week" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304б; cursor:pointer; font-weight:600;">Тиждень</button>
+          <!-- “Тиждень” поки не підтримується бекендом: підвантажуємо “all” і показуємо підказку -->
+          <button class="tab" data-range="week" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Тиждень</button>
         </div>
         <div class="sub">PXP = PixPaw 🐾</div>
       </div>
@@ -109,7 +110,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th class="rank">#</th><th>Нік</th><th>PXP</th><th>З нами з</th></tr>
+            <tr><th class="rank">#</th><th>Нік</th><th>Донати</th><th>З нами з</th></tr>
           </thead>
           <tbody id="tbody">
             <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
@@ -120,7 +121,7 @@
       </div>
 
       <div id="myrank" class="note" style="margin-top:12px"></div>
-      <div class="note">Щоб увійти до ТОП-100, потрібно мати більше PXP, ніж у 100-го місця. 1$ = 1 PXP.</div>
+      <div class="note">Щоб увійти до ТОП-100, потрібно мати більшу суму донатів, ніж у 100-го місця.</div>
     </div>
   </div>
 
@@ -166,6 +167,7 @@
       list.forEach((u, i) => {
         const ava = resolveAvatar(u.avatar);
         const name = (u.name || (u.email ? u.email.split('@')[0] : 'Без імені'));
+        const donated = (u.donated != null ? u.donated : (u.pxp ?? 0)); // fallback на випадок старого API
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="rank">${i + 1}</td>
@@ -175,7 +177,7 @@
               <span>${name}</span>
             </div>
           </td>
-          <td class="pxp">${u.pxp ?? 0}</td>
+          <td class="pxp">${donated}</td>
           <td>${u.created_at ? formatSince(u.created_at) : '—'}</td>
         `;
         tbody.appendChild(tr);
@@ -186,23 +188,33 @@
       const hero = document.getElementById('heroPanel');
       if (!list.length) { hero.style.display='none'; return; }
       const top = list[0];
+      const donated = (top.donated != null ? top.donated : (top.pxp ?? 0));
       document.getElementById('heroName').textContent = top.name || 'Без імені';
-      document.getElementById('heroPxp').textContent  = `PXP: ${top.pxp ?? 0}`;
+      document.getElementById('heroPxp').textContent  = `Донати: ${donated}`;
       document.getElementById('heroDate').textContent = `З нами з: ${top.created_at ? formatSince(top.created_at) : '—'}`;
       const heroImg = document.getElementById('heroAvaImg');
       heroImg.src = resolveAvatar(top.avatar);
       hero.style.display = 'block';
     }
 
-    function renderMyRank(me_rank, me_pxp){
+    function renderMyRank(me_rank, me_total){
       const n = document.getElementById('myrank');
       if (me_rank == null) { n.textContent = ''; return; }
-      n.textContent = `Твій ранг: #${me_rank} • PXP: ${me_pxp ?? 0}`;
+      n.textContent = `Твій ранг: #${me_rank} • Донати: ${me_total ?? 0}`;
     }
 
     async function load(period='all'){
       showSkeleton();
-      const url = `${API}?period=${encodeURIComponent(period)}`;
+      // “week” поки не підтримується — використовуємо all і показуємо підказку
+      let realPeriod = period;
+      if (period === 'week') {
+        realPeriod = 'all';
+        const note = document.getElementById('myrank');
+        note.textContent = 'Режим “Тиждень” тимчасово недоступний — показуємо рейтинг за весь час.';
+      } else {
+        document.getElementById('myrank').textContent = '';
+      }
+      const url = `${API}?period=${encodeURIComponent(realPeriod)}`;
       try{
         const r = await fetch(url, {headers:{'Accept':'application/json'}});
         if(!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -210,7 +222,7 @@
         const data = normalize(raw);
         renderRows(data.items);
         renderHero(data.items);
-        renderMyRank(data.me_rank, data.me_pxp);
+        renderMyRank(data.me_rank, data.me_pxp); // бекенд повертає суму донатів у me_pxp
       }catch(err){
         console.error(err);
         const tbody = document.getElementById('tbody');
