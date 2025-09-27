@@ -66,7 +66,7 @@ async function postIdea(){
   try{
     resp = await fetch('/api/suggestions', {
       method:'POST',
-      headers:{'Content-Type':'application/json','X-Requested-With':'fetch'},
+      headers:{ 'Content-Type':'application/json' }, // ВАЖЛИВО: без X-Requested-With
       credentials:'same-origin',
       body: JSON.stringify({ title: text, body: '' })
     });
@@ -123,7 +123,7 @@ async function addComment(id){
 
   const r = await fetch(`/api/suggestions/${id}/comments`, {
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:{ 'Content-Type':'application/json' },
     credentials:'same-origin',
     body: JSON.stringify({ body })
   });
