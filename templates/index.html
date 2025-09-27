@@ -85,9 +85,8 @@
     .promo-cta:hover{ filter:brightness(1.05); }
   </style>
 
-  <!-- 👇 ДОДАНО: стилі чату покращень -->
+  <!-- стилі чату покращень -->
   <link rel="stylesheet" href="{{ url_for('static', filename='improve.css') }}">
-
 </head>
 <body>
   <!-- NAV -->
@@ -150,7 +149,7 @@
     </div>
   </main>
 
-  <!-- 👇 ДОДАНО: віджет чату покращень -->
+  <!-- Віджет чату покращень: праворуч, висота = банеру -->
   <div id="improve-panel" class="improve-panel">
     <div class="improve-header">
       <strong>Покращення</strong>
@@ -160,19 +159,15 @@
 
     <div class="improve-compose">
       <input id="improve-title" type="text" placeholder="Коротка назва ідеї (спише 1 PXP)">
-      <textarea id="improve-body" rows="3" placeholder="Опишіть, що покращити..."></textarea>
+      <textarea id="improve-body" rows="2" placeholder="Опишіть, що покращити..."></textarea>
       <button id="improve-send" class="send-btn">Опублікувати за 1 PXP</button>
       <div class="hint" id="improve-hint"></div>
     </div>
 
-    <div id="improve-list" class="improve-list">
-      <!-- список ідей підтягнеться автоматично -->
-    </div>
+    <div id="improve-list" class="improve-list"></div>
   </div>
 
-  <button id="improve-toggle" class="improve-toggle">💡</button>
-
-  <!-- 👇 ДОДАНО: скрипт -->
+  <!-- скрипт віджета -->
   <script src="{{ url_for('static', filename='improve.js') }}"></script>
 </body>
 </html>
