@@ -8,19 +8,23 @@ const hint     = document.getElementById('improve-hint');
 let items = [];
 const esc = s => (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 
-/* ставимо панель точно під банер */
+/* ставимо панель точно ПІД банер, щоб не заходила на кнопки */
 function placeUnderBanner(){
-  const banner = document.querySelector('.promo-wrap');
-  const nav = document.querySelector('.navbar'); // якщо є
-  let top = 16;
-  if (banner){
-    const rect = banner.getBoundingClientRect();
-    top = window.scrollY + rect.top + rect.height + 12; // трохи відступу
-  } else if (nav){
-    const r = nav.getBoundingClientRect();
-    top = window.scrollY + r.bottom + 12;
-  }
-  panel.style.top = `${top}px`;
+  try{
+    const banner = document.querySelector('.promo-wrap');
+    const nav = document.querySelector('.navbar');
+    let top;
+    if (banner){
+      const r = banner.getBoundingClientRect();
+      top = window.scrollY + r.top + r.height + 8; // під банер
+    } else if (nav){
+      const r = nav.getBoundingClientRect();
+      top = window.scrollY + r.bottom + 12;
+    } else {
+      top = 120;
+    }
+    panel.style.top = `${Math.max(8, Math.round(top))}px`;
+  }catch(e){}
 }
 
 function render(){
@@ -46,8 +50,8 @@ function render(){
 }
 
 async function load(){
-  const r = await fetch('/api/suggestions');
-  const j = await r.json();
+  const r = await fetch('/api/suggestions', { credentials:'same-origin' });
+  const j = await r.json().catch(()=>({ok:false,error:'bad_json'}));
   if(j.ok){ items = j.items; render(); }
 }
 
@@ -58,23 +62,37 @@ async function postIdea(){
   hint.textContent = 'Відправляємо (-1 PXP)…';
   sendBtn.disabled = true;
 
-  const r = await fetch('/api/suggestions', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ title: text, body: '' })
-  });
-  const j = await r.json();
-  sendBtn.disabled = false;
-
-  if(!j.ok){
-    hint.textContent = j.error==='not_enough_pxp' ? 'Недостатньо PXP.' :
-                       j.error==='auth_required'  ? 'Увійдіть у профіль.' :
-                       'Помилка.';
+  let resp, data;
+  try{
+    resp = await fetch('/api/suggestions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Requested-With':'fetch'},
+      credentials:'same-origin',
+      body: JSON.stringify({ title: text, body: '' })
+    });
+    data = await resp.json();
+  }catch(err){
+    hint.textContent = 'Мережа недоступна.';
+    sendBtn.disabled = false;
     return;
   }
+
+  sendBtn.disabled = false;
+
+  if(!data || !data.ok){
+    const code = (data && data.error) || `HTTP ${resp.status}`;
+    hint.textContent = (
+      code === 'auth_required'  ? 'Увійдіть у профіль.' :
+      code === 'not_enough_pxp' ? 'Недостатньо PXP.' :
+      code === 'title_required' ? 'Порожня ідея.' :
+      `Помилка: ${code}`
+    );
+    return;
+  }
+
   ideaBox.value = '';
-  hint.textContent = 'Опубліковано!';
-  items.unshift(j.item);
+  hint.textContent = 'Опубліковано! (-1 PXP)';
+  items.unshift(data.item);
   render();
 }
 
@@ -84,9 +102,11 @@ async function toggleComments(id){
   const open = wrap.style.display !== 'block';
   wrap.style.display = open ? 'block' : 'none';
   if(!open) return;
-  const r = await fetch(`/api/suggestions/${id}/comments`);
-  const j = await r.json();
+
+  const r = await fetch(`/api/suggestions/${id}/comments`, { credentials:'same-origin' });
+  const j = await r.json().catch(()=>({ok:false}));
   if(!j.ok) return;
+
   const ul = document.getElementById(`clist-${id}`);
   ul.innerHTML = '';
   j.items.forEach(c=>{
@@ -100,14 +120,15 @@ async function addComment(id){
   const inp = document.getElementById(`cinput-${id}`);
   const body = (inp.value || '').trim();
   if(!body) return;
+
   const r = await fetch(`/api/suggestions/${id}/comments`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    credentials:'same-origin',
     body: JSON.stringify({ body })
   });
-  const j = await r.json();
-  if(j.ok){
-    inp.value=''; toggleComments(id); toggleComments(id);
-  }
+  const j = await r.json().catch(()=>({ok:false}));
+  if(j.ok){ inp.value=''; toggleComments(id); toggleComments(id); }
 }
 
 /* події */
@@ -125,4 +146,6 @@ list.addEventListener('click', (e)=>{
   if(e.target.classList.contains('chev')) toggleComments(parseInt(e.target.dataset.id));
   if(e.target.classList.contains('cadd')) addComment(parseInt(e.target.dataset.id));
 });
+
+/* автооновлення списку */
 setInterval(()=>{ if(panel && panel.style.display!=='none') load(); }, 20000);
