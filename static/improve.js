@@ -49,10 +49,22 @@ function render(){
   });
 }
 
+/* допоміжна: безпечно читаємо JSON або текст */
+async function safeJson(resp){
+  const ct = (resp.headers.get('content-type') || '').toLowerCase();
+  if (ct.includes('application/json')) {
+    try { return await resp.json(); } catch { return null; }
+  }
+  return null; // не JSON
+}
+
 async function load(){
-  const r = await fetch('/api/suggestions', { credentials:'same-origin' });
-  const j = await r.json().catch(()=>({ok:false,error:'bad_json'}));
-  if(j.ok){ items = j.items; render(); }
+  const resp = await fetch('/api/suggestions', { credentials:'same-origin' });
+  const data = await safeJson(resp);
+  if (data && data.ok){
+    items = data.items;
+    render();
+  }
 }
 
 /* відправка ідеї */
@@ -62,25 +74,37 @@ async function postIdea(){
   hint.textContent = 'Відправляємо (-1 PXP)…';
   sendBtn.disabled = true;
 
-  let resp, data;
+  let resp;
   try{
     resp = await fetch('/api/suggestions', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json' }, // ВАЖЛИВО: без X-Requested-With
+      headers:{ 'Content-Type':'application/json' }, // без зайвих заголовків
       credentials:'same-origin',
       body: JSON.stringify({ title: text, body: '' })
     });
-    data = await resp.json();
   }catch(err){
     hint.textContent = 'Мережа недоступна.';
     sendBtn.disabled = false;
     return;
   }
 
+  const data = await safeJson(resp);
+
   sendBtn.disabled = false;
 
-  if(!data || !data.ok){
-    const code = (data && data.error) || `HTTP ${resp.status}`;
+  // 1) якщо редирект/не JSON — швидше за все перекинуло на логін
+  if (!data){
+    if (resp.status === 401 || resp.redirected){
+      hint.textContent = 'Увійдіть у профіль.';
+    } else {
+      hint.textContent = `Помилка: HTTP ${resp.status}`;
+    }
+    return;
+  }
+
+  // 2) API повернуло JSON, але з помилкою
+  if (!data.ok){
+    const code = data.error || `HTTP ${resp.status}`;
     hint.textContent = (
       code === 'auth_required'  ? 'Увійдіть у профіль.' :
       code === 'not_enough_pxp' ? 'Недостатньо PXP.' :
@@ -90,6 +114,7 @@ async function postIdea(){
     return;
   }
 
+  // 3) успіх
   ideaBox.value = '';
   hint.textContent = 'Опубліковано! (-1 PXP)';
   items.unshift(data.item);
@@ -103,32 +128,37 @@ async function toggleComments(id){
   wrap.style.display = open ? 'block' : 'none';
   if(!open) return;
 
-  const r = await fetch(`/api/suggestions/${id}/comments`, { credentials:'same-origin' });
-  const j = await r.json().catch(()=>({ok:false}));
-  if(!j.ok) return;
+  const resp = await fetch(`/api/suggestions/${id}/comments`, { credentials:'same-origin' });
+  const data = await safeJson(resp);
+  if(!data || !data.ok) return;
 
   const ul = document.getElementById(`clist-${id}`);
   ul.innerHTML = '';
-  j.items.forEach(c=>{
+  data.items.forEach(c=>{
     const d = document.createElement('div');
     d.className = 'comment';
     d.innerHTML = `<strong>${esc(c.author_name || c.author_email || '')}:</strong> ${esc(c.body)}`;
     ul.appendChild(d);
   });
 }
+
 async function addComment(id){
   const inp = document.getElementById(`cinput-${id}`);
   const body = (inp.value || '').trim();
   if(!body) return;
 
-  const r = await fetch(`/api/suggestions/${id}/comments`, {
+  const resp = await fetch(`/api/suggestions/${id}/comments`, {
     method:'POST',
     headers:{ 'Content-Type':'application/json' },
     credentials:'same-origin',
     body: JSON.stringify({ body })
   });
-  const j = await r.json().catch(()=>({ok:false}));
-  if(j.ok){ inp.value=''; toggleComments(id); toggleComments(id); }
+  const data = await safeJson(resp);
+  if(data && data.ok){
+    inp.value=''; toggleComments(id); toggleComments(id);
+  } else if (!data && (resp.status === 401 || resp.redirected)){
+    hint.textContent = 'Увійдіть у профіль.';
+  }
 }
 
 /* події */
