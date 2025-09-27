@@ -1,7 +1,8 @@
 # profile.py
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from db import db, User, Transaction, Message
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import func, desc
 
 bp = Blueprint("profile", __name__, url_prefix="")
 
@@ -21,10 +22,8 @@ def _to_iso(value):
     """Повертає ISO-рядок для datetime або як є, якщо це вже рядок; інакше None."""
     if value is None:
         return None
-    # якщо це datetime — нормалізуємо
     if isinstance(value, datetime):
         return value.isoformat()
-    # якщо це вже рядок — віддаємо як є (без isoformat)
     try:
         return str(value)
     except Exception:
@@ -36,6 +35,16 @@ def _to_int(value, default=0):
         return int(value)
     except Exception:
         return default
+
+def _month_bounds(now=None):
+    """Початок та початок наступного місяця (UTC-наївно)."""
+    now = now or datetime.utcnow()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if start.month == 12:
+        next_start = start.replace(year=start.year + 1, month=1)
+    else:
+        next_start = start.replace(month=start.month + 1)
+    return start, next_start
 # -----------------------------------------------------------------------------
 
 
@@ -70,7 +79,6 @@ def donate_post():
     if amount <= 0:
         flash("Сума має бути > 0", "error")
         return redirect(url_for("profile.donate"))
-    # на випадок якщо pxp зберігається рядком
     u.pxp = _to_int(getattr(u, "pxp", 0)) + amount
     db.session.add(Transaction(user_id=u.id, amount=amount, kind="donate", note="manual"))
     db.session.commit()
@@ -95,8 +103,33 @@ def spend():
 
 @bp.get("/top100")
 def top100():
-    rows = User.query.order_by(User.pxp.desc(), User.id.asc()).limit(100).all()
-    return render_template("top100.html", rows=rows)
+    """Топ за ВСІ ЧАСИ за сумою донатів (kind='donate', amount>0)."""
+    # агрегат по донатах
+    agg = (
+        db.session.query(
+            Transaction.user_id.label("uid"),
+            func.coalesce(func.sum(Transaction.amount), 0).label("donated"),
+        )
+        .filter(Transaction.kind == "donate", Transaction.amount > 0)
+        .group_by(Transaction.user_id)
+        .subquery()
+    )
+
+    # приєднуємо до користувачів
+    rows = (
+        db.session.query(
+            User,
+            func.coalesce(agg.c.donated, 0).label("donated")
+        )
+        .outerjoin(agg, agg.c.uid == User.id)
+        .order_by(desc("donated"), User.id.asc())
+        .limit(100)
+        .all()
+    )
+
+    # передамо у шаблон як список словників (user, donated)
+    data = [{"user": u, "donated": d} for (u, d) in rows]
+    return render_template("top100.html", rows=data)
 
 # --- повідомлення ---
 @bp.get("/messages")
@@ -127,29 +160,52 @@ def donate():
 
 @bp.get("/api/pxp/top100")
 def api_top100():
+    """API-топ: ранжуємо тільки за донатами. ?period=all|month"""
     period = request.args.get("period", "all")
-    q = User.query
 
-    # сортування за місячним або загальним (як є в моделі)
-    if period == "month" and hasattr(User, "pxp_month"):
-        q = q.order_by(User.pxp_month.desc(), User.id.asc())
-    else:
-        q = q.order_by(User.pxp.desc(), User.id.asc())
+    # базовий фільтр по донатам
+    filters = [Transaction.kind == "donate", Transaction.amount > 0]
 
-    rows = q.limit(100).all()
+    # період місяць — беремо лише транзакції поточного місяця
+    if period == "month":
+        start, next_start = _month_bounds()
+        filters.append(Transaction.created_at >= start)
+        filters.append(Transaction.created_at < next_start)
+
+    # агрегуємо
+    agg_q = (
+        db.session.query(
+            Transaction.user_id.label("uid"),
+            func.coalesce(func.sum(Transaction.amount), 0).label("donated"),
+        )
+        .filter(*filters)
+        .group_by(Transaction.user_id)
+    )
+    agg_sq = agg_q.subquery()
+
+    # приєднуємо до користувачів і ранжуємо
+    ranked_q = (
+        db.session.query(
+            User,
+            func.coalesce(agg_sq.c.donated, 0).label("donated")
+        )
+        .outerjoin(agg_sq, agg_sq.c.uid == User.id)
+        .order_by(desc("donated"), User.id.asc())
+    )
+
+    # топ-100
+    top_rows = ranked_q.limit(100).all()
+
+    # повний порядок для обчислення рангу поточного користувача
+    all_rows = ranked_q.all()
 
     uid = session.get("user_id")
-    me_rank, me_pxp = None, None
+    me_rank, me_donated = None, None
     if uid:
-        if period == "month" and hasattr(User, "pxp_month"):
-            ordered = User.query.order_by(User.pxp_month.desc(), User.id.asc()).all()
-            me_pxp = _to_int(next((u.pxp_month for u in ordered if u.id == uid), 0))
-        else:
-            ordered = User.query.order_by(User.pxp.desc(), User.id.asc()).all()
-            me_pxp = _to_int(next((u.pxp for u in ordered if u.id == uid), 0))
-        for i, u in enumerate(ordered, start=1):
+        for i, (u, donated) in enumerate(all_rows, start=1):
             if u.id == uid:
                 me_rank = i
+                me_donated = int(donated or 0)
                 break
 
     data = {
@@ -158,16 +214,18 @@ def api_top100():
                 "id": u.id,
                 "name": getattr(u, "name", None),
                 "email": getattr(u, "email", None),
+                # залишаємо для зворотної сумісності
                 "pxp": _to_int(getattr(u, "pxp", 0)),
                 "pxp_month": (_to_int(getattr(u, "pxp_month", 0)) if hasattr(u, "pxp_month") else None),
-                # ВАЖЛИВО: безпечне перетворення created_at (може бути str або datetime)
                 "created_at": _to_iso(getattr(u, "created_at", None)),
-                # ДОДАНО: посилання/дані аватарки (URL, dataURL або відносний шлях)
                 "avatar": getattr(u, "avatar", None),
+                # нове — сума донатів, за якою будується рейтинг
+                "donated": int(donated or 0),
             }
-            for u in rows
+            for (u, donated) in top_rows
         ],
         "me_rank": me_rank,
-        "me_pxp": me_pxp,
+        # лишаю ключ me_pxp, але тепер це сума донатів користувача
+        "me_pxp": me_donated if me_donated is not None else 0,
     }
     return jsonify(data)
