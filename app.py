@@ -1,4 +1,5 @@
 import os
+import threading
 from flask import Flask, render_template, jsonify, request, session  # +jsonify, request, session
 
 from db import init_app_db, close_db, db, User  # підключаємо БД тут
@@ -88,100 +89,111 @@ def create_app():
     init_app_db(app)
     app.teardown_appcontext(close_db)
 
-    # --- NEW: гарантуємо наявність таблиць для чату покращень (ледачо, без блокування старту) ---
-    def ensure_feedback_tables():
-        """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite.
-        Виконується у транзакції й не завалює застосунок у разі тимчасових збоїв.
-        """
-        try:
-            dialect = db.engine.dialect.name  # 'postgresql' | 'sqlite' | ін.
-            with db.engine.begin() as conn:   # автокоміт DDL
-                if dialect == "postgresql":
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS suggestions (
-                          id SERIAL PRIMARY KEY,
-                          user_id INTEGER NOT NULL,
-                          title TEXT NOT NULL,
-                          body TEXT,
-                          likes INTEGER NOT NULL DEFAULT 0,
-                          comments_count INTEGER NOT NULL DEFAULT 0,
-                          created_at TIMESTAMP NOT NULL DEFAULT NOW()
-                        );
-                    """))
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS suggestion_votes (
-                          id SERIAL PRIMARY KEY,
-                          suggestion_id INTEGER NOT NULL,
-                          user_id INTEGER NOT NULL,
-                          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                          CONSTRAINT suggestion_votes_uniq UNIQUE (suggestion_id, user_id)
-                        );
-                    """))
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS suggestion_comments (
-                          id SERIAL PRIMARY KEY,
-                          suggestion_id INTEGER NOT NULL,
-                          user_id INTEGER NOT NULL,
-                          body TEXT NOT NULL,
-                          created_at TIMESTAMP NOT NULL DEFAULT NOW()
-                        );
-                    """))
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS pxp_transactions (
-                          id SERIAL PRIMARY KEY,
-                          user_id INTEGER NOT NULL,
-                          delta INTEGER NOT NULL,
-                          reason TEXT NOT NULL,
-                          created_at TIMESTAMP NOT NULL DEFAULT NOW()
-                        );
-                    """))
-                else:
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS suggestions (
-                          id INTEGER PRIMARY KEY AUTOINCREMENT,
-                          user_id INTEGER NOT NULL,
-                          title TEXT NOT NULL,
-                          body TEXT,
-                          likes INTEGER NOT NULL DEFAULT 0,
-                          comments_count INTEGER NOT NULL DEFAULT 0,
-                          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        );
-                    """))
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS suggestion_votes (
-                          id INTEGER PRIMARY KEY AUTOINCREMENT,
-                          suggestion_id INTEGER NOT NULL,
-                          user_id INTEGER NOT NULL,
-                          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                          UNIQUE(suggestion_id, user_id)
-                        );
-                    """))
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS suggestion_comments (
-                          id INTEGER PRIMARY KEY AUTOINCREMENT,
-                          suggestion_id INTEGER NOT NULL,
-                          user_id INTEGER NOT NULL,
-                          body TEXT NOT NULL,
-                          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        );
-                    """))
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS pxp_transactions (
-                          id INTEGER PRIMARY KEY AUTOINCREMENT,
-                          user_id INTEGER NOT NULL,
-                          delta INTEGER NOT NULL,
-                          reason TEXT NOT NULL,
-                          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        );
-                    """))
-        except Exception as e:
-            # Не блокуємо застосунок: просто лог (див. логи Railway)
-            print("[ensure_feedback_tables] skipped:", e)
+    # --- NEW: гарантуємо наявність таблиць для чату покращень (одноразово, без падінь) ---
+    _tables_ready_key = "FEEDBACK_TABLES_READY"
+    _tables_lock = threading.Lock()
+    app.config.setdefault(_tables_ready_key, False)
 
-    @app.before_first_request
+    def ensure_feedback_tables():
+        """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite."""
+        dialect = db.engine.dialect.name  # 'postgresql' | 'sqlite' | ін.
+        with db.engine.begin() as conn:   # автокоміт DDL
+            if dialect == "postgresql":
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS suggestions (
+                      id SERIAL PRIMARY KEY,
+                      user_id INTEGER NOT NULL,
+                      title TEXT NOT NULL,
+                      body TEXT,
+                      likes INTEGER NOT NULL DEFAULT 0,
+                      comments_count INTEGER NOT NULL DEFAULT 0,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    );
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS suggestion_votes (
+                      id SERIAL PRIMARY KEY,
+                      suggestion_id INTEGER NOT NULL,
+                      user_id INTEGER NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                      CONSTRAINT suggestion_votes_uniq UNIQUE (suggestion_id, user_id)
+                    );
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS suggestion_comments (
+                      id SERIAL PRIMARY KEY,
+                      suggestion_id INTEGER NOT NULL,
+                      user_id INTEGER NOT NULL,
+                      body TEXT NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    );
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS pxp_transactions (
+                      id SERIAL PRIMARY KEY,
+                      user_id INTEGER NOT NULL,
+                      delta INTEGER NOT NULL,
+                      reason TEXT NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    );
+                """))
+            else:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS suggestions (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      user_id INTEGER NOT NULL,
+                      title TEXT NOT NULL,
+                      body TEXT,
+                      likes INTEGER NOT NULL DEFAULT 0,
+                      comments_count INTEGER NOT NULL DEFAULT 0,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS suggestion_votes (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      suggestion_id INTEGER NOT NULL,
+                      user_id INTEGER NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      UNIQUE(suggestion_id, user_id)
+                    );
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS suggestion_comments (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      suggestion_id INTEGER NOT NULL,
+                      user_id INTEGER NOT NULL,
+                      body TEXT NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                """))
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS pxp_transactions (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      user_id INTEGER NOT NULL,
+                      delta INTEGER NOT NULL,
+                      reason TEXT NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                """))
+
+    # одноразовий виклик на першому запиті (Flask 3: before_first_request відсутній)
+    @app.before_request
     def _ensure_tables_once():
-        ensure_feedback_tables()
-    # ---------------------------------------------------------------
+        if app.config.get(_tables_ready_key, False):
+            return
+        # простий lock проти гонок у кількох воркерах
+        with _tables_lock:
+            if app.config.get(_tables_ready_key, False):
+                return
+            try:
+                ensure_feedback_tables()
+            except Exception as e:
+                # не валимо запит; логни в консолі Railway
+                print("[ensure_feedback_tables] skipped:", e)
+            finally:
+                app.config[_tables_ready_key] = True
+    # ----------------------------------------------------------------------
 
     # 2) тільки після ініціалізації БД — імпорт і реєстрація blueprints
     import auth           # auth.bp
@@ -324,7 +336,7 @@ def create_app():
         f = request.files.get("image")
         link_url = request.form.get("link_url") or ""
         if not f or not allowed_file(f.filename):
-            flash("Дай .png/.jpg/.jpeg/.webp")
+            flash("Дай .png/.jpg/.jpeg/.webп")
             return redirect(url_for("admin_panel"))
 
         ext = f.filename.rsplit(".", 1)[1].lower()
