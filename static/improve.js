@@ -89,10 +89,9 @@ async function postIdea(){
   }
 
   const data = await safeJson(resp);
-
   sendBtn.disabled = false;
 
-  // 1) якщо редирект/не JSON — швидше за все перекинуло на логін
+  // не-JSON або редирект
   if (!data){
     if (resp.status === 401 || resp.redirected){
       hint.textContent = 'Увійдіть у профіль.';
@@ -102,19 +101,21 @@ async function postIdea(){
     return;
   }
 
-  // 2) API повернуло JSON, але з помилкою
+  // API повернуло JSON з помилкою
   if (!data.ok){
     const code = data.error || `HTTP ${resp.status}`;
+    // якщо бекенд дав detail — покажемо його
+    const detail = (data.detail && String(data.detail).trim()) ? ` — ${data.detail}` : '';
     hint.textContent = (
       code === 'auth_required'  ? 'Увійдіть у профіль.' :
       code === 'not_enough_pxp' ? 'Недостатньо PXP.' :
       code === 'title_required' ? 'Порожня ідея.' :
-      `Помилка: ${code}`
+      `Помилка: ${code}${detail}`
     );
     return;
   }
 
-  // 3) успіх
+  // успіх
   ideaBox.value = '';
   hint.textContent = 'Опубліковано! (-1 PXP)';
   items.unshift(data.item);
@@ -158,6 +159,9 @@ async function addComment(id){
     inp.value=''; toggleComments(id); toggleComments(id);
   } else if (!data && (resp.status === 401 || resp.redirected)){
     hint.textContent = 'Увійдіть у профіль.';
+  } else if (data && !data.ok){
+    const detail = (data.detail && String(data.detail).trim()) ? ` — ${data.detail}` : '';
+    hint.textContent = `Помилка: ${data.error || 'server'}${detail}`;
   }
 }
 
