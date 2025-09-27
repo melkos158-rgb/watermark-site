@@ -25,16 +25,21 @@
         </div>
 
         <div class="stat">
-          <div class="badge">💰 PXP: <b>{{ current_user.pxp or 0 }}</b></div>
+          <!-- ВАЖЛИВО: показуємо баланс, який приходить як змінна pxp -->
+          <div class="badge" title="Баланс для витрат (ідеї, сервіс тощо)">
+            💰 PXP (баланс): <b>{{ pxp or 0 }}</b>
+          </div>
           <form action="{{ url_for('profile.spend') }}" method="post" class="inline">
             <button class="btn small" type="submit">+1 PXP (test)</button>
           </form>
         </div>
 
-        <!-- Місячний PXP (показуємо лише якщо поле реально є й не None) -->
+        <!-- Місячний PXP (показуємо лише якщо поле є) -->
         {% if current_user.pxp_month is defined and current_user.pxp_month is not none %}
         <div class="stat" style="margin-top:6px">
-          <div class="badge">📅 PXP (місяць): <b>{{ current_user.pxp_month }}</b></div>
+          <div class="badge" title="Сума донатів за місяць для топу">
+            📅 PXP (місяць): <b>{{ current_user.pxp_month }}</b>
+          </div>
         </div>
         {% endif %}
 
@@ -187,7 +192,7 @@
     avatarData.value = "{{ current_user.avatar or '' }}";
     const form = document.getElementById('profileForm');
     form.querySelector('[name="name"]').value = "{{ current_user.name or '' }}";
-    form.querySelector('[name="bio"]').value  = `{{ (current_user.bio or '').replace('`','\\`') }}`;
+    form.querySelector('[name="bio"]').value  = `{{ (current_user.bio or '')|replace('`','\\`') }}`;
   });
 </script>
 
