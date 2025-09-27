@@ -1,51 +1,50 @@
-/* Компактний блок праворуч, САМЕ під банером */
+/* компактний блок праворуч, строго під банером; ширина менша, щоб не залазити на кнопки */
 .improve-panel{
   position: fixed;
-  right:16px;
-  top:220px;            /* нижче навбару + банера ~120px */
-  width:300px;          /* вужче, щоб не залазило на кнопки */
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:14px;
-  box-shadow:0 12px 28px rgba(0,0,0,.45);
-  z-index:10000;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
+  right: 16px;
+  top: 9999px;           /* реальне значення виставить JS після вимірювання банера */
+  width: 280px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.45);
+  z-index: 10000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.improve-header{
-  display:flex; align-items:center; gap:8px;
-  padding:8px 10px; background:#0b0d12; border-bottom:1px solid var(--line);
-}
+.improve-header{ display:flex; align-items:center; gap:8px; padding:8px 10px;
+  background:#0b0d12; border-bottom:1px solid var(--line); }
 .improve-header .grow{ flex:1; }
-.icon-btn{
-  background:transparent; border:1px solid var(--line); border-radius:10px;
-  padding:4px 8px; color:var(--ink); cursor:pointer;
-}
+.icon-btn{ background:transparent; border:1px solid var(--line); border-radius:10px;
+  padding:4px 8px; color:var(--ink); cursor:pointer; }
 
 .improve-compose{ padding:8px 10px; border-bottom:1px solid var(--line); }
 #improve-idea{
   width:100%; background:#0f1115; border:1px solid var(--line); color:var(--ink);
   border-radius:10px; padding:6px 8px; font-size:14px; resize:none;
+  margin-bottom:8px;
+}
+.send-btn{
+  width:100%; padding:8px; border-radius:10px; border:none;
+  background:var(--btn); color:#fff; cursor:pointer; font-weight:600; font-size:14px;
 }
 .hint{ font-size:11px; color:var(--muted); margin-top:6px; }
 
 .improve-list{
-  max-height:340px; overflow:auto;
+  max-height: 340px;
+  overflow:auto;
   padding:6px 8px; display:flex; flex-direction:column; gap:8px;
 }
-.s-card{
-  border:1px solid var(--line); border-radius:10px; padding:8px;
-  background:color-mix(in srgb, var(--card) 96%, #000 4%);
-}
+.s-card{ border:1px solid var(--line); border-radius:10px; padding:8px;
+  background: color-mix(in srgb, var(--card) 96%, #000 4%); }
 .s-top{ display:flex; align-items:center; gap:6px; }
 .s-idea{ font-size:14px; white-space:pre-wrap; }
 .chev{
   margin-left:auto; border:1px solid var(--line); background:#0f1115; color:var(--ink);
   padding:2px 8px; border-radius:8px; cursor:pointer; font-size:13px;
 }
-
 .comments{ margin-top:6px; border-top:1px dashed var(--line); padding-top:6px; display:none; }
 .comment{ font-size:13px; padding:4px 0; border-bottom:1px dotted var(--line); }
 .comment:last-child{ border-bottom:none; }
@@ -59,7 +58,7 @@
   border-radius:8px; padding:4px 8px; cursor:pointer; font-size:13px;
 }
 
-/* Ховаємо віджет на вузьких екранах */
+/* ховаємо віджет на вузьких екранах */
 @media (max-width: 1100px){
   .improve-panel{ display:none; }
 }
