@@ -27,7 +27,6 @@ USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 # ---- helper: безпечно приводимо до int ----
 def to_int(v, default=0):
     try:
-        # деякі БД повертають Decimal — теж ок
         return int(v)
     except Exception:
         try:
@@ -89,6 +88,93 @@ def create_app():
     init_app_db(app)
     app.teardown_appcontext(close_db)
 
+    # --- NEW: гарантуємо наявність таблиць для чату покращень ---
+    def ensure_feedback_tables():
+        dialect = db.session.get_bind().dialect.name  # 'postgresql' | 'sqlite' | ...
+        if dialect == "postgresql":
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS suggestions (
+                  id SERIAL PRIMARY KEY,
+                  user_id INTEGER NOT NULL,
+                  title TEXT NOT NULL,
+                  body TEXT,
+                  likes INTEGER NOT NULL DEFAULT 0,
+                  comments_count INTEGER NOT NULL DEFAULT 0,
+                  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                );
+            """))
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS suggestion_votes (
+                  id SERIAL PRIMARY KEY,
+                  suggestion_id INTEGER NOT NULL,
+                  user_id INTEGER NOT NULL,
+                  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                  CONSTRAINT suggestion_votes_uniq UNIQUE (suggestion_id, user_id)
+                );
+            """))
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS suggestion_comments (
+                  id SERIAL PRIMARY KEY,
+                  suggestion_id INTEGER NOT NULL,
+                  user_id INTEGER NOT NULL,
+                  body TEXT NOT NULL,
+                  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                );
+            """))
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS pxp_transactions (
+                  id SERIAL PRIMARY KEY,
+                  user_id INTEGER NOT NULL,
+                  delta INTEGER NOT NULL,
+                  reason TEXT NOT NULL,
+                  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                );
+            """))
+        else:
+            # SQLite
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS suggestions (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_id INTEGER NOT NULL,
+                  title TEXT NOT NULL,
+                  body TEXT,
+                  likes INTEGER NOT NULL DEFAULT 0,
+                  comments_count INTEGER NOT NULL DEFAULT 0,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS suggestion_votes (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  suggestion_id INTEGER NOT NULL,
+                  user_id INTEGER NOT NULL,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  UNIQUE(suggestion_id, user_id)
+                );
+            """))
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS suggestion_comments (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  suggestion_id INTEGER NOT NULL,
+                  user_id INTEGER NOT NULL,
+                  body TEXT NOT NULL,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS pxp_transactions (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_id INTEGER NOT NULL,
+                  delta INTEGER NOT NULL,
+                  reason TEXT NOT NULL,
+                  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+        db.session.commit()
+
+    ensure_feedback_tables()
+    # ---------------------------------------------------------------
+
     # 2) тільки після ініціалізації БД — імпорт і реєстрація blueprints
     import auth           # auth.bp
     import profile        # profile.bp
@@ -113,28 +199,20 @@ def create_app():
 
     # === NEW: утиліти для TOP-1 і банера ===
     def get_top1_user_this_month():
-        """
-        Якщо маєш у моделі User поле pxp_month — воно використовується в першу чергу.
-        Інакше падаємо назад на загальний pxp.
-        """
-        # пробуємо pxp_month
         if hasattr(User, "pxp_month"):
             u = User.query.order_by(User.pxp_month.desc(), User.id.asc()).first()
             if u:
                 return u
-        # fallback на pxp
         if hasattr(User, "pxp"):
             return User.query.order_by(User.pxp.desc(), User.id.asc()).first()
         return None
 
     def get_active_banner():
-        """Повертає словник {image_path, link_url}. Якщо немає активного банера ТОП-1 — повертає дефолтний."""
         top1 = get_top1_user_this_month()
         if top1:
             rec = BannerAd.query.filter_by(active=True, user_id=top1.id).order_by(BannerAd.id.desc()).first()
             if rec:
                 return {"image_path": rec.image_path, "link_url": rec.link_url or ""}
-        # дефолт
         return {"image_path": DEFAULT_BANNER_IMG, "link_url": DEFAULT_BANNER_URL}
 
     # 3) доступні у всіх шаблонах
@@ -142,10 +220,8 @@ def create_app():
     def inject_user():
         from flask import session
         u = User.query.get(session["user_id"]) if session.get("user_id") else None
-        # важливо: повертати числовий pxp
         return dict(current_user=u, pxp=(to_int(u.pxp) if u else 0))
 
-    # === NEW: окремий контекст — банер завжди доступний у шаблонах (напр. index.html)
     @app.context_processor
     def inject_banner():
         return dict(banner=get_active_banner())
@@ -153,7 +229,7 @@ def create_app():
     # ===== ПУБЛІЧНІ СТОРІНКИ =====
     @app.route("/")
     def index():
-        return render_template("index.html")  # banner доступний через context_processor
+        return render_template("index.html")
 
     @app.route("/stl")
     def stl():
@@ -175,7 +251,6 @@ def create_app():
     def photo():
         return render_template("photo.html")
 
-    # === NEW: клік по банеру — якщо не залогінений, в логін; якщо залогінений — ведемо на link_url або на /
     @app.route("/ad/click")
     def ad_click():
         from flask import session, redirect, url_for, request
@@ -186,7 +261,6 @@ def create_app():
             return redirect(b["link_url"])
         return redirect(url_for("index"))
 
-    # === NEW: завантаження банера для ТОП-1
     @app.route("/ad/upload", methods=["GET", "POST"])
     def ad_upload():
         from flask import request, session, redirect, url_for, flash, render_template
@@ -277,7 +351,6 @@ def create_app():
         flash("Місячний рейтинг скинуто. Повернувся дефолтний банер.")
         return redirect(url_for("admin_panel"))
 
-    # === NEW: admin PXP add ===
     @app.route("/admin/pxp-add", methods=["POST"])
     @admin_required
     def admin_pxp_add():
@@ -331,7 +404,6 @@ def create_app():
     # ================== NEW: API для "чату покращень" ======================
     # ======================================================================
 
-    # Список ідей (топ за лайками, потім новіші)
     @app.route("/api/suggestions")
     def api_suggestions_list():
         rows = db.session.execute(text(f"""
@@ -343,7 +415,6 @@ def create_app():
         """)).fetchall()
         return jsonify({"ok": True, "items": [row_to_dict(r) for r in rows]})
 
-    # Створити ідею (списує 1 PXP)
     @app.route("/api/suggestions", methods=["POST"])
     @login_required_json
     def api_suggestions_create():
@@ -362,11 +433,9 @@ def create_app():
             if pxp_val < 1:
                 return jsonify({"ok": False, "error": "not_enough_pxp"}), 402
 
-            # списуємо 1 PXP (числово!)
             user.pxp = pxp_val - 1
 
-            # визначаємо діалект та коректно отримуємо id
-            engine = db.session.get_bind().dialect.name  # 'postgresql' | 'sqlite' | ...
+            engine = db.session.get_bind().dialect.name
             if engine == "postgresql":
                 sid = db.session.execute(
                     text("INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :t, '') RETURNING id"),
@@ -379,7 +448,6 @@ def create_app():
                 )
                 sid = db.session.execute(text("SELECT last_insert_rowid()")).scalar()
 
-            # лог транзакції
             db.session.execute(
                 text("INSERT INTO pxp_transactions(user_id, delta, reason) VALUES(:uid, -1, 'suggestion_post')"),
                 {"uid": uid}
@@ -399,7 +467,6 @@ def create_app():
             db.session.rollback()
             return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
-    # Лайк (1 раз на користувача)
     @app.route("/api/suggestions/<int:sid>/like", methods=["POST"])
     @login_required_json
     def api_suggestions_like(sid):
@@ -418,7 +485,6 @@ def create_app():
             db.session.rollback()
             return jsonify({"ok": False, "error": "already_voted"}), 409
 
-    # Коментарі — список
     @app.route("/api/suggestions/<int:sid>/comments")
     def api_suggestions_comments_list(sid):
         rows = db.session.execute(text(f"""
@@ -430,7 +496,6 @@ def create_app():
         """), {"sid": sid}).fetchall()
         return jsonify({"ok": True, "items": [row_to_dict(r) for r in rows]})
 
-    # Додати коментар
     @app.route("/api/suggestions/<int:sid>/comments", methods=["POST"])
     @login_required_json
     def api_suggestions_comments_create(sid):
