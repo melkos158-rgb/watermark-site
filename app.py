@@ -334,48 +334,54 @@ def create_app():
     def api_suggestions_create():
         uid = session["user_id"]
         data = request.get_json() or {}
-        title = (data.get("title") or "").strip()
-        body  = (data.get("body") or "").strip()
-        if not title:
+        text_body = (data.get("title") or data.get("body") or "").strip()
+        if not text_body:
             return jsonify({"ok": False, "error": "title_required"}), 400
 
-        user = User.query.get(uid)
-        if not user:
-            return jsonify({"ok": False, "error": "no_user"}), 400
-        if (getattr(user, "pxp", 0) or 0) < 1:
-            return jsonify({"ok": False, "error": "not_enough_pxp"}), 402
+        try:
+            user = User.query.get(uid)
+            if not user:
+                return jsonify({"ok": False, "error": "no_user"}), 400
+            if (getattr(user, "pxp", 0) or 0) < 1:
+                return jsonify({"ok": False, "error": "not_enough_pxp"}), 402
 
-        # списуємо 1 PXP і створюємо запис
-        user.pxp = (user.pxp or 0) - 1
+            # списуємо 1 PXP
+            user.pxp = (user.pxp or 0) - 1
 
-        # --- ДОДАНО: крос-БД отримання sid (Postgres/SQLite) ---
-        engine = db.session.get_bind().dialect.name  # 'postgresql' або 'sqlite' тощо
-        if engine == "postgresql":
-            # у Postgres беремо id одразу
-            sid = db.session.execute(
-                text("INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :title, :body) RETURNING id"),
-                {"uid": uid, "title": title, "body": body}
-            ).scalar()
-        else:
-            # SQLite (як було)
+            # визначаємо діалект та коректно отримуємо id
+            engine = db.session.get_bind().dialect.name  # 'postgresql' | 'sqlite' | ...
+            if engine == "postgresql":
+                sid = db.session.execute(
+                    text("INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :t, '') RETURNING id"),
+                    {"uid": uid, "t": text_body}
+                ).scalar()
+            else:
+                db.session.execute(
+                    text("INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :t, '')"),
+                    {"uid": uid, "t": text_body}
+                )
+                sid = db.session.execute(text("SELECT last_insert_rowid()")).scalar()
+
+            # лог транзакції
             db.session.execute(
-                text("INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :title, :body)"),
-                {"uid": uid, "title": title, "body": body}
+                text("INSERT INTO pxp_transactions(user_id, delta, reason) VALUES(:uid, -1, 'suggestion_post')"),
+                {"uid": uid}
             )
-            sid = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()
-        # --------------------------------------------------------
+            db.session.commit()
 
-        db.session.execute(text("""
-            INSERT INTO pxp_transactions(user_id, delta, reason) VALUES(:uid, -1, 'suggestion_post')
-        """), {"uid": uid})
-        db.session.commit()
+            row = db.session.execute(text("""
+                SELECT s.*, u.name AS author_name, u.email AS author_email
+                FROM suggestions s
+                JOIN users u ON u.id = s.user_id
+                WHERE s.id = :sid
+            """), {"sid": sid}).fetchone()
 
-        row = db.session.execute(text("""
-            SELECT s.*, u.name AS author_name, u.email AS author_email
-            FROM suggestions s JOIN users u ON u.id=s.user_id
-            WHERE s.id=:sid
-        """), {"sid": sid}).fetchone()
-        return jsonify({"ok": True, "item": row_to_dict(row)})
+            return jsonify({"ok": True, "item": dict(row._mapping)})
+
+        except Exception as e:
+            db.session.rollback()
+            # повертаємо деталізацію, щоб фронт не показував абстрактне HTTP 500
+            return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
     # Лайк (1 раз на користувача)
     @app.route("/api/suggestions/<int:sid>/like", methods=["POST"])
