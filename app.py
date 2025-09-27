@@ -21,8 +21,19 @@ ALLOWED_EXT = {"png", "jpg", "jpeg", "webp"}
 DEFAULT_BANNER_IMG = os.getenv("DEFAULT_BANNER_IMG", "ads/default_banner.jpg")  # поклади свій файл у static/ads/
 DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")  # опційно
 
-# <<< ВАЖЛИВО: визначаємо фактичну назву таблиці користувачів >>>
+# назва таблиці користувачів для JOIN
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
+
+# ---- helper: безпечно приводимо до int ----
+def to_int(v, default=0):
+    try:
+        # деякі БД повертають Decimal — теж ок
+        return int(v)
+    except Exception:
+        try:
+            return int(float(v))
+        except Exception:
+            return default
 
 
 def allowed_file(fname: str) -> bool:
@@ -131,7 +142,8 @@ def create_app():
     def inject_user():
         from flask import session
         u = User.query.get(session["user_id"]) if session.get("user_id") else None
-        return dict(current_user=u, pxp=(u.pxp if u else 0))
+        # важливо: повертати числовий pxp
+        return dict(current_user=u, pxp=(to_int(u.pxp) if u else 0))
 
     # === NEW: окремий контекст — банер завжди доступний у шаблонах (напр. index.html)
     @app.context_processor
@@ -271,7 +283,7 @@ def create_app():
     def admin_pxp_add():
         from flask import request, redirect, url_for, flash
 
-        def to_int(v):
+        def _to_int(v):
             try:
                 return int(v)
             except Exception:
@@ -297,10 +309,10 @@ def create_app():
             return redirect(url_for("admin_panel"))
 
         if add_total and hasattr(User, "pxp"):
-            user.pxp = to_int(user.pxp) + amount
+            user.pxp = _to_int(user.pxp) + amount
 
         if add_month and hasattr(User, "pxp_month"):
-            user.pxp_month = to_int(user.pxp_month) + amount
+            user.pxp_month = _to_int(user.pxp_month) + amount
 
         db.session.commit()
 
@@ -345,11 +357,13 @@ def create_app():
             user = User.query.get(uid)
             if not user:
                 return jsonify({"ok": False, "error": "no_user"}), 400
-            if (getattr(user, "pxp", 0) or 0) < 1:
+
+            pxp_val = to_int(getattr(user, "pxp", 0))
+            if pxp_val < 1:
                 return jsonify({"ok": False, "error": "not_enough_pxp"}), 402
 
-            # списуємо 1 PXP
-            user.pxp = (user.pxp or 0) - 1
+            # списуємо 1 PXP (числово!)
+            user.pxp = pxp_val - 1
 
             # визначаємо діалект та коректно отримуємо id
             engine = db.session.get_bind().dialect.name  # 'postgresql' | 'sqlite' | ...
