@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify, request, session  # +jsonify, request, session
 
 from db import init_app_db, close_db, db, User  # підключаємо БД тут
 
@@ -7,6 +7,10 @@ from db import init_app_db, close_db, db, User  # підключаємо БД т
 from functools import wraps
 from datetime import datetime
 from werkzeug.utils import secure_filename
+
+# NEW: для сирих SQL і перехоплення унікальних вставок
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 ADMIN_EMAILS = {e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()}
 UPLOAD_DIR = os.path.join("static", "ads")
@@ -42,6 +46,25 @@ class BannerAd(db.Model):
     link_url = db.Column(db.String(500))
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ====== NEW: хелпери для JSON-API чату покращень ======
+def login_required_json(f):
+    @wraps(f)
+    def inner(*args, **kwargs):
+        if not session.get("user_id"):
+            return jsonify({"ok": False, "error": "auth_required"}), 401
+        return f(*args, **kwargs)
+    return inner
+
+def row_to_dict(row):
+    # SQLAlchemy Row -> dict
+    try:
+        return dict(row._mapping)
+    except Exception:
+        return dict(row)
+
+# =======================================================
 
 
 def create_app():
@@ -288,6 +311,111 @@ def create_app():
     @app.route("/healthz")
     def healthz():
         return "ok", 200
+
+    # ======================================================================
+    # ================== NEW: API для "чату покращень" ======================
+    # ======================================================================
+
+    # Список ідей (топ за лайками, потім новіші)
+    @app.route("/api/suggestions")
+    def api_suggestions_list():
+        rows = db.session.execute(text("""
+            SELECT s.*, u.name AS author_name, u.email AS author_email
+            FROM suggestions s
+            JOIN users u ON u.id = s.user_id
+            ORDER BY s.likes DESC, s.created_at DESC
+            LIMIT 100
+        """)).fetchall()
+        return jsonify({"ok": True, "items": [row_to_dict(r) for r in rows]})
+
+    # Створити ідею (списує 1 PXP)
+    @app.route("/api/suggestions", methods=["POST"])
+    @login_required_json
+    def api_suggestions_create():
+        uid = session["user_id"]
+        data = request.get_json() or {}
+        title = (data.get("title") or "").strip()
+        body  = (data.get("body") or "").strip()
+        if not title:
+            return jsonify({"ok": False, "error": "title_required"}), 400
+
+        user = User.query.get(uid)
+        if not user:
+            return jsonify({"ok": False, "error": "no_user"}), 400
+        if (getattr(user, "pxp", 0) or 0) < 1:
+            return jsonify({"ok": False, "error": "not_enough_pxp"}), 402
+
+        # списуємо 1 PXP і створюємо запис
+        user.pxp = (user.pxp or 0) - 1
+        db.session.execute(text("""
+            INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :title, :body)
+        """), {"uid": uid, "title": title, "body": body})
+        # id щойно вставленого рядка
+        sid = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()  # у SQLite; у Postgres заміни на RETURNING
+        db.session.execute(text("""
+            INSERT INTO pxp_transactions(user_id, delta, reason) VALUES(:uid, -1, 'suggestion_post')
+        """), {"uid": uid})
+        db.session.commit()
+
+        row = db.session.execute(text("""
+            SELECT s.*, u.name AS author_name, u.email AS author_email
+            FROM suggestions s JOIN users u ON u.id=s.user_id
+            WHERE s.id=:sid
+        """), {"sid": sid}).fetchone()
+        return jsonify({"ok": True, "item": row_to_dict(row)})
+
+    # Лайк (1 раз на користувача)
+    @app.route("/api/suggestions/<int:sid>/like", methods=["POST"])
+    @login_required_json
+    def api_suggestions_like(sid):
+        uid = session["user_id"]
+        try:
+            db.session.execute(text("""
+                INSERT INTO suggestion_votes(suggestion_id, user_id)
+                VALUES(:sid, :uid)
+            """), {"sid": sid, "uid": uid})
+            db.session.execute(text("""
+                UPDATE suggestions SET likes = likes + 1 WHERE id=:sid
+            """), {"sid": sid})
+            db.session.commit()
+            return jsonify({"ok": True})
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({"ok": False, "error": "already_voted"}), 409
+
+    # Коментарі — список
+    @app.route("/api/suggestions/<int:sid>/comments")
+    def api_suggestions_comments_list(sid):
+        rows = db.session.execute(text("""
+            SELECT c.*, u.name AS author_name, u.email AS author_email
+            FROM suggestion_comments c
+            JOIN users u ON u.id=c.user_id
+            WHERE c.suggestion_id=:sid
+            ORDER BY c.created_at ASC
+        """), {"sid": sid}).fetchall()
+        return jsonify({"ok": True, "items": [row_to_dict(r) for r in rows]})
+
+    # Додати коментар
+    @app.route("/api/suggestions/<int:sid>/comments", methods=["POST"])
+    @login_required_json
+    def api_suggestions_comments_create(sid):
+        uid = session["user_id"]
+        data = request.get_json() or {}
+        body = (data.get("body") or "").strip()
+        if not body:
+            return jsonify({"ok": False, "error": "body_required"}), 400
+
+        db.session.execute(text("""
+            INSERT INTO suggestion_comments(suggestion_id, user_id, body)
+            VALUES(:sid, :uid, :body)
+        """), {"sid": sid, "uid": uid, "body": body})
+        db.session.execute(text("""
+            UPDATE suggestions SET comments_count = comments_count + 1 WHERE id=:sid
+        """), {"sid": sid})
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    # ======================================================================
 
     return app
 
