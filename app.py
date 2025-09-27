@@ -21,6 +21,9 @@ ALLOWED_EXT = {"png", "jpg", "jpeg", "webp"}
 DEFAULT_BANNER_IMG = os.getenv("DEFAULT_BANNER_IMG", "ads/default_banner.jpg")  # поклади свій файл у static/ads/
 DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")  # опційно
 
+# <<< ВАЖЛИВО: визначаємо фактичну назву таблиці користувачів >>>
+USERS_TBL = getattr(User, "__tablename__", "users") or "users"
+
 
 def allowed_file(fname: str) -> bool:
     return "." in fname and fname.rsplit(".", 1)[1].lower() in ALLOWED_EXT
@@ -319,10 +322,10 @@ def create_app():
     # Список ідей (топ за лайками, потім новіші)
     @app.route("/api/suggestions")
     def api_suggestions_list():
-        rows = db.session.execute(text("""
+        rows = db.session.execute(text(f"""
             SELECT s.*, u.name AS author_name, u.email AS author_email
             FROM suggestions s
-            JOIN users u ON u.id = s.user_id
+            JOIN {USERS_TBL} u ON u.id = s.user_id
             ORDER BY s.likes DESC, s.created_at DESC
             LIMIT 100
         """)).fetchall()
@@ -369,10 +372,10 @@ def create_app():
             )
             db.session.commit()
 
-            row = db.session.execute(text("""
+            row = db.session.execute(text(f"""
                 SELECT s.*, u.name AS author_name, u.email AS author_email
                 FROM suggestions s
-                JOIN users u ON u.id = s.user_id
+                JOIN {USERS_TBL} u ON u.id = s.user_id
                 WHERE s.id = :sid
             """), {"sid": sid}).fetchone()
 
@@ -380,7 +383,6 @@ def create_app():
 
         except Exception as e:
             db.session.rollback()
-            # повертаємо деталізацію, щоб фронт не показував абстрактне HTTP 500
             return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
     # Лайк (1 раз на користувача)
@@ -405,10 +407,10 @@ def create_app():
     # Коментарі — список
     @app.route("/api/suggestions/<int:sid>/comments")
     def api_suggestions_comments_list(sid):
-        rows = db.session.execute(text("""
+        rows = db.session.execute(text(f"""
             SELECT c.*, u.name AS author_name, u.email AS author_email
             FROM suggestion_comments c
-            JOIN users u ON u.id=c.user_id
+            JOIN {USERS_TBL} u ON u.id=c.user_id
             WHERE c.suggestion_id=:sid
             ORDER BY c.created_at ASC
         """), {"sid": sid}).fetchall()
