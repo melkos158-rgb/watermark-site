@@ -347,11 +347,24 @@ def create_app():
 
         # списуємо 1 PXP і створюємо запис
         user.pxp = (user.pxp or 0) - 1
-        db.session.execute(text("""
-            INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :title, :body)
-        """), {"uid": uid, "title": title, "body": body})
-        # id щойно вставленого рядка
-        sid = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()  # у SQLite; у Postgres заміни на RETURNING
+
+        # --- ДОДАНО: крос-БД отримання sid (Postgres/SQLite) ---
+        engine = db.session.get_bind().dialect.name  # 'postgresql' або 'sqlite' тощо
+        if engine == "postgresql":
+            # у Postgres беремо id одразу
+            sid = db.session.execute(
+                text("INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :title, :body) RETURNING id"),
+                {"uid": uid, "title": title, "body": body}
+            ).scalar()
+        else:
+            # SQLite (як було)
+            db.session.execute(
+                text("INSERT INTO suggestions(user_id, title, body) VALUES(:uid, :title, :body)"),
+                {"uid": uid, "title": title, "body": body}
+            )
+            sid = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()
+        # --------------------------------------------------------
+
         db.session.execute(text("""
             INSERT INTO pxp_transactions(user_id, delta, reason) VALUES(:uid, -1, 'suggestion_post')
         """), {"uid": uid})
