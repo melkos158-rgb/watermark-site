@@ -21,6 +21,19 @@ nav { /* без фону/рамок — тема додає кольори */ }
   gap: 18px;
   padding: 0 24px;
 }
+
+/* ЛОГО зліва (тільки геометрія/типографіка, без кольорів) */
+.nav-logo{
+  display:flex; align-items:center; gap:10px;
+  text-decoration:none;
+  font-weight:800; font-size:18px; letter-spacing:.2px;
+}
+.nav-logo img{
+  height:32px; width:auto; display:block; border-radius:8px;
+}
+.nav-logo span{ white-space:nowrap; }
+@media (max-width:520px){ .nav-logo span{ display:none; } }
+
 .brand { font-weight: 800; letter-spacing: .2px; margin-right: auto; }
 
 /* Tabs (Фото / STL / Відео) — тільки форма/розміри */
@@ -420,4 +433,3 @@ html[data-theme="neutral"] .table th,
 html[data-theme="neutral"] .table td { border-top: 1px solid transparent; }
 
 html[data-theme="neutral"] .avatar { border: 0; }
-
