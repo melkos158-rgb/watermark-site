@@ -9,7 +9,8 @@
   <style>
     #viewer{
       width:100%;
-      height:62vh;
+      height:min(62vh,70dvh); /* краще на мобілці */
+      max-height:78dvh;
       min-height:420px;
       background:#111;
       border:1px solid #e1e5ee;
@@ -20,6 +21,36 @@
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .hint{font-size:12px;color:#667085;margin-top:6px}
     hr{border:none;border-top:1px solid #e9ecf2;margin:10px 0}
+
+    /* ===== Photoshop-like mobile toolbar (лише мобілка) ===== */
+    @media (max-width:860px){
+      body{ padding-bottom:72px; } /* щоб контент не ховався під тулбаром */
+
+      .ps-toolbar{
+        position:fixed; left:0; right:0; bottom:0;
+        display:flex; gap:10px; align-items:center;
+        padding:8px 10px;
+        background:#0f1116; border-top:1px solid #222736;
+        overflow-x:auto; -webkit-overflow-scrolling:touch;
+        z-index:9999;
+      }
+      .ps-toolbar::-webkit-scrollbar{ height:6px }
+      .ps-toolbar::-webkit-scrollbar-thumb{ background:#2b3144; border-radius:8px }
+
+      .ps-tool{
+        flex:0 0 auto;
+        display:grid; place-items:center;
+        width:72px; min-height:56px;
+        border:1px solid #232734; border-radius:12px;
+        background:#151926;
+        text-align:center;
+        user-select:none; touch-action:manipulation;
+      }
+      .ps-tool:active{ transform:scale(.98) }
+      .ps-tool .ico{ font-size:18px; line-height:1 }
+      .ps-tool .lbl{ font-size:11px; color:#c6cbe0; margin-top:4px }
+      .ps-tool.active{ border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.25) inset }
+    }
   </style>
 
   <script type="importmap">
@@ -554,11 +585,77 @@
     renderer.render(scene, camera);
   })();
 
+  // ====== Mobile Photoshop-like Toolbar (підвʼязка до існуючих кнопок) ======
+  function makeTool(icon, label, targetBtnId, {toggle=false, title=''}={}){
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'ps-tool';
+    t.setAttribute('aria-label', label);
+    if(title) t.title = title;
+
+    const ico = document.createElement('div'); ico.className = 'ico'; ico.textContent = icon;
+    const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = label;
+    t.append(ico, lbl);
+
+    const target = document.getElementById(targetBtnId);
+    if(!target){ console.warn('No target for tool:', label, targetBtnId); return null; }
+
+    t.addEventListener('click', ()=>{
+      target.click();
+      if(toggle) t.classList.toggle('active');
+    });
+
+    // синхронізація стану для wireframe
+    if(targetBtnId==='btnWire'){
+      const sync = ()=> t.classList.toggle('active', !!wireframeOn);
+      setInterval(sync, 400);
+    }
+
+    return t;
+  }
+
+  function initMobileToolbar(){
+    const bar = document.getElementById('mobileToolbar');
+    if(!bar) return;
+    // показувати лише на мобілці
+    bar.style.display = (window.innerWidth<=860) ? 'flex' : 'none';
+    if(window.innerWidth>860) return;
+
+    // Плитки для тих кнопок, що вже мають робочі обробники:
+    const items = [
+      makeTool('⟲', 'Ресет',  'btnReset',        {title:'Ресет камери'}),
+      makeTool('▦', 'Wire',   'btnWire',         {toggle:true, title:'Wireframe ON/OFF'}),
+      makeTool('—', 'Площ',   'btnSlicePreview', {title:'Превʼю площини'}),
+      makeTool('⇅', 'Розріз', 'btnSliceApply',   {title:'Розрізати → 2 частини'}),
+      makeTool('⚙️','Спрощ',  'btnSimplify',     {title:'Simplify / Decimate'}),
+      makeTool('💾','STL',    'btnExportAscii',  {title:'Експорт STL (ASCII)'}),
+      makeTool('🧹','Очист',  'btnClear',        {title:'Очистити сцену'}),
+      makeTool('👁','Превʼю', 'btnPreview',      {title:'Попередній перегляд знаку'}),
+      makeTool('🔥','Запекти', 'btnBake',        {title:'Запекти знак у модель'}),
+      makeTool('◼','Демо',    'btnDemo',         {title:'Демо куб'})
+    ].filter(Boolean);
+
+    // Очистити старе і додати нове
+    bar.innerHTML = '';
+    items.forEach(el=>bar.appendChild(el));
+  }
+
+  initMobileToolbar();
+  window.addEventListener('resize', initMobileToolbar);
+
+  // Опційно: краще реагувати на реальну висоту вікна браузера мобільних
+  if (window.visualViewport){
+    visualViewport.addEventListener('resize', ()=>{
+      const el = document.getElementById('viewer');
+      if(!el) return;
+      renderer.setSize(el.clientWidth, el.clientHeight, false);
+      camera.updateProjectionMatrix();
+    }, {passive:true});
+  }
 </script>
+
+<!-- Фіксований мобільний тулбар (як у Photoshop) -->
+<nav id="mobileToolbar" class="ps-toolbar" role="toolbar" aria-label="Mobile tools"></nav>
+
 </body>
 </html>
-
-
-
-
-
