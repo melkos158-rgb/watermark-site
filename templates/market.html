@@ -75,33 +75,56 @@
   sortSel.addEventListener('change', loadItems);
   window.addEventListener('load', loadItems);
 
+  // Пошук по Enter
+  q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); loadItems(); } });
+
   async function loadItems(){
-    const res = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
-    let items = await res.json();
+    grid.innerHTML = `<div class="empty">Завантаження…</div>`;
+    try{
+      const res = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
+      const data = await res.json();
+      // бекенд повертає { items: [...], ... }
+      let items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
 
-    if(sortSel.value==='price_asc') items.sort((a,b)=>a.price-b.price);
-    else if(sortSel.value==='price_desc') items.sort((a,b)=>b.price-a.price);
-    else if(sortSel.value==='new') items = items.reverse();
+      // додаткове клієнтське сортування за потреби
+      if (sortSel.value === 'price_asc') {
+        items.sort((a,b)=>(a.price||0)-(b.price||0));
+      } else if (sortSel.value === 'price_desc') {
+        items.sort((a,b)=>(b.price||0)-(a.price||0));
+      } else if (sortSel.value === 'new') {
+        // якщо бек уже відсортований — нічого; інакше реверс
+        items = items.slice().reverse();
+      }
 
-    renderItems(items);
+      renderItems(items);
+    }catch(e){
+      console.error(e);
+      grid.innerHTML = `<div class="empty">Помилка завантаження.</div>`;
+    }
   }
 
   function renderItems(items){
-    grid.innerHTML='';
+    grid.innerHTML = '';
     if(!items.length){
       grid.innerHTML = `<div class="empty">Нічого не знайдено 😿</div>`;
       return;
     }
     for(const it of items){
+      // теги можуть прийти рядком "a,b,c" або масивом
+      const tagsArr = Array.isArray(it.tags)
+        ? it.tags
+        : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
+      const coverSrc = it.cover || '/static/img/no-cover.png';
+
       const el = document.createElement('div');
       el.className='item';
       el.innerHTML = `
-        <img src="${it.cover}" alt="${it.title}" class="thumb">
+        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb">
         <div class="meta">
-          <div class="title">${it.title}</div>
-          <div class="tags">${(it.tags||[]).map(t=>`<span class='tag'>${t}</span>`).join('')}</div>
-          <div class="muted">★ ${it.rating || '—'}</div>
-          <div class="price">${it.price===0 ? 'Безкоштовно' : it.price+' PLN'}</div>
+          <div class="title">${escapeHtml(it.title||'Без назви')}</div>
+          <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
+          <div class="muted">★ ${it.rating ?? '—'}</div>
+          <div class="price">${(+it.price||0)===0 ? 'Безкоштовно' : (Number(it.price)+' PLN')}</div>
           <div class="actions">
             <button class="btn primary" data-id="${it.id}">Переглянути</button>
           </div>
@@ -115,6 +138,12 @@
     const id = e.target.dataset.id;
     if(id) window.location.href = `/item/${id}`;
   });
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => (
+      { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]
+    ));
+  }
 </script>
 
 {% endblock %}
