@@ -1,30 +1,163 @@
-{% extends "base.html" %}{% block content %}
+{% extends "base.html" %}
+{% block content %}
 <h1>+ Додати STL</h1>
-<div class="card" style="max-width:720px">
-  <label>Назва <input id="title" style="width:100%"></label><br>
-  <label>Ціна (0 = безкоштовно) <input id="price" type="number" min="0" value="0"></label><br>
-  <label>Теги (через кому) <input id="tags" placeholder="dragon,toy"></label><br>
-  <label>URL STL <input id="url" placeholder="/static/models/dragon.stl" style="width:100%"></label><br>
-  <label>Обкладинка <input id="cover" placeholder="/static/img/dragon.jpg" style="width:100%"></label><br>
-  <label>Опис <textarea id="desc" rows="4" style="width:100%"></textarea></label><br>
-  <button id="send" class="btn primary">Зберегти</button>
-  <div id="msg" class="muted" style="margin-top:8px"></div>
+
+<div class="card" style="max-width:800px">
+  <form id="uploadForm">
+    <!-- Назва -->
+    <label>Назва</label>
+    <input id="title" name="title" required placeholder="Dragon, Phone stand…" style="width:100%">
+
+    <div style="height:10px"></div>
+
+    <!-- Ціна / Теги -->
+    <div style="display:flex; gap:12px; flex-wrap:wrap">
+      <div style="flex:1; min-width:160px">
+        <label>Ціна (0 = безкоштовно)</label>
+        <input id="price" name="price" type="number" min="0" value="0" required style="width:100%">
+      </div>
+      <div style="flex:2; min-width:220px">
+        <label>Теги (через кому)</label>
+        <input id="tags" placeholder="dragon,toy,figure" style="width:100%">
+      </div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <!-- STL: файл або URL -->
+    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
+      <legend style="padding:0 6px">3D-модель</legend>
+
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end">
+        <div style="flex:1; min-width:260px">
+          <label>Файл STL/OBJ/PLY/GLTF/GLB</label>
+          <input id="stl_file" name="stl_file" type="file"
+                 accept=".stl,.obj,.ply,.gltf,.glb" />
+          <div class="muted" id="stl_file_hint">Можна перетягнути файл сюди або вибрати.</div>
+        </div>
+
+        <div style="flex:1; min-width:260px">
+          <label>АБО URL на файл</label>
+          <input id="stl_url" name="stl_url" placeholder="/static/models/dragon.stl" style="width:100%">
+        </div>
+      </div>
+    </fieldset>
+
+    <div style="height:14px"></div>
+
+    <!-- Обкладинка: файл або URL -->
+    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
+      <legend style="padding:0 6px">Обкладинка</legend>
+
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end">
+        <div style="flex:1; min-width:260px">
+          <label>Файл JPG/PNG/WEBP</label>
+          <input id="cover_file" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp">
+          <div class="muted">Необовʼязково. Якщо не вкажеш — поставимо плейсхолдер.</div>
+        </div>
+
+        <div style="flex:1; min-width:260px">
+          <label>АБО URL на картинку</label>
+          <input id="cover_url" name="cover_url" placeholder="/static/img/dragon.jpg" style="width:100%">
+        </div>
+      </div>
+
+      <div style="margin-top:10px; display:flex; gap:12px; align-items:center">
+        <img id="cover_preview" src="" alt="" style="display:none; width:120px; height:90px; object-fit:cover; border:1px solid #1b2131; border-radius:8px">
+        <span class="muted" id="cover_note">Попередній перегляд зʼявиться після вибору файлу або URL.</span>
+      </div>
+    </fieldset>
+
+    <div style="height:14px"></div>
+
+    <!-- Опис -->
+    <label>Опис</label>
+    <textarea id="desc" name="desc" rows="5" placeholder="Короткий опис моделі…" style="width:100%"></textarea>
+
+    <div style="height:14px"></div>
+
+    <button class="btn primary" id="send" type="submit">Зберегти</button>
+    <span id="msg" class="muted" style="margin-left:10px"></span>
+  </form>
 </div>
+
 <script>
-document.getElementById('send').onclick = async () => {
-  const body = {
-    title: document.getElementById('title').value.trim(),
-    price: +document.getElementById('price').value||0,
-    tags: (document.getElementById('tags').value||'').split(',').map(s=>s.trim()).filter(Boolean),
-    user_id: 1, // TODO: підставляти поточного користувача
-    url: document.getElementById('url').value.trim(),
-    cover: document.getElementById('cover').value.trim(),
-    desc: document.getElementById('desc').value.trim()
-  };
-  const r = await fetch('/api/upload', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-  const j = await r.json();
-  document.getElementById('msg').textContent = j.ok ? 'Додано ID '+j.id : ('Помилка: '+(j.error||''));
-  if (j.ok) setTimeout(()=>location.href='/item/'+j.id, 600);
-};
+(function(){
+  const form = document.getElementById('uploadForm');
+  const msg  = document.getElementById('msg');
+
+  // Превʼю обкладинки
+  const coverFile = document.getElementById('cover_file');
+  const coverUrl  = document.getElementById('cover_url');
+  const coverPrev = document.getElementById('cover_preview');
+  const coverNote = document.getElementById('cover_note');
+
+  function showCover(src){
+    if(!src){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу або URL.'; return; }
+    coverPrev.src = src;
+    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
+  }
+
+  coverFile.addEventListener('change', ()=>{
+    const f = coverFile.files && coverFile.files[0];
+    if (f) { showCover(URL.createObjectURL(f)); }
+  });
+
+  coverUrl.addEventListener('input', ()=>{
+    const url = coverUrl.value.trim();
+    if (url) showCover(url); else showCover('');
+  });
+
+  // Валідація: потрібен або stl_file, або stl_url
+  function validateModelSource(){
+    const stlFile = document.getElementById('stl_file');
+    const stlUrl  = document.getElementById('stl_url');
+    if ((stlFile.files && stlFile.files.length) || (stlUrl.value && stlUrl.value.trim() !== '')) {
+      return true;
+    }
+    return false;
+  }
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    msg.textContent = '';
+
+    if (!validateModelSource()){
+      msg.textContent = 'Додай файл моделі або URL.';
+      return;
+    }
+
+    const fd = new FormData(form);
+
+    // Теги → JSON-рядок (бекенд також прийме "через кому", але так надійніше)
+    const tagsRaw = (document.getElementById('tags').value || '').trim();
+    const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    fd.set('tags', JSON.stringify(tagsArr));
+
+    try{
+      const r = await fetch('/api/upload', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (j.ok){
+        msg.textContent = 'Готово! Перехід до сторінки…';
+        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
+      } else {
+        msg.textContent = 'Помилка: ' + (j.error || 'server');
+      }
+    } catch(err){
+      console.error(err);
+      msg.textContent = 'Помилка мережі.';
+    }
+  });
+
+  // Drag&Drop на зону STL (для зручності)
+  const stlInput = document.getElementById('stl_file');
+  const stlHint  = document.getElementById('stl_file_hint');
+  ;['dragenter','dragover'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; });
+  });
+  ;['dragleave','drop'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; });
+  });
+})();
 </script>
 {% endblock %}
