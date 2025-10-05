@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block content %}
+<h1>+ Додати STL</h1>
+<div class="card" style="max-width:720px">
+  <label>Назва <input id="title" style="width:100%"></label><br>
+  <label>Ціна (0 = безкоштовно) <input id="price" type="number" min="0" value="0"></label><br>
+  <label>Теги (через кому) <input id="tags" placeholder="dragon,toy"></label><br>
+  <label>URL STL <input id="url" placeholder="/static/models/dragon.stl" style="width:100%"></label><br>
+  <label>Обкладинка <input id="cover" placeholder="/static/img/dragon.jpg" style="width:100%"></label><br>
+  <label>Опис <textarea id="desc" rows="4" style="width:100%"></textarea></label><br>
+  <button id="send" class="btn primary">Зберегти</button>
+  <div id="msg" class="muted" style="margin-top:8px"></div>
+</div>
+<script>
+document.getElementById('send').onclick = async () => {
+  const body = {
+    title: document.getElementById('title').value.trim(),
+    price: +document.getElementById('price').value||0,
+    tags: (document.getElementById('tags').value||'').split(',').map(s=>s.trim()).filter(Boolean),
+    user_id: 1, // TODO: підставляти поточного користувача
+    url: document.getElementById('url').value.trim(),
+    cover: document.getElementById('cover').value.trim(),
+    desc: document.getElementById('desc').value.trim()
+  };
+  const r = await fetch('/api/upload', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const j = await r.json();
+  document.getElementById('msg').textContent = j.ok ? 'Додано ID '+j.id : ('Помилка: '+(j.error||''));
+  if (j.ok) setTimeout(()=>location.href='/item/'+j.id, 600);
+};
+</script>
+{% endblock %}
