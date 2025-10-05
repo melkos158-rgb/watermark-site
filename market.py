@@ -10,6 +10,7 @@
 #   POST /api/item/<id>/download  — інкремент лічильника завантажень
 
 import math
+import json
 from typing import Any, Dict, List, Optional
 
 from flask import Blueprint, render_template, jsonify, request, session, abort
