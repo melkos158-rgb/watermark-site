@@ -3,7 +3,7 @@
 <h1>+ Додати STL</h1>
 
 <div class="card" style="max-width:800px">
-  <form id="uploadForm">
+  <form id="uploadForm" enctype="multipart/form-data">
     <!-- Назва -->
     <label>Назва</label>
     <input id="title" name="title" required placeholder="Dragon, Phone stand…" style="width:100%">
@@ -83,8 +83,8 @@
 
 <script>
 (function(){
-  // БЕРЕМО ID КОРИСТУВАЧА ІЗ СЕСІЇ
-  const CURRENT_USER_ID = {{ (session.get('user_id') or 'null') }};
+  // БЕЗПЕЧНО: віддаємо JS-літерал через tojson (0 якщо немає сесії)
+  const CURRENT_USER_ID = {{ (session.get('user_id') or 0) | tojson }};
   const form = document.getElementById('uploadForm');
   const msg  = document.getElementById('msg');
 
@@ -95,9 +95,17 @@
   const coverNote = document.getElementById('cover_note');
 
   function showCover(src){
-    if(!src){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу або URL.'; return; }
+    if(!src){
+      coverPrev.style.display='none';
+      coverPrev.src='';
+      coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу або URL.';
+      return;
+    }
     coverPrev.src = src;
-    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
+    coverPrev.onload = ()=>{
+      coverPrev.style.display='inline-block';
+      coverNote.textContent='';
+    };
   }
 
   coverFile.addEventListener('change', ()=>{
@@ -139,7 +147,7 @@
     const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
     fd.set('tags', JSON.stringify(tagsArr));
 
-    // Підставимо user_id на всяк випадок (бекенд теж читає із сесії)
+    // Підставимо user_id (бекенд теж читає із сесії)
     fd.set('user_id', String(CURRENT_USER_ID));
 
     try{
@@ -161,10 +169,18 @@
   const stlInput = document.getElementById('stl_file');
   const stlHint  = document.getElementById('stl_file_hint');
   ;['dragenter','dragover'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; });
+    stlInput.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      stlHint.style.opacity='1';
+      stlHint.textContent='Відпускай — додамо файл';
+    });
   });
   ;['dragleave','drop'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; });
+    stlInput.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      stlHint.style.opacity='0.8';
+      stlHint.textContent='Можна перетягнути файл сюди або вибрати.';
+    });
   });
 })();
 </script>
