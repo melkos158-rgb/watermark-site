@@ -3,7 +3,7 @@
 <h1>+ Додати STL</h1>
 
 <div class="card" style="max-width:800px">
-  <form id="uploadForm" onsubmit="return false">
+  <form id="uploadForm">
     <!-- Назва -->
     <label>Назва</label>
     <input id="title" name="title" required placeholder="Dragon, Phone stand…" style="width:100%">
@@ -30,10 +30,10 @@
 
       <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end">
         <div style="flex:1; min-width:260px">
-          <label>Файл STL/OBJ/PLY/GLTF/GLB (не активний без ендпойнта аплоаду)</label>
+          <label>Файл STL/OBJ/PLY/GLTF/GLB</label>
           <input id="stl_file" name="stl_file" type="file"
                  accept=".stl,.obj,.ply,.gltf,.glb" />
-          <div class="muted">Поки що використовуй поле “URL на файл” нижче.</div>
+          <div class="muted" id="stl_file_hint">Можна перетягнути файл сюди або вибрати.</div>
         </div>
 
         <div style="flex:1; min-width:260px">
@@ -51,9 +51,9 @@
 
       <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end">
         <div style="flex:1; min-width:260px">
-          <label>Файл JPG/PNG/WEBP (не активний без ендпойнта аплоаду)</label>
+          <label>Файл JPG/PNG/WEBP</label>
           <input id="cover_file" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp">
-          <div class="muted">Поки що використовуй “URL на картинку”.</div>
+          <div class="muted">Необовʼязково. Якщо не вкажеш — поставимо плейсхолдер.</div>
         </div>
 
         <div style="flex:1; min-width:260px">
@@ -64,7 +64,7 @@
 
       <div style="margin-top:10px; display:flex; gap:12px; align-items:center">
         <img id="cover_preview" src="" alt="" style="display:none; width:120px; height:90px; object-fit:cover; border:1px solid #1b2131; border-radius:8px">
-        <span class="muted" id="cover_note">Попередній перегляд зʼявиться після URL.</span>
+        <span class="muted" id="cover_note">Попередній перегляд зʼявиться після вибору файлу або URL.</span>
       </div>
     </fieldset>
 
@@ -83,76 +83,88 @@
 
 <script>
 (function(){
-  const CURRENT_USER_ID = {{ (g.user.id if g is defined and g.user else 'null') }};
-  const msg  = document.getElementById('msg');
+  // БЕРЕМО ID КОРИСТУВАЧА ІЗ СЕСІЇ
+  const CURRENT_USER_ID = {{ (session.get('user_id') or 'null') }};
   const form = document.getElementById('uploadForm');
+  const msg  = document.getElementById('msg');
 
-  // Превʼю обкладинки за URL
+  // Превʼю обкладинки
+  const coverFile = document.getElementById('cover_file');
   const coverUrl  = document.getElementById('cover_url');
   const coverPrev = document.getElementById('cover_preview');
   const coverNote = document.getElementById('cover_note');
+
+  function showCover(src){
+    if(!src){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу або URL.'; return; }
+    coverPrev.src = src;
+    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
+  }
+
+  coverFile.addEventListener('change', ()=>{
+    const f = coverFile.files && coverFile.files[0];
+    if (f) { showCover(URL.createObjectURL(f)); }
+  });
   coverUrl.addEventListener('input', ()=>{
     const url = coverUrl.value.trim();
-    if (!url){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після URL.'; return; }
-    coverPrev.src = url;
-    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
+    if (url) showCover(url); else showCover('');
   });
 
-  form.addEventListener('submit', async ()=>{
+  // Валідація: потрібен або stl_file, або stl_url
+  function validateModelSource(){
+    const stlFile = document.getElementById('stl_file');
+    const stlUrl  = document.getElementById('stl_url');
+    if ((stlFile.files && stlFile.files.length) || (stlUrl.value && stlUrl.value.trim() !== '')) {
+      return true;
+    }
+    return false;
+  }
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
     msg.textContent = '';
 
     if (!CURRENT_USER_ID){
       msg.textContent = 'Потрібно увійти, щоб додати модель.';
       return;
     }
-
-    // Якщо користувач вибрав файл — попереджаємо (аплоадів немає)
-    const stlFile = document.getElementById('stl_file');
-    const coverFile = document.getElementById('cover_file');
-    if (stlFile.files.length){
-      msg.textContent = 'Зараз аплоад файлів не підключений. Завантаж файл у /static і встав URL нижче.';
-      return;
-    }
-    if (coverFile.files.length){
-      msg.textContent = 'Зараз аплоад зображень не підключений. Завантаж у /static і встав URL нижче.';
+    if (!validateModelSource()){
+      msg.textContent = 'Додай файл моделі або URL.';
       return;
     }
 
-    const title = document.getElementById('title').value.trim();
-    const price = +document.getElementById('price').value || 0;
+    const fd = new FormData(form);
+
+    // Теги → JSON-рядок
     const tagsRaw = (document.getElementById('tags').value || '').trim();
     const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
-    const url   = document.getElementById('stl_url').value.trim();
-    const cover = document.getElementById('cover_url').value.trim();
-    const desc  = document.getElementById('desc').value.trim();
+    fd.set('tags', JSON.stringify(tagsArr));
 
-    if (!title || !url){
-      msg.textContent = 'Заповни Назву і URL STL.';
-      return;
-    }
-
-    const body = {
-      title, price, tags: tagsArr, url, cover, desc,
-      user_id: CURRENT_USER_ID
-    };
+    // Підставимо user_id на всяк випадок (бекенд теж читає із сесії)
+    fd.set('user_id', String(CURRENT_USER_ID));
 
     try{
-      const r = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      const r = await fetch('/api/upload', { method: 'POST', body: fd });
       const j = await r.json();
       if (j.ok){
         msg.textContent = 'Готово! Перехід до сторінки…';
         setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
-      }else{
+      } else {
         msg.textContent = 'Помилка: ' + (j.error || 'server');
       }
-    }catch(e){
-      console.error(e);
+    } catch(err){
+      console.error(err);
       msg.textContent = 'Помилка мережі.';
     }
+  });
+
+  // Drag&Drop підказка для STL input
+  const stlInput = document.getElementById('stl_file');
+  const stlHint  = document.getElementById('stl_file_hint');
+  ;['dragenter','dragover'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; });
+  });
+  ;['dragleave','drop'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; });
   });
 })();
 </script>
