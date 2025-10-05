@@ -1,77 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>STL Market — Ринок моделей</title>
 
-  <style>
-    :root {
-      --bg:#0f1116; --card:#141923; --muted:#8792a7;
-      --line:#232a3a; --text:#e7ebf4; --accent:#3b82f6;
-    }
-    body {
-      margin:0; background:var(--bg); color:var(--text);
-      font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-    }
-    a{color:var(--accent);text-decoration:none;}
-    .wrap{max-width:1280px;margin:0 auto;padding:16px;}
-    header{
-      display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;
-    }
-    .brand{font-weight:800;font-size:18px;letter-spacing:.3px;}
-    .search-box{
-      flex:1;display:flex;gap:8px;
-      background:var(--card);border:1px solid var(--line);border-radius:10px;
-      padding:6px;
-    }
-    .search-box input{
-      flex:1;background:transparent;border:none;color:var(--text);font-size:14px;outline:none;
-    }
-    .btn{
-      background:var(--card);border:1px solid var(--line);
-      color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;
-      font-weight:600;
-    }
-    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
-    .btn:active{transform:scale(.98);}
-    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
-    select{
-      background:var(--card);border:1px solid var(--line);border-radius:10px;
-      color:var(--text);padding:8px 10px;
-    }
-    .grid{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-      gap:14px;
-    }
-    .item{
-      background:var(--card);border:1px solid var(--line);border-radius:12px;
-      overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;
-    }
-    .item:hover{transform:translateY(-2px);}
-    .thumb{
-      width:100%;aspect-ratio:4/3;object-fit:cover;border-bottom:1px solid var(--line);
-    }
-    .meta{padding:10px;display:flex;flex-direction:column;gap:4px;}
-    .title{font-weight:700;}
-    .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
-    .tag{
-      font-size:12px;border:1px solid var(--line);padding:2px 6px;border-radius:999px;
-      color:var(--muted);
-    }
-    .muted{color:var(--muted);font-size:13px;}
-    .price{font-weight:700;}
-    .actions{margin-top:6px;display:flex;gap:8px;}
-    .empty{text-align:center;color:var(--muted);padding:20px;}
-    @media(max-width:700px){
-      header{flex-direction:column;align-items:stretch;}
-      .search-box{flex:none;}
-    }
-  </style>
-</head>
-<body>
 <div class="wrap">
   <header>
     <div class="brand">🧩 STL Market</div>
@@ -79,7 +8,6 @@
       <input id="q" placeholder="Пошук: dragon, stand, toy..." />
       <button class="btn" id="btnSearch">🔍</button>
     </div>
-    <!-- fixed endpoint here -->
     <a href="{{ url_for('market.page_upload') }}" class="btn primary">+ Додати модель</a>
   </header>
 
@@ -103,6 +31,39 @@
   <div id="grid" class="grid"></div>
 </div>
 
+<style>
+  :root {
+    --bg:#0f1116; --card:#141923; --muted:#8792a7;
+    --line:#232a3a; --text:#e7ebf4; --accent:#3b82f6;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:16px;}
+  header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
+  .brand{font-weight:800;font-size:18px;letter-spacing:.3px;}
+  .search-box{flex:1;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px;}
+  .search-box input{flex:1;background:transparent;border:none;color:var(--text);font-size:14px;outline:none;}
+  .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn:active{transform:scale(.98);}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  select{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:8px 10px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;}
+  .item:hover{transform:translateY(-2px);}
+  .thumb{width:100%;aspect-ratio:4/3;object-fit:cover;border-bottom:1px solid var(--line);}
+  .meta{padding:10px;display:flex;flex-direction:column;gap:4px;}
+  .title{font-weight:700;}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+  .tag{font-size:12px;border:1px solid var(--line);padding:2px 6px;border-radius:999px;color:var(--muted);}
+  .muted{color:var(--muted);font-size:13px;}
+  .price{font-weight:700;}
+  .actions{margin-top:6px;display:flex;gap:8px;}
+  .empty{text-align:center;color:var(--muted);padding:20px;}
+  @media(max-width:700px){
+    header{flex-direction:column;align-items:stretch;}
+    .search-box{flex:none;}
+  }
+</style>
+
 <script type="module">
   const grid = document.getElementById('grid');
   const q = document.getElementById('q');
@@ -118,7 +79,6 @@
     const res = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
     let items = await res.json();
 
-    // сортування
     if(sortSel.value==='price_asc') items.sort((a,b)=>a.price-b.price);
     else if(sortSel.value==='price_desc') items.sort((a,b)=>b.price-a.price);
     else if(sortSel.value==='new') items = items.reverse();
@@ -156,166 +116,5 @@
     if(id) window.location.href = `/item/${id}`;
   });
 </script>
-</body>
-</html>
-{% endblock %}
-{% extends "base.html" %}
-{% block content %}
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>STL Market — Ринок моделей</title>
 
-  <style>
-    :root {
-      --bg:#0f1116; --card:#141923; --muted:#8792a7;
-      --line:#232a3a; --text:#e7ebf4; --accent:#3b82f6;
-    }
-    body {
-      margin:0; background:var(--bg); color:var(--text);
-      font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-    }
-    a{color:var(--accent);text-decoration:none;}
-    .wrap{max-width:1280px;margin:0 auto;padding:16px;}
-    header{
-      display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;
-    }
-    .brand{font-weight:800;font-size:18px;letter-spacing:.3px;}
-    .search-box{
-      flex:1;display:flex;gap:8px;
-      background:var(--card);border:1px solid var(--line);border-radius:10px;
-      padding:6px;
-    }
-    .search-box input{
-      flex:1;background:transparent;border:none;color:var(--text);font-size:14px;outline:none;
-    }
-    .btn{
-      background:var(--card);border:1px solid var(--line);
-      color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;
-      font-weight:600;
-    }
-    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
-    .btn:active{transform:scale(.98);}
-    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
-    select{
-      background:var(--card);border:1px solid var(--line);border-radius:10px;
-      color:var(--text);padding:8px 10px;
-    }
-    .grid{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-      gap:14px;
-    }
-    .item{
-      background:var(--card);border:1px solid var(--line);border-radius:12px;
-      overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;
-    }
-    .item:hover{transform:translateY(-2px);}
-    .thumb{
-      width:100%;aspect-ratio:4/3;object-fit:cover;border-bottom:1px solid var(--line);
-    }
-    .meta{padding:10px;display:flex;flex-direction:column;gap:4px;}
-    .title{font-weight:700;}
-    .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
-    .tag{
-      font-size:12px;border:1px solid var(--line);padding:2px 6px;border-radius:999px;
-      color:var(--muted);
-    }
-    .muted{color:var(--muted);font-size:13px;}
-    .price{font-weight:700;}
-    .actions{margin-top:6px;display:flex;gap:8px;}
-    .empty{text-align:center;color:var(--muted);padding:20px;}
-    @media(max-width:700px){
-      header{flex-direction:column;align-items:stretch;}
-      .search-box{flex:none;}
-    }
-  </style>
-</head>
-<body>
-<div class="wrap">
-  <header>
-    <div class="brand">🧩 STL Market</div>
-    <div class="search-box">
-      <input id="q" placeholder="Пошук: dragon, stand, toy..." />
-      <button class="btn" id="btnSearch">🔍</button>
-    </div>
-    <a href="{{ url_for('upload') }}" class="btn primary">+ Додати модель</a>
-  </header>
-
-  <div class="controls">
-    <label>Показати:
-      <select id="filterFree">
-        <option value="all">Усі</option>
-        <option value="free">Безкоштовні</option>
-        <option value="paid">Платні</option>
-      </select>
-    </label>
-    <label>Сортувати:
-      <select id="sort">
-        <option value="new">Нові</option>
-        <option value="price_asc">Ціна ↑</option>
-        <option value="price_desc">Ціна ↓</option>
-      </select>
-    </label>
-  </div>
-
-  <div id="grid" class="grid"></div>
-</div>
-
-<script type="module">
-  const grid = document.getElementById('grid');
-  const q = document.getElementById('q');
-  const filterFree = document.getElementById('filterFree');
-  const sortSel = document.getElementById('sort');
-
-  document.getElementById('btnSearch').addEventListener('click', loadItems);
-  filterFree.addEventListener('change', loadItems);
-  sortSel.addEventListener('change', loadItems);
-  window.addEventListener('load', loadItems);
-
-  async function loadItems(){
-    const res = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
-    let items = await res.json();
-
-    // сортування
-    if(sortSel.value==='price_asc') items.sort((a,b)=>a.price-b.price);
-    else if(sortSel.value==='price_desc') items.sort((a,b)=>b.price-a.price);
-    else if(sortSel.value==='new') items = items.reverse();
-
-    renderItems(items);
-  }
-
-  function renderItems(items){
-    grid.innerHTML='';
-    if(!items.length){
-      grid.innerHTML = `<div class="empty">Нічого не знайдено 😿</div>`;
-      return;
-    }
-    for(const it of items){
-      const el = document.createElement('div');
-      el.className='item';
-      el.innerHTML = `
-        <img src="${it.cover}" alt="${it.title}" class="thumb">
-        <div class="meta">
-          <div class="title">${it.title}</div>
-          <div class="tags">${(it.tags||[]).map(t=>`<span class='tag'>${t}</span>`).join('')}</div>
-          <div class="muted">★ ${it.rating || '—'}</div>
-          <div class="price">${it.price===0 ? 'Безкоштовно' : it.price+' PLN'}</div>
-          <div class="actions">
-            <button class="btn primary" data-id="${it.id}">Переглянути</button>
-          </div>
-        </div>
-      `;
-      grid.appendChild(el);
-    }
-  }
-
-  grid.addEventListener('click',(e)=>{
-    const id = e.target.dataset.id;
-    if(id) window.location.href = `/item/${id}`;
-  });
-</script>
-</body>
-</html>
 {% endblock %}
