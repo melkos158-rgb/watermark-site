@@ -199,9 +199,11 @@ def create_app():
     import auth           # auth.bp
     import profile        # profile.bp
     import chat           # chat.bp
+    import market         # ← додано
     app.register_blueprint(auth.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(chat.bp)
+    app.register_blueprint(market.bp)  # ← додано
 
     # === NEW: before_request — відмічаємо адміна за email із ENV ===
     @app.before_request
