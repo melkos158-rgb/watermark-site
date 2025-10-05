@@ -11,6 +11,10 @@
     <a class="nav-btn {{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo</a>
 
+    <!-- NEW: Market -->
+    <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}"
+       href="{{ url_for('market.page_market') }}">Market</a>
+
     <!-- ПРАВО: перемикач тем + вкладки після входу -->
     <div class="nav-right" style="display:flex; align-items:center; gap:12px; margin-left:auto">
       <!-- Перемикач тем -->
@@ -27,6 +31,11 @@
            (current_user is defined and current_user.is_authenticated) %}
 
       {% if has_user %}
+        <!-- NEW: + Додати (upload) -->
+        <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='market.page_upload') else '' }}"
+           href="{{ url_for('market.page_upload') }}">+ Додати</a>
+        <span aria-hidden="true">|</span>
+
         <!-- Top-100 / Donate у blueprint 'profile' -->
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}"
            href="{{ url_for('profile.top100') }}">Top-100</a>
@@ -80,6 +89,9 @@
     <a href="{{ url_for('edit_photo') }}"class="{{ 'active' if request.endpoint=='edit_photo' else '' }}">Edit Photo</a>
     <a href="{{ url_for('photo') }}"     class="{{ 'active' if request.endpoint=='photo' else '' }}">Photo</a>
 
+    <!-- NEW: Market у дровері -->
+    <a href="{{ url_for('market.page_market') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}">Market</a>
+
     <hr>
 
     <!-- тема -->
@@ -96,6 +108,9 @@
     <hr>
 
     {% if has_user %}
+      <!-- NEW: + Додати у дровері -->
+      <a href="{{ url_for('market.page_upload') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_upload') else '' }}">+ Додати</a>
+
       <a href="{{ url_for('profile.top100') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}">Top-100</a>
       <a href="{{ url_for('profile.donate') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}">Donate</a>
       <a href="/profile"                         class="{{ 'active' if (request.path == '/profile') else '' }}">Профіль</a>
@@ -221,4 +236,3 @@
   .drawer, .drawer-overlay{ display:none !important; }
 }
 </style>
-
