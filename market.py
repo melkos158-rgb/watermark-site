@@ -12,7 +12,6 @@
 import os
 import math
 import json
-from datetime import datetime
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, render_template, jsonify, request, session
@@ -26,14 +25,13 @@ bp = Blueprint("market", __name__)
 ITEMS_TBL = "items"
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-# ===== uploads =====
-UPLOAD_MODELS_DIR = os.path.join("static", "uploads", "models")
-UPLOAD_COVERS_DIR = os.path.join("static", "uploads", "covers")
-os.makedirs(UPLOAD_MODELS_DIR, exist_ok=True)
-os.makedirs(UPLOAD_COVERS_DIR, exist_ok=True)
+# куди класти завантажені файли
+UPLOAD_DIR = os.path.join("static", "market_uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-ALLOWED_MODEL_EXT = {"stl", "obj", "ply", "gltf", "glb"}
-ALLOWED_IMG_EXT = {"jpg", "jpeg", "png", "webp"}
+ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+
 
 # ----------------------- helpers -----------------------
 
@@ -60,30 +58,50 @@ def _normalize_sort(value: Optional[str]) -> str:
     v = (value or "new").lower()
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
-def _save_file(file_storage, folder: str, allowed_ext: set) -> Optional[str]:
-    """Зберігає файл у static/uploads/... Повертає відносний URL або None."""
-    if not file_storage or not file_storage.filename:
+def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
+    """
+    Зберігає файл у static/market_uploads/<subdir>/... і повертає
+    шлях ВІДНОСНО static/ (щоб віддавати через /static/...).
+    """
+    if not file_storage or not getattr(file_storage, "filename", ""):
         return None
-    ext = file_storage.filename.rsplit(".", 1)[-1].lower() if "." in file_storage.filename else ""
+    fname = file_storage.filename
+    ext = os.path.splitext(fname)[1].lower()
     if ext not in allowed_ext:
         return None
-    fname = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_filename(file_storage.filename)}"
-    rel_path = os.path.join("static", "uploads", folder, fname).replace("\\", "/")
-    abs_path = os.path.join(os.getcwd(), rel_path)
-    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    safe = secure_filename(os.path.basename(fname))
+    folder = os.path.join(UPLOAD_DIR, subdir)
+    os.makedirs(folder, exist_ok=True)
+    final_name = f"{safe}"
+    abs_path = os.path.join(folder, final_name)
+    # якщо імʼя вже існує — додаємо суфікс
+    base, e = os.path.splitext(final_name)
+    i = 1
+    while os.path.exists(abs_path):
+        final_name = f"{base}_{i}{e}"
+        abs_path = os.path.join(folder, final_name)
+        i += 1
     file_storage.save(abs_path)
-    return "/" + rel_path  # URL з косою рискою
+    # повертаємо шлях відносно static/
+    rel_from_static = os.path.relpath(abs_path, "static").replace("\\", "/")
+    return f"/static/{rel_from_static}"
+
+def json_dumps_safe(obj) -> str:
+    """Повертає JSON-строку для вставки у CAST(:photos AS JSON)."""
+    try:
+        return json.dumps(obj, ensure_ascii=False)
+    except Exception:
+        return "[]"
+
 
 # ----------------------- pages -------------------------
 
 @bp.get("/market")
 def page_market():
-    # сам список підтягнеться на клієнті через /api/items
     return render_template("market.html")
 
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
-    """Рендеримо картку з наповненим item, щоб працював і без XHR."""
     it = _fetch_item_with_author(item_id)
     if not it:
         return render_template("item.html", item=None), 404
@@ -92,6 +110,7 @@ def page_item(item_id: int):
 @bp.get("/upload")
 def page_upload():
     return render_template("upload.html")
+
 
 # ------------------------- API -------------------------
 
@@ -109,7 +128,6 @@ def api_items():
     page = max(1, _parse_int(request.args.get("page"), 1))
     per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
 
-    # фільтри
     where = []
     params = {}
     if q:
@@ -122,20 +140,17 @@ def api_items():
 
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
-    # сортування
     if sort == "price_asc":
         order_sql = "ORDER BY price ASC, created_at DESC"
     elif sort == "price_desc":
         order_sql = "ORDER BY price DESC, created_at DESC"
     elif sort == "downloads":
         order_sql = "ORDER BY downloads DESC, created_at DESC"
-    else:  # new
+    else:
         order_sql = "ORDER BY created_at DESC, id DESC"
 
-    # ліміт/офсет
     offset = (page - 1) * per_page
 
-    # загальна кількість
     total = db.session.execute(
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"),
         params
@@ -171,7 +186,6 @@ def api_item(item_id: int):
 
 @bp.post("/api/item/<int:item_id>/download")
 def api_item_download(item_id: int):
-    """Збільшує лічильник завантажень (можеш викликати перед редіректом на файл)."""
     upd = db.session.execute(
         text(f"UPDATE {ITEMS_TBL} SET downloads = downloads + 1, updated_at = NOW() WHERE id = :id"),
         {"id": item_id}
@@ -184,104 +198,78 @@ def api_item_download(item_id: int):
 @bp.post("/api/upload")
 def api_upload():
     """
-    Додає нову модель у таблицю items.
-
-    Підтримує ДВА варіанти вводу:
-    - JSON:  title, price, url(file_url), cover, desc, tags(list|comma), photos(list), format, user_id
-    - FormData (multipart): ті ж самі поля +
-        stl_file (файл моделі), stl_url
-        cover_file (файл обкладинки), cover_url
+    Приймає і JSON, і multipart/form-data (FormData).
+    Поля:
+      title, price, tags(list|comma), desc, format, url(file_url) або stl_file
+      cover_url або cover_file
+      user_id (необовʼязково; беремо із session.user_id)
     """
-
-    title = ""
-    price = 0
-    file_url = ""
-    cover = ""
-    desc = ""
-    fmt = "stl"
-    tags_str = ""
-    photos = []
-    user_id = 0
-
-    # ---- 1) multipart/form-data (форма з файлами) ----
-    if request.files or (request.content_type or "").startswith("multipart/form-data"):
+    # ---- 1) прочитати дані (JSON або форма) ----
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
         form = request.form
-
+        files = request.files
         title = (form.get("title") or "").strip()
         price = _parse_int(form.get("price"), 0)
-        desc  = (form.get("desc") or "").strip()
-        fmt   = (form.get("format") or "stl").strip().lower()
-
-        # tags: або JSON-рядок ["a","b"], або "a,b"
+        desc = (form.get("desc") or "").strip()
+        fmt = (form.get("format") or "stl").strip().lower()
+        # tags: або json-рядок, або "a,b,c"
         raw_tags = form.get("tags") or ""
         try:
-            parsed = json.loads(raw_tags) if raw_tags.strip().startswith("[") else raw_tags
-            if isinstance(parsed, list):
-                tags_str = ",".join([str(t).strip() for t in parsed if str(t).strip()])
-            else:
-                tags_str = str(parsed)
+            tags_val = json.loads(raw_tags) if raw_tags and raw_tags.strip().startswith("[") else raw_tags
         except Exception:
-            tags_str = str(raw_tags)
+            tags_val = raw_tags
 
-        # джерела моделі: файл або URL
-        stl_file = request.files.get("stl_file")
-        stl_url  = (form.get("stl_url") or form.get("url") or "").strip()
-        saved_model = _save_file(stl_file, "models", ALLOWED_MODEL_EXT) if stl_file else None
-        file_url = saved_model or stl_url
+        # Модель: або URL, або файл
+        file_url = (form.get("stl_url") or form.get("url") or "").strip()
+        if not file_url and "stl_file" in files:
+            uid = _parse_int(session.get("user_id"), 0) or 0
+            saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
+            if saved:
+                file_url = saved
 
-        # обкладинка: файл або URL (плейсхолдер, якщо порожньо)
-        cover_file = request.files.get("cover_file")
-        cover_url  = (form.get("cover_url") or form.get("cover") or "").strip()
-        saved_cover = _save_file(cover_file, "covers", ALLOWED_IMG_EXT) if cover_file else None
-        cover = saved_cover or cover_url or "/static/img/placeholder.jpg"
+        # Обкладинка: або URL, або файл
+        cover = (form.get("cover_url") or "").strip()
+        if not cover and "cover_file" in files:
+            uid = _parse_int(session.get("user_id"), 0) or 0
+            saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
+            if saved:
+                cover = saved
 
-        # користувач
-        user_id = _parse_int(form.get("user_id"), 0)
-        if not user_id:
-            user_id = _parse_int(session.get("user_id"), 0)
+        # user_id
+        user_id = _parse_int(form.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
 
     else:
-        # ---- 2) application/json ----
         data = request.get_json(silent=True) or {}
-
         title = (data.get("title") or "").strip()
         price = _parse_int(data.get("price"), 0)
-        file_url = (data.get("url") or data.get("file_url") or "").strip()
-        cover = (data.get("cover") or "").strip() or "/static/img/placeholder.jpg"
         desc = (data.get("desc") or "").strip()
         fmt = (data.get("format") or "stl").strip().lower()
+        file_url = (data.get("url") or data.get("file_url") or "").strip()
+        cover = (data.get("cover") or "").strip()
+        tags_val = data.get("tags") or ""
+        user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
 
-        tags = data.get("tags") or ""
-        if isinstance(tags, list):
-            tags_str = ",".join([str(t).strip() for t in tags if str(t).strip()])
-        else:
-            tags_str = str(tags)
+    # ---- 2) нормалізувати теги ----
+    if isinstance(tags_val, list):
+        tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
+    else:
+        tags_str = str(tags_val or "")
 
-        photos = data.get("photos") or []
-        user_id = _parse_int(data.get("user_id"), 0)
-        if not user_id:
-            user_id = _parse_int(session.get("user_id"), 0)
-
-    # fallback: якщо все ще немає user_id — підхопимо першого користувача
-    if not user_id:
-        try:
-            user_id = _parse_int(
-                db.session.execute(text(f"SELECT id FROM {USERS_TBL} ORDER BY id ASC LIMIT 1")).scalar(),
-                0
-            )
-        except Exception:
-            user_id = 0
-
-    # валідація мінімуму
+    # ---- 3) валідація мінімальних полів ----
     if not title or not file_url or not user_id:
         return jsonify({"ok": False, "error": "missing_fields"}), 400
 
+    photos_json = json_dumps_safe([])
+
+    # ---- 4) вставка в БД ----
     row = db.session.execute(
         text(f"""
             INSERT INTO {ITEMS_TBL}
-              (title, desc, price, tags, cover, photos, file_url, format, downloads, user_id, created_at, updated_at)
+              (title, desc, price, tags, cover, photos, file_url, format,
+               downloads, user_id, created_at, updated_at)
             VALUES
-              (:title, :desc, :price, :tags, :cover, CAST(:photos AS JSON), :file_url, :format, 0, :user_id, NOW(), NOW())
+              (:title, :desc, :price, :tags, :cover, CAST(:photos AS JSON),
+               :file_url, :format, 0, :user_id, NOW(), NOW())
             RETURNING id
         """),
         {
@@ -290,7 +278,7 @@ def api_upload():
             "price": price,
             "tags": tags_str,
             "cover": cover,
-            "photos": json_dumps_safe(photos),
+            "photos": photos_json,
             "file_url": file_url,
             "format": fmt,
             "user_id": user_id,
@@ -300,6 +288,7 @@ def api_upload():
     new_id = _row_to_dict(row)["id"]
     db.session.commit()
     return jsonify({"ok": True, "id": new_id})
+
 
 # -------------------- internal fetchers --------------------
 
@@ -320,12 +309,3 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
         {"id": item_id}
     ).fetchone()
     return _row_to_dict(row) if row else None
-
-# -------------------- tiny util --------------------
-
-def json_dumps_safe(obj) -> str:
-    """Повертає JSON-строку для вставки у CAST(:photos AS JSON)."""
-    try:
-        return json.dumps(obj, ensure_ascii=False)
-    except Exception:
-        return "[]"
