@@ -126,7 +126,7 @@ def api_items():
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
     ).scalar() or 0
 
-    # ——— основний SELECT з рейтингом (якщо колонки нема — впадемо в fallback)
+    # ——— основний SELECT з рейтингом (якщо колонки нема — fallback)
     sql_primary = f"""
         SELECT id, title, price, tags, cover, rating, downloads,
                file_url AS url, format, user_id, created_at
@@ -150,7 +150,8 @@ def api_items():
         ).fetchall()
         items = [_row_to_dict(r) for r in rows]
     except sa_exc.ProgrammingError:
-        # немає колонки rating — повторюємо без неї і додамо rating=0 у Python
+        # ВАЖЛИВО: відкотити транзакцію перед повтором у Postgres
+        db.session.rollback()
         rows = db.session.execute(
             text(sql_fallback),
             {**params, "limit": per_page, "offset": offset}
@@ -316,6 +317,8 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     try:
         row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
     except sa_exc.ProgrammingError:
+        # ВАЖЛИВО: відкотити зламану транзакцію перед повтором
+        db.session.rollback()
         row = db.session.execute(text(sql_fallback), {"id": item_id}).fetchone()
 
     if not row:
