@@ -60,20 +60,27 @@
 </head>
 <body>
 <div class="wrap">
-  <a href="{{ url_for('market') }}" class="back">← Назад до ринку</a>
+  <!-- ФІКС: правильний endpoint у blueprint "market" -->
+  <a href="{{ url_for('market.page_market') }}" class="back">← Назад до ринку</a>
 
   <div class="card flex">
     <div class="imgbox">
-      <img src="{{ item.cover }}" alt="{{ item.title }}" class="thumb">
+      <img src="{{ item.cover or '/static/img/placeholder_stl.jpg' }}" alt="{{ item.title }}" class="thumb">
       <div class="viewer" id="viewer"></div>
     </div>
     <div class="details">
       <div class="title">{{ item.title }}</div>
+
       <div class="tags">
-        {% for tag in item.tags %}
-          <span class="tag">{{ tag }}</span>
+        {# теги можуть бути рядком "a,b,c" — розіб'ємо по комахах #}
+        {% set _tags = (item.tags or '') %}
+        {% for tag in (_tags.split(',') if _tags is string else _tags) %}
+          {% if tag|string|trim %}
+            <span class="tag">{{ tag|string|trim }}</span>
+          {% endif %}
         {% endfor %}
       </div>
+
       <div class="price">
         {% if item.price == 0 %}
           Безкоштовно
@@ -81,8 +88,10 @@
           {{ item.price }} PLN
         {% endif %}
       </div>
-      <div class="muted">★ {{ item.rating or '—' }}</div>
+
+      <div class="muted">★ {{ item.rating if item.rating is not none else '—' }}</div>
       <p>{{ item.desc }}</p>
+
       <div class="stats">
         <div>📦 Завантажень: {{ item.downloads or 0 }}</div>
         <div>💰 Заробіток: {{ item.earnings or 0 }} PLN</div>
@@ -134,26 +143,27 @@
   loader.load("{{ item.url }}", (geo)=>{
     const mat = new THREE.MeshStandardMaterial({color:0x9aa7c7,roughness:.8,metalness:.1});
     const mesh = new THREE.Mesh(geo,mat);
-    geo.computeVertexNormals?.();
+    if (geo.computeVertexNormals) geo.computeVertexNormals();
     scene.add(mesh);
 
     const box = new THREE.Box3().setFromObject(mesh);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     mesh.position.sub(center);
-    camera.position.set(size.x*1.2, size.y*1.2, size.z*1.5);
+    camera.position.set(size.x*1.2 + 0.6, size.y*1.2 + 0.4, size.z*1.5 + 0.8);
     controls.update();
   });
 
   function resize(){
-    const w = container.clientWidth;
-    const h = container.clientHeight;
+    const w = container.clientWidth || container.offsetWidth;
+    const h = container.clientHeight || 350;
     renderer.setSize(w,h,false);
-    camera.aspect=w/h;camera.updateProjectionMatrix();
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
   }
-  new ResizeObserver(resize).observe(container);resize();
+  new ResizeObserver(resize).observe(container); resize();
 
-  (function loop(){requestAnimationFrame(loop);controls.update();renderer.render(scene,camera);})();
+  (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
 </script>
 </body>
 </html>
