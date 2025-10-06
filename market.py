@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 
 from flask import Blueprint, render_template, jsonify, request, session
 from sqlalchemy import text
+from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
 
 from db import db, User
@@ -20,7 +21,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
-# ▼ додано: дефолт для обкладинки (щоб не падало на NOT NULL)
+# дефолт для обкладинки, якщо не передано
 COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
 
 
@@ -125,19 +126,41 @@ def api_items():
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
     ).scalar() or 0
 
-    rows = db.session.execute(
-        text(f"""
-            SELECT id, title, price, tags, cover, rating, downloads,
-                   file_url AS url, format, user_id, created_at
-            FROM {ITEMS_TBL}
-            {where_sql}
-            {order_sql}
-            LIMIT :limit OFFSET :offset
-        """),
-        {**params, "limit": per_page, "offset": offset}
-    ).fetchall()
+    # ——— основний SELECT з рейтингом (якщо колонки нема — впадемо в fallback)
+    sql_primary = f"""
+        SELECT id, title, price, tags, cover, rating, downloads,
+               file_url AS url, format, user_id, created_at
+        FROM {ITEMS_TBL}
+        {where_sql}
+        {order_sql}
+        LIMIT :limit OFFSET :offset
+    """
+    sql_fallback = f"""
+        SELECT id, title, price, tags, cover, downloads,
+               file_url AS url, format, user_id, created_at
+        FROM {ITEMS_TBL}
+        {where_sql}
+        {order_sql}
+        LIMIT :limit OFFSET :offset
+    """
+    try:
+        rows = db.session.execute(
+            text(sql_primary),
+            {**params, "limit": per_page, "offset": offset}
+        ).fetchall()
+        items = [_row_to_dict(r) for r in rows]
+    except sa_exc.ProgrammingError:
+        # немає колонки rating — повторюємо без неї і додамо rating=0 у Python
+        rows = db.session.execute(
+            text(sql_fallback),
+            {**params, "limit": per_page, "offset": offset}
+        ).fetchall()
+        items = []
+        for r in rows:
+            d = _row_to_dict(r)
+            d.setdefault("rating", 0)
+            items.append(d)
 
-    items = [_row_to_dict(r) for r in rows]
     return jsonify({
         "items": items,
         "page": page,
@@ -206,7 +229,7 @@ def api_upload():
         tags_val = data.get("tags") or ""
         user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
 
-    # ▼ додано: якщо обкладинки немає — ставимо плейсхолдер
+    # якщо обкладинки немає — ставимо плейсхолдер (захист від NOT NULL)
     if not cover:
         cover = COVER_PLACEHOLDER
 
@@ -223,7 +246,7 @@ def api_upload():
 
     dialect = db.session.get_bind().dialect.name  # 'postgresql' або 'sqlite'
     if dialect == "postgresql":
-        # ▼ екрануємо "desc", щоб не було синтаксичної помилки
+        # екрануємо "desc", бо це ключове слово
         sql = f"""
             INSERT INTO {ITEMS_TBL}
               (title, "desc", price, tags, cover, photos, file_url, format,
@@ -257,11 +280,9 @@ def api_upload():
             "user_id": user_id,
         }
     )
-    new_id = None
     if dialect == "postgresql":
         new_id = _row_to_dict(row.fetchone())["id"]
     else:
-        # sqlite: взяти останній ідентифікатор
         new_id = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()
 
     db.session.commit()
@@ -269,19 +290,39 @@ def api_upload():
 
 
 def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
-    row = db.session.execute(
-        text(f"""
-          SELECT i.*, 
-                 i.file_url AS url,
-                 u.name   AS author_name,
-                 u.email  AS author_email,
-                 u.id     AS author_id,
-                 COALESCE(u.avatar_url, '/static/avatars/default.jpg') AS author_avatar,
-                 COALESCE(u.bio, '3D-дизайнер') AS author_bio
-          FROM {ITEMS_TBL} i
-          LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-          WHERE i.id = :id
-        """),
-        {"id": item_id}
-    ).fetchone()
-    return _row_to_dict(row) if row else None
+    # основний запит — з avatar_url/bio; якщо їх нема у схеми users — fallback
+    sql_primary = f"""
+      SELECT i.*, 
+             i.file_url AS url,
+             u.name   AS author_name,
+             u.email  AS author_email,
+             u.id     AS author_id,
+             COALESCE(u.avatar_url, '/static/avatars/default.jpg') AS author_avatar,
+             COALESCE(u.bio, '3D-дизайнер') AS author_bio
+      FROM {ITEMS_TBL} i
+      LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+      WHERE i.id = :id
+    """
+    sql_fallback = f"""
+      SELECT i.*, 
+             i.file_url AS url,
+             u.name   AS author_name,
+             u.email  AS author_email,
+             u.id     AS author_id
+      FROM {ITEMS_TBL} i
+      LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+      WHERE i.id = :id
+    """
+    try:
+        row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
+    except sa_exc.ProgrammingError:
+        row = db.session.execute(text(sql_fallback), {"id": item_id}).fetchone()
+
+    if not row:
+        return None
+
+    d = _row_to_dict(row)
+    # якщо в fallback не було колонок — додамо дефолти
+    d.setdefault("author_avatar", "/static/avatars/default.jpg")
+    d.setdefault("author_bio", "3D-дизайнер")
+    return d
