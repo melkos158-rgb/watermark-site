@@ -58,7 +58,7 @@
       </div>
     </fieldset>
 
-    <div style="height:14px;"></div>
+    <div style="height:14px"></div>
 
     <label>Опис</label>
     <textarea id="desc" name="desc" rows="5" placeholder="Короткий опис моделі…" style="width:100%"></textarea>
@@ -72,7 +72,7 @@
 
 <script>
 (function(){
-  // ✅ БЕЗПЕЧНА серіалізація user_id: буде null, число або рядок — завжди валідний JS
+  // коректна серіалізація user_id у JS
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
   const form = document.getElementById('uploadForm');
@@ -121,13 +121,38 @@
     if (!validateModelSource()){ msg.textContent = 'Додай файл моделі або URL.'; return; }
 
     const fd = new FormData(form);
+
+    // нормалізація/очищення ПУСТИХ полів перед відправкою (щоб бекенд не падав)
+    const stlFileEl   = document.getElementById('stl_file');
+    const stlUrlEl    = document.getElementById('stl_url');
+    const coverFileEl = document.getElementById('cover_file');
+    const coverUrlEl  = document.getElementById('cover_url');
+    const priceEl     = document.getElementById('price');
+
+    if (!(stlFileEl.files && stlFileEl.files.length)) fd.delete('stl_file');
+    if (!stlUrlEl.value.trim())                        fd.delete('stl_url');
+    if (!(coverFileEl.files && coverFileEl.files.length)) fd.delete('cover_file');
+    if (!coverUrlEl.value.trim())                         fd.delete('cover_url');
+
+    // теги в масив (як і було)
     const tagsRaw = (document.getElementById('tags').value || '').trim();
     const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
     fd.set('tags', JSON.stringify(tagsArr));
+
+    // ціна як число (деякі бекенди падають на порожньому рядку)
+    const priceNum = Number(priceEl.value || 0);
+    fd.set('price', String(isFinite(priceNum) ? priceNum : 0));
+
+    // user_id
     fd.set('user_id', String(CURRENT_USER_ID));
 
     try{
-      const r = await fetch('/api/upload', { method: 'POST', body: fd });
+      const r = await fetch('/api/upload', {
+        method: 'POST',
+        body: fd,
+        headers: { 'Accept': 'application/json' } // просимо JSON замість HTML 500
+      });
+
       let j = null;
       try {
         j = await r.clone().json();
@@ -136,6 +161,7 @@
         msg.textContent = `Помилка ${r.status}: ${txt.slice(0,200)}`;
         return;
       }
+
       if (j.ok){
         msg.textContent = 'Готово! Перехід до сторінки…';
         setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
