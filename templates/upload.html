@@ -58,7 +58,7 @@
       </div>
     </fieldset>
 
-    <div style="height:14px"></div>
+    <div style="height:14px;"></div>
 
     <label>Опис</label>
     <textarea id="desc" name="desc" rows="5" placeholder="Короткий опис моделі…" style="width:100%"></textarea>
@@ -72,7 +72,9 @@
 
 <script>
 (function(){
-  const CURRENT_USER_ID = {{ (session.get('user_id') or 'null') }};
+  // ✅ БЕЗПЕЧНА серіалізація user_id: буде null, число або рядок — завжди валідний JS
+  const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
+
   const form = document.getElementById('uploadForm');
   const msg  = document.getElementById('msg');
 
@@ -82,14 +84,24 @@
   const coverNote = document.getElementById('cover_note');
 
   function showCover(src){
-    if(!src){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу або URL.'; return; }
+    if(!src){
+      coverPrev.style.display='none';
+      coverPrev.src='';
+      coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу або URL.';
+      return;
+    }
     coverPrev.src = src;
-    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
+    coverPrev.onload = ()=>{
+      coverPrev.style.display='inline-block';
+      coverNote.textContent='';
+    };
   }
+
   coverFile.addEventListener('change', ()=>{
     const f = coverFile.files && coverFile.files[0];
     if (f) showCover(URL.createObjectURL(f));
   });
+
   coverUrl.addEventListener('input', ()=>{
     const url = coverUrl.value.trim();
     if (url) showCover(url); else showCover('');
@@ -138,11 +150,17 @@
 
   const stlInput = document.getElementById('stl_file');
   const stlHint  = document.getElementById('stl_file_hint');
-  ;['dragenter','dragover'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; }});
+  ['dragenter','dragover'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; }
+    });
   });
-  ;['dragleave','drop'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; }});
+  ['dragleave','drop'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; }
+    });
   });
 })();
 </script>
