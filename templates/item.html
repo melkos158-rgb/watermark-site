@@ -40,9 +40,11 @@
     .navbtn.next{right:10px}
 
     .thumbs{display:flex;gap:8px;padding:10px;overflow:auto}
-    .thumbs img,.thumbs .thumb-stl{
+    /* УНИКАЄМО конфлікту з чужим .thumb — свій клас .gthumb */
+    .thumbs img.gthumb,.thumbs .thumb-stl{
       width:70px;height:56px;border-radius:8px;border:1px solid var(--line);
-      object-fit:cover;cursor:pointer;opacity:.85;flex:0 0 auto;background:#0b0e14;display:block
+      object-fit:cover;cursor:pointer;opacity:.9;flex:0 0 auto;background:#0b0e14;display:block;
+      position:static !important; /* захист від глобальних стилів */
     }
     .thumbs .active{outline:2px solid var(--accent);opacity:1}
 
@@ -72,9 +74,7 @@
     <div class="left">
       <!-- GALLERY -->
       <div class="gallery">
-        <div class="stage" id="stage">
-          <!-- слайди створюються JS -->
-        </div>
+        <div class="stage" id="stage"></div>
         <div class="navbtn prev" id="btnPrev" aria-label="Попереднє">‹</div>
         <div class="navbtn next" id="btnNext" aria-label="Наступне">›</div>
         <div class="thumbs" id="thumbs"></div>
@@ -130,24 +130,19 @@
   // ---------- дані ----------
   const cover = {{ (item.cover or '/static/img/placeholder_stl.jpg') | tojson }};
   const urlSTL = {{ (item.url or '') | tojson }};
-  // photos може бути масивом або JSON-рядком — нормалізуємо
   let photosRaw = {{ (item.photos or '[]') | tojson }};
   let photos = [];
-  try {
-    photos = Array.isArray(photosRaw) ? photosRaw : JSON.parse(photosRaw || '[]');
-  } catch { photos = []; }
-  photos = (photos || []).filter(Boolean).map(String);
+  try { photos = Array.isArray(photosRaw) ? photosRaw : JSON.parse(photosRaw || '[]'); }
+  catch { photos = []; }
+  photos = (photos || []).filter(Boolean).map(s => String(s).trim()).filter(Boolean);
 
-  // додаємо cover першим, якщо його ще немає серед фото
   if (cover && !photos.find(p => p === cover)) photos.unshift(cover);
 
-  // наостанок додаємо “слайд STL”
   const slides = [
     ...photos.map(src => ({ type:'img', src })),
     ...(urlSTL ? [{ type:'stl', src:urlSTL }] : [])
   ];
 
-  // ---------- побудова UI ----------
   const stage  = document.getElementById('stage');
   const thumbs = document.getElementById('thumbs');
   const prevBtn = document.getElementById('btnPrev');
@@ -155,19 +150,19 @@
 
   let idx = 0;
   let stlInited = false;
-  let stlDom = null;
 
   function makeImgSlide(src) {
     const s = document.createElement('div');
     s.className = 'slide';
     const img = document.createElement('img');
-    img.loading = 'lazy';
+    img.className = '';         // жодних .thumb — уникаємо конфліктів
+    img.loading = 'eager';
     img.src = src;
     img.alt = 'preview';
+    img.onerror = ()=>{ img.src='/static/img/placeholder_stl.jpg'; };
     s.appendChild(img);
     return s;
   }
-
   function makeStlSlide() {
     const s = document.createElement('div');
     s.className = 'slide';
@@ -178,7 +173,6 @@
     return s;
   }
 
-  // створюємо слайди
   const slideEls = slides.map(sl => sl.type === 'img' ? makeImgSlide(sl.src) : makeStlSlide());
   slideEls.forEach(el => stage.appendChild(el));
 
@@ -188,8 +182,9 @@
       const t = document.createElement('img');
       t.src = sl.src;
       t.alt = 'thumb';
-      t.className = 'thumb';
+      t.className = 'gthumb';
       t.addEventListener('click', ()=>go(i));
+      t.onerror = ()=>{ t.src='/static/img/placeholder_stl.jpg'; };
       thumbs.appendChild(t);
     } else {
       const t = document.createElement('div');
@@ -205,11 +200,7 @@
   function markActive() {
     slideEls.forEach((el,i)=> el.classList.toggle('active', i===idx));
     [...thumbs.children].forEach((el,i)=> el.classList.toggle('active', i===idx));
-    // ліниво інітуємо STL тільки коли дійшли до останнього слайда
-    if (slides[idx]?.type === 'stl' && !stlInited) {
-      stlInited = true;
-      initSTL();
-    }
+    if (slides[idx]?.type === 'stl' && !stlInited) { stlInited = true; initSTL(); }
   }
 
   function go(newIdx){
@@ -221,26 +212,21 @@
   prevBtn.onclick = ()=>go(idx-1);
   nextBtn.onclick = ()=>go(idx+1);
 
-  // свайпи/колесо
+  // свайпи
   let sx = null;
   stage.addEventListener('pointerdown', e=>{ sx = e.clientX; });
   stage.addEventListener('pointerup',   e=>{
     if (sx==null) return; const dx = e.clientX - sx; sx=null;
     if (Math.abs(dx) > 40) (dx>0 ? prevBtn.onclick() : nextBtn.onclick());
   });
-  stage.addEventListener('wheel', e=>{
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) return;
-    e.preventDefault();
-    (e.deltaY>0 || e.deltaX>0) ? nextBtn.onclick() : prevBtn.onclick();
-  }, {passive:false});
 
-  // старт
+  // старт: примусово показуємо перший слайд (на випадок затримки)
   if (slides.length===0) {
-    // якщо нічого, створимо заглушку
     stage.innerHTML = '<div class="slide active"><img src="/static/img/placeholder_stl.jpg" alt="no image"></div>';
     prevBtn.style.display = nextBtn.style.display = 'none';
   } else {
-    go(0);
+    slideEls[0].classList.add('active'); // миттєво
+    setTimeout(()=>go(0), 0);            // і офіційно через функцію
   }
 
   // ---------- STL ----------
