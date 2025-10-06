@@ -24,29 +24,29 @@
     .right{flex:1 1 300px;min-width:260px;display:flex;flex-direction:column;gap:10px}
 
     /* gallery */
-    .gallery{position:relative;border:1px solid var(--line);border-radius:12px;background:#0c0f16}
-    .stage{position:relative;width:100%;height:420px;overflow:hidden;border-radius:12px}
-    .slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center}
-    .slide.active{display:flex}
-    .slide img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0e14}
-    .stl-holder{width:100%;height:100%}
+    .glr{position:relative;border:1px solid var(--line);border-radius:12px;background:#0c0f16}
+    .glr-stage{position:relative;width:100%;height:420px;overflow:hidden;border-radius:12px}
+    .glr-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:0}
+    .glr-slide.active{display:flex;z-index:1}
+    .glr-slide img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0e14;display:block}
+    .glr-stl{width:100%;height:100%}
 
-    .navbtn{position:absolute;top:50%;transform:translateY(-50%);
-      background:rgba(20,25,35,.8);border:1px solid var(--line);color:#fff;
+    .glr-btn{position:absolute;top:50%;transform:translateY(-50%);
+      background:rgba(20,25,35,.85);border:1px solid var(--line);color:#fff;
       width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-      cursor:pointer;user-select:none}
-    .navbtn:hover{background:rgba(45,55,75,.9)}
-    .navbtn.prev{left:10px}
-    .navbtn.next{right:10px}
+      cursor:pointer;user-select:none;z-index:2}
+    .glr-btn:hover{background:rgba(45,55,75,.95)}
+    .glr-prev{left:10px}
+    .glr-next{right:10px}
 
-    .thumbs{display:flex;gap:8px;padding:10px;overflow:auto}
-    /* УНИКАЄМО конфлікту з чужим .thumb — свій клас .gthumb */
-    .thumbs img.gthumb,.thumbs .thumb-stl{
+    .glr-thumbs{display:flex;gap:8px;padding:10px;overflow:auto}
+    /* унікальний клас, щоб не ловити глобальний .thumb з теми */
+    .glr-thumbs img.gthumb,.glr-thumbs .gthumb-stl{
       width:70px;height:56px;border-radius:8px;border:1px solid var(--line);
       object-fit:cover;cursor:pointer;opacity:.9;flex:0 0 auto;background:#0b0e14;display:block;
-      position:static !important; /* захист від глобальних стилів */
+      position:static !important
     }
-    .thumbs .active{outline:2px solid var(--accent);opacity:1}
+    .glr-thumbs .active{outline:2px solid var(--accent);opacity:1}
 
     .title{font-size:22px;font-weight:800;}
     .price{font-weight:700;color:var(--accent);}
@@ -63,7 +63,7 @@
       border:1px solid var(--line);padding:10px;border-radius:10px}
     .author img{width:48px;height:48px;border-radius:50%;object-fit:cover;}
 
-    @media(max-width:700px){ .stage{height:340px} }
+    @media(max-width:700px){ .glr-stage{height:340px} }
   </style>
 </head>
 <body>
@@ -73,11 +73,11 @@
   <div class="card flex">
     <div class="left">
       <!-- GALLERY -->
-      <div class="gallery">
-        <div class="stage" id="stage"></div>
-        <div class="navbtn prev" id="btnPrev" aria-label="Попереднє">‹</div>
-        <div class="navbtn next" id="btnNext" aria-label="Наступне">›</div>
-        <div class="thumbs" id="thumbs"></div>
+      <div class="glr">
+        <div class="glr-stage" id="glrStage"></div>
+        <div class="glr-btn glr-prev" id="glrPrev" aria-label="Попереднє">‹</div>
+        <div class="glr-btn glr-next" id="glrNext" aria-label="Наступне">›</div>
+        <div class="glr-thumbs" id="glrThumbs"></div>
       </div>
     </div>
 
@@ -143,31 +143,33 @@
     ...(urlSTL ? [{ type:'stl', src:urlSTL }] : [])
   ];
 
-  const stage  = document.getElementById('stage');
-  const thumbs = document.getElementById('thumbs');
-  const prevBtn = document.getElementById('btnPrev');
-  const nextBtn = document.getElementById('btnNext');
+  const stage  = document.getElementById('glrStage');
+  const thumbs = document.getElementById('glrThumbs');
+  const prevBtn = document.getElementById('glrPrev');
+  const nextBtn = document.getElementById('glrNext');
 
   let idx = 0;
   let stlInited = false;
 
   function makeImgSlide(src) {
     const s = document.createElement('div');
-    s.className = 'slide';
+    s.className = 'glr-slide';
     const img = document.createElement('img');
-    img.className = '';         // жодних .thumb — уникаємо конфліктів
     img.loading = 'eager';
+    img.decoding = 'async';
     img.src = src;
     img.alt = 'preview';
     img.onerror = ()=>{ img.src='/static/img/placeholder_stl.jpg'; };
+    // показати слайд, як тільки картинка завантажилась
+    img.addEventListener('load', ()=>{ if (stage && s.classList.contains('active')) stage.style.background='transparent'; });
     s.appendChild(img);
     return s;
   }
   function makeStlSlide() {
     const s = document.createElement('div');
-    s.className = 'slide';
+    s.className = 'glr-slide';
     const holder = document.createElement('div');
-    holder.className = 'stl-holder';
+    holder.className = 'glr-stl';
     holder.id = 'stl-holder';
     s.appendChild(holder);
     return s;
@@ -188,7 +190,7 @@
       thumbs.appendChild(t);
     } else {
       const t = document.createElement('div');
-      t.className = 'thumb-stl';
+      t.className = 'gthumb-stl';
       t.title = 'STL';
       t.style.display = 'grid'; t.style.placeItems = 'center';
       t.textContent = 'STL';
@@ -220,13 +222,13 @@
     if (Math.abs(dx) > 40) (dx>0 ? prevBtn.onclick() : nextBtn.onclick());
   });
 
-  // старт: примусово показуємо перший слайд (на випадок затримки)
+  // старт: увімкнути перший слайд ЖОРСТКО і через функцію
   if (slides.length===0) {
-    stage.innerHTML = '<div class="slide active"><img src="/static/img/placeholder_stl.jpg" alt="no image"></div>';
+    stage.innerHTML = '<div class="glr-slide active"><img src="/static/img/placeholder_stl.jpg" alt="no image"></div>';
     prevBtn.style.display = nextBtn.style.display = 'none';
   } else {
-    slideEls[0].classList.add('active'); // миттєво
-    setTimeout(()=>go(0), 0);            // і офіційно через функцію
+    slideEls[0].classList.add('active');
+    setTimeout(()=>go(0), 0);
   }
 
   // ---------- STL ----------
