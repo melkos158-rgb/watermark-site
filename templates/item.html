@@ -162,7 +162,7 @@
     img.decoding = 'async';
     img.src = src || PH;
     img.alt = 'preview';
-    img.onerror = ()=>{ img.src = PH; };
+    img.onerror = ()=>{ img.src = PH; console.warn('Image failed, using placeholder:', src); };
     s.appendChild(img);
     return s;
   }
@@ -224,8 +224,8 @@
   });
 
   // старт
-  slideEls[0].classList.add('active');  // одразу
-  setTimeout(()=>go(0), 0);             // і офіційно
+  slideEls[0].classList.add('active');
+  setTimeout(()=>go(0), 0);
 
   // ---------- STL ----------
   function initSTL(){
