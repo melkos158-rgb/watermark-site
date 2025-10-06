@@ -24,6 +24,7 @@
     .glr-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:0}
     .glr-slide.active{display:flex;z-index:1}
     .glr-slide img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0e14;display:block}
+    .glr-slide svg{width:60%;max-width:560px;aspect-ratio:4/3}
     .glr-stl{width:100%;height:100%}
 
     .glr-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,25,35,.85);
@@ -117,17 +118,28 @@
   import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/controls/OrbitControls.js';
   import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/STLLoader.js';
 
-  // inline SVG placeholder (працює завжди)
-  const PH = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
-       <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-         <stop stop-color="#0b0e14" offset="0"/><stop stop-color="#141923" offset="1"/></linearGradient></defs>
-       <rect width="100%" height="100%" fill="url(#g)"/>
-       <g fill="#8993a8" font-family="sans-serif" font-size="28" opacity=".9">
-         <text x="50%" y="50%" text-anchor="middle">Немає зображення</text>
-       </g>
-     </svg>`
-  );
+  // --- CSP-safe inline SVG placeholder (DOM <svg>, без data:) ---
+  function makeInlinePlaceholder() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 800 600');
+    svg.setAttribute('role', 'img');
+    svg.style.maxWidth = '100%';
+    svg.style.height = 'auto';
+    const defs = document.createElementNS(ns, 'defs');
+    const lg = document.createElementNS(ns, 'linearGradient');
+    lg.id = 'g'; lg.setAttribute('x1','0'); lg.setAttribute('y1','0'); lg.setAttribute('x2','1'); lg.setAttribute('y2','1');
+    const s1 = document.createElementNS(ns, 'stop'); s1.setAttribute('offset','0'); s1.setAttribute('stop-color','#0b0e14');
+    const s2 = document.createElementNS(ns, 'stop'); s2.setAttribute('offset','1'); s2.setAttribute('stop-color','#141923');
+    lg.appendChild(s1); lg.appendChild(s2); defs.appendChild(lg); svg.appendChild(defs);
+    const rect = document.createElementNS(ns, 'rect'); rect.setAttribute('width','100%'); rect.setAttribute('height','100%'); rect.setAttribute('fill','url(#g)');
+    svg.appendChild(rect);
+    const text = document.createElementNS(ns, 'text');
+    text.setAttribute('x','400'); text.setAttribute('y','300'); text.setAttribute('text-anchor','middle');
+    text.setAttribute('fill','#8993a8'); text.setAttribute('font-size','28'); text.textContent = 'Немає зображення';
+    svg.appendChild(text);
+    return svg;
+  }
 
   // ---------- дані ----------
   const cover = {{ (item.cover or '') | tojson }};
@@ -137,14 +149,13 @@
   try { photos = Array.isArray(photosRaw) ? photosRaw : JSON.parse(photosRaw || '[]'); }
   catch { photos = []; }
   photos = (photos || []).filter(Boolean).map(s => String(s).trim()).filter(Boolean);
-
   if (cover && !photos.includes(cover)) photos.unshift(cover);
-  if (!photos.length) photos = [PH];
 
   const slides = [
     ...photos.map(src => ({ type:'img', src })),
     ...(urlSTL ? [{ type:'stl', src:urlSTL }] : [])
   ];
+  if (!slides.length) slides.push({type:'img', src:''}); // гарантовано хоч один кадр
 
   const stage  = document.getElementById('glrStage');
   const thumbs = document.getElementById('glrThumbs');
@@ -157,15 +168,20 @@
   function makeImgSlide(src) {
     const s = document.createElement('div');
     s.className = 'glr-slide';
-    const img = document.createElement('img');
-    img.loading = 'eager';
-    img.decoding = 'async';
-    img.src = src || PH;
-    img.alt = 'preview';
-    img.onerror = ()=>{ img.src = PH; console.warn('Image failed, using placeholder:', src); };
-    s.appendChild(img);
+    if (src) {
+      const img = document.createElement('img');
+      img.loading = 'eager';
+      img.decoding = 'async';
+      img.src = src;
+      img.alt = 'preview';
+      img.onerror = () => { s.innerHTML = ''; s.appendChild(makeInlinePlaceholder()); };
+      s.appendChild(img);
+    } else {
+      s.appendChild(makeInlinePlaceholder());
+    }
     return s;
   }
+
   function makeStlSlide() {
     const s = document.createElement('div');
     s.className = 'glr-slide';
@@ -182,13 +198,21 @@
   // мініатюри
   slides.forEach((sl, i) => {
     if (sl.type === 'img') {
-      const t = document.createElement('img');
-      t.src = sl.src || PH;
-      t.alt = 'thumb';
-      t.className = 'gthumb';
-      t.onerror = ()=>{ t.src = PH; };
-      t.addEventListener('click', ()=>go(i));
-      thumbs.appendChild(t);
+      if (sl.src) {
+        const t = document.createElement('img');
+        t.src = sl.src;
+        t.alt = 'thumb';
+        t.className = 'gthumb';
+        t.addEventListener('error', () => { t.replaceWith(makeInlinePlaceholder()); });
+        t.addEventListener('click', ()=>go(i));
+        thumbs.appendChild(t);
+      } else {
+        const ph = makeInlinePlaceholder();
+        ph.style.width = '70px'; ph.style.height = '56px';
+        ph.style.border = '1px solid var(--line)'; ph.style.borderRadius = '8px';
+        ph.style.cursor = 'pointer'; ph.addEventListener('click', ()=>go(i));
+        thumbs.appendChild(ph);
+      }
     } else {
       const t = document.createElement('div');
       t.className = 'gthumb-stl';
