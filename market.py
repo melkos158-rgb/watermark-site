@@ -20,6 +20,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
+# ▼ додано: дефолт для обкладинки (щоб не падало на NOT NULL)
+COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
+
 
 def _row_to_dict(row) -> Dict[str, Any]:
     try:
@@ -203,6 +206,10 @@ def api_upload():
         tags_val = data.get("tags") or ""
         user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
 
+    # ▼ додано: якщо обкладинки немає — ставимо плейсхолдер
+    if not cover:
+        cover = COVER_PLACEHOLDER
+
     # Теги -> рядок
     if isinstance(tags_val, list):
         tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
@@ -216,9 +223,10 @@ def api_upload():
 
     dialect = db.session.get_bind().dialect.name  # 'postgresql' або 'sqlite'
     if dialect == "postgresql":
+        # ▼ екрануємо "desc", щоб не було синтаксичної помилки
         sql = f"""
             INSERT INTO {ITEMS_TBL}
-              (title, desc, price, tags, cover, photos, file_url, format,
+              (title, "desc", price, tags, cover, photos, file_url, format,
                downloads, user_id, created_at, updated_at)
             VALUES
               (:title, :desc, :price, :tags, :cover, CAST(:photos AS JSON),
@@ -228,7 +236,7 @@ def api_upload():
     else:  # sqlite
         sql = f"""
             INSERT INTO {ITEMS_TBL}
-              (title, desc, price, tags, cover, photos, file_url, format,
+              (title, "desc", price, tags, cover, photos, file_url, format,
                downloads, user_id, created_at, updated_at)
             VALUES
               (:title, :desc, :price, :tags, :cover, :photos,
