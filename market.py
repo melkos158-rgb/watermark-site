@@ -75,7 +75,7 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     dst = os.path.join(folder, name)
     i = 1
     while os.path.exists(dst):
-        name = f"{base}_{i}{e}"
+        name = f"{base}_{i}{e}"""
         dst = os.path.join(folder, name)
         i += 1
 
