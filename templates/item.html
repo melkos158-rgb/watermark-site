@@ -1,69 +1,13 @@
 {% extends "base.html" %}
+
+{% block title %}{{ item.title if item else "STL модель" }}{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ item.title if item else "STL модель" }}</title>
-
-  <style>
-    :root{ --bg:#0f1116;--card:#141923;--line:#232a3a;--text:#e7ebf4;--muted:#8993a8;--accent:#3b82f6; }
-    body{ margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial; }
-    .wrap{max-width:1100px;margin:0 auto;padding:16px;}
-    .back{color:var(--muted);display:inline-block;margin-bottom:12px;}
-
-    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:20px;}
-    .flex{display:flex;gap:16px;flex-wrap:wrap;}
-    .left{flex:1 1 520px;min-width:320px}
-    .right{flex:1 1 300px;min-width:260px;display:flex;flex-direction:column;gap:10px}
-
-    /* gallery */
-    .glr{position:relative;border:1px solid var(--line);border-radius:12px;background:#0c0f16}
-    .glr-stage{position:relative;width:100%;height:420px;overflow:hidden;border-radius:12px}
-    .glr-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:0}
-    .glr-slide.active{display:flex;z-index:1}
-    .glr-slide img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0e14;display:block}
-    .glr-slide svg{width:60%;max-width:560px;aspect-ratio:4/3}
-    .glr-stl{width:100%;height:100%}
-
-    .glr-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,25,35,.85);
-      border:1px solid var(--line);color:#fff;width:38px;height:38px;border-radius:10px;display:flex;
-      align-items:center;justify-content:center;cursor:pointer;user-select:none;z-index:2}
-    .glr-btn:hover{background:rgba(45,55,75,.95)}
-    .glr-prev{left:10px}
-    .glr-next{right:10px}
-
-    .glr-thumbs{display:flex;gap:8px;padding:10px;overflow:auto}
-    .glr-thumbs img.gthumb,.glr-thumbs .gthumb-stl{
-      width:70px;height:56px;border-radius:8px;border:1px solid var(--line);object-fit:cover;cursor:pointer;
-      opacity:.9;flex:0 0 auto;background:#0b0e14;display:block;position:static !important
-    }
-    .glr-thumbs .active{outline:2px solid var(--accent);opacity:1}
-
-    .title{font-size:22px;font-weight:800;}
-    .price{font-weight:700;color:var(--accent);}
-    .tags{display:flex;gap:6px;flex-wrap:wrap;}
-    .tag{border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:13px;color:var(--muted);}
-    .muted{color:var(--muted);font-size:13px;}
-    .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
-    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
-    .btn:active{transform:scale(.97)}
-    .stats{display:flex;gap:20px;margin-top:8px;color:var(--muted);font-size:14px;}
-
-    .author{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--card);border:1px solid var(--line);padding:10px;border-radius:10px}
-    .author img{width:48px;height:48px;border-radius:50%;object-fit:cover;}
-
-    @media(max-width:700px){ .glr-stage{height:340px} }
-  </style>
-</head>
-<body>
 <div class="wrap">
   <a href="{{ url_for('market.page_market') }}" class="back">← Назад до ринку</a>
 
   <div class="card flex">
     <div class="left">
-      <!-- GALLERY -->
       <div class="glr">
         <div class="glr-stage" id="glrStage"></div>
         <div class="glr-btn glr-prev" id="glrPrev" aria-label="Попереднє">‹</div>
@@ -112,20 +56,56 @@
   </div>
 </div>
 
-<!-- GALLERY + STL VIEWER -->
+<style>
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  .back{color:var(--muted);display:inline-block;margin-bottom:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:20px}
+  .flex{display:flex;gap:16px;flex-wrap:wrap}
+  .left{flex:1 1 520px;min-width:320px}
+  .right{flex:1 1 300px;min-width:260px;display:flex;flex-direction:column;gap:10px}
+  .glr{position:relative;border:1px solid var(--line);border-radius:12px;background:#0c0f16}
+  .glr-stage{position:relative;width:100%;height:420px;overflow:hidden;border-radius:12px}
+  .glr-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:0}
+  .glr-slide.active{display:flex;z-index:1}
+  .glr-slide img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0e14;display:block}
+  .glr-slide svg{width:60%;max-width:560px;aspect-ratio:4/3}
+  .glr-stl{width:100%;height:100%}
+  .glr-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,25,35,.85);
+    border:1px solid var(--line);color:#fff;width:38px;height:38px;border-radius:10px;display:flex;
+    align-items:center;justify-content:center;cursor:pointer;user-select:none;z-index:2}
+  .glr-btn:hover{background:rgba(45,55,75,.95)}
+  .glr-prev{left:10px}.glr-next{right:10px}
+  .glr-thumbs{display:flex;gap:8px;padding:10px;overflow:auto}
+  .glr-thumbs img.gthumb,.glr-thumbs .gthumb-stl{
+    width:70px;height:56px;border-radius:8px;border:1px solid var(--line);object-fit:cover;cursor:pointer;
+    opacity:.9;flex:0 0 auto;background:#0b0e14;display:block;position:static !important}
+  .glr-thumbs .active{outline:2px solid var(--accent);opacity:1}
+  .title{font-size:22px;font-weight:800}
+  .price{font-weight:700;color:var(--accent)}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:13px;color:var(--muted)}
+  .muted{color:var(--muted);font-size:13px}
+  .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .stats{display:flex;gap:20px;margin-top:8px;color:var(--muted);font-size:14px}
+  .author{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--card);border:1px solid var(--line);padding:10px;border-radius:10px}
+  .author img{width:48px;height:48px;border-radius:50%;object-fit:cover}
+  @media(max-width:700px){ .glr-stage{height:340px} }
+</style>
+{% endblock %}
+
+{% block scripts %}
 <script type="module">
   import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.159/build/three.module.js';
   import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/controls/OrbitControls.js';
   import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/STLLoader.js';
 
-  // --- CSP-safe inline SVG placeholder (DOM <svg>, без data:) ---
+  // --- CSP-safe inline SVG placeholder ---
   function makeInlinePlaceholder() {
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('viewBox', '0 0 800 600');
     svg.setAttribute('role', 'img');
-    svg.style.maxWidth = '100%';
-    svg.style.height = 'auto';
     const defs = document.createElementNS(ns, 'defs');
     const lg = document.createElementNS(ns, 'linearGradient');
     lg.id = 'g'; lg.setAttribute('x1','0'); lg.setAttribute('y1','0'); lg.setAttribute('x2','1'); lg.setAttribute('y2','1');
@@ -150,12 +130,11 @@
   catch { photos = []; }
   photos = (photos || []).filter(Boolean).map(s => String(s).trim()).filter(Boolean);
   if (cover && !photos.includes(cover)) photos.unshift(cover);
-
   const slides = [
     ...photos.map(src => ({ type:'img', src })),
     ...(urlSTL ? [{ type:'stl', src:urlSTL }] : [])
   ];
-  if (!slides.length) slides.push({type:'img', src:''}); // гарантовано хоч один кадр
+  if (!slides.length) slides.push({type:'img', src:''}); // щоб точно був хоч один кадр
 
   const stage  = document.getElementById('glrStage');
   const thumbs = document.getElementById('glrThumbs');
@@ -166,14 +145,10 @@
   let stlInited = false;
 
   function makeImgSlide(src) {
-    const s = document.createElement('div');
-    s.className = 'glr-slide';
+    const s = document.createElement('div'); s.className = 'glr-slide';
     if (src) {
       const img = document.createElement('img');
-      img.loading = 'eager';
-      img.decoding = 'async';
-      img.src = src;
-      img.alt = 'preview';
+      img.loading = 'eager'; img.decoding = 'async'; img.src = src; img.alt = 'preview';
       img.onerror = () => { s.innerHTML = ''; s.appendChild(makeInlinePlaceholder()); };
       s.appendChild(img);
     } else {
@@ -183,13 +158,9 @@
   }
 
   function makeStlSlide() {
-    const s = document.createElement('div');
-    s.className = 'glr-slide';
-    const holder = document.createElement('div');
-    holder.className = 'glr-stl';
-    holder.id = 'stl-holder';
-    s.appendChild(holder);
-    return s;
+    const s = document.createElement('div'); s.className = 'glr-slide';
+    const holder = document.createElement('div'); holder.className = 'glr-stl'; holder.id = 'stl-holder';
+    s.appendChild(holder); return s;
   }
 
   const slideEls = slides.map(sl => sl.type === 'img' ? makeImgSlide(sl.src) : makeStlSlide());
@@ -200,27 +171,19 @@
     if (sl.type === 'img') {
       if (sl.src) {
         const t = document.createElement('img');
-        t.src = sl.src;
-        t.alt = 'thumb';
-        t.className = 'gthumb';
+        t.src = sl.src; t.alt = 'thumb'; t.className = 'gthumb';
         t.addEventListener('error', () => { t.replaceWith(makeInlinePlaceholder()); });
         t.addEventListener('click', ()=>go(i));
         thumbs.appendChild(t);
       } else {
         const ph = makeInlinePlaceholder();
-        ph.style.width = '70px'; ph.style.height = '56px';
-        ph.style.border = '1px solid var(--line)'; ph.style.borderRadius = '8px';
-        ph.style.cursor = 'pointer'; ph.addEventListener('click', ()=>go(i));
-        thumbs.appendChild(ph);
+        ph.style.width='70px'; ph.style.height='56px'; ph.style.border='1px solid var(--line)'; ph.style.borderRadius='8px';
+        ph.style.cursor='pointer'; ph.addEventListener('click', ()=>go(i)); thumbs.appendChild(ph);
       }
     } else {
       const t = document.createElement('div');
-      t.className = 'gthumb-stl';
-      t.title = 'STL';
-      t.style.display = 'grid'; t.style.placeItems = 'center';
-      t.textContent = 'STL';
-      t.addEventListener('click', ()=>go(i));
-      thumbs.appendChild(t);
+      t.className = 'gthumb-stl'; t.title = 'STL'; t.style.display='grid'; t.style.placeItems='center'; t.textContent='STL';
+      t.addEventListener('click', ()=>go(i)); thumbs.appendChild(t);
     }
   });
 
@@ -229,12 +192,7 @@
     [...thumbs.children].forEach((el,i)=> el.classList.toggle('active', i===idx));
     if (slides[idx]?.type === 'stl' && !stlInited) { stlInited = true; initSTL(); }
   }
-
-  function go(newIdx){
-    if (!slides.length) return;
-    idx = (newIdx + slides.length) % slides.length;
-    markActive();
-  }
+  function go(newIdx){ if (!slides.length) return; idx = (newIdx + slides.length) % slides.length; markActive(); }
 
   prevBtn.onclick = ()=>go(idx-1);
   nextBtn.onclick = ()=>go(idx+1);
@@ -243,8 +201,7 @@
   let sx = null;
   stage.addEventListener('pointerdown', e=>{ sx = e.clientX; });
   stage.addEventListener('pointerup',   e=>{
-    if (sx==null) return; const dx = e.clientX - sx; sx=null;
-    if (Math.abs(dx) > 40) (dx>0 ? prevBtn.onclick() : nextBtn.onclick());
+    if (sx==null) return; const dx=e.clientX-sx; sx=null; if (Math.abs(dx)>40) (dx>0?prevBtn.onclick():nextBtn.onclick());
   });
 
   // старт
@@ -299,6 +256,4 @@
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
   }
 </script>
-</body>
-</html>
 {% endblock %}
