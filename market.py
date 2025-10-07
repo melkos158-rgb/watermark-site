@@ -3,7 +3,7 @@ import math
 import json
 from typing import Any, Dict, Optional
 
-from flask import Blueprint, render_template, jsonify, request, session
+from flask import Blueprint, render_template, jsonify, request, session, current_app
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
@@ -15,7 +15,8 @@ bp = Blueprint("market", __name__)
 ITEMS_TBL = "items"
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-UPLOAD_DIR = os.path.join("static", "market_uploads")
+# кореневу папку для завантажень формуємо відносно app/static в _save_upload
+UPLOAD_DIR = os.path.join("static", "market_uploads")  # залишаємо як «логічну»
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
@@ -49,14 +50,26 @@ def _normalize_sort(value: Optional[str]) -> str:
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
+    """
+    Зберігає файл у app/static/market_uploads/<subdir>/... і повертає веб-URL /static/...
+    """
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
+
     ext = os.path.splitext(file_storage.filename)[1].lower()
     if ext not in allowed_ext:
         return None
+
     safe = secure_filename(os.path.basename(file_storage.filename))
-    folder = os.path.join(UPLOAD_DIR, subdir)
+    if not safe:
+        safe = "file" + ext
+
+    # Абсолютний шлях до фізичної папки static
+    static_root = os.path.join(current_app.root_path, "static")
+    folder = os.path.join(static_root, "market_uploads", subdir)
     os.makedirs(folder, exist_ok=True)
+
+    # унікалізація імені
     name = safe
     base, e = os.path.splitext(name)
     dst = os.path.join(folder, name)
@@ -65,8 +78,11 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
         name = f"{base}_{i}{e}"
         dst = os.path.join(folder, name)
         i += 1
+
     file_storage.save(dst)
-    rel = os.path.relpath(dst, "static").replace("\\", "/")
+
+    # будуємо веб-шлях від /static
+    rel = os.path.relpath(dst, static_root).replace("\\", "/")
     return f"/static/{rel}"
 
 def json_dumps_safe(obj) -> str:
@@ -126,7 +142,7 @@ def api_items():
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
     ).scalar() or 0
 
-    # ——— основний SELECT з рейтингом (якщо колонки нема — fallback)
+    # основний SELECT з rating; якщо колонки нема — fallback
     sql_primary = f"""
         SELECT id, title, price, tags, cover, rating, downloads,
                file_url AS url, format, user_id, created_at
@@ -150,8 +166,6 @@ def api_items():
         ).fetchall()
         items = [_row_to_dict(r) for r in rows]
     except sa_exc.ProgrammingError:
-        # ВАЖЛИВО: відкотити транзакцію перед повтором у Postgres
-        db.session.rollback()
         rows = db.session.execute(
             text(sql_fallback),
             {**params, "limit": per_page, "offset": offset}
@@ -298,7 +312,7 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
              u.name   AS author_name,
              u.email  AS author_email,
              u.id     AS author_id,
-             COALESCE(u.avatar_url, '/static/avatars/default.jpg') AS author_avatar,
+             COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar,
              COALESCE(u.bio, '3D-дизайнер') AS author_bio
       FROM {ITEMS_TBL} i
       LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
@@ -317,8 +331,6 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     try:
         row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
     except sa_exc.ProgrammingError:
-        # ВАЖЛИВО: відкотити зламану транзакцію перед повтором
-        db.session.rollback()
         row = db.session.execute(text(sql_fallback), {"id": item_id}).fetchone()
 
     if not row:
@@ -326,6 +338,7 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
 
     d = _row_to_dict(row)
     # якщо в fallback не було колонок — додамо дефолти
-    d.setdefault("author_avatar", "/static/avatars/default.jpg")
+    d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
     return d
+
