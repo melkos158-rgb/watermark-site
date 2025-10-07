@@ -116,9 +116,18 @@ def api_items():
     page = max(1, _parse_int(request.args.get("page"), 1))
     per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
 
+    # ---- діалектно-безпечні вирази для пошуку
+    dialect = db.session.get_bind().dialect.name  # 'postgresql' або 'sqlite'
+    if dialect == "postgresql":
+        title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
+        tags_expr  = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
+    else:
+        title_expr = "LOWER(COALESCE(title, ''))"
+        tags_expr  = "LOWER(COALESCE(tags,  ''))"
+
     where, params = [], {}
     if q:
-        where.append("(LOWER(title) LIKE :q OR LOWER(tags) LIKE :q)")
+        where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
         params["q"] = f"%{q}%"
     if free == "free":
         where.append("price = 0")
@@ -341,4 +350,3 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
     return d
-
