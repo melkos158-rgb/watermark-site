@@ -72,7 +72,7 @@
 
 <script>
 (function(){
-  // коректна серіалізація user_id у JS
+  // user_id безпечним способом
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
   const form = document.getElementById('uploadForm');
@@ -82,6 +82,16 @@
   const coverUrl  = document.getElementById('cover_url');
   const coverPrev = document.getElementById('cover_preview');
   const coverNote = document.getElementById('cover_note');
+
+  // ---- допоміжне: нормалізація коротких URL
+  const isHttp = (u)=> /^https?:\/\//i.test(u);
+  const isStatic = (u)=> u.startsWith('/static/');
+  function autoPrefix(u){
+    u = (u || '').trim();
+    if (!u) return '';
+    if (isHttp(u) || isStatic(u)) return u;       // вже нормальний URL
+    return '/static/' + u.replace(/^\/+/, '');    // перетворюємо "bok.stl" -> "/static/bok.stl"
+  }
 
   function showCover(src){
     if(!src){
@@ -103,7 +113,7 @@
   });
 
   coverUrl.addEventListener('input', ()=>{
-    const url = coverUrl.value.trim();
+    const url = autoPrefix(coverUrl.value);
     if (url) showCover(url); else showCover('');
   });
 
@@ -122,24 +132,31 @@
 
     const fd = new FormData(form);
 
-    // нормалізація/очищення ПУСТИХ полів перед відправкою (щоб бекенд не падав)
+    // елементи
     const stlFileEl   = document.getElementById('stl_file');
     const stlUrlEl    = document.getElementById('stl_url');
     const coverFileEl = document.getElementById('cover_file');
     const coverUrlEl  = document.getElementById('cover_url');
     const priceEl     = document.getElementById('price');
 
-    if (!(stlFileEl.files && stlFileEl.files.length)) fd.delete('stl_file');
-    if (!stlUrlEl.value.trim())                        fd.delete('stl_url');
-    if (!(coverFileEl.files && coverFileEl.files.length)) fd.delete('cover_file');
-    if (!coverUrlEl.value.trim())                         fd.delete('cover_url');
+    // НОРМАЛІЗАЦІЯ: якщо файли не обрані, але є URL — автододаємо /static/ для коротких шляхів
+    if (!(stlFileEl.files && stlFileEl.files.length)) {
+      const norm = autoPrefix(stlUrlEl.value);
+      if (norm) fd.set('stl_url', norm); else fd.delete('stl_url');
+      fd.delete('stl_file');
+    }
+    if (!(coverFileEl.files && coverFileEl.files.length)) {
+      const norm = autoPrefix(coverUrlEl.value);
+      if (norm) fd.set('cover_url', norm); else fd.delete('cover_url');
+      fd.delete('cover_file');
+    }
 
-    // теги в масив (як і було)
+    // теги -> масив
     const tagsRaw = (document.getElementById('tags').value || '').trim();
     const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
     fd.set('tags', JSON.stringify(tagsArr));
 
-    // ціна як число (деякі бекенди падають на порожньому рядку)
+    // ціна як число
     const priceNum = Number(priceEl.value || 0);
     fd.set('price', String(isFinite(priceNum) ? priceNum : 0));
 
@@ -150,7 +167,7 @@
       const r = await fetch('/api/upload', {
         method: 'POST',
         body: fd,
-        headers: { 'Accept': 'application/json' } // просимо JSON замість HTML 500
+        headers: { 'Accept': 'application/json' }
       });
 
       let j = null;
@@ -174,6 +191,7 @@
     }
   });
 
+  // drag & drop підказки
   const stlInput = document.getElementById('stl_file');
   const stlHint  = document.getElementById('stl_file_hint');
   ['dragenter','dragover'].forEach(ev=>{
