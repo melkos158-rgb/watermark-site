@@ -72,7 +72,6 @@
 
 <script>
 (function(){
-  // user_id безпечним способом
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
   const form = document.getElementById('uploadForm');
@@ -83,14 +82,14 @@
   const coverPrev = document.getElementById('cover_preview');
   const coverNote = document.getElementById('cover_note');
 
-  // ---- допоміжне: нормалізація коротких URL
+  // --- нормалізація коротких URL ---
   const isHttp = (u)=> /^https?:\/\//i.test(u);
   const isStatic = (u)=> u.startsWith('/static/');
   function autoPrefix(u){
     u = (u || '').trim();
     if (!u) return '';
-    if (isHttp(u) || isStatic(u)) return u;       // вже нормальний URL
-    return '/static/' + u.replace(/^\/+/, '');    // перетворюємо "bok.stl" -> "/static/bok.stl"
+    if (isHttp(u) || isStatic(u)) return u;
+    return '/static/' + u.replace(/^\/+/, '');
   }
 
   function showCover(src){
@@ -139,7 +138,7 @@
     const coverUrlEl  = document.getElementById('cover_url');
     const priceEl     = document.getElementById('price');
 
-    // НОРМАЛІЗАЦІЯ: якщо файли не обрані, але є URL — автододаємо /static/ для коротких шляхів
+    // якщо файли не вибрані — нормалізуємо URL, інакше прибираємо URL
     if (!(stlFileEl.files && stlFileEl.files.length)) {
       const norm = autoPrefix(stlUrlEl.value);
       if (norm) fd.set('stl_url', norm); else fd.delete('stl_url');
@@ -151,7 +150,7 @@
       fd.delete('cover_file');
     }
 
-    // теги -> масив
+    // теги -> масив JSON
     const tagsRaw = (document.getElementById('tags').value || '').trim();
     const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
     fd.set('tags', JSON.stringify(tagsArr));
