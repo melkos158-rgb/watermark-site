@@ -15,14 +15,13 @@ bp = Blueprint("market", __name__)
 ITEMS_TBL = "items"
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-# кореневу папку для завантажень формуємо відносно app/static в _save_upload
-UPLOAD_DIR = os.path.join("static", "market_uploads")  # залишаємо як «логічну»
+# логічний шлях; фізично пишемо у app/static/... всередині _save_upload
+UPLOAD_DIR = os.path.join("static", "market_uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
-# дефолт для обкладинки, якщо не передано
 COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
 
 
@@ -50,38 +49,27 @@ def _normalize_sort(value: Optional[str]) -> str:
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
-    """
-    Зберігає файл у app/static/market_uploads/<subdir>/... і повертає веб-URL /static/...
-    """
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
-
     ext = os.path.splitext(file_storage.filename)[1].lower()
     if ext not in allowed_ext:
         return None
+    safe = secure_filename(os.path.basename(file_storage.filename)) or ("file" + ext)
 
-    safe = secure_filename(os.path.basename(file_storage.filename))
-    if not safe:
-        safe = "file" + ext
-
-    # Абсолютний шлях до фізичної папки static
     static_root = os.path.join(current_app.root_path, "static")
     folder = os.path.join(static_root, "market_uploads", subdir)
     os.makedirs(folder, exist_ok=True)
 
-    # унікалізація імені
     name = safe
     base, e = os.path.splitext(name)
     dst = os.path.join(folder, name)
     i = 1
     while os.path.exists(dst):
-        name = f"{base}_{i}{e}"""
+        name = f"{base}_{i}{e}"
         dst = os.path.join(folder, name)
         i += 1
 
     file_storage.save(dst)
-
-    # будуємо веб-шлях від /static
     rel = os.path.relpath(dst, static_root).replace("\\", "/")
     return f"/static/{rel}"
 
@@ -116,8 +104,8 @@ def api_items():
     page = max(1, _parse_int(request.args.get("page"), 1))
     per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
 
-    # ---- діалектно-безпечні вирази для пошуку
-    dialect = db.session.get_bind().dialect.name  # 'postgresql' або 'sqlite'
+    # діалектно-безпечні вирази (tags може бути JSON у PG)
+    dialect = db.session.get_bind().dialect.name
     if dialect == "postgresql":
         title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
         tags_expr  = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
@@ -151,7 +139,6 @@ def api_items():
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
     ).scalar() or 0
 
-    # основний SELECT з rating; якщо колонки нема — fallback
     sql_primary = f"""
         SELECT id, title, price, tags, cover, rating, downloads,
                file_url AS url, format, user_id, created_at
@@ -175,6 +162,8 @@ def api_items():
         ).fetchall()
         items = [_row_to_dict(r) for r in rows]
     except sa_exc.ProgrammingError:
+        # важливо: очистити транзакцію перед повтором
+        db.session.rollback()
         rows = db.session.execute(
             text(sql_fallback),
             {**params, "limit": per_page, "offset": offset}
@@ -213,7 +202,6 @@ def api_item_download(item_id: int):
 
 @bp.post("/api/upload")
 def api_upload():
-    # Читаємо multipart або JSON
     if request.content_type and request.content_type.startswith("multipart/form-data"):
         form, files = request.form, request.files
         title = (form.get("title") or "").strip()
@@ -253,11 +241,9 @@ def api_upload():
         tags_val = data.get("tags") or ""
         user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
 
-    # якщо обкладинки немає — ставимо плейсхолдер (захист від NOT NULL)
     if not cover:
         cover = COVER_PLACEHOLDER
 
-    # Теги -> рядок
     if isinstance(tags_val, list):
         tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
     else:
@@ -268,9 +254,8 @@ def api_upload():
 
     photos_json = json_dumps_safe([])
 
-    dialect = db.session.get_bind().dialect.name  # 'postgresql' або 'sqlite'
+    dialect = db.session.get_bind().dialect.name
     if dialect == "postgresql":
-        # екрануємо "desc", бо це ключове слово
         sql = f"""
             INSERT INTO {ITEMS_TBL}
               (title, "desc", price, tags, cover, photos, file_url, format,
@@ -280,7 +265,7 @@ def api_upload():
                :file_url, :format, 0, :user_id, NOW(), NOW())
             RETURNING id
         """
-    else:  # sqlite
+    else:
         sql = f"""
             INSERT INTO {ITEMS_TBL}
               (title, "desc", price, tags, cover, photos, file_url, format,
@@ -314,7 +299,6 @@ def api_upload():
 
 
 def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
-    # основний запит — з avatar_url/bio; якщо їх нема у схеми users — fallback
     sql_primary = f"""
       SELECT i.*, 
              i.file_url AS url,
@@ -340,13 +324,13 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     try:
         row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
     except sa_exc.ProgrammingError:
+        db.session.rollback()  # критично перед повторною спробою
         row = db.session.execute(text(sql_fallback), {"id": item_id}).fetchone()
 
     if not row:
         return None
 
     d = _row_to_dict(row)
-    # якщо в fallback не було колонок — додамо дефолти
     d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
     return d
