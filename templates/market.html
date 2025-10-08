@@ -158,7 +158,7 @@
 
       const r = await fetch(url);
       if (!r.ok){
-        // прибираємо лоадер, поки не чіпали grid.innerHTML
+        // видалити лоадер лише якщо він ще в DOM
         if (loadingCard.parentNode === grid) grid.removeChild(loadingCard);
 
         if (MODE==='mine' && r.status===401){
@@ -177,7 +177,6 @@
       const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
       const pages = Number(data.pages || 1);
 
-      // клієнтське сортування (на всяк випадок)
       if (sortSel.value === 'price_asc') {
         items.sort((a,b)=>(+a.price||0)-(+b.price||0));
       } else if (sortSel.value === 'price_desc') {
