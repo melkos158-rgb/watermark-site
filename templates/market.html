@@ -34,7 +34,10 @@
   </div>
 
   <div id="notice" class="notice" style="display:none"></div>
+
   <div id="grid" class="grid"></div>
+  <!-- Сенсор для нескінченного скролу -->
+  <div id="sentinel" class="sentinel"></div>
 </div>
 
 <style>
@@ -69,6 +72,7 @@
   .actions{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
   .empty{text-align:center;color:var(--muted);padding:20px;}
   .notice{margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);}
+  .sentinel{height:1px}
   @media(max-width:700px){
     header{flex-direction:column;align-items:stretch;}
     .search-box{flex:none;}
@@ -77,7 +81,6 @@
 </style>
 
 <script type="module">
-  // Поточний користувач (для "Мої оголошення" та кнопок редагування/видалення)
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
   const grid = document.getElementById('grid');
@@ -87,16 +90,21 @@
   const btnSearch = document.getElementById('btnSearch');
   const btnMine = document.getElementById('btnMine');
   const notice = document.getElementById('notice');
+  const sentinel = document.getElementById('sentinel');
 
-  // режим: 'all' або 'mine'
-  let MODE = 'all';
+  // Режим списку
+  let MODE = 'all';              // 'all' | 'mine'
+  // Стан пагінації
+  let page = 1;
+  const PER_PAGE = 24;
+  let hasMore = true;
+  let loading = false;
 
-  btnSearch.addEventListener('click', load);
-  filterFree.addEventListener('change', ()=>{ if(MODE==='all') load(); });
-  sortSel.addEventListener('change', load);
-  window.addEventListener('load', load);
-
-  q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); load(); } });
+  btnSearch.addEventListener('click', resetAndLoad);
+  filterFree.addEventListener('change', ()=>{ if(MODE==='all') resetAndLoad(); });
+  sortSel.addEventListener('change', resetAndLoad);
+  window.addEventListener('load', resetAndLoad);
+  q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); resetAndLoad(); } });
 
   btnMine.addEventListener('click', async ()=>{
     if (!CURRENT_USER_ID){
@@ -105,7 +113,7 @@
     }
     MODE = (MODE === 'mine') ? 'all' : 'mine';
     btnMine.classList.toggle('active', MODE==='mine');
-    await load();
+    resetAndLoad();
   });
 
   function showNotice(text, timeout=2200){
@@ -116,55 +124,85 @@
     }
   }
 
-  async function load(){
-    grid.innerHTML = `<div class="empty">Завантаження…</div>`;
+  function resetAndLoad(){
+    page = 1;
+    hasMore = true;
+    grid.innerHTML = '';
+    loadNextPage();
+  }
+
+  async function loadNextPage(){
+    if (!hasMore || loading) return;
+    loading = true;
+
+    // Плашка "завантаження"
+    const loadingCard = document.createElement('div');
+    loadingCard.className = 'empty';
+    loadingCard.textContent = 'Завантаження…';
+    grid.appendChild(loadingCard);
+
     try{
-      let items = [];
+      let url;
       if (MODE === 'mine'){
-        // Очікуємо, що бек повертає { items: [...] } на /api/my/items
-        const r = await fetch(`/api/my/items`);
-        if (r.status === 404){
-          showNotice('Ендпоінт /api/my/items відсутній. Додай його в бекенді, щоб фільтр "Мої" працював.');
-          grid.innerHTML = `<div class="empty">Немає ендпоінта /api/my/items</div>`;
-          return;
-        }
-        if (r.status === 401){
-          showNotice('Увійди, щоб бачити свої оголошення.');
-          grid.innerHTML = `<div class="empty">Авторизуйся.</div>`;
-          return;
-        }
-        const data = await r.json();
-        items = Array.isArray(data.items) ? data.items : [];
+        // серверна пагінація
+        url = `/api/my/items?page=${page}&per_page=${PER_PAGE}`;
       } else {
-        // Бекенд повертає { items: [...] } на /api/items
-        const r = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
-        const data = await r.json();
-        items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+        const qs = new URLSearchParams({
+          q: q.value || '',
+          free: filterFree.value,
+          page: String(page),
+          per_page: String(PER_PAGE)
+        }).toString();
+        url = `/api/items?${qs}`;
       }
 
-      // клієнтське сортування
+      const r = await fetch(url);
+      if (!r.ok){
+        grid.removeChild(loadingCard);
+        if (MODE==='mine' && r.status===401){
+          showNotice('Увійди, щоб бачити свої оголошення.');
+          grid.innerHTML = `<div class="empty">Авторизуйся.</div>`;
+        } else {
+          grid.innerHTML = `<div class="empty">Помилка завантаження (${r.status}).</div>`;
+        }
+        loading = false;
+        hasMore = false;
+        return;
+      }
+
+      const data = await r.json().catch(()=> ({}));
+      // бек завжди повертає об’єкт {items, page, pages, total...}
+      const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+      const pages = Number(data.pages || 1);
+
+      // клієнтське сортування (на всяк випадок)
       if (sortSel.value === 'price_asc') {
         items.sort((a,b)=>(+a.price||0)-(+b.price||0));
       } else if (sortSel.value === 'price_desc') {
         items.sort((a,b)=>(+b.price||0)-(+a.price||0));
       } else if (sortSel.value === 'new') {
-        // fallback на випадок, якщо бек не відсортований
-        items = items.slice().sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        items.sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
       }
 
-      renderItems(items);
+      grid.removeChild(loadingCard);
+      appendItems(items);
+
+      page += 1;
+      hasMore = page <= pages && items.length > 0;
+
+      if (!grid.children.length){
+        grid.innerHTML = `<div class="empty">${MODE==='mine' ? 'У тебе ще немає оголошень.' : 'Нічого не знайдено 😿'}</div>`;
+      }
     }catch(e){
       console.error(e);
-      grid.innerHTML = `<div class="empty">Помилка завантаження.</div>`;
+      grid.innerHTML = `<div class="empty">Помилка мережі.</div>`;
+      hasMore = false;
+    }finally{
+      loading = false;
     }
   }
 
-  function renderItems(items){
-    grid.innerHTML = '';
-    if(!items.length){
-      grid.innerHTML = `<div class="empty">${MODE==='mine' ? 'У тебе ще немає оголошень.' : 'Нічого не знайдено 😿'}</div>`;
-      return;
-    }
+  function appendItems(items){
     for(const it of items){
       const tagsArr = Array.isArray(it.tags)
         ? it.tags
@@ -174,7 +212,8 @@
       const el = document.createElement('div');
       el.className='item';
       el.innerHTML = `
-        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb" onerror="this.src='/static/img/placeholder_stl.jpg'">
+        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb"
+             onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg';">
         <div class="meta">
           <div class="title">${escapeHtml(it.title||'Без назви')}</div>
           <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
@@ -182,7 +221,7 @@
           <div class="price">${(+it.price||0)===0 ? 'Безкоштовно' : (Number(it.price)+' PLN')}</div>
           <div class="actions">
             <button class="btn primary" data-open="${it.id}">Переглянути</button>
-            ${ showOwnerActions(it) }
+            ${ ownerActions(it) }
           </div>
         </div>
       `;
@@ -190,7 +229,7 @@
     }
   }
 
-  function showOwnerActions(it){
+  function ownerActions(it){
     const isOwner = MODE==='mine' || (CURRENT_USER_ID && +it.user_id === +CURRENT_USER_ID);
     if (!isOwner) return '';
     return `
@@ -215,14 +254,10 @@
       if (!confirm('Видалити оголошення безповоротно?')) return;
       try{
         const r = await fetch(`/api/item/${delId}/delete`, { method:'POST' });
-        if (r.status === 404){
-          showNotice('Ендпоінт видалення відсутній. Додай /api/item/<id>/delete у бекенді.');
-          return;
-        }
         const j = await r.json().catch(()=>({}));
         if (r.ok && j.ok){
           showNotice('Оголошення видалено.');
-          load();
+          resetAndLoad();
         } else {
           showNotice('Не вдалося видалити (немає прав або помилка).');
         }
@@ -232,6 +267,14 @@
       }
     }
   });
+
+  // Нескінченний скрол: коли sentinel у видимій області — підвантажуємо наступну сторінку
+  const io = new IntersectionObserver((entries)=>{
+    for (const en of entries){
+      if (en.isIntersecting) loadNextPage();
+    }
+  }, { rootMargin: '800px 0px' });
+  io.observe(sentinel);
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, m => (
