@@ -1,296 +1,140 @@
 {% extends "base.html" %}
 {% block content %}
+<h1>+ Додати STL</h1>
 
-<div class="wrap">
-  <header>
-    <div class="brand">🧩 STL Market</div>
-
-    <div class="search-box">
-      <input id="q" placeholder="Пошук: dragon, stand, toy..." />
-      <button class="btn" id="btnSearch">🔍</button>
-    </div>
-
-    <div class="toolbar">
-      <button class="btn" id="btnMine" title="Показати тільки мої оголошення">Мої оголошення</button>
-      <a href="{{ url_for('market.page_upload') }}" class="btn primary">+ Додати модель</a>
-    </div>
-  </header>
-
-  <div class="controls">
-    <label>Показати:
-      <select id="filterFree">
-        <option value="all">Усі</option>
-        <option value="free">Безкоштовні</option>
-        <option value="paid">Платні</option>
-      </select>
-    </label>
-    <label>Сортувати:
-      <select id="sort">
-        <option value="new">Нові</option>
-        <option value="price_asc">Ціна ↑</option>
-        <option value="price_desc">Ціна ↓</option>
-      </select>
-    </label>
-  </div>
-
-  <div id="notice" class="notice" style="display:none"></div>
-
-  <div id="grid" class="grid"></div>
-  <!-- Сенсор для нескінченного скролу -->
-  <div id="sentinel" class="sentinel"></div>
+<!-- КНОПКА МОЇ ОГОЛОШЕННЯ -->
+<div style="margin:8px 0 16px 0; display:flex; gap:8px;">
+  <a href="/my" class="btn">Мої оголошення</a>
 </div>
 
-<style>
-  :root {
-    --bg:#0f1116; --card:#141923; --muted:#8792a7;
-    --line:#232a3a; --text:#e7ebf4; --accent:#3b82f6; --danger:#ef4444;
-  }
-  .wrap{max-width:1280px;margin:0 auto;padding:16px;}
-  header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
-  .brand{font-weight:800;font-size:18px;letter-spacing:.3px;}
-  .search-box{flex:1;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px;}
-  .search-box input{flex:1;background:transparent;border:none;color:var(--text);font-size:14px;outline:none;}
-  .toolbar{display:flex;gap:8px}
-  .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;}
-  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
-  .btn:active{transform:scale(.98);}
-  .btn.danger{border-color:var(--danger); color:#fff; background:var(--danger);}
-  .btn.ghost{opacity:.85}
-  .btn.active{outline:2px solid var(--accent)}
-  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
-  select{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:8px 10px;}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;}
-  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;}
-  .item:hover{transform:translateY(-2px);}
-  .thumb{width:100%;aspect-ratio:4/3;object-fit:cover;border-bottom:1px solid var(--line);}
-  .meta{padding:10px;display:flex;flex-direction:column;gap:4px;}
-  .title{font-weight:700;}
-  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
-  .tag{font-size:12px;border:1px solid var(--line);padding:2px 6px;border-radius:999px;color:var(--muted);}
-  .muted{color:var(--muted);font-size:13px;}
-  .price{font-weight:700;}
-  .actions{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
-  .empty{text-align:center;color:var(--muted);padding:20px;}
-  .notice{margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);}
-  .sentinel{height:1px}
-  @media(max-width:700px){
-    header{flex-direction:column;align-items:stretch;}
-    .search-box{flex:none;}
-    .toolbar{justify-content:space-between}
-  }
-</style>
+<div class="card" style="max-width:800px">
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label>Назва</label>
+    <input id="title" name="title" required placeholder="Dragon, Phone stand…" style="width:100%">
 
-<script type="module">
+    <div style="height:10px"></div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap">
+      <div style="flex:1; min-width:160px">
+        <label>Ціна (0 = безкоштовно)</label>
+        <input id="price" name="price" type="number" min="0" value="0" required style="width:100%">
+      </div>
+      <div style="flex:2; min-width:220px">
+        <label>Теги (через кому)</label>
+        <input id="tags" name="tags" placeholder="dragon,toy,figure" style="width:100%">
+      </div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
+      <legend style="padding:0 6px">3D-модель (файл)</legend>
+      <div>
+        <label>Файл STL/OBJ/PLY/GLTF/GLB <span class="muted">(обовʼязково)</span></label>
+        <input id="stl_file" name="stl_file" type="file" accept=".stl,.obj,.ply,.gltf,.glb" required>
+        <div class="muted" id="stl_file_hint">Перетягни файл сюди або вибери.</div>
+      </div>
+    </fieldset>
+
+    <div style="height:14px"></div>
+
+    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
+      <legend style="padding:0 6px">Обкладинка (файл)</legend>
+      <div>
+        <label>Файл JPG/PNG/WEBP <span class="muted">(необовʼязково)</span></label>
+        <input id="cover_file" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp">
+        <div class="muted">Якщо не вкажеш — поставимо плейсхолдер.</div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:12px; align-items:center">
+        <img id="cover_preview" src="" alt="" style="display:none; width:120px; height:90px; object-fit:cover; border:1px solid #1b2131; border-radius:8px">
+        <span class="muted" id="cover_note">Попередній перегляд зʼявиться після вибору файлу.</span>
+      </div>
+    </fieldset>
+
+    <div style="height:14px"></div>
+
+    <label>Опис</label>
+    <textarea id="desc" name="desc" rows="5" placeholder="Короткий опис моделі…" style="width:100%"></textarea>
+
+    <div style="height:14px"></div>
+
+    <button class="btn primary" id="send" type="submit">Зберегти</button>
+    <span id="msg" class="muted" style="margin-left:10px"></span>
+  </form>
+</div>
+
+<script>
+(function(){
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
-  const grid = document.getElementById('grid');
-  const q = document.getElementById('q');
-  const filterFree = document.getElementById('filterFree');
-  const sortSel = document.getElementById('sort');
-  const btnSearch = document.getElementById('btnSearch');
-  const btnMine = document.getElementById('btnMine');
-  const notice = document.getElementById('notice');
-  const sentinel = document.getElementById('sentinel');
+  const form = document.getElementById('uploadForm');
+  const msg  = document.getElementById('msg');
 
-  // Режим списку
-  let MODE = 'all';              // 'all' | 'mine'
-  // Стан пагінації
-  let page = 1;
-  const PER_PAGE = 24;
-  let hasMore = true;
-  let loading = false;
+  const coverFile = document.getElementById('cover_file');
+  const coverPrev = document.getElementById('cover_preview');
+  const coverNote = document.getElementById('cover_note');
 
-  // Ідентифікатор серії запитів (щоб ігнорити «старі» відповіді після reset)
-  let series = 0;
+  function showCover(file){
+    if(!file){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу.'; return; }
+    coverPrev.src = URL.createObjectURL(file);
+    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
+  }
+  coverFile.addEventListener('change', ()=>{ showCover(coverFile.files && coverFile.files[0]); });
 
-  btnSearch.addEventListener('click', resetAndLoad);
-  filterFree.addEventListener('change', ()=>{ if(MODE==='all') resetAndLoad(); });
-  sortSel.addEventListener('change', resetAndLoad);
-  window.addEventListener('load', resetAndLoad);
-  q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); resetAndLoad(); } });
-
-  btnMine.addEventListener('click', async ()=>{
-    if (!CURRENT_USER_ID){
-      showNotice('Потрібно увійти, щоб бачити свої оголошення.');
-      return;
-    }
-    MODE = (MODE === 'mine') ? 'all' : 'mine';
-    btnMine.classList.toggle('active', MODE==='mine');
-    resetAndLoad();
-  });
-
-  function showNotice(text, timeout=2200){
-    notice.textContent = text;
-    notice.style.display = 'block';
-    if (timeout){
-      setTimeout(()=>{ notice.style.display='none'; }, timeout);
-    }
+  function validateFiles(){
+    const stlFile = document.getElementById('stl_file');
+    return !!(stlFile.files && stlFile.files.length);
   }
 
-  function resetAndLoad(){
-    page = 1;
-    hasMore = true;
-    loading = false;
-    series++;            // нова серія запитів
-    grid.innerHTML = '';
-    loadNextPage();
-  }
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    msg.textContent = '';
 
-  async function loadNextPage(){
-    if (!hasMore || loading) return;
-    loading = true;
-    const mySeries = series;
+    if (!CURRENT_USER_ID){ msg.textContent = 'Потрібно увійти, щоб додати модель.'; return; }
+    if (!validateFiles()){ msg.textContent = 'Додай файл моделі (STL/OBJ/PLY/GLTF/GLB).'; return; }
 
-    // Плашка "завантаження"
-    const loadingCard = document.createElement('div');
-    loadingCard.className = 'empty';
-    loadingCard.textContent = 'Завантаження…';
-    grid.appendChild(loadingCard);
+    const fd = new FormData(form);
+    // прибираємо будь-які неіснуючі файли (на випадок пустих інпутів)
+    const stlFileEl   = document.getElementById('stl_file');
+    const coverFileEl = document.getElementById('cover_file');
+    if (!(stlFileEl.files && stlFileEl.files.length)) fd.delete('stl_file');
+    if (!(coverFileEl.files && coverFileEl.files.length)) fd.delete('cover_file');
+
+    // теги -> масив JSON
+    const tagsRaw = (document.getElementById('tags').value || '').trim();
+    const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    fd.set('tags', JSON.stringify(tagsArr));
+
+    // user_id явно
+    fd.set('user_id', String(CURRENT_USER_ID));
 
     try{
-      let url;
-      if (MODE === 'mine'){
-        // серверна пагінація
-        url = `/api/my/items?page=${page}&per_page=${PER_PAGE}`;
+      const r = await fetch('/api/upload', { method:'POST', body: fd, headers: { 'Accept': 'application/json' }});
+      let j = null;
+      try { j = await r.clone().json(); }
+      catch { msg.textContent = 'Помилка ' + r.status + ': ' + (await r.text()).slice(0,200); return; }
+
+      if (j.ok){
+        msg.textContent = 'Готово! Перехід до сторінки…';
+        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
       } else {
-        const qs = new URLSearchParams({
-          q: q.value || '',
-          free: filterFree.value,
-          page: String(page),
-          per_page: String(PER_PAGE)
-        }).toString();
-        url = `/api/items?${qs}`;
+        msg.textContent = 'Помилка: ' + (j.error || 'server');
       }
-
-      const r = await fetch(url);
-
-      // Якщо за час очікування сталася нова «серія» — ігноруємо відповідь
-      if (mySeries !== series) return;
-
-      if (!r.ok){
-        if (loadingCard.parentNode === grid) grid.removeChild(loadingCard); // БЕЗПЕЧНО
-        if (MODE==='mine' && r.status===401){
-          showNotice('Увійди, щоб бачити свої оголошення.');
-          grid.innerHTML = `<div class="empty">Авторизуйся.</div>`;
-        } else {
-          grid.innerHTML = `<div class="empty">Помилка завантаження (${r.status}).</div>`;
-        }
-        loading = false;
-        hasMore = false;
-        return;
-      }
-
-      const data = await r.json().catch(()=> ({}));
-      const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
-      const pages = Number(data.pages || 1);
-
-      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard); // БЕЗПЕЧНО
-      appendItems(items);
-
-      page += 1;
-      hasMore = page <= pages && items.length > 0;
-
-      if (!grid.children.length){
-        grid.innerHTML = `<div class="empty">${MODE==='mine' ? 'У тебе ще немає оголошень.' : 'Нічого не знайдено 😿'}</div>`;
-      }
-    }catch(e){
-      console.error(e);
-      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard); // БЕЗПЕЧНО
-      grid.innerHTML = `<div class="empty">Помилка мережі.</div>`;
-      hasMore = false;
-    }finally{
-      loading = false;
-    }
-  }
-
-  function appendItems(items){
-    // клієнтське сортування (на всяк випадок)
-    if (sortSel.value === 'price_asc') {
-      items.sort((a,b)=>(+a.price||0)-(+b.price||0));
-    } else if (sortSel.value === 'price_desc') {
-      items.sort((a,b)=>(+b.price||0)-(+a.price||0));
-    } else if (sortSel.value === 'new') {
-      items.sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
-    }
-
-    for(const it of items){
-      const tagsArr = Array.isArray(it.tags)
-        ? it.tags
-        : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
-      const coverSrc = it.cover || '/static/img/placeholder_stl.jpg';
-
-      const el = document.createElement('div');
-      el.className='item';
-      el.innerHTML = `
-        <img src="${coverSrc}" loading="lazy" alt="${escapeHtml(it.title||'')}" class="thumb"
-             onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg';">
-        <div class="meta">
-          <div class="title">${escapeHtml(it.title||'Без назви')}</div>
-          <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
-          <div class="muted">★ ${it.rating ?? '—'}</div>
-          <div class="price">${(+it.price||0)===0 ? 'Безкоштовно' : (Number(it.price)+' PLN')}</div>
-          <div class="actions">
-            <button class="btn primary" data-open="${it.id}">Переглянути</button>
-            ${ ownerActions(it) }
-          </div>
-        </div>
-      `;
-      grid.appendChild(el);
-    }
-  }
-
-  function ownerActions(it){
-    const isOwner = MODE==='mine' || (CURRENT_USER_ID && +it.user_id === +CURRENT_USER_ID);
-    if (!isOwner) return '';
-    return `
-      <button class="btn ghost" data-edit="${it.id}">Редагувати</button>
-      <button class="btn danger" data-del="${it.id}">Видалити</button>
-    `;
-  }
-
-  grid.addEventListener('click', async (e)=>{
-    const openId = e.target?.dataset?.open;
-    if (openId) {
-      window.location.href = `/item/${openId}`;
-      return;
-    }
-    const editId = e.target?.dataset?.edit;
-    if (editId){
-      window.location.href = `/edit/${editId}`;
-      return;
-    }
-    const delId = e.target?.dataset?.del;
-    if (delId){
-      if (!confirm('Видалити оголошення безповоротно?')) return;
-      try{
-        const r = await fetch(`/api/item/${delId}/delete`, { method:'POST' });
-        const j = await r.json().catch(()=>({}));
-        if (r.ok && j.ok){
-          showNotice('Оголошення видалено.');
-          resetAndLoad();
-        } else {
-          showNotice('Не вдалося видалити (немає прав або помилка).');
-        }
-      }catch(err){
-        console.error(err);
-        showNotice('Помилка мережі при видаленні.');
-      }
+    } catch(err){
+      console.error(err);
+      msg.textContent = 'Помилка мережі.';
     }
   });
 
-  // Нескінченний скрол: коли sentinel у видимій області — підвантажуємо наступну сторінку
-  const io = new IntersectionObserver((entries)=>{
-    for (const en of entries){
-      if (en.isIntersecting) loadNextPage();
-    }
-  }, { rootMargin: '800px 0px' });
-  io.observe(sentinel);
-
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, m => (
-      { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]
-    ));
-  }
+  // drag & drop підказки
+  const stlInput = document.getElementById('stl_file');
+  const stlHint  = document.getElementById('stl_file_hint');
+  ['dragenter','dragover'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; } });
+  });
+  ['dragleave','drop'].forEach(ev=>{
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Перетягни файл сюди або вибери.'; } });
+  });
+})();
 </script>
-
 {% endblock %}
