@@ -1,140 +1,535 @@
-{% extends "base.html" %}
-{% block content %}
-<h1>+ Додати STL</h1>
+import os
+import math
+import json
+from typing import Any, Dict, Optional
 
-<!-- КНОПКА МОЇ ОГОЛОШЕННЯ -->
-<div style="margin:8px 0 16px 0; display:flex; gap:8px;">
-  <a href="/my" class="btn">Мої оголошення</a>
-</div>
+from flask import Blueprint, render_template, jsonify, request, session, current_app
+from sqlalchemy import text
+from sqlalchemy import exc as sa_exc
+from werkzeug.utils import secure_filename
 
-<div class="card" style="max-width:800px">
-  <form id="uploadForm" enctype="multipart/form-data">
-    <label>Назва</label>
-    <input id="title" name="title" required placeholder="Dragon, Phone stand…" style="width:100%">
+from db import db, User
 
-    <div style="height:10px"></div>
+bp = Blueprint("market", __name__)
 
-    <div style="display:flex; gap:12px; flex-wrap:wrap">
-      <div style="flex:1; min-width:160px">
-        <label>Ціна (0 = безкоштовно)</label>
-        <input id="price" name="price" type="number" min="0" value="0" required style="width:100%">
-      </div>
-      <div style="flex:2; min-width:220px">
-        <label>Теги (через кому)</label>
-        <input id="tags" name="tags" placeholder="dragon,toy,figure" style="width:100%">
-      </div>
-    </div>
+ITEMS_TBL = "items"
+USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-    <div style="height:14px"></div>
+# логічний шлях; фізично пишемо у app/static/... всередині _save_upload
+UPLOAD_DIR = os.path.join("static", "market_uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
-      <legend style="padding:0 6px">3D-модель (файл)</legend>
-      <div>
-        <label>Файл STL/OBJ/PLY/GLTF/GLB <span class="muted">(обовʼязково)</span></label>
-        <input id="stl_file" name="stl_file" type="file" accept=".stl,.obj,.ply,.gltf,.glb" required>
-        <div class="muted" id="stl_file_hint">Перетягни файл сюди або вибери.</div>
-      </div>
-    </fieldset>
+ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
-    <div style="height:14px"></div>
+COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
 
-    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
-      <legend style="padding:0 6px">Обкладинка (файл)</legend>
-      <div>
-        <label>Файл JPG/PNG/WEBP <span class="muted">(необовʼязково)</span></label>
-        <input id="cover_file" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp">
-        <div class="muted">Якщо не вкажеш — поставимо плейсхолдер.</div>
-      </div>
-      <div style="margin-top:10px; display:flex; gap:12px; align-items:center">
-        <img id="cover_preview" src="" alt="" style="display:none; width:120px; height:90px; object-fit:cover; border:1px solid #1b2131; border-radius:8px">
-        <span class="muted" id="cover_note">Попередній перегляд зʼявиться після вибору файлу.</span>
-      </div>
-    </fieldset>
 
-    <div style="height:14px"></div>
+def _row_to_dict(row) -> Dict[str, Any]:
+    try:
+        return dict(row._mapping)
+    except Exception:
+        return dict(row)
 
-    <label>Опис</label>
-    <textarea id="desc" name="desc" rows="5" placeholder="Короткий опис моделі…" style="width:100%"></textarea>
+def _parse_int(v, default=0):
+    try:
+        return int(v)
+    except Exception:
+        try:
+            return int(float(v))
+        except Exception:
+            return default
 
-    <div style="height:14px"></div>
+def _normalize_free(value: Optional[str]) -> str:
+    v = (value or "all").lower()
+    return v if v in ("all", "free", "paid") else "all"
 
-    <button class="btn primary" id="send" type="submit">Зберегти</button>
-    <span id="msg" class="muted" style="margin-left:10px"></span>
-  </form>
-</div>
+def _normalize_sort(value: Optional[str]) -> str:
+    v = (value or "new").lower()
+    return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
-<script>
-(function(){
-  const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
+def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return None
+    ext = os.path.splitext(file_storage.filename)[1].lower()
+    if ext not in allowed_ext:
+        return None
+    safe = secure_filename(os.path.basename(file_storage.filename)) or ("file" + ext)
 
-  const form = document.getElementById('uploadForm');
-  const msg  = document.getElementById('msg');
+    static_root = os.path.join(current_app.root_path, "static")
+    folder = os.path.join(static_root, "market_uploads", subdir)
+    os.makedirs(folder, exist_ok=True)
 
-  const coverFile = document.getElementById('cover_file');
-  const coverPrev = document.getElementById('cover_preview');
-  const coverNote = document.getElementById('cover_note');
+    name = safe
+    base, e = os.path.splitext(name)
+    dst = os.path.join(folder, name)
+    i = 1
+    while os.path.exists(dst):
+        name = f"{base}_{i}{e}"
+        dst = os.path.join(folder, name)
+        i += 1
 
-  function showCover(file){
-    if(!file){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу.'; return; }
-    coverPrev.src = URL.createObjectURL(file);
-    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
-  }
-  coverFile.addEventListener('change', ()=>{ showCover(coverFile.files && coverFile.files[0]); });
+    file_storage.save(dst)
+    rel = os.path.relpath(dst, static_root).replace("\\", "/")
+    return f"/static/{rel}"
 
-  function validateFiles(){
-    const stlFile = document.getElementById('stl_file');
-    return !!(stlFile.files && stlFile.files.length);
-  }
+def json_dumps_safe(obj) -> str:
+    try:
+        return json.dumps(obj, ensure_ascii=False)
+    except Exception:
+        return "[]"
 
-  form.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    msg.textContent = '';
 
-    if (!CURRENT_USER_ID){ msg.textContent = 'Потрібно увійти, щоб додати модель.'; return; }
-    if (!validateFiles()){ msg.textContent = 'Додай файл моделі (STL/OBJ/PLY/GLTF/GLB).'; return; }
+@bp.get("/market")
+def page_market():
+    return render_template("market.html")
 
-    const fd = new FormData(form);
-    // прибираємо будь-які неіснуючі файли (на випадок пустих інпутів)
-    const stlFileEl   = document.getElementById('stl_file');
-    const coverFileEl = document.getElementById('cover_file');
-    if (!(stlFileEl.files && stlFileEl.files.length)) fd.delete('stl_file');
-    if (!(coverFileEl.files && coverFileEl.files.length)) fd.delete('cover_file');
+@bp.get("/item/<int:item_id>")
+def page_item(item_id: int):
+    it = _fetch_item_with_author(item_id)
+    if not it:
+        return render_template("item.html", item=None), 404
+    return render_template("item.html", item=it)
 
-    // теги -> масив JSON
-    const tagsRaw = (document.getElementById('tags').value || '').trim();
-    const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
-    fd.set('tags', JSON.stringify(tagsArr));
+@bp.get("/upload")
+def page_upload():
+    return render_template("upload.html")
 
-    // user_id явно
-    fd.set('user_id', String(CURRENT_USER_ID));
 
-    try{
-      const r = await fetch('/api/upload', { method:'POST', body: fd, headers: { 'Accept': 'application/json' }});
-      let j = null;
-      try { j = await r.clone().json(); }
-      catch { msg.textContent = 'Помилка ' + r.status + ': ' + (await r.text()).slice(0,200); return; }
+@bp.get("/api/items")
+def api_items():
+    q = (request.args.get("q") or "").strip().lower()
+    free = _normalize_free(request.args.get("free"))
+    sort = _normalize_sort(request.args.get("sort"))
+    page = max(1, _parse_int(request.args.get("page"), 1))
+    per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
 
-      if (j.ok){
-        msg.textContent = 'Готово! Перехід до сторінки…';
-        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
-      } else {
-        msg.textContent = 'Помилка: ' + (j.error || 'server');
-      }
-    } catch(err){
-      console.error(err);
-      msg.textContent = 'Помилка мережі.';
-    }
-  });
+    # діалектно-безпечні вирази (tags може бути JSON у PG)
+    dialect = db.session.get_bind().dialect.name
+    if dialect == "postgresql":
+        title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
+        tags_expr  = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
+    else:
+        title_expr = "LOWER(COALESCE(title, ''))"
+        tags_expr  = "LOWER(COALESCE(tags,  ''))"
 
-  // drag & drop підказки
-  const stlInput = document.getElementById('stl_file');
-  const stlHint  = document.getElementById('stl_file_hint');
-  ['dragenter','dragover'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; } });
-  });
-  ['dragleave','drop'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Перетягни файл сюди або вибери.'; } });
-  });
-})();
-</script>
-{% endblock %}
+    where, params = [], {}
+    if q:
+        where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
+        params["q"] = f"%{q}%"
+    if free == "free":
+        where.append("price = 0")
+    elif free == "paid":
+        where.append("price > 0")
+
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    if sort == "price_asc":
+        order_sql = "ORDER BY price ASC, created_at DESC"
+    elif sort == "price_desc":
+        order_sql = "ORDER BY price DESC, created_at DESC"
+    elif sort == "downloads":
+        order_sql = "ORDER BY downloads DESC, created_at DESC"
+    else:
+        order_sql = "ORDER BY created_at DESC, id DESC"
+
+    offset = (page - 1) * per_page
+
+    total = db.session.execute(
+        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
+    ).scalar() or 0
+
+    sql_primary = f"""
+        SELECT id, title, price, tags, cover, rating, downloads,
+               file_url AS url, format, user_id, created_at
+        FROM {ITEMS_TBL}
+        {where_sql}
+        {order_sql}
+        LIMIT :limit OFFSET :offset
+    """
+    sql_fallback = f"""
+        SELECT id, title, price, tags, cover, downloads,
+               file_url AS url, format, user_id, created_at
+        FROM {ITEMS_TBL}
+        {where_sql}
+        {order_sql}
+        LIMIT :limit OFFSET :offset
+    """
+    try:
+        rows = db.session.execute(
+            text(sql_primary),
+            {**params, "limit": per_page, "offset": offset}
+        ).fetchall()
+        items = [_row_to_dict(r) for r in rows]
+    except sa_exc.ProgrammingError:
+        # важливо: очистити транзакцію перед повтором
+        db.session.rollback()
+        rows = db.session.execute(
+            text(sql_fallback),
+            {**params, "limit": per_page, "offset": offset}
+        ).fetchall()
+        items = []
+        for r in rows:
+            d = _row_to_dict(r)
+            d.setdefault("rating", 0)
+            items.append(d)
+
+    return jsonify({
+        "items": items,
+        "page": page,
+        "per_page": per_page,
+        "pages": math.ceil(total / per_page) if per_page else 1,
+        "total": total
+    })
+
+@bp.get("/api/item/<int:item_id>")
+def api_item(item_id: int):
+    it = _fetch_item_with_author(item_id)
+    if not it:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(it)
+
+@bp.post("/api/item/<int:item_id>/download")
+def api_item_download(item_id: int):
+    upd = db.session.execute(
+        text(f"UPDATE {ITEMS_TBL} SET downloads = downloads + 1, updated_at = NOW() WHERE id = :id"),
+        {"id": item_id}
+    )
+    db.session.commit()
+    if upd.rowcount == 0:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    return jsonify({"ok": True})
+
+@bp.post("/api/upload")
+def api_upload():
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
+        form, files = request.form, request.files
+        title = (form.get("title") or "").strip()
+        price = _parse_int(form.get("price"), 0)
+        desc  = (form.get("desc") or "").strip()
+        fmt   = (form.get("format") or "stl").strip().lower()
+
+        raw_tags = form.get("tags") or ""
+        try:
+            tags_val = json.loads(raw_tags) if raw_tags.strip().startswith("[") else raw_tags
+        except Exception:
+            tags_val = raw_tags
+
+        file_url = (form.get("stl_url") or form.get("url") or "").strip()
+        if not file_url and "stl_file" in files:
+            uid = _parse_int(session.get("user_id"), 0)
+            saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
+            if saved:
+                file_url = saved
+
+        cover = (form.get("cover_url") or "").strip()
+        if not cover and "cover_file" in files:
+            uid = _parse_int(session.get("user_id"), 0)
+            saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
+            if saved:
+                cover = saved
+
+        user_id = _parse_int(form.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
+    else:
+        data = request.get_json(silent=True) or {}
+        title = (data.get("title") or "").strip()
+        price = _parse_int(data.get("price"), 0)
+        desc  = (data.get("desc") or "").strip()
+        fmt   = (data.get("format") or "stl").strip().lower()
+        file_url = (data.get("url") or data.get("file_url") or "").strip()
+        cover = (data.get("cover") or "").strip()
+        tags_val = data.get("tags") or ""
+        user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
+
+    if not cover:
+        cover = COVER_PLACEHOLDER
+
+    if isinstance(tags_val, list):
+        tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
+    else:
+        tags_str = str(tags_val or "")
+
+    if not title or not file_url or not user_id:
+        return jsonify({"ok": False, "error": "missing_fields"}), 400
+
+    photos_json = json_dumps_safe([])
+
+    dialect = db.session.get_bind().dialect.name
+    if dialect == "postgresql":
+        sql = f"""
+            INSERT INTO {ITEMS_TBL}
+              (title, "desc", price, tags, cover, photos, file_url, format,
+               downloads, user_id, created_at, updated_at)
+            VALUES
+              (:title, :desc, :price, :tags, :cover, CAST(:photos AS JSON),
+               :file_url, :format, 0, :user_id, NOW(), NOW())
+            RETURNING id
+        """
+    else:
+        sql = f"""
+            INSERT INTO {ITEMS_TBL}
+              (title, "desc", price, tags, cover, photos, file_url, format,
+               downloads, user_id, created_at, updated_at)
+            VALUES
+              (:title, :desc, :price, :tags, :cover, :photos,
+               :file_url, :format, 0, :user_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """
+
+    row = db.session.execute(
+        text(sql),
+        {
+            "title": title,
+            "desc": desc,
+            "price": price,
+            "tags": tags_str,
+            "cover": cover,
+            "photos": photos_json,
+            "file_url": file_url,
+            "format": fmt,
+            "user_id": user_id,
+        }
+    )
+    if dialect == "postgresql":
+        new_id = _row_to_dict(row.fetchone())["id"]
+    else:
+        new_id = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()
+
+    db.session.commit()
+    return jsonify({"ok": True, "id": int(new_id)})
+
+
+def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
+    sql_primary = f"""
+      SELECT i.*, 
+             i.file_url AS url,
+             u.name   AS author_name,
+             u.email  AS author_email,
+             u.id     AS author_id,
+             COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar,
+             COALESCE(u.bio, '3D-дизайнер') AS author_bio
+      FROM {ITEMS_TBL} i
+      LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+      WHERE i.id = :id
+    """
+    sql_fallback = f"""
+      SELECT i.*, 
+             i.file_url AS url,
+             u.name   AS author_name,
+             u.email  AS author_email,
+             u.id     AS author_id
+      FROM {ITEMS_TBL} i
+      LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+      WHERE i.id = :id
+    """
+    try:
+        row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
+    except sa_exc.ProgrammingError:
+        db.session.rollback()  # критично перед повторною спробою
+        row = db.session.execute(text(sql_fallback), {"id": item_id}).fetchone()
+
+    if not row:
+        return None
+
+    d = _row_to_dict(row)
+    d.setdefault("author_avatar", "/static/img/user.jpg")
+    d.setdefault("author_bio", "3D-дизайнер")
+    return d
+
+
+# =========================
+# ДОДАНІ ЕНДПОЇНТИ НИЖЧЕ
+# =========================
+
+def _current_user_id() -> Optional[int]:
+    try:
+        return int(session.get("user_id") or 0) or None
+    except Exception:
+        return None
+
+@bp.get("/api/my/items")
+def api_my_items():
+    """Список оголошень поточного користувача (для кнопки 'Мої оголошення')."""
+    uid = _current_user_id()
+    if not uid:
+        return jsonify({"error": "unauthorized"}), 401
+
+    page = max(1, _parse_int(request.args.get("page"), 1))
+    per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
+    offset = (page - 1) * per_page
+
+    total = db.session.execute(
+        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+        {"uid": uid},
+    ).scalar() or 0
+
+    rows = db.session.execute(
+        text(
+            f"""
+            SELECT id, title, price, tags, cover, rating, downloads,
+                   file_url AS url, format, user_id, created_at, updated_at
+            FROM {ITEMS_TBL}
+            WHERE user_id = :uid
+            ORDER BY updated_at DESC, id DESC
+            LIMIT :limit OFFSET :offset
+            """
+        ),
+        {"uid": uid, "limit": per_page, "offset": offset},
+    ).fetchall()
+
+    items = [_row_to_dict(r) for r in rows]
+
+    return jsonify({
+        "items": items,
+        "page": page,
+        "per_page": per_page,
+        "pages": math.ceil(total / per_page) if per_page else 1,
+        "total": total
+    })
+
+
+@bp.post("/api/item/<int:item_id>/delete")
+def api_item_delete(item_id: int):
+    """Видалити оголошення (тільки власник)."""
+    uid = _current_user_id()
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    # перевіряємо власника
+    owner_id = db.session.execute(
+        text(f"SELECT user_id FROM {ITEMS_TBL} WHERE id = :id"),
+        {"id": item_id},
+    ).scalar()
+
+    if owner_id is None:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    if int(owner_id) != int(uid):
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    db.session.execute(
+        text(f"DELETE FROM {ITEMS_TBL} WHERE id = :id"),
+        {"id": item_id},
+    )
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.get("/edit/<int:item_id>")
+def page_edit_item(item_id: int):
+    """Сторінка редагування (під неї зробиш templates/edit_item.html)."""
+    uid = _current_user_id()
+    if not uid:
+        # можна віддати 401/redirect, але тримаємо просто 401 json як сторінка
+        return render_template("edit_item.html", item=None, error="unauthorized"), 401
+
+    # бере дані (з автором) і перевіряє власника
+    item = _fetch_item_with_author(item_id)
+    if not item:
+        return render_template("edit_item.html", item=None, error="not_found"), 404
+    if int(item.get("user_id", 0)) != int(uid):
+        return render_template("edit_item.html", item=None, error="forbidden"), 403
+
+    return render_template("edit_item.html", item=item, error=None)
+
+
+@bp.post("/api/item/<int:item_id>/update")
+def api_item_update(item_id: int):
+    """Оновити оголошення (лише власник). Підтримка multipart/JSON як в api_upload."""
+    uid = _current_user_id()
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    # перевіряємо власника
+    owner_id = db.session.execute(
+        text(f"SELECT user_id FROM {ITEMS_TBL} WHERE id = :id"),
+        {"id": item_id},
+    ).scalar()
+    if owner_id is None:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    if int(owner_id) != int(uid):
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    # читаємо поля
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
+        form, files = request.form, request.files
+        title = (form.get("title") or "").strip()
+        price = _parse_int(form.get("price"), None)
+        desc  = (form.get("desc") or None)
+        fmt   = (form.get("format") or "").strip().lower() or None
+
+        raw_tags = form.get("tags")
+        tags_str = None
+        if raw_tags is not None:
+            try:
+                tags_val = json.loads(raw_tags) if raw_tags.strip().startswith("[") else raw_tags
+            except Exception:
+                tags_val = raw_tags
+            if isinstance(tags_val, list):
+                tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
+            else:
+                tags_str = str(tags_val or "")
+
+        new_file_url = (form.get("stl_url") or form.get("url") or "").strip() or None
+        if not new_file_url and "stl_file" in files:
+            saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
+            if saved:
+                new_file_url = saved
+
+        new_cover = (form.get("cover_url") or "").strip() or None
+        if not new_cover and "cover_file" in files:
+            saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
+            if saved:
+                new_cover = saved
+    else:
+        data = request.get_json(silent=True) or {}
+        title = (data.get("title") or "").strip() if "title" in data else None
+        price = _parse_int(data.get("price"), None) if "price" in data else None
+        desc  = (data.get("desc") if "desc" in data else None)
+        fmt   = (data.get("format") or "").strip().lower() or None if "format" in data else None
+
+        tags_val = data.get("tags", None)
+        tags_str = None
+        if tags_val is not None:
+            if isinstance(tags_val, list):
+                tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
+            else:
+                tags_str = str(tags_val or "")
+
+        new_file_url = (data.get("url") or data.get("file_url") or "").strip() or None if ("url" in data or "file_url" in data) else None
+        new_cover = (data.get("cover") or "").strip() or None if "cover" in data else None
+
+    # формуємо SET частину динамічно
+    updates = []
+    params = {"id": item_id}
+
+    if title is not None:
+        updates.append("title = :title")
+        params["title"] = title
+    if price is not None:
+        updates.append("price = :price")
+        params["price"] = int(price)
+    if desc is not None:
+        updates.append('"desc" = :desc')
+        params["desc"] = desc
+    if fmt is not None:
+        updates.append("format = :format")
+        params["format"] = fmt
+    if tags_str is not None:
+        updates.append("tags = :tags")
+        params["tags"] = tags_str
+    if new_file_url is not None:
+        updates.append("file_url = :file_url")
+        params["file_url"] = new_file_url
+    if new_cover is not None:
+        updates.append("cover = :cover")
+        params["cover"] = new_cover
+
+    if not updates:
+        return jsonify({"ok": True, "updated": 0})
+
+    updates.append("updated_at = NOW()")
+
+    sql = f"UPDATE {ITEMS_TBL} SET " + ", ".join(updates) + " WHERE id = :id"
+    db.session.execute(text(sql), params)
+    db.session.commit()
+
+    return jsonify({"ok": True, "updated": 1})
