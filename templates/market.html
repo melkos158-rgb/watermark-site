@@ -77,7 +77,7 @@
 </style>
 
 <script type="module">
-  // id поточного користувача (для відображення «Мої оголошення»/кнопок)
+  // Поточний користувач (для "Мої оголошення" та кнопок редагування/видалення)
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
   const grid = document.getElementById('grid');
@@ -105,7 +105,6 @@
     }
     MODE = (MODE === 'mine') ? 'all' : 'mine';
     btnMine.classList.toggle('active', MODE==='mine');
-    // у «моєму» режимі фільтр "Показати" не застосовуємо, бо бек повертає все автора
     await load();
   });
 
@@ -122,11 +121,22 @@
     try{
       let items = [];
       if (MODE === 'mine'){
+        // Очікуємо, що бек повертає { items: [...] } на /api/my/items
         const r = await fetch(`/api/my/items`);
-        if (r.status === 401){ showNotice('Увійди, щоб бачити свої оголошення.'); grid.innerHTML = `<div class="empty">Авторизуйся.</div>`; return; }
+        if (r.status === 404){
+          showNotice('Ендпоінт /api/my/items відсутній. Додай його в бекенді, щоб фільтр "Мої" працював.');
+          grid.innerHTML = `<div class="empty">Немає ендпоінта /api/my/items</div>`;
+          return;
+        }
+        if (r.status === 401){
+          showNotice('Увійди, щоб бачити свої оголошення.');
+          grid.innerHTML = `<div class="empty">Авторизуйся.</div>`;
+          return;
+        }
         const data = await r.json();
         items = Array.isArray(data.items) ? data.items : [];
       } else {
+        // Бекенд повертає { items: [...] } на /api/items
         const r = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
         const data = await r.json();
         items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
@@ -138,7 +148,7 @@
       } else if (sortSel.value === 'price_desc') {
         items.sort((a,b)=>(+b.price||0)-(+a.price||0));
       } else if (sortSel.value === 'new') {
-        // припускаємо, що бек уже нові зверху; fallback:
+        // fallback на випадок, якщо бек не відсортований
         items = items.slice().sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
       }
 
@@ -164,7 +174,7 @@
       const el = document.createElement('div');
       el.className='item';
       el.innerHTML = `
-        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb">
+        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb" onerror="this.src='/static/img/placeholder_stl.jpg'">
         <div class="meta">
           <div class="title">${escapeHtml(it.title||'Без назви')}</div>
           <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
@@ -181,8 +191,6 @@
   }
 
   function showOwnerActions(it){
-    // у режимі "мої" показуємо управління завжди;
-    // в режимі "усі" — тільки якщо item.user_id дорівнює CURRENT_USER_ID
     const isOwner = MODE==='mine' || (CURRENT_USER_ID && +it.user_id === +CURRENT_USER_ID);
     if (!isOwner) return '';
     return `
@@ -207,6 +215,10 @@
       if (!confirm('Видалити оголошення безповоротно?')) return;
       try{
         const r = await fetch(`/api/item/${delId}/delete`, { method:'POST' });
+        if (r.status === 404){
+          showNotice('Ендпоінт видалення відсутній. Додай /api/item/<id>/delete у бекенді.');
+          return;
+        }
         const j = await r.json().catch(()=>({}));
         if (r.ok && j.ok){
           showNotice('Оголошення видалено.');
