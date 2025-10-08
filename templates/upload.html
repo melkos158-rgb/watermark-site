@@ -32,7 +32,7 @@
         </div>
         <div style="flex:1; min-width:260px">
           <label>АБО URL на файл</label>
-          <input id="stl_url" name="stl_url" placeholder="/static/models/dragon.stl" style="width:100%">
+          <input id="stl_url" name="stl_url" placeholder="https://..., або /static/market_uploads/... .stl" style="width:100%">
         </div>
       </div>
     </fieldset>
@@ -49,7 +49,7 @@
         </div>
         <div style="flex:1; min-width:260px">
           <label>АБО URL на картинку</label>
-          <input id="cover_url" name="cover_url" placeholder="/static/img/dragon.jpg" style="width:100%">
+          <input id="cover_url" name="cover_url" placeholder="https://..., або /static/..." style="width:100%">
         </div>
       </div>
       <div style="margin-top:10px; display:flex; gap:12px; align-items:center">
@@ -82,15 +82,11 @@
   const coverPrev = document.getElementById('cover_preview');
   const coverNote = document.getElementById('cover_note');
 
-  // --- нормалізація коротких URL ---
-  const isHttp = (u)=> /^https?:\/\//i.test(u);
-  const isStatic = (u)=> u.startsWith('/static/');
-  function autoPrefix(u){
-    u = (u || '').trim();
-    if (!u) return '';
-    if (isHttp(u) || isStatic(u)) return u;
-    return '/static/' + u.replace(/^\/+/, '');
-  }
+  const stlFileEl = document.getElementById('stl_file');
+  const stlUrlEl  = document.getElementById('stl_url');
+
+  // Допускаємо лише абсолютний http(s) або шлях, що починається з /static/
+  const isValidUrlField = (u) => /^https?:\/\//i.test(u) || u.startsWith('/static/');
 
   function showCover(src){
     if(!src){
@@ -100,10 +96,8 @@
       return;
     }
     coverPrev.src = src;
-    coverPrev.onload = ()=>{
-      coverPrev.style.display='inline-block';
-      coverNote.textContent='';
-    };
+    coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
+    coverPrev.onerror = ()=>{ coverPrev.style.display='none'; coverNote.textContent='Не вдалося завантажити зображення.'; };
   }
 
   coverFile.addEventListener('change', ()=>{
@@ -112,14 +106,15 @@
   });
 
   coverUrl.addEventListener('input', ()=>{
-    const url = autoPrefix(coverUrl.value);
-    if (url) showCover(url); else showCover('');
+    const url = coverUrl.value.trim();
+    if (isValidUrlField(url)) showCover(url); else if (!url) showCover('');
   });
 
   function validateModelSource(){
-    const stlFile = document.getElementById('stl_file');
-    const stlUrl  = document.getElementById('stl_url');
-    return (stlFile.files && stlFile.files.length) || (stlUrl.value && stlUrl.value.trim() !== '');
+    const hasFile = stlFileEl.files && stlFileEl.files.length;
+    const u = (stlUrlEl.value || '').trim();
+    const hasUrl = u && isValidUrlField(u);
+    return hasFile || hasUrl;
   }
 
   form.addEventListener('submit', async (e)=>{
@@ -127,35 +122,35 @@
     msg.textContent = '';
 
     if (!CURRENT_USER_ID){ msg.textContent = 'Потрібно увійти, щоб додати модель.'; return; }
-    if (!validateModelSource()){ msg.textContent = 'Додай файл моделі або URL.'; return; }
 
+    // Жорстка валідація джерела моделі
+    const hasFile = stlFileEl.files && stlFileEl.files.length;
+    const stlUrl  = (stlUrlEl.value || '').trim();
+    if (!hasFile && !isValidUrlField(stlUrl)){
+      msg.textContent = 'Вкажи файл моделі або коректний URL (http/https або шлях, що починається з /static/...).';
+      return;
+    }
+
+    // Якщо вибрано файл — URL прибираємо, щоб не плутати бекенд
     const fd = new FormData(form);
+    if (hasFile) fd.delete('stl_url');
 
-    // елементи
-    const stlFileEl   = document.getElementById('stl_file');
-    const stlUrlEl    = document.getElementById('stl_url');
-    const coverFileEl = document.getElementById('cover_file');
-    const coverUrlEl  = document.getElementById('cover_url');
-    const priceEl     = document.getElementById('price');
-
-    // якщо файли не вибрані — нормалізуємо URL, інакше прибираємо URL
-    if (!(stlFileEl.files && stlFileEl.files.length)) {
-      const norm = autoPrefix(stlUrlEl.value);
-      if (norm) fd.set('stl_url', norm); else fd.delete('stl_url');
-      fd.delete('stl_file');
-    }
-    if (!(coverFileEl.files && coverFileEl.files.length)) {
-      const norm = autoPrefix(coverUrlEl.value);
-      if (norm) fd.set('cover_url', norm); else fd.delete('cover_url');
-      fd.delete('cover_file');
+    // Обкладинка: якщо файл не вибрали, але в полі URL щось є — візьмемо тільки коректний варіант
+    const coverHasFile = coverFile.files && coverFile.files.length;
+    const coverU = (coverUrl.value || '').trim();
+    if (coverHasFile) {
+      fd.delete('cover_url');
+    } else {
+      if (!isValidUrlField(coverU)) fd.delete('cover_url');
     }
 
-    // теги -> масив JSON
+    // Теги -> масив
     const tagsRaw = (document.getElementById('tags').value || '').trim();
     const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
     fd.set('tags', JSON.stringify(tagsArr));
 
-    // ціна як число
+    // Ціна -> число
+    const priceEl = document.getElementById('price');
     const priceNum = Number(priceEl.value || 0);
     fd.set('price', String(isFinite(priceNum) ? priceNum : 0));
 
@@ -163,24 +158,14 @@
     fd.set('user_id', String(CURRENT_USER_ID));
 
     try{
-      const r = await fetch('/api/upload', {
-        method: 'POST',
-        body: fd,
-        headers: { 'Accept': 'application/json' }
-      });
-
+      const r = await fetch('/api/upload', { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
       let j = null;
-      try {
-        j = await r.clone().json();
-      } catch (e) {
-        const txt = await r.text();
-        msg.textContent = `Помилка ${r.status}: ${txt.slice(0,200)}`;
-        return;
-      }
+      try { j = await r.clone().json(); }
+      catch { msg.textContent = `Помилка ${r.status}: ${(await r.text()).slice(0,200)}`; return; }
 
       if (j.ok){
         msg.textContent = 'Готово! Перехід до сторінки…';
-        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
+        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 400);
       } else {
         msg.textContent = 'Помилка: ' + (j.error || 'server');
       }
@@ -190,20 +175,13 @@
     }
   });
 
-  // drag & drop підказки
-  const stlInput = document.getElementById('stl_file');
+  // drag&drop підказки
   const stlHint  = document.getElementById('stl_file_hint');
   ['dragenter','dragover'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{
-      e.preventDefault();
-      if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; }
-    });
+    stlFileEl.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; } });
   });
   ['dragleave','drop'].forEach(ev=>{
-    stlInput.addEventListener(ev, (e)=>{
-      e.preventDefault();
-      if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; }
-    });
+    stlFileEl.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; } });
   });
 })();
 </script>
