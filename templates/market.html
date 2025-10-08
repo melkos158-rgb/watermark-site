@@ -158,7 +158,9 @@
 
       const r = await fetch(url);
       if (!r.ok){
-        grid.removeChild(loadingCard);
+        // прибираємо лоадер, поки не чіпали grid.innerHTML
+        if (loadingCard.parentNode === grid) grid.removeChild(loadingCard);
+
         if (MODE==='mine' && r.status===401){
           showNotice('Увійди, щоб бачити свої оголошення.');
           grid.innerHTML = `<div class="empty">Авторизуйся.</div>`;
@@ -184,7 +186,7 @@
         items.sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
       }
 
-      grid.removeChild(loadingCard);
+      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard);
       appendItems(items);
 
       page += 1;
@@ -195,6 +197,7 @@
       }
     }catch(e){
       console.error(e);
+      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard);
       grid.innerHTML = `<div class="empty">Помилка мережі.</div>`;
       hasMore = false;
     }finally{
