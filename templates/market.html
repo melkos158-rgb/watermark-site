@@ -58,10 +58,19 @@
   .btn.active{outline:2px solid var(--accent)}
   .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
   select{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:8px 10px;}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;}
+
+  /* 3 в ряд на десктопі, далі 2/1 */
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr));}
+  @media(max-width:1100px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media(max-width:700px){ .grid{grid-template-columns:1fr;} }
+
   .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;}
   .item:hover{transform:translateY(-2px);}
-  .thumb{width:100%;aspect-ratio:16/9;object-fit:cover;border-bottom:1px solid var(--line);background:#0c0f16}
+
+  /* Стабільний фрейм під прев’ю (не стрибає і не розтягує першу картку) */
+  .thumb-wrap{position:relative;width:100%;padding-top:66.666%; /* 3:2 */ background:#0c0f16;border-bottom:1px solid var(--line);}
+  .thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
+
   .meta{padding:12px;display:flex;flex-direction:column;gap:6px;}
   .title{font-weight:700;}
   .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
@@ -207,16 +216,20 @@
 
       const el = document.createElement('div');
       el.className='item';
+      el.dataset.id = it.id; // привʼязуємо id до картки
       el.innerHTML = `
-        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb"
-             onerror="this.onerror=null;this.src='${PLACEHOLDER}';">
+        <div class="thumb-wrap">
+          <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb"
+               loading="lazy"
+               onerror="this.onerror=null;this.src='${PLACEHOLDER}';">
+        </div>
         <div class="meta">
           <div class="title">${escapeHtml(it.title||'Без назви')}</div>
           <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
           <div class="muted">★ ${it.rating ?? '—'}</div>
           <div class="price">${(+it.price||0)===0 ? 'Безкоштовно' : (Number(it.price)+' PLN')}</div>
           <div class="actions">
-            <button class="btn primary" data-open="${it.id}">Переглянути</button>
+            <button class="btn primary" data-open>Переглянути</button>
             ${ ownerActions() }
           </div>
         </div>
@@ -237,28 +250,19 @@
   grid.addEventListener('click', async (e)=>{
     const card = e.target.closest('.item');
     if (!card) return;
+    const itemId = card.dataset.id;
 
-    // open
-    const openBtn = e.target.closest('[data-open]');
-    if (openBtn){
-      const id = openBtn.getAttribute('data-open');
-      if (id) window.location.href = `/item/${id}`;
+    if (e.target.closest('[data-open]')){
+      if (itemId) window.location.href = `/item/${itemId}`;
       return;
     }
 
-    // edit/delete тільки у "mine"
     if (MODE === 'mine'){
-      const idx = [...grid.children].indexOf(card);
-      const itemId = (grid.querySelectorAll('[data-open]')[idx] || {}).dataset?.open;
-
-      const editBtn = e.target.closest('[data-edit]');
-      if (editBtn && itemId){
+      if (e.target.closest('[data-edit]') && itemId){
         window.location.href = `/edit/${itemId}`;
         return;
       }
-
-      const delBtn = e.target.closest('[data-del]');
-      if (delBtn && itemId){
+      if (e.target.closest('[data-del]') && itemId){
         if (!confirm('Видалити оголошення безповоротно?')) return;
         try{
           const r = await fetch(`/api/item/${itemId}/delete`, { method:'POST' });
