@@ -2,7 +2,7 @@
 {% block content %}
 
 <div class="wrap">
-  <header>
+  <header class="hdr">
     <div class="brand">🧩 STL Market</div>
 
     <div class="search-box">
@@ -34,50 +34,49 @@
   </div>
 
   <div id="notice" class="notice" style="display:none"></div>
+
   <div id="grid" class="grid"></div>
+  <div id="sentinel" class="sentinel"></div>
 </div>
 
 <style>
-  :root {
-    --bg:#0f1116; --card:#141923; --muted:#8792a7;
-    --line:#232a3a; --text:#e7ebf4; --accent:#3b82f6; --danger:#ef4444;
-  }
+  :root{--bg:#0f1116;--card:#141923;--muted:#8792a7;--line:#232a3a;--text:#e7ebf4;--accent:#3b82f6;--danger:#ef4444;}
   .wrap{max-width:1280px;margin:0 auto;padding:16px;}
-  header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
-  .brand{font-weight:800;font-size:18px;letter-spacing:.3px;}
+  .hdr{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+  .brand{font-weight:800;font-size:18px}
   .search-box{flex:1;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px;}
   .search-box input{flex:1;background:transparent;border:none;color:var(--text);font-size:14px;outline:none;}
   .toolbar{display:flex;gap:8px}
   .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
-  .btn:active{transform:scale(.98);}
-  .btn.danger{border-color:var(--danger); color:#fff; background:var(--danger);}
-  .btn.ghost{opacity:.85}
+  .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+  .btn.ghost{opacity:.9}
   .btn.active{outline:2px solid var(--accent)}
   .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
   select{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:8px 10px;}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;}
-  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;}
-  .item:hover{transform:translateY(-2px);}
-  .thumb{width:100%;aspect-ratio:4/3;object-fit:cover;border-bottom:1px solid var(--line);}
-  .meta{padding:10px;display:flex;flex-direction:column;gap:4px;}
-  .title{font-weight:700;}
-  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
-  .tag{font-size:12px;border:1px solid var(--line);padding:2px 6px;border-radius:999px;color:var(--muted);}
-  .muted{color:var(--muted);font-size:13px;}
-  .price{font-weight:700;}
-  .actions{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;}
+  .itm{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .thumb-wrap{width:100%;height:240px;position:relative;background:#0c111b;border-bottom:1px solid var(--line);}
+  .thumb-wrap.broken::after{
+    content:"No image"; position:absolute; inset:0; display:grid; place-items:center;
+    color:var(--muted); font-weight:700; letter-spacing:.2px;
+    background:linear-gradient(180deg,#0c111b,#0f141f);
+  }
+  .thumb{display:block;width:100%;height:100%;object-fit:cover;background:#0c111b;color:transparent;}
+  .meta{padding:12px;display:flex;flex-direction:column;gap:6px}
+  .title{font-weight:800}
+  .muted{color:var(--muted);font-size:13px}
+  .price{font-weight:700}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:12px;border:1px solid var(--line);padding:2px 6px;border-radius:999px;color:var(--muted)}
+  .actions{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
   .empty{text-align:center;color:var(--muted);padding:20px;}
   .notice{margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);}
-  @media(max-width:700px){
-    header{flex-direction:column;align-items:stretch;}
-    .search-box{flex:none;}
-    .toolbar{justify-content:space-between}
-  }
+  .sentinel{height:1px}
+  @media(max-width:700px){.hdr{flex-direction:column;align-items:stretch}.search-box{flex:none}}
 </style>
 
 <script type="module">
-  // id поточного користувача (для відображення «Мої оголошення»/кнопок)
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
   const grid = document.getElementById('grid');
@@ -87,92 +86,123 @@
   const btnSearch = document.getElementById('btnSearch');
   const btnMine = document.getElementById('btnMine');
   const notice = document.getElementById('notice');
+  const sentinel = document.getElementById('sentinel');
 
-  // режим: 'all' або 'mine'
-  let MODE = 'all';
+  let MODE = 'all';                 // 'all' | 'mine'
+  let page = 1;
+  const PER_PAGE = 24;
+  let hasMore = true;
+  let loading = false;
+  let series = 0;
 
-  btnSearch.addEventListener('click', load);
-  filterFree.addEventListener('change', ()=>{ if(MODE==='all') load(); });
-  sortSel.addEventListener('change', load);
-  window.addEventListener('load', load);
+  btnSearch.addEventListener('click', resetAndLoad);
+  filterFree.addEventListener('change', ()=>{ if(MODE==='all') resetAndLoad(); });
+  sortSel.addEventListener('change', resetAndLoad);
+  window.addEventListener('load', resetAndLoad);
+  q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); resetAndLoad(); } });
 
-  q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); load(); } });
-
-  btnMine.addEventListener('click', async ()=>{
-    if (!CURRENT_USER_ID){
-      showNotice('Потрібно увійти, щоб бачити свої оголошення.');
-      return;
-    }
-    MODE = (MODE === 'mine') ? 'all' : 'mine';
+  btnMine.addEventListener('click', ()=>{
+    if(!CURRENT_USER_ID){ showNotice('Потрібно увійти, щоб бачити свої оголошення.'); return; }
+    MODE = (MODE==='mine') ? 'all' : 'mine';
     btnMine.classList.toggle('active', MODE==='mine');
-    // у «моєму» режимі фільтр "Показати" не застосовуємо, бо бек повертає все автора
-    await load();
+    resetAndLoad();
   });
 
   function showNotice(text, timeout=2200){
-    notice.textContent = text;
-    notice.style.display = 'block';
-    if (timeout){
-      setTimeout(()=>{ notice.style.display='none'; }, timeout);
-    }
+    notice.textContent=text; notice.style.display='block';
+    if(timeout) setTimeout(()=> notice.style.display='none', timeout);
   }
 
-  async function load(){
-    grid.innerHTML = `<div class="empty">Завантаження…</div>`;
+  function resetAndLoad(){
+    page=1; hasMore=true; loading=false; series++;
+    grid.innerHTML=''; loadNextPage();
+  }
+
+  async function loadNextPage(){
+    if(!hasMore || loading) return;
+    loading=true; const mySeries=series;
+
+    const loadingCard=document.createElement('div');
+    loadingCard.className='empty'; loadingCard.textContent='Завантаження…';
+    grid.appendChild(loadingCard);
+
     try{
-      let items = [];
-      if (MODE === 'mine'){
-        const r = await fetch(`/api/my/items`);
-        if (r.status === 401){ showNotice('Увійди, щоб бачити свої оголошення.'); grid.innerHTML = `<div class="empty">Авторизуйся.</div>`; return; }
-        const data = await r.json();
-        items = Array.isArray(data.items) ? data.items : [];
-      } else {
-        const r = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
-        const data = await r.json();
-        items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+      let url;
+      if(MODE==='mine'){
+        url = `/api/my/items?page=${page}&per_page=${PER_PAGE}`;
+      }else{
+        const qs=new URLSearchParams({
+          q:q.value||'', free:filterFree.value,
+          page:String(page), per_page:String(PER_PAGE)
+        }).toString();
+        url = `/api/items?${qs}`;
       }
 
-      // клієнтське сортування
-      if (sortSel.value === 'price_asc') {
-        items.sort((a,b)=>(+a.price||0)-(+b.price||0));
-      } else if (sortSel.value === 'price_desc') {
-        items.sort((a,b)=>(+b.price||0)-(+a.price||0));
-      } else if (sortSel.value === 'new') {
-        // припускаємо, що бек уже нові зверху; fallback:
-        items = items.slice().sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      const r = await fetch(url);
+      if(mySeries!==series) return;
+
+      if(!r.ok){
+        if(loadingCard.parentNode===grid) grid.removeChild(loadingCard);
+        if(MODE==='mine' && r.status===401){
+          showNotice('Увійди, щоб бачити свої оголошення.');
+          grid.innerHTML = `<div class="empty">Авторизуйся.</div>`;
+        }else{
+          grid.innerHTML = `<div class="empty">Помилка завантаження (${r.status}).</div>`;
+        }
+        hasMore=false; loading=false; return;
       }
 
-      renderItems(items);
+      const data = await r.json().catch(()=>({}));
+      const items = Array.isArray(data.items) ? data.items : (Array.isArray(data)?data:[]);
+      const pages = Number(data.pages||1);
+
+      if(loadingCard.parentNode===grid) grid.removeChild(loadingCard);
+      appendItems(items);
+
+      page += 1;
+      hasMore = page <= pages && items.length>0;
+
+      if(!grid.children.length){
+        grid.innerHTML = `<div class="empty">${MODE==='mine' ? 'У тебе ще немає оголошень.' : 'Нічого не знайдено 😿'}</div>`;
+      }
     }catch(e){
       console.error(e);
-      grid.innerHTML = `<div class="empty">Помилка завантаження.</div>`;
-    }
+      if(loadingCard.parentNode===grid) grid.removeChild(loadingCard);
+      grid.innerHTML = `<div class="empty">Помилка мережі.</div>`;
+      hasMore=false;
+    }finally{ loading=false; }
   }
 
-  function renderItems(items){
-    grid.innerHTML = '';
-    if(!items.length){
-      grid.innerHTML = `<div class="empty">${MODE==='mine' ? 'У тебе ще немає оголошень.' : 'Нічого не знайдено 😿'}</div>`;
-      return;
+  function appendItems(items){
+    // невелике клієнтське сортування
+    if (sortSel.value === 'price_asc') {
+      items.sort((a,b)=>(+a.price||0)-(+b.price||0));
+    } else if (sortSel.value === 'price_desc') {
+      items.sort((a,b)=>(+b.price||0)-(+a.price||0));
+    } else if (sortSel.value === 'new') {
+      items.sort((a,b)=> new Date(b.created_at||0) - new Date(a.created_at||0));
     }
+
     for(const it of items){
-      const tagsArr = Array.isArray(it.tags)
-        ? it.tags
-        : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
+      const tagsArr = Array.isArray(it.tags) ? it.tags :
+                      (typeof it.tags==='string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
       const coverSrc = it.cover || '/static/img/placeholder_stl.jpg';
 
-      const el = document.createElement('div');
-      el.className='item';
+      const el=document.createElement('div');
+      el.className='itm';
       el.innerHTML = `
-        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb">
+        <div class="thumb-wrap">
+          <img class="thumb" src="${coverSrc}" alt="${escapeHtml(it.title||'')}"
+               onerror="this.onerror=null; this.style.display='none'; this.parentElement.classList.add('broken');">
+        </div>
         <div class="meta">
           <div class="title">${escapeHtml(it.title||'Без назви')}</div>
-          <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
           <div class="muted">★ ${it.rating ?? '—'}</div>
           <div class="price">${(+it.price||0)===0 ? 'Безкоштовно' : (Number(it.price)+' PLN')}</div>
+          <div class="tags">${tagsArr.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
           <div class="actions">
             <button class="btn primary" data-open="${it.id}">Переглянути</button>
-            ${ showOwnerActions(it) }
+            ${ownerActions(it)}
           </div>
         </div>
       `;
@@ -180,11 +210,9 @@
     }
   }
 
-  function showOwnerActions(it){
-    // у режимі "мої" показуємо управління завжди;
-    // в режимі "усі" — тільки якщо item.user_id дорівнює CURRENT_USER_ID
+  function ownerActions(it){
     const isOwner = MODE==='mine' || (CURRENT_USER_ID && +it.user_id === +CURRENT_USER_ID);
-    if (!isOwner) return '';
+    if(!isOwner) return '';
     return `
       <button class="btn ghost" data-edit="${it.id}">Редагувати</button>
       <button class="btn danger" data-del="${it.id}">Видалити</button>
@@ -193,38 +221,31 @@
 
   grid.addEventListener('click', async (e)=>{
     const openId = e.target?.dataset?.open;
-    if (openId) {
-      window.location.href = `/item/${openId}`;
-      return;
-    }
+    if(openId){ window.location.href = '/item/'+openId; return; }
+
     const editId = e.target?.dataset?.edit;
-    if (editId){
-      window.location.href = `/edit/${editId}`;
-      return;
-    }
+    if(editId){ window.location.href = '/edit/'+editId; return; }
+
     const delId = e.target?.dataset?.del;
-    if (delId){
-      if (!confirm('Видалити оголошення безповоротно?')) return;
+    if(delId){
+      if(!confirm('Видалити оголошення безповоротно?')) return;
       try{
         const r = await fetch(`/api/item/${delId}/delete`, { method:'POST' });
         const j = await r.json().catch(()=>({}));
-        if (r.ok && j.ok){
-          showNotice('Оголошення видалено.');
-          load();
-        } else {
-          showNotice('Не вдалося видалити (немає прав або помилка).');
-        }
-      }catch(err){
-        console.error(err);
-        showNotice('Помилка мережі при видаленні.');
-      }
+        if(r.ok && j.ok){ showNotice('Оголошення видалено.'); resetAndLoad(); }
+        else{ showNotice('Не вдалося видалити (немає прав або помилка).'); }
+      }catch(err){ console.error(err); showNotice('Помилка мережі при видаленні.'); }
     }
   });
 
+  // Infinite scroll
+  const io=new IntersectionObserver((entries)=>{
+    for(const en of entries){ if(en.isIntersecting) loadNextPage(); }
+  }, {rootMargin:'800px 0px'});
+  io.observe(sentinel);
+
   function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, m => (
-      { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]
-    ));
+    return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 </script>
 
