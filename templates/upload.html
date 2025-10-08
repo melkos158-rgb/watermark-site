@@ -23,38 +23,26 @@
     <div style="height:14px"></div>
 
     <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
-      <legend style="padding:0 6px">3D-модель</legend>
-      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end">
-        <div style="flex:1; min-width:260px">
-          <label>Файл STL/OBJ/PLY/GLTF/GLB</label>
-          <input id="stl_file" name="stl_file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
-          <div class="muted" id="stl_file_hint">Можна перетягнути файл сюди або вибрати.</div>
-        </div>
-        <div style="flex:1; min-width:260px">
-          <label>АБО URL на файл</label>
-          <input id="stl_url" name="stl_url" placeholder="https://..., або /static/market_uploads/... .stl" style="width:100%">
-        </div>
+      <legend style="padding:0 6px">3D-модель (файл)</legend>
+      <div>
+        <label>Файл STL/OBJ/PLY/GLTF/GLB <span class="muted">(обовʼязково)</span></label>
+        <input id="stl_file" name="stl_file" type="file" accept=".stl,.obj,.ply,.gltf,.glb" required>
+        <div class="muted" id="stl_file_hint">Перетягни файл сюди або вибери.</div>
       </div>
     </fieldset>
 
     <div style="height:14px"></div>
 
     <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
-      <legend style="padding:0 6px">Обкладинка</legend>
-      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end">
-        <div style="flex:1; min-width:260px">
-          <label>Файл JPG/PNG/WEBP</label>
-          <input id="cover_file" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp">
-          <div class="muted">Необовʼязково. Якщо не вкажеш — поставимо плейсхолдер.</div>
-        </div>
-        <div style="flex:1; min-width:260px">
-          <label>АБО URL на картинку</label>
-          <input id="cover_url" name="cover_url" placeholder="https://..., або /static/..." style="width:100%">
-        </div>
+      <legend style="padding:0 6px">Обкладинка (файл)</legend>
+      <div>
+        <label>Файл JPG/PNG/WEBP <span class="muted">(необовʼязково)</span></label>
+        <input id="cover_file" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp">
+        <div class="muted">Якщо не вкажеш — поставимо плейсхолдер.</div>
       </div>
       <div style="margin-top:10px; display:flex; gap:12px; align-items:center">
         <img id="cover_preview" src="" alt="" style="display:none; width:120px; height:90px; object-fit:cover; border:1px solid #1b2131; border-radius:8px">
-        <span class="muted" id="cover_note">Попередній перегляд зʼявиться після вибору файлу або URL.</span>
+        <span class="muted" id="cover_note">Попередній перегляд зʼявиться після вибору файлу.</span>
       </div>
     </fieldset>
 
@@ -78,43 +66,19 @@
   const msg  = document.getElementById('msg');
 
   const coverFile = document.getElementById('cover_file');
-  const coverUrl  = document.getElementById('cover_url');
   const coverPrev = document.getElementById('cover_preview');
   const coverNote = document.getElementById('cover_note');
 
-  const stlFileEl = document.getElementById('stl_file');
-  const stlUrlEl  = document.getElementById('stl_url');
-
-  // Допускаємо лише абсолютний http(s) або шлях, що починається з /static/
-  const isValidUrlField = (u) => /^https?:\/\//i.test(u) || u.startsWith('/static/');
-
-  function showCover(src){
-    if(!src){
-      coverPrev.style.display='none';
-      coverPrev.src='';
-      coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу або URL.';
-      return;
-    }
-    coverPrev.src = src;
+  function showCover(file){
+    if(!file){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу.'; return; }
+    coverPrev.src = URL.createObjectURL(file);
     coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
-    coverPrev.onerror = ()=>{ coverPrev.style.display='none'; coverNote.textContent='Не вдалося завантажити зображення.'; };
   }
+  coverFile.addEventListener('change', ()=>{ showCover(coverFile.files && coverFile.files[0]); });
 
-  coverFile.addEventListener('change', ()=>{
-    const f = coverFile.files && coverFile.files[0];
-    if (f) showCover(URL.createObjectURL(f));
-  });
-
-  coverUrl.addEventListener('input', ()=>{
-    const url = coverUrl.value.trim();
-    if (isValidUrlField(url)) showCover(url); else if (!url) showCover('');
-  });
-
-  function validateModelSource(){
-    const hasFile = stlFileEl.files && stlFileEl.files.length;
-    const u = (stlUrlEl.value || '').trim();
-    const hasUrl = u && isValidUrlField(u);
-    return hasFile || hasUrl;
+  function validateFiles(){
+    const stlFile = document.getElementById('stl_file');
+    return !!(stlFile.files && stlFile.files.length);
   }
 
   form.addEventListener('submit', async (e)=>{
@@ -122,50 +86,32 @@
     msg.textContent = '';
 
     if (!CURRENT_USER_ID){ msg.textContent = 'Потрібно увійти, щоб додати модель.'; return; }
+    if (!validateFiles()){ msg.textContent = 'Додай файл моделі (STL/OBJ/PLY/GLTF/GLB).'; return; }
 
-    // Жорстка валідація джерела моделі
-    const hasFile = stlFileEl.files && stlFileEl.files.length;
-    const stlUrl  = (stlUrlEl.value || '').trim();
-    if (!hasFile && !isValidUrlField(stlUrl)){
-      msg.textContent = 'Вкажи файл моделі або коректний URL (http/https або шлях, що починається з /static/...).';
-      return;
-    }
-
-    // Якщо вибрано файл — URL прибираємо, щоб не плутати бекенд
     const fd = new FormData(form);
-    if (hasFile) fd.delete('stl_url');
+    // прибираємо будь-які неіснуючі файли (на випадок пустих інпутів)
+    const stlFileEl   = document.getElementById('stl_file');
+    const coverFileEl = document.getElementById('cover_file');
+    if (!(stlFileEl.files && stlFileEl.files.length)) fd.delete('stl_file');
+    if (!(coverFileEl.files && coverFileEl.files.length)) fd.delete('cover_file');
 
-    // Обкладинка: якщо файл не вибрали, але в полі URL щось є — візьмемо тільки коректний варіант
-    const coverHasFile = coverFile.files && coverFile.files.length;
-    const coverU = (coverUrl.value || '').trim();
-    if (coverHasFile) {
-      fd.delete('cover_url');
-    } else {
-      if (!isValidUrlField(coverU)) fd.delete('cover_url');
-    }
-
-    // Теги -> масив
+    // теги -> масив JSON
     const tagsRaw = (document.getElementById('tags').value || '').trim();
     const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
     fd.set('tags', JSON.stringify(tagsArr));
 
-    // Ціна -> число
-    const priceEl = document.getElementById('price');
-    const priceNum = Number(priceEl.value || 0);
-    fd.set('price', String(isFinite(priceNum) ? priceNum : 0));
-
-    // user_id
+    // user_id явно
     fd.set('user_id', String(CURRENT_USER_ID));
 
     try{
-      const r = await fetch('/api/upload', { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+      const r = await fetch('/api/upload', { method:'POST', body: fd, headers: { 'Accept': 'application/json' }});
       let j = null;
       try { j = await r.clone().json(); }
-      catch { msg.textContent = `Помилка ${r.status}: ${(await r.text()).slice(0,200)}`; return; }
+      catch { msg.textContent = 'Помилка ' + r.status + ': ' + (await r.text()).slice(0,200); return; }
 
       if (j.ok){
         msg.textContent = 'Готово! Перехід до сторінки…';
-        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 400);
+        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
       } else {
         msg.textContent = 'Помилка: ' + (j.error || 'server');
       }
@@ -175,13 +121,14 @@
     }
   });
 
-  // drag&drop підказки
+  // drag & drop підказки
+  const stlInput = document.getElementById('stl_file');
   const stlHint  = document.getElementById('stl_file_hint');
   ['dragenter','dragover'].forEach(ev=>{
-    stlFileEl.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; } });
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='1'; stlHint.textContent='Відпускай — додамо файл'; } });
   });
   ['dragleave','drop'].forEach(ev=>{
-    stlFileEl.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Можна перетягнути файл сюди або вибрати.'; } });
+    stlInput.addEventListener(ev, (e)=>{ e.preventDefault(); if(stlHint){ stlHint.style.opacity='0.8'; stlHint.textContent='Перетягни файл сюди або вибери.'; } });
   });
 })();
 </script>
