@@ -1,6 +1,7 @@
 import os
 import math
 import json
+import shutil
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, render_template, jsonify, request, session, current_app
@@ -83,6 +84,12 @@ def json_dumps_safe(obj) -> str:
 @bp.get("/market")
 def page_market():
     return render_template("market.html")
+
+# (опційно) окрема сторінка «Мої оголошення», якщо хочеш мати її окремо від /market
+@bp.get("/market/mine")
+def page_market_mine():
+    # створи шаблон market_mine.html або можеш рендерити той самий market.html і керувати режимом на фронті
+    return render_template("market_mine.html")
 
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
@@ -275,7 +282,7 @@ def api_upload():
         except Exception:
             tags_val = raw_tags
 
-        file_url = (form.get("stl_url") or form.get("url") or "").strip()
+        file_url = (form.get("stl_url") or (form.get("url") or "")).strip()
         if not file_url and "stl_file" in files:
             uid = _parse_int(session.get("user_id"), 0)
             saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
@@ -394,3 +401,63 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
     return d
+
+
+# ====================== ДОДАНО НИЖЧЕ ======================
+
+@bp.record_once
+def _mount_persistent_uploads(setup_state):
+    """
+    Якщо задано UPLOADS_ROOT (env або app.config) — робимо симлінк:
+      <app>/static/market_uploads  ->  UPLOADS_ROOT
+
+    Якщо папка static/market_uploads вже існує (не симлінк), мігруємо її вміст
+    у персистентний том і замінюємо на симлінк. Так файли не губляться після перезапусків.
+    """
+    app = setup_state.app
+    persist_root = app.config.get("UPLOADS_ROOT") or os.environ.get("UPLOADS_ROOT")
+    if not persist_root:
+        # Можеш у Railway задати UPLOADS_ROOT=/data/market_uploads
+        return
+    try:
+        os.makedirs(persist_root, exist_ok=True)
+        static_root = os.path.join(app.root_path, "static")
+        os.makedirs(static_root, exist_ok=True)
+        link_path = os.path.join(static_root, "market_uploads")
+
+        if os.path.islink(link_path):
+            # вже посилання — нічого не робимо
+            return
+
+        if os.path.isdir(link_path):
+            # мігруємо поточний вміст у персистентний том
+            for name in os.listdir(link_path):
+                src = os.path.join(link_path, name)
+                dst = os.path.join(persist_root, name)
+                if not os.path.exists(dst):
+                    shutil.move(src, dst)
+            # прибираємо папку і ставимо симлінк
+            os.rmdir(link_path)
+
+        if not os.path.exists(link_path):
+            os.symlink(persist_root, link_path, target_is_directory=True)
+    except Exception as e:
+        app.logger.error("UPLOADS_ROOT mount failed: %r", e)
+
+
+@bp.before_app_request
+def _static_market_uploads_fallback():
+    """
+    Якщо браузер просить /static/market_uploads/... а файлу нема,
+    повертаємо плейсхолдер з /static/img/placeholder_stl.jpg.
+    Це запобігає «битим» картинкам, навіть якщо старі файли зникли.
+    """
+    p = request.path
+    if request.method != "GET":
+        return
+    if not p.startswith("/static/market_uploads/"):
+        return
+    fs_path = os.path.join(current_app.root_path, p.lstrip("/"))
+    if not os.path.exists(fs_path):
+        # Віддаємо плейсхолдер з каталогу static
+        return current_app.send_static_file("img/placeholder_stl.jpg")
