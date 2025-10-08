@@ -34,30 +34,22 @@
       <p>{{ item.desc }}</p>
 
       <div class="stats">
-        <div>📦 Завантажень: <span id="dlCount">{{ item.downloads or 0 }}</span></div>
+        <div>📦 Завантажень: {{ item.downloads or 0 }}</div>
         <div>💰 Заробіток: {{ item.earnings or 0 }} PLN</div>
         <div>🧩 Моделей: {{ item.items_count or 0 }}</div>
       </div>
 
       {% if item.price == 0 %}
-        <a href="{{ item.url }}" id="btnDownload" class="btn primary">⬇️ Завантажити STL</a>
+        <a href="{{ item.url }}" download class="btn primary">⬇️ Завантажити STL</a>
       {% else %}
         <button class="btn primary">💳 Купити STL</button>
       {% endif %}
-
-      {# Кнопки власника (лише для автора) #}
-      {% if session.get('user_id') and item.user_id and session.get('user_id') == item.user_id %}
-      <div class="owner-actions">
-        <button class="btn" id="btnEdit" data-id="{{ item.id }}">✏️ Редагувати</button>
-        <button class="btn danger" id="btnDelete" data-id="{{ item.id }}">🗑️ Видалити</button>
-        <div class="muted" id="ownerMsg" style="margin-top:6px;"></div>
-      </div>
-      {% endif %}
+      <!-- ВАЖЛИВО: кнопок Редагувати/Видалити тут більше немає -->
     </div>
   </div>
 
   <div class="author">
-    <img src="{{ item.author_avatar or '/static/img/user.jpg' }}" alt="Автор">
+    <img src="{{ item.author_avatar or '/static/img/user.jpg' }}" alt="Автор" onerror="this.src='/static/img/user.jpg'">
     <div>
       <div><strong>{{ item.author_name or 'Автор' }}</strong></div>
       <div class="muted">{{ item.author_bio or '3D-дизайнер' }}</div>
@@ -96,17 +88,14 @@
   .muted{color:var(--muted);font-size:13px}
   .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .btn.danger{background:#ef4444;border-color:#ef4444;color:#fff}
   .stats{display:flex;gap:20px;margin-top:8px;color:var(--muted);font-size:14px}
   .author{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--card);border:1px solid var(--line);padding:10px;border-radius:10px}
   .author img{width:48px;height:48px;border-radius:50%;object-fit:cover}
-  .owner-actions{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   @media(max-width:700px){ .glr-stage{height:340px} }
 </style>
 {% endblock %}
 
 {% block scripts %}
-<!-- import map для three та аддонів -->
 <script type="importmap">
 {
   "imports": {
@@ -121,11 +110,15 @@
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-  // ---- службові ----
-  const ITEM_ID = {{ item.id | tojson }};
-  const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
-  const ITEM_USER_ID = {{ (item.user_id or none) | tojson }};
-  const IS_OWNER = !!(CURRENT_USER_ID && ITEM_USER_ID && Number(CURRENT_USER_ID) === Number(ITEM_USER_ID));
+  const PLACEHOLDER = '/static/img/placeholder_stl.jpg';
+  function assetUrl(src){
+    if (!src) return PLACEHOLDER;
+    const s = String(src).trim();
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('/static/')) return s;
+    if (s.startsWith('static/'))  return '/'+s;
+    return s[0] === '/' ? s : '/'+s;
+  }
 
   function makeInlinePlaceholder() {
     const ns = 'http://www.w3.org/2000/svg';
@@ -145,18 +138,19 @@
     return svg;
   }
 
-  // ----- дані з шаблону -----
-  const cover = {{ (item.cover or '') | tojson }};
-  const urlSTL = {{ (item.url or '') | tojson }};
+  const cover = assetUrl({{ (item.cover or '') | tojson }});
+  const rawUrl = {{ (item.url or '') | tojson }};
+  const urlSTL = rawUrl ? assetUrl(rawUrl) : '';
   let photosRaw = {{ (item.photos or '[]') | tojson }};
   let photos = [];
   try { photos = Array.isArray(photosRaw) ? photosRaw : JSON.parse(photosRaw || '[]'); } catch { photos = []; }
-  photos = (photos || []).filter(Boolean).map(s => String(s).trim()).filter(Boolean);
+  photos = (photos || []).filter(Boolean).map(s => assetUrl(String(s).trim())).filter(Boolean);
   if (cover && !photos.includes(cover)) photos.unshift(cover);
 
+  const allowed3d = /\.(stl|obj|ply|gltf|glb)$/i.test(urlSTL);
   const slides = [
     ...photos.map(src => ({ type:'img', src })),
-    ...(urlSTL ? [{ type:'stl', src:urlSTL }] : [])
+    ...(allowed3d ? [{ type:'stl', src:urlSTL }] : []),
   ];
   if (!slides.length) slides.push({type:'img', src:''});
 
@@ -194,7 +188,7 @@
     if (sl.type==='img') {
       if (sl.src) {
         const t=document.createElement('img'); t.src=sl.src; t.alt='thumb'; t.className='gthumb';
-        t.addEventListener('error',()=>{ const ph=makeInlinePlaceholder(); ph.style.width='70px'; ph.style.height='56px'; t.replaceWith(ph); });
+        t.addEventListener('error',()=>{ t.replaceWith(makeInlinePlaceholder()); });
         t.addEventListener('click',()=>go(i)); thumbs.appendChild(t);
       } else {
         const ph=makeInlinePlaceholder(); ph.style.width='70px'; ph.style.height='56px';
@@ -225,7 +219,6 @@
   slideEls[0].classList.add('active');
   setTimeout(()=>go(0),0);
 
-  // ---------- STL ----------
   function initSTL(){
     if(!urlSTL) return;
     const container=document.getElementById('stl-holder'); if(!container) return;
@@ -244,6 +237,10 @@
       const mesh=new THREE.Mesh(geo,mat); if(geo.computeVertexNormals) geo.computeVertexNormals(); scene.add(mesh);
       const box=new THREE.Box3().setFromObject(mesh); const size=box.getSize(new THREE.Vector3()); const center=box.getCenter(new THREE.Vector3());
       mesh.position.sub(center); camera.position.set(size.x*1.2+0.6,size.y*1.2+0.4,size.z*1.5+0.8); controls.update();
+    }, undefined, ()=>{
+      // на помилці — просто залишається плейсхолдер-слайд
+      container.innerHTML='';
+      container.appendChild(makeInlinePlaceholder());
     });
 
     function resize(){ const w=container.clientWidth||container.offsetWidth||600; const h=container.clientHeight||420;
@@ -251,52 +248,6 @@
     new ResizeObserver(resize).observe(container); resize();
 
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
-  }
-
-  // ---------- підрахунок завантажень + власницькі кнопки ----------
-  const dlBtn = document.getElementById('btnDownload');
-  const dlCountEl = document.getElementById('dlCount');
-  if (dlBtn) {
-    dlBtn.addEventListener('click', async (e)=>{
-      // якщо прямо <a href> — перехоплюємо, рахуємо, тоді йдемо на файл
-      e.preventDefault();
-      try{
-        await fetch(`/api/item/${ITEM_ID}/download`, { method:'POST' });
-        // оптимістично оновимо лічильник на клієнті
-        if (dlCountEl) dlCountEl.textContent = String(Number(dlCountEl.textContent||0)+1);
-      }catch{}
-      // відкриваємо файл після запиту (навіть якщо рахуночок не вдався)
-      const url = {{ (item.url or '') | tojson }};
-      if (url) window.location.href = url;
-    });
-  }
-
-  if (IS_OWNER){
-    const msg = document.getElementById('ownerMsg');
-    const btnEdit = document.getElementById('btnEdit');
-    const btnDelete = document.getElementById('btnDelete');
-
-    btnEdit?.addEventListener('click', ()=>{
-      // якщо у тебе є окрема сторінка редагування — міняй шлях тут
-      window.location.href = `/edit/${ITEM_ID}`;
-    });
-
-    btnDelete?.addEventListener('click', async ()=>{
-      if (!confirm('Видалити оголошення безповоротно?')) return;
-      try{
-        const r = await fetch(`/api/item/${ITEM_ID}/delete`, { method:'POST' });
-        const j = await r.json().catch(()=>({}));
-        if (r.ok && j.ok){
-          msg.textContent = 'Видалено. Переходимо на ринок…';
-          setTimeout(()=>{ window.location.href = '{{ url_for("market.page_market") }}'; }, 600);
-        } else {
-          msg.textContent = 'Не вдалося видалити (можливо, немає роуту або прав).';
-        }
-      }catch(err){
-        console.error(err);
-        msg.textContent = 'Помилка мережі.';
-      }
-    });
   }
 </script>
 {% endblock %}
