@@ -188,7 +188,7 @@ def api_items():
         "total": total
     })
 
-# ---------- НОВЕ: список тільки моїх оголошень з пагінацією ----------
+# ---------- НОВЕ: список тільки моїх оголошень з пагінацією (з fallback як у /api/items) ----------
 @bp.get("/api/my/items")
 def api_my_items():
     uid = _parse_int(session.get("user_id"), 0)
@@ -205,18 +205,41 @@ def api_my_items():
             {"uid": uid}
         ).scalar() or 0
 
+        sql_primary = f"""
+            SELECT id, title, price, tags, cover, rating, downloads,
+                   file_url AS url, format, user_id, created_at
+            FROM {ITEMS_TBL}
+            WHERE user_id = :uid
+            ORDER BY created_at DESC, id DESC
+            LIMIT :limit OFFSET :offset
+        """
         rows = db.session.execute(
-            text(f"""
-                SELECT id, title, price, tags, cover, rating, downloads,
-                       file_url AS url, format, user_id, created_at
-                FROM {ITEMS_TBL}
-                WHERE user_id = :uid
-                ORDER BY created_at DESC, id DESC
-                LIMIT :limit OFFSET :offset
-            """),
+            text(sql_primary),
             {"uid": uid, "limit": per_page, "offset": offset}
         ).fetchall()
         items = [_row_to_dict(r) for r in rows]
+
+    except sa_exc.ProgrammingError:
+        # якщо, наприклад, немає колонки rating
+        db.session.rollback()
+        sql_fallback = f"""
+            SELECT id, title, price, tags, cover, downloads,
+                   file_url AS url, format, user_id, created_at
+            FROM {ITEMS_TBL}
+            WHERE user_id = :uid
+            ORDER BY created_at DESC, id DESC
+            LIMIT :limit OFFSET :offset
+        """
+        rows = db.session.execute(
+            text(sql_fallback),
+            {"uid": uid, "limit": per_page, "offset": offset}
+        ).fetchall()
+        items = []
+        for r in rows:
+            d = _row_to_dict(r)
+            d.setdefault("rating", 0)
+            items.append(d)
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "server", "detail": str(e)}), 500
