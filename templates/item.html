@@ -44,12 +44,11 @@
       {% else %}
         <button class="btn primary">💳 Купити STL</button>
       {% endif %}
-      <!-- ВАЖЛИВО: кнопок Редагувати/Видалити тут більше немає -->
     </div>
   </div>
 
   <div class="author">
-    <img src="{{ item.author_avatar or '/static/img/user.jpg' }}" alt="Автор" onerror="this.src='/static/img/user.jpg'">
+    <img src="{{ item.author_avatar or '/static/img/user.jpg' }}" alt="Автор">
     <div>
       <div><strong>{{ item.author_name or 'Автор' }}</strong></div>
       <div class="muted">{{ item.author_bio or '3D-дизайнер' }}</div>
@@ -96,6 +95,7 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- import map для three та аддонів -->
 <script type="importmap">
 {
   "imports": {
@@ -109,16 +109,6 @@
   import * as THREE from 'three';
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   import { STLLoader } from 'three/addons/loaders/STLLoader.js';
-
-  const PLACEHOLDER = '/static/img/placeholder_stl.jpg';
-  function assetUrl(src){
-    if (!src) return PLACEHOLDER;
-    const s = String(src).trim();
-    if (s.startsWith('http://') || s.startsWith('https://')) return s;
-    if (s.startsWith('/static/')) return s;
-    if (s.startsWith('static/'))  return '/'+s;
-    return s[0] === '/' ? s : '/'+s;
-  }
 
   function makeInlinePlaceholder() {
     const ns = 'http://www.w3.org/2000/svg';
@@ -138,19 +128,18 @@
     return svg;
   }
 
-  const cover = assetUrl({{ (item.cover or '') | tojson }});
-  const rawUrl = {{ (item.url or '') | tojson }};
-  const urlSTL = rawUrl ? assetUrl(rawUrl) : '';
+  // ----- дані з шаблону -----
+  const cover = {{ (item.cover or '') | tojson }};
+  const urlSTL = {{ (item.url or '') | tojson }};
   let photosRaw = {{ (item.photos or '[]') | tojson }};
   let photos = [];
   try { photos = Array.isArray(photosRaw) ? photosRaw : JSON.parse(photosRaw || '[]'); } catch { photos = []; }
-  photos = (photos || []).filter(Boolean).map(s => assetUrl(String(s).trim())).filter(Boolean);
+  photos = (photos || []).filter(Boolean).map(s => String(s).trim()).filter(Boolean);
   if (cover && !photos.includes(cover)) photos.unshift(cover);
 
-  const allowed3d = /\.(stl|obj|ply|gltf|glb)$/i.test(urlSTL);
   const slides = [
     ...photos.map(src => ({ type:'img', src })),
-    ...(allowed3d ? [{ type:'stl', src:urlSTL }] : []),
+    ...(urlSTL ? [{ type:'stl', src:urlSTL }] : [])
   ];
   if (!slides.length) slides.push({type:'img', src:''});
 
@@ -212,9 +201,20 @@
   prevBtn.onclick=()=>go(idx-1);
   nextBtn.onclick=()=>go(idx+1);
 
+  // --- свайп: ІГНОРУЄМО, коли активний STL або коли подія з canvas ---
   let sx=null;
-  stage.addEventListener('pointerdown',e=>{ sx=e.clientX; });
-  stage.addEventListener('pointerup',e=>{ if(sx==null)return; const dx=e.clientX-sx; sx=null; if(Math.abs(dx)>40)(dx>0?prevBtn.onclick():nextBtn.onclick()); });
+  stage.addEventListener('pointerdown',e=>{
+    if (slides[idx]?.type==='stl') return;                 // не ловимо початок свайпа у STL
+    if (e.target.closest('#stl-holder')) return;           // або якщо таргет всередині STL
+    sx=e.clientX;
+  });
+  stage.addEventListener('pointerup',e=>{
+    if (slides[idx]?.type==='stl') return;                 // не перемикаємо слайд після обертання STL
+    if (e.target.closest('#stl-holder')) return;
+    if(sx==null) return;
+    const dx=e.clientX-sx; sx=null;
+    if(Math.abs(dx)>40)(dx>0?prevBtn.onclick():nextBtn.onclick());
+  });
 
   slideEls[0].classList.add('active');
   setTimeout(()=>go(0),0);
@@ -228,6 +228,11 @@
     const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.outputColorSpace=THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
+    // ВАЖЛИВО: не пускаємо pointer події далі, щоб не триггерився свайп
+    ['pointerdown','pointerup','pointermove','wheel','touchstart','touchend','mousedown','mouseup','mousemove','click'].forEach(ev=>{
+      renderer.domElement.addEventListener(ev, ev2=>ev2.stopPropagation(), {passive:false});
+    });
+
     const controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=true;
     scene.add(new THREE.AmbientLight(0xffffff,0.6)); const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(2,2,2); scene.add(dir);
 
@@ -237,10 +242,6 @@
       const mesh=new THREE.Mesh(geo,mat); if(geo.computeVertexNormals) geo.computeVertexNormals(); scene.add(mesh);
       const box=new THREE.Box3().setFromObject(mesh); const size=box.getSize(new THREE.Vector3()); const center=box.getCenter(new THREE.Vector3());
       mesh.position.sub(center); camera.position.set(size.x*1.2+0.6,size.y*1.2+0.4,size.z*1.5+0.8); controls.update();
-    }, undefined, ()=>{
-      // на помилці — просто залишається плейсхолдер-слайд
-      container.innerHTML='';
-      container.appendChild(makeInlinePlaceholder());
     });
 
     function resize(){ const w=container.clientWidth||container.offsetWidth||600; const h=container.clientHeight||420;
