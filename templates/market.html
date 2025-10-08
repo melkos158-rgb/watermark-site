@@ -100,6 +100,9 @@
   let hasMore = true;
   let loading = false;
 
+  // Ідентифікатор серії запитів (щоб ігнорити «старі» відповіді після reset)
+  let series = 0;
+
   btnSearch.addEventListener('click', resetAndLoad);
   filterFree.addEventListener('change', ()=>{ if(MODE==='all') resetAndLoad(); });
   sortSel.addEventListener('change', resetAndLoad);
@@ -127,6 +130,8 @@
   function resetAndLoad(){
     page = 1;
     hasMore = true;
+    loading = false;
+    series++;            // нова серія запитів
     grid.innerHTML = '';
     loadNextPage();
   }
@@ -134,6 +139,7 @@
   async function loadNextPage(){
     if (!hasMore || loading) return;
     loading = true;
+    const mySeries = series;
 
     // Плашка "завантаження"
     const loadingCard = document.createElement('div');
@@ -157,10 +163,12 @@
       }
 
       const r = await fetch(url);
-      if (!r.ok){
-        // видалити лоадер лише якщо він ще в DOM
-        if (loadingCard.parentNode === grid) grid.removeChild(loadingCard);
 
+      // Якщо за час очікування сталася нова «серія» — ігноруємо відповідь
+      if (mySeries !== series) return;
+
+      if (!r.ok){
+        if (loadingCard.parentNode === grid) grid.removeChild(loadingCard); // БЕЗПЕЧНО
         if (MODE==='mine' && r.status===401){
           showNotice('Увійди, щоб бачити свої оголошення.');
           grid.innerHTML = `<div class="empty">Авторизуйся.</div>`;
@@ -173,19 +181,10 @@
       }
 
       const data = await r.json().catch(()=> ({}));
-      // бек завжди повертає об’єкт {items, page, pages, total...}
       const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
       const pages = Number(data.pages || 1);
 
-      if (sortSel.value === 'price_asc') {
-        items.sort((a,b)=>(+a.price||0)-(+b.price||0));
-      } else if (sortSel.value === 'price_desc') {
-        items.sort((a,b)=>(+b.price||0)-(+a.price||0));
-      } else if (sortSel.value === 'new') {
-        items.sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      }
-
-      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard);
+      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard); // БЕЗПЕЧНО
       appendItems(items);
 
       page += 1;
@@ -196,7 +195,7 @@
       }
     }catch(e){
       console.error(e);
-      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard);
+      if (loadingCard.parentNode === grid) grid.removeChild(loadingCard); // БЕЗПЕЧНО
       grid.innerHTML = `<div class="empty">Помилка мережі.</div>`;
       hasMore = false;
     }finally{
@@ -205,6 +204,15 @@
   }
 
   function appendItems(items){
+    // клієнтське сортування (на всяк випадок)
+    if (sortSel.value === 'price_asc') {
+      items.sort((a,b)=>(+a.price||0)-(+b.price||0));
+    } else if (sortSel.value === 'price_desc') {
+      items.sort((a,b)=>(+b.price||0)-(+a.price||0));
+    } else if (sortSel.value === 'new') {
+      items.sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
+
     for(const it of items){
       const tagsArr = Array.isArray(it.tags)
         ? it.tags
@@ -214,7 +222,7 @@
       const el = document.createElement('div');
       el.className='item';
       el.innerHTML = `
-        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb"
+        <img src="${coverSrc}" loading="lazy" alt="${escapeHtml(it.title||'')}" class="thumb"
              onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg';">
         <div class="meta">
           <div class="title">${escapeHtml(it.title||'Без назви')}</div>
