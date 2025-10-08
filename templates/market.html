@@ -1,535 +1,231 @@
-import os
-import math
-import json
-from typing import Any, Dict, Optional
+{% extends "base.html" %}
+{% block content %}
 
-from flask import Blueprint, render_template, jsonify, request, session, current_app
-from sqlalchemy import text
-from sqlalchemy import exc as sa_exc
-from werkzeug.utils import secure_filename
+<div class="wrap">
+  <header>
+    <div class="brand">🧩 STL Market</div>
 
-from db import db, User
+    <div class="search-box">
+      <input id="q" placeholder="Пошук: dragon, stand, toy..." />
+      <button class="btn" id="btnSearch">🔍</button>
+    </div>
 
-bp = Blueprint("market", __name__)
+    <div class="toolbar">
+      <button class="btn" id="btnMine" title="Показати тільки мої оголошення">Мої оголошення</button>
+      <a href="{{ url_for('market.page_upload') }}" class="btn primary">+ Додати модель</a>
+    </div>
+  </header>
 
-ITEMS_TBL = "items"
-USERS_TBL = getattr(User, "__tablename__", "users") or "users"
+  <div class="controls">
+    <label>Показати:
+      <select id="filterFree">
+        <option value="all">Усі</option>
+        <option value="free">Безкоштовні</option>
+        <option value="paid">Платні</option>
+      </select>
+    </label>
+    <label>Сортувати:
+      <select id="sort">
+        <option value="new">Нові</option>
+        <option value="price_asc">Ціна ↑</option>
+        <option value="price_desc">Ціна ↓</option>
+      </select>
+    </label>
+  </div>
 
-# логічний шлях; фізично пишемо у app/static/... всередині _save_upload
-UPLOAD_DIR = os.path.join("static", "market_uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+  <div id="notice" class="notice" style="display:none"></div>
+  <div id="grid" class="grid"></div>
+</div>
 
-ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
-ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+<style>
+  :root {
+    --bg:#0f1116; --card:#141923; --muted:#8792a7;
+    --line:#232a3a; --text:#e7ebf4; --accent:#3b82f6; --danger:#ef4444;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:16px;}
+  header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
+  .brand{font-weight:800;font-size:18px;letter-spacing:.3px;}
+  .search-box{flex:1;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px;}
+  .search-box input{flex:1;background:transparent;border:none;color:var(--text);font-size:14px;outline:none;}
+  .toolbar{display:flex;gap:8px}
+  .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn:active{transform:scale(.98);}
+  .btn.danger{border-color:var(--danger); color:#fff; background:var(--danger);}
+  .btn.ghost{opacity:.85}
+  .btn.active{outline:2px solid var(--accent)}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  select{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:8px 10px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;}
+  .item:hover{transform:translateY(-2px);}
+  .thumb{width:100%;aspect-ratio:4/3;object-fit:cover;border-bottom:1px solid var(--line);}
+  .meta{padding:10px;display:flex;flex-direction:column;gap:4px;}
+  .title{font-weight:700;}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+  .tag{font-size:12px;border:1px solid var(--line);padding:2px 6px;border-radius:999px;color:var(--muted);}
+  .muted{color:var(--muted);font-size:13px;}
+  .price{font-weight:700;}
+  .actions{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+  .empty{text-align:center;color:var(--muted);padding:20px;}
+  .notice{margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);}
+  @media(max-width:700px){
+    header{flex-direction:column;align-items:stretch;}
+    .search-box{flex:none;}
+    .toolbar{justify-content:space-between}
+  }
+</style>
 
-COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
+<script type="module">
+  // id поточного користувача (для відображення «Мої оголошення»/кнопок)
+  const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
+  const grid = document.getElementById('grid');
+  const q = document.getElementById('q');
+  const filterFree = document.getElementById('filterFree');
+  const sortSel = document.getElementById('sort');
+  const btnSearch = document.getElementById('btnSearch');
+  const btnMine = document.getElementById('btnMine');
+  const notice = document.getElementById('notice');
 
-def _row_to_dict(row) -> Dict[str, Any]:
-    try:
-        return dict(row._mapping)
-    except Exception:
-        return dict(row)
+  // режим: 'all' або 'mine'
+  let MODE = 'all';
 
-def _parse_int(v, default=0):
-    try:
-        return int(v)
-    except Exception:
-        try:
-            return int(float(v))
-        except Exception:
-            return default
+  btnSearch.addEventListener('click', load);
+  filterFree.addEventListener('change', ()=>{ if(MODE==='all') load(); });
+  sortSel.addEventListener('change', load);
+  window.addEventListener('load', load);
 
-def _normalize_free(value: Optional[str]) -> str:
-    v = (value or "all").lower()
-    return v if v in ("all", "free", "paid") else "all"
+  q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); load(); } });
 
-def _normalize_sort(value: Optional[str]) -> str:
-    v = (value or "new").lower()
-    return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
+  btnMine.addEventListener('click', async ()=>{
+    if (!CURRENT_USER_ID){
+      showNotice('Потрібно увійти, щоб бачити свої оголошення.');
+      return;
+    }
+    MODE = (MODE === 'mine') ? 'all' : 'mine';
+    btnMine.classList.toggle('active', MODE==='mine');
+    // у «моєму» режимі фільтр "Показати" не застосовуємо, бо бек повертає все автора
+    await load();
+  });
 
-def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
-    if not file_storage or not getattr(file_storage, "filename", ""):
-        return None
-    ext = os.path.splitext(file_storage.filename)[1].lower()
-    if ext not in allowed_ext:
-        return None
-    safe = secure_filename(os.path.basename(file_storage.filename)) or ("file" + ext)
+  function showNotice(text, timeout=2200){
+    notice.textContent = text;
+    notice.style.display = 'block';
+    if (timeout){
+      setTimeout(()=>{ notice.style.display='none'; }, timeout);
+    }
+  }
 
-    static_root = os.path.join(current_app.root_path, "static")
-    folder = os.path.join(static_root, "market_uploads", subdir)
-    os.makedirs(folder, exist_ok=True)
+  async function load(){
+    grid.innerHTML = `<div class="empty">Завантаження…</div>`;
+    try{
+      let items = [];
+      if (MODE === 'mine'){
+        const r = await fetch(`/api/my/items`);
+        if (r.status === 401){ showNotice('Увійди, щоб бачити свої оголошення.'); grid.innerHTML = `<div class="empty">Авторизуйся.</div>`; return; }
+        const data = await r.json();
+        items = Array.isArray(data.items) ? data.items : [];
+      } else {
+        const r = await fetch(`/api/items?q=${encodeURIComponent(q.value||'')}&free=${filterFree.value}`);
+        const data = await r.json();
+        items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+      }
 
-    name = safe
-    base, e = os.path.splitext(name)
-    dst = os.path.join(folder, name)
-    i = 1
-    while os.path.exists(dst):
-        name = f"{base}_{i}{e}"
-        dst = os.path.join(folder, name)
-        i += 1
+      // клієнтське сортування
+      if (sortSel.value === 'price_asc') {
+        items.sort((a,b)=>(+a.price||0)-(+b.price||0));
+      } else if (sortSel.value === 'price_desc') {
+        items.sort((a,b)=>(+b.price||0)-(+a.price||0));
+      } else if (sortSel.value === 'new') {
+        // припускаємо, що бек уже нові зверху; fallback:
+        items = items.slice().sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      }
 
-    file_storage.save(dst)
-    rel = os.path.relpath(dst, static_root).replace("\\", "/")
-    return f"/static/{rel}"
+      renderItems(items);
+    }catch(e){
+      console.error(e);
+      grid.innerHTML = `<div class="empty">Помилка завантаження.</div>`;
+    }
+  }
 
-def json_dumps_safe(obj) -> str:
-    try:
-        return json.dumps(obj, ensure_ascii=False)
-    except Exception:
-        return "[]"
+  function renderItems(items){
+    grid.innerHTML = '';
+    if(!items.length){
+      grid.innerHTML = `<div class="empty">${MODE==='mine' ? 'У тебе ще немає оголошень.' : 'Нічого не знайдено 😿'}</div>`;
+      return;
+    }
+    for(const it of items){
+      const tagsArr = Array.isArray(it.tags)
+        ? it.tags
+        : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
+      const coverSrc = it.cover || '/static/img/placeholder_stl.jpg';
 
+      const el = document.createElement('div');
+      el.className='item';
+      el.innerHTML = `
+        <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb">
+        <div class="meta">
+          <div class="title">${escapeHtml(it.title||'Без назви')}</div>
+          <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
+          <div class="muted">★ ${it.rating ?? '—'}</div>
+          <div class="price">${(+it.price||0)===0 ? 'Безкоштовно' : (Number(it.price)+' PLN')}</div>
+          <div class="actions">
+            <button class="btn primary" data-open="${it.id}">Переглянути</button>
+            ${ showOwnerActions(it) }
+          </div>
+        </div>
+      `;
+      grid.appendChild(el);
+    }
+  }
 
-@bp.get("/market")
-def page_market():
-    return render_template("market.html")
+  function showOwnerActions(it){
+    // у режимі "мої" показуємо управління завжди;
+    // в режимі "усі" — тільки якщо item.user_id дорівнює CURRENT_USER_ID
+    const isOwner = MODE==='mine' || (CURRENT_USER_ID && +it.user_id === +CURRENT_USER_ID);
+    if (!isOwner) return '';
+    return `
+      <button class="btn ghost" data-edit="${it.id}">Редагувати</button>
+      <button class="btn danger" data-del="${it.id}">Видалити</button>
+    `;
+  }
 
-@bp.get("/item/<int:item_id>")
-def page_item(item_id: int):
-    it = _fetch_item_with_author(item_id)
-    if not it:
-        return render_template("item.html", item=None), 404
-    return render_template("item.html", item=it)
-
-@bp.get("/upload")
-def page_upload():
-    return render_template("upload.html")
-
-
-@bp.get("/api/items")
-def api_items():
-    q = (request.args.get("q") or "").strip().lower()
-    free = _normalize_free(request.args.get("free"))
-    sort = _normalize_sort(request.args.get("sort"))
-    page = max(1, _parse_int(request.args.get("page"), 1))
-    per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
-
-    # діалектно-безпечні вирази (tags може бути JSON у PG)
-    dialect = db.session.get_bind().dialect.name
-    if dialect == "postgresql":
-        title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
-        tags_expr  = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-    else:
-        title_expr = "LOWER(COALESCE(title, ''))"
-        tags_expr  = "LOWER(COALESCE(tags,  ''))"
-
-    where, params = [], {}
-    if q:
-        where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
-        params["q"] = f"%{q}%"
-    if free == "free":
-        where.append("price = 0")
-    elif free == "paid":
-        where.append("price > 0")
-
-    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-
-    if sort == "price_asc":
-        order_sql = "ORDER BY price ASC, created_at DESC"
-    elif sort == "price_desc":
-        order_sql = "ORDER BY price DESC, created_at DESC"
-    elif sort == "downloads":
-        order_sql = "ORDER BY downloads DESC, created_at DESC"
-    else:
-        order_sql = "ORDER BY created_at DESC, id DESC"
-
-    offset = (page - 1) * per_page
-
-    total = db.session.execute(
-        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
-    ).scalar() or 0
-
-    sql_primary = f"""
-        SELECT id, title, price, tags, cover, rating, downloads,
-               file_url AS url, format, user_id, created_at
-        FROM {ITEMS_TBL}
-        {where_sql}
-        {order_sql}
-        LIMIT :limit OFFSET :offset
-    """
-    sql_fallback = f"""
-        SELECT id, title, price, tags, cover, downloads,
-               file_url AS url, format, user_id, created_at
-        FROM {ITEMS_TBL}
-        {where_sql}
-        {order_sql}
-        LIMIT :limit OFFSET :offset
-    """
-    try:
-        rows = db.session.execute(
-            text(sql_primary),
-            {**params, "limit": per_page, "offset": offset}
-        ).fetchall()
-        items = [_row_to_dict(r) for r in rows]
-    except sa_exc.ProgrammingError:
-        # важливо: очистити транзакцію перед повтором
-        db.session.rollback()
-        rows = db.session.execute(
-            text(sql_fallback),
-            {**params, "limit": per_page, "offset": offset}
-        ).fetchall()
-        items = []
-        for r in rows:
-            d = _row_to_dict(r)
-            d.setdefault("rating", 0)
-            items.append(d)
-
-    return jsonify({
-        "items": items,
-        "page": page,
-        "per_page": per_page,
-        "pages": math.ceil(total / per_page) if per_page else 1,
-        "total": total
-    })
-
-@bp.get("/api/item/<int:item_id>")
-def api_item(item_id: int):
-    it = _fetch_item_with_author(item_id)
-    if not it:
-        return jsonify({"error": "not_found"}), 404
-    return jsonify(it)
-
-@bp.post("/api/item/<int:item_id>/download")
-def api_item_download(item_id: int):
-    upd = db.session.execute(
-        text(f"UPDATE {ITEMS_TBL} SET downloads = downloads + 1, updated_at = NOW() WHERE id = :id"),
-        {"id": item_id}
-    )
-    db.session.commit()
-    if upd.rowcount == 0:
-        return jsonify({"ok": False, "error": "not_found"}), 404
-    return jsonify({"ok": True})
-
-@bp.post("/api/upload")
-def api_upload():
-    if request.content_type and request.content_type.startswith("multipart/form-data"):
-        form, files = request.form, request.files
-        title = (form.get("title") or "").strip()
-        price = _parse_int(form.get("price"), 0)
-        desc  = (form.get("desc") or "").strip()
-        fmt   = (form.get("format") or "stl").strip().lower()
-
-        raw_tags = form.get("tags") or ""
-        try:
-            tags_val = json.loads(raw_tags) if raw_tags.strip().startswith("[") else raw_tags
-        except Exception:
-            tags_val = raw_tags
-
-        file_url = (form.get("stl_url") or form.get("url") or "").strip()
-        if not file_url and "stl_file" in files:
-            uid = _parse_int(session.get("user_id"), 0)
-            saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
-            if saved:
-                file_url = saved
-
-        cover = (form.get("cover_url") or "").strip()
-        if not cover and "cover_file" in files:
-            uid = _parse_int(session.get("user_id"), 0)
-            saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
-            if saved:
-                cover = saved
-
-        user_id = _parse_int(form.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
-    else:
-        data = request.get_json(silent=True) or {}
-        title = (data.get("title") or "").strip()
-        price = _parse_int(data.get("price"), 0)
-        desc  = (data.get("desc") or "").strip()
-        fmt   = (data.get("format") or "stl").strip().lower()
-        file_url = (data.get("url") or data.get("file_url") or "").strip()
-        cover = (data.get("cover") or "").strip()
-        tags_val = data.get("tags") or ""
-        user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
-
-    if not cover:
-        cover = COVER_PLACEHOLDER
-
-    if isinstance(tags_val, list):
-        tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
-    else:
-        tags_str = str(tags_val or "")
-
-    if not title or not file_url or not user_id:
-        return jsonify({"ok": False, "error": "missing_fields"}), 400
-
-    photos_json = json_dumps_safe([])
-
-    dialect = db.session.get_bind().dialect.name
-    if dialect == "postgresql":
-        sql = f"""
-            INSERT INTO {ITEMS_TBL}
-              (title, "desc", price, tags, cover, photos, file_url, format,
-               downloads, user_id, created_at, updated_at)
-            VALUES
-              (:title, :desc, :price, :tags, :cover, CAST(:photos AS JSON),
-               :file_url, :format, 0, :user_id, NOW(), NOW())
-            RETURNING id
-        """
-    else:
-        sql = f"""
-            INSERT INTO {ITEMS_TBL}
-              (title, "desc", price, tags, cover, photos, file_url, format,
-               downloads, user_id, created_at, updated_at)
-            VALUES
-              (:title, :desc, :price, :tags, :cover, :photos,
-               :file_url, :format, 0, :user_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        """
-
-    row = db.session.execute(
-        text(sql),
-        {
-            "title": title,
-            "desc": desc,
-            "price": price,
-            "tags": tags_str,
-            "cover": cover,
-            "photos": photos_json,
-            "file_url": file_url,
-            "format": fmt,
-            "user_id": user_id,
+  grid.addEventListener('click', async (e)=>{
+    const openId = e.target?.dataset?.open;
+    if (openId) {
+      window.location.href = `/item/${openId}`;
+      return;
+    }
+    const editId = e.target?.dataset?.edit;
+    if (editId){
+      window.location.href = `/edit/${editId}`;
+      return;
+    }
+    const delId = e.target?.dataset?.del;
+    if (delId){
+      if (!confirm('Видалити оголошення безповоротно?')) return;
+      try{
+        const r = await fetch(`/api/item/${delId}/delete`, { method:'POST' });
+        const j = await r.json().catch(()=>({}));
+        if (r.ok && j.ok){
+          showNotice('Оголошення видалено.');
+          load();
+        } else {
+          showNotice('Не вдалося видалити (немає прав або помилка).');
         }
-    )
-    if dialect == "postgresql":
-        new_id = _row_to_dict(row.fetchone())["id"]
-    else:
-        new_id = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()
+      }catch(err){
+        console.error(err);
+        showNotice('Помилка мережі при видаленні.');
+      }
+    }
+  });
 
-    db.session.commit()
-    return jsonify({"ok": True, "id": int(new_id)})
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => (
+      { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]
+    ));
+  }
+</script>
 
-
-def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
-    sql_primary = f"""
-      SELECT i.*, 
-             i.file_url AS url,
-             u.name   AS author_name,
-             u.email  AS author_email,
-             u.id     AS author_id,
-             COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar,
-             COALESCE(u.bio, '3D-дизайнер') AS author_bio
-      FROM {ITEMS_TBL} i
-      LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-      WHERE i.id = :id
-    """
-    sql_fallback = f"""
-      SELECT i.*, 
-             i.file_url AS url,
-             u.name   AS author_name,
-             u.email  AS author_email,
-             u.id     AS author_id
-      FROM {ITEMS_TBL} i
-      LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-      WHERE i.id = :id
-    """
-    try:
-        row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
-    except sa_exc.ProgrammingError:
-        db.session.rollback()  # критично перед повторною спробою
-        row = db.session.execute(text(sql_fallback), {"id": item_id}).fetchone()
-
-    if not row:
-        return None
-
-    d = _row_to_dict(row)
-    d.setdefault("author_avatar", "/static/img/user.jpg")
-    d.setdefault("author_bio", "3D-дизайнер")
-    return d
-
-
-# =========================
-# ДОДАНІ ЕНДПОЇНТИ НИЖЧЕ
-# =========================
-
-def _current_user_id() -> Optional[int]:
-    try:
-        return int(session.get("user_id") or 0) or None
-    except Exception:
-        return None
-
-@bp.get("/api/my/items")
-def api_my_items():
-    """Список оголошень поточного користувача (для кнопки 'Мої оголошення')."""
-    uid = _current_user_id()
-    if not uid:
-        return jsonify({"error": "unauthorized"}), 401
-
-    page = max(1, _parse_int(request.args.get("page"), 1))
-    per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
-    offset = (page - 1) * per_page
-
-    total = db.session.execute(
-        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
-        {"uid": uid},
-    ).scalar() or 0
-
-    rows = db.session.execute(
-        text(
-            f"""
-            SELECT id, title, price, tags, cover, rating, downloads,
-                   file_url AS url, format, user_id, created_at, updated_at
-            FROM {ITEMS_TBL}
-            WHERE user_id = :uid
-            ORDER BY updated_at DESC, id DESC
-            LIMIT :limit OFFSET :offset
-            """
-        ),
-        {"uid": uid, "limit": per_page, "offset": offset},
-    ).fetchall()
-
-    items = [_row_to_dict(r) for r in rows]
-
-    return jsonify({
-        "items": items,
-        "page": page,
-        "per_page": per_page,
-        "pages": math.ceil(total / per_page) if per_page else 1,
-        "total": total
-    })
-
-
-@bp.post("/api/item/<int:item_id>/delete")
-def api_item_delete(item_id: int):
-    """Видалити оголошення (тільки власник)."""
-    uid = _current_user_id()
-    if not uid:
-        return jsonify({"ok": False, "error": "unauthorized"}), 401
-
-    # перевіряємо власника
-    owner_id = db.session.execute(
-        text(f"SELECT user_id FROM {ITEMS_TBL} WHERE id = :id"),
-        {"id": item_id},
-    ).scalar()
-
-    if owner_id is None:
-        return jsonify({"ok": False, "error": "not_found"}), 404
-    if int(owner_id) != int(uid):
-        return jsonify({"ok": False, "error": "forbidden"}), 403
-
-    db.session.execute(
-        text(f"DELETE FROM {ITEMS_TBL} WHERE id = :id"),
-        {"id": item_id},
-    )
-    db.session.commit()
-    return jsonify({"ok": True})
-
-
-@bp.get("/edit/<int:item_id>")
-def page_edit_item(item_id: int):
-    """Сторінка редагування (під неї зробиш templates/edit_item.html)."""
-    uid = _current_user_id()
-    if not uid:
-        # можна віддати 401/redirect, але тримаємо просто 401 json як сторінка
-        return render_template("edit_item.html", item=None, error="unauthorized"), 401
-
-    # бере дані (з автором) і перевіряє власника
-    item = _fetch_item_with_author(item_id)
-    if not item:
-        return render_template("edit_item.html", item=None, error="not_found"), 404
-    if int(item.get("user_id", 0)) != int(uid):
-        return render_template("edit_item.html", item=None, error="forbidden"), 403
-
-    return render_template("edit_item.html", item=item, error=None)
-
-
-@bp.post("/api/item/<int:item_id>/update")
-def api_item_update(item_id: int):
-    """Оновити оголошення (лише власник). Підтримка multipart/JSON як в api_upload."""
-    uid = _current_user_id()
-    if not uid:
-        return jsonify({"ok": False, "error": "unauthorized"}), 401
-
-    # перевіряємо власника
-    owner_id = db.session.execute(
-        text(f"SELECT user_id FROM {ITEMS_TBL} WHERE id = :id"),
-        {"id": item_id},
-    ).scalar()
-    if owner_id is None:
-        return jsonify({"ok": False, "error": "not_found"}), 404
-    if int(owner_id) != int(uid):
-        return jsonify({"ok": False, "error": "forbidden"}), 403
-
-    # читаємо поля
-    if request.content_type and request.content_type.startswith("multipart/form-data"):
-        form, files = request.form, request.files
-        title = (form.get("title") or "").strip()
-        price = _parse_int(form.get("price"), None)
-        desc  = (form.get("desc") or None)
-        fmt   = (form.get("format") or "").strip().lower() or None
-
-        raw_tags = form.get("tags")
-        tags_str = None
-        if raw_tags is not None:
-            try:
-                tags_val = json.loads(raw_tags) if raw_tags.strip().startswith("[") else raw_tags
-            except Exception:
-                tags_val = raw_tags
-            if isinstance(tags_val, list):
-                tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
-            else:
-                tags_str = str(tags_val or "")
-
-        new_file_url = (form.get("stl_url") or form.get("url") or "").strip() or None
-        if not new_file_url and "stl_file" in files:
-            saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
-            if saved:
-                new_file_url = saved
-
-        new_cover = (form.get("cover_url") or "").strip() or None
-        if not new_cover and "cover_file" in files:
-            saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
-            if saved:
-                new_cover = saved
-    else:
-        data = request.get_json(silent=True) or {}
-        title = (data.get("title") or "").strip() if "title" in data else None
-        price = _parse_int(data.get("price"), None) if "price" in data else None
-        desc  = (data.get("desc") if "desc" in data else None)
-        fmt   = (data.get("format") or "").strip().lower() or None if "format" in data else None
-
-        tags_val = data.get("tags", None)
-        tags_str = None
-        if tags_val is not None:
-            if isinstance(tags_val, list):
-                tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
-            else:
-                tags_str = str(tags_val or "")
-
-        new_file_url = (data.get("url") or data.get("file_url") or "").strip() or None if ("url" in data or "file_url" in data) else None
-        new_cover = (data.get("cover") or "").strip() or None if "cover" in data else None
-
-    # формуємо SET частину динамічно
-    updates = []
-    params = {"id": item_id}
-
-    if title is not None:
-        updates.append("title = :title")
-        params["title"] = title
-    if price is not None:
-        updates.append("price = :price")
-        params["price"] = int(price)
-    if desc is not None:
-        updates.append('"desc" = :desc')
-        params["desc"] = desc
-    if fmt is not None:
-        updates.append("format = :format")
-        params["format"] = fmt
-    if tags_str is not None:
-        updates.append("tags = :tags")
-        params["tags"] = tags_str
-    if new_file_url is not None:
-        updates.append("file_url = :file_url")
-        params["file_url"] = new_file_url
-    if new_cover is not None:
-        updates.append("cover = :cover")
-        params["cover"] = new_cover
-
-    if not updates:
-        return jsonify({"ok": True, "updated": 0})
-
-    updates.append("updated_at = NOW()")
-
-    sql = f"UPDATE {ITEMS_TBL} SET " + ", ".join(updates) + " WHERE id = :id"
-    db.session.execute(text(sql), params)
-    db.session.commit()
-
-    return jsonify({"ok": True, "updated": 1})
+{% endblock %}
