@@ -102,6 +102,13 @@ def page_item(item_id: int):
 def page_upload():
     return render_template("upload.html")
 
+# --------- ДОДАНО: сторінка редагування ---------
+@bp.get("/edit/<int:item_id>")
+def page_edit_item(item_id: int):
+    # Шаблон сам підтягне дані через /api/item/<id>
+    return render_template("edit.html")
+# -----------------------------------------------
+
 
 @bp.get("/api/items")
 def api_items():
@@ -529,7 +536,7 @@ def _mount_persistent_uploads(setup_state):
 def _static_market_uploads_fallback():
     """
     Якщо браузер просить /static/market_uploads/... а файлу нема,
-    повертаємо плейсхолдер з /static/img/placeholder_stl.jpg.
+    повертаємо плейсхолдер з /static/img/placeholder_stл.jpg.
     Це запобігає «битим» картинкам, навіть якщо старі файли зникли.
     """
     p = request.path
