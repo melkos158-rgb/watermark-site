@@ -40,7 +40,7 @@
       </div>
 
       {% if item.price == 0 %}
-        <a href="{{ item.url }}" download class="btn primary">⬇️ Завантажити STL</a>
+        <a href="{{ item.url or item.stl_main_url }}" download class="btn primary">⬇️ Завантажити STL</a>
       {% else %}
         <button class="btn primary">💳 Купити STL</button>
       {% endif %}
@@ -166,13 +166,17 @@
   const photosRaw = {{ (item.photos is not none and item.photos or item.gallery_urls is not none and item.gallery_urls or '[]') | tojson }};
   let photos = toArray(photosRaw).filter(Boolean);
   if (cover) photos.unshift(cover);
-  photos = photos.filter(Boolean).slice(0,5);
+  // прибираємо дублікати та обмежуємо 5
+  photos = Array.from(new Set(photos)).slice(0,5);
 
-  const stlMain = {{ (item.url or item.stl_url or '') | tojson }};
+  // ДОДАНО: підтримка item.stl_main_url
+  const stlMain = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
+  // stl_extra_urls уже підтримуємо
   const stlRaw  = {{ (item.stl_files is not none and item.stl_files or item.stl_extra_urls is not none and item.stl_extra_urls or item.urls_stl is not none and item.urls_stl or '[]') | tojson }};
   let stlList = toArray(stlRaw).filter(Boolean);
   if (stlMain) stlList.unshift(stlMain);
-  stlList = stlList.filter(Boolean).slice(0,5);
+  // прибираємо дублікати та обмежуємо 5
+  stlList = Array.from(new Set(stlList)).slice(0,5);
 
   // ---------- build ----------
   const stage   = qs('#glrStage');
