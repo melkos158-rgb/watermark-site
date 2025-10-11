@@ -22,21 +22,34 @@
 
     <div style="height:14px"></div>
 
+    <!-- ОСНОВНИЙ 3D-ФАЙЛ -->
     <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
       <legend style="padding:0 6px">3D-модель (файл)</legend>
       <div>
-        <label>Файл STL/OBJ/PLY/GLTF/GLB <span class="muted">(обовʼязково)</span></label>
+        <label>Файл STL/OBJ/PLY/GLTF/GLB <span class="muted">(обовʼязково, 1 шт)</span></label>
         <input id="stl_file" name="stl_file" type="file" accept=".stl,.obj,.ply,.gltf,.glb" required>
         <div class="muted" id="stl_file_hint">Перетягни файл сюди або вибери.</div>
       </div>
+      <div class="muted" style="margin-top:8px">Макс. загалом: 5 3D-файлів (1 основний + до 4 додаткових нижче).</div>
+    </fieldset>
+
+    <div style="height:10px"></div>
+
+    <!-- ДОДАТКОВІ 3D-ФАЙЛИ -->
+    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
+      <legend style="padding:0 6px">Додаткові 3D-файли (необовʼязково)</legend>
+      <label>До 4 шт: STL/OBJ/PLY/GLTF/GLB</label>
+      <input id="stl_files" name="stl_files" type="file" multiple accept=".stl,.obj,.ply,.gltf,.glb">
+      <div class="muted" id="stl_multi_note">Обрано: 0 / 4</div>
     </fieldset>
 
     <div style="height:14px"></div>
 
+    <!-- ОБКЛАДИНКА (ГОЛОВНЕ ФОТО) -->
     <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
       <legend style="padding:0 6px">Обкладинка (файл)</legend>
       <div>
-        <label>Файл JPG/PNG/WEBP <span class="muted">(необовʼязково)</span></label>
+        <label>Файл JPG/PNG/WEBP <span class="muted">(необовʼязково, 1 шт)</span></label>
         <input id="cover_file" name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp">
         <div class="muted">Якщо не вкажеш — поставимо плейсхолдер.</div>
       </div>
@@ -44,6 +57,17 @@
         <img id="cover_preview" src="" alt="" style="display:none; width:120px; height:90px; object-fit:cover; border:1px solid #1b2131; border-radius:8px">
         <span class="muted" id="cover_note">Попередній перегляд зʼявиться після вибору файлу.</span>
       </div>
+    </fieldset>
+
+    <div style="height:10px"></div>
+
+    <!-- ГАЛЕРЕЯ ФОТО -->
+    <fieldset style="border:1px solid #1b2131; border-radius:10px; padding:12px">
+      <legend style="padding:0 6px">Галерея фото (необовʼязково)</legend>
+      <label>До 5 шт: JPG/PNG/WEBP</label>
+      <input id="gallery_files" name="gallery_files" type="file" multiple accept=".jpg,.jpeg,.png,.webp">
+      <div class="muted" id="gallery_note">Обрано: 0 / 5</div>
+      <div id="gallery_preview" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px"></div>
     </fieldset>
 
     <div style="height:14px"></div>
@@ -69,12 +93,55 @@
   const coverPrev = document.getElementById('cover_preview');
   const coverNote = document.getElementById('cover_note');
 
+  // --- Нові елементи для мультизавантаження ---
+  const stlMulti   = document.getElementById('stl_files');
+  const stlMultiNote = document.getElementById('stl_multi_note');
+
+  const galInput   = document.getElementById('gallery_files');
+  const galNote    = document.getElementById('gallery_note');
+  const galPreview = document.getElementById('gallery_preview');
+
+  const STL_TOTAL_LIMIT = 5;  // 1 основний + додаткові
+  const STL_EXTRA_LIMIT = 4;  // саме додаткові
+  const GALLERY_LIMIT   = 5;
+
   function showCover(file){
-    if(!file){ coverPrev.style.display='none'; coverPrev.src=''; coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу.'; return; }
+    if(!file){
+      coverPrev.style.display='none';
+      coverPrev.src='';
+      coverNote.textContent='Попередній перегляд зʼявиться після вибору файлу.';
+      return;
+    }
     coverPrev.src = URL.createObjectURL(file);
     coverPrev.onload = ()=>{ coverPrev.style.display='inline-block'; coverNote.textContent=''; };
   }
   coverFile.addEventListener('change', ()=>{ showCover(coverFile.files && coverFile.files[0]); });
+
+  // Прев’ю для галереї
+  function renderGalleryPreview(files){
+    galPreview.innerHTML = '';
+    const n = Math.min(files.length, GALLERY_LIMIT);
+    for(let i=0;i<n;i++){
+      const f = files[i];
+      const url = URL.createObjectURL(f);
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.width = '100px';
+      img.style.height = '75px';
+      img.style.objectFit = 'cover';
+      img.style.border = '1px solid #1b2131';
+      img.style.borderRadius = '8px';
+      galPreview.appendChild(img);
+    }
+    galNote.textContent = `Обрано: ${Math.min(files.length, GALLERY_LIMIT)} / ${GALLERY_LIMIT}` + (files.length>GALLERY_LIMIT ? ' (зайві будуть проігноровані)' : '');
+  }
+  galInput.addEventListener('change', ()=> renderGalleryPreview(galInput.files||[]));
+
+  // Лічильник для додаткових STL
+  stlMulti.addEventListener('change', ()=>{
+    const n = stlMulti.files ? stlMulti.files.length : 0;
+    stlMultiNote.textContent = `Обрано: ${Math.min(n, STL_EXTRA_LIMIT)} / ${STL_EXTRA_LIMIT}` + (n>STL_EXTRA_LIMIT ? ' (зайві будуть проігноровані)' : '');
+  });
 
   function validateFiles(){
     const stlFile = document.getElementById('stl_file');
@@ -89,7 +156,8 @@
     if (!validateFiles()){ msg.textContent = 'Додай файл моделі (STL/OBJ/PLY/GLTF/GLB).'; return; }
 
     const fd = new FormData(form);
-    // прибираємо будь-які неіснуючі файли (на випадок пустих інпутів)
+
+    // прибираємо порожні одиночні
     const stlFileEl   = document.getElementById('stl_file');
     const coverFileEl = document.getElementById('cover_file');
     if (!(stlFileEl.files && stlFileEl.files.length)) fd.delete('stl_file');
@@ -102,6 +170,32 @@
 
     // user_id явно
     fd.set('user_id', String(CURRENT_USER_ID));
+
+    // ---- ЛІМІТИ ТА ДОДАВАННЯ МУЛЬТИФАЙЛІВ ----
+    // Додаткові STL (до 4), але загалом з основним не більше 5
+    const baseCount = stlFileEl.files && stlFileEl.files.length ? 1 : 0;
+    const extraAllowed = Math.max(0, Math.min(STL_EXTRA_LIMIT, STL_TOTAL_LIMIT - baseCount));
+    if (stlMulti && stlMulti.files && stlMulti.files.length){
+      // Видалити автоматично додані браузером записи, щоб не дублювати
+      fd.delete('stl_files');
+      for (let i=0; i<Math.min(stlMulti.files.length, extraAllowed); i++){
+        fd.append('stl_files', stlMulti.files[i], stlMulti.files[i].name);
+      }
+      if (stlMulti.files.length > extraAllowed){
+        msg.textContent = `Увага: додаткових 3D-файлів завантажено понад ліміт. Зайві проігноровано.`;
+      }
+    }
+
+    // Галерея фото (до 5)
+    if (galInput && galInput.files && galInput.files.length){
+      fd.delete('gallery_files');
+      for (let i=0; i<Math.min(galInput.files.length, GALLERY_LIMIT); i++){
+        fd.append('gallery_files', galInput.files[i], galInput.files[i].name);
+      }
+      if (galInput.files.length > GALLERY_LIMIT){
+        msg.textContent = `Увага: фото у галереї понад ліміт. Зайві проігноровано.`;
+      }
+    }
 
     try{
       const r = await fetch('/api/upload', { method:'POST', body: fd, headers: { 'Accept': 'application/json' }});
