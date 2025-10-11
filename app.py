@@ -62,6 +62,31 @@ class BannerAd(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+# === NEW: модель для ринку STL/фото (щоб зберігати масиви) ===
+class MarketItem(db.Model):
+    __tablename__ = "market_items"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer)
+
+    title = db.Column(db.String(200))
+    price = db.Column(db.Integer, default=0)
+    tags = db.Column(db.Text, default="")
+    desc = db.Column(db.Text, default="")
+
+    # головне фото
+    cover_url = db.Column(db.Text)          # "/static/uploads/img/...."
+    # решта фото як JSON-рядок (масив URL)
+    gallery_urls = db.Column(db.Text)       # '["/static/...","/static/..."]'
+
+    # основний STL
+    stl_main_url = db.Column(db.Text)       # "/static/uploads/stl/...."
+    # додаткові STL як JSON-рядок (масив URL)
+    stl_extra_urls = db.Column(db.Text)     # '["/static/...","/static/..."]'
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+
 # ====== NEW: хелпери для JSON-API чату покращень ======
 def login_required_json(f):
     @wraps(f)
@@ -95,10 +120,13 @@ def create_app():
     app.config.setdefault(_tables_ready_key, False)
 
     def ensure_feedback_tables():
-        """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite."""
+        """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite.
+           ДОДАНО: banner_ad, market_items
+        """
         dialect = db.engine.dialect.name  # 'postgresql' | 'sqlite' | ін.
         with db.engine.begin() as conn:   # автокоміт DDL
             if dialect == "postgresql":
+                # --- існуючі ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS suggestions (
                       id SERIAL PRIMARY KEY,
@@ -137,7 +165,35 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
+                # --- NEW: таблиця банерів ---
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS banner_ad (
+                      id SERIAL PRIMARY KEY,
+                      user_id INTEGER NOT NULL,
+                      image_path VARCHAR(255) NOT NULL,
+                      link_url VARCHAR(500),
+                      active BOOLEAN NOT NULL DEFAULT TRUE,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    );
+                """))
+                # --- NEW: таблиця ринку (фото + STL як JSON-рядки у TEXT) ---
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS market_items (
+                      id SERIAL PRIMARY KEY,
+                      user_id INTEGER,
+                      title VARCHAR(200),
+                      price INTEGER DEFAULT 0,
+                      tags TEXT DEFAULT '',
+                      desc TEXT DEFAULT '',
+                      cover_url TEXT,
+                      gallery_urls TEXT,
+                      stl_main_url TEXT,
+                      stl_extra_urls TEXT,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    );
+                """))
             else:
+                # --- існуючі ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS suggestions (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,6 +229,33 @@ def create_app():
                       user_id INTEGER NOT NULL,
                       delta INTEGER NOT NULL,
                       reason TEXT NOT NULL,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                """))
+                # --- NEW: таблиця банерів ---
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS banner_ad (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      user_id INTEGER NOT NULL,
+                      image_path TEXT NOT NULL,
+                      link_url TEXT,
+                      active INTEGER NOT NULL DEFAULT 1,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                """))
+                # --- NEW: таблиця ринку ---
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS market_items (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      user_id INTEGER,
+                      title TEXT,
+                      price INTEGER DEFAULT 0,
+                      tags TEXT DEFAULT '',
+                      desc TEXT DEFAULT '',
+                      cover_url TEXT,
+                      gallery_urls TEXT,
+                      stl_main_url TEXT,
+                      stl_extra_urls TEXT,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
