@@ -128,18 +128,43 @@
     return svg;
   }
 
-  // ----- дані з шаблону -----
-  const cover = {{ (item.cover or '') | tojson }};
-  const urlSTL = {{ (item.url or '') | tojson }};
-  let photosRaw = {{ (item.photos or '[]') | tojson }};
-  let photos = [];
-  try { photos = Array.isArray(photosRaw) ? photosRaw : JSON.parse(photosRaw || '[]'); } catch { photos = []; }
-  photos = (photos || []).filter(Boolean).map(s => String(s).trim()).filter(Boolean);
-  if (cover && !photos.includes(cover)) photos.unshift(cover);
+  // ---------- ДАНІ З ШАБЛОНУ (підтримка різних форматів) ----------
+  // Фото: cover + photos / gallery_urls (масив | JSON-рядок | "a,b,c")
+  const cover = {{ (item.cover or item.cover_url or '') | tojson }};
+  const photosRaw =
+    {{ (item.photos is not none and item.photos or
+        item.gallery_urls is not none and item.gallery_urls or
+        '[]') | tojson }};
+  function toArray(x){
+    if (!x) return [];
+    if (Array.isArray(x)) return x;
+    if (typeof x === 'string'){
+      const s = x.trim();
+      if (!s) return [];
+      if (s[0]==='[') { try{ return JSON.parse(s); }catch{ return []; } }
+      return s.split(',').map(v=>v.trim());
+    }
+    return [];
+  }
+  let photos = toArray(photosRaw).filter(Boolean);
+  if (cover) photos.unshift(cover);
+  photos = photos.filter(Boolean).slice(0,5);
 
+  // STL: основний url + додаткові stl_files / stl_extra_urls / urls_stl (масив | JSON | "a,b")
+  const stlMain = {{ (item.url or item.stl_url or '') | tojson }};
+  const stlRaw =
+    {{ (item.stl_files is not none and item.stl_files or
+        item.stl_extra_urls is not none and item.stl_extra_urls or
+        item.urls_stl is not none and item.urls_stl or
+        '[]') | tojson }};
+  let stlList = toArray(stlRaw).filter(Boolean);
+  if (stlMain) stlList.unshift(stlMain);
+  stlList = stlList.filter(Boolean).slice(0,5);
+
+  // ---------- Побудова слайдів ----------
   const slides = [
     ...photos.map(src => ({ type:'img', src })),
-    ...(urlSTL ? [{ type:'stl', src:urlSTL }] : [])
+    ...stlList.map((src, i) => ({ type:'stl', src, label:`STL${i+1}` }))
   ];
   if (!slides.length) slides.push({type:'img', src:''});
 
@@ -149,8 +174,24 @@
   const nextBtn = document.getElementById('glrNext');
 
   let idx = 0;
-  let stlInited = false;
+  const slideEls = slides.map(sl => sl.type==='img' ? makeImgSlide(sl.src) : makeStlSlide());
+  slideEls.forEach(el => stage.appendChild(el));
 
+  // мініатюри
+  slides.forEach((sl,i)=>{
+    if (sl.type==='img') {
+      const t=document.createElement('img');
+      t.src=sl.src; t.alt='thumb'; t.className='gthumb';
+      t.addEventListener('error',()=>{ t.replaceWith(makeInlinePlaceholder()); });
+      t.addEventListener('click',()=>go(i)); thumbs.appendChild(t);
+    } else {
+      const t=document.createElement('div'); t.className='gthumb-stl'; t.title=sl.label||'STL';
+      t.style.display='grid'; t.style.placeItems='center'; t.textContent=sl.label||'STL';
+      t.addEventListener('click',()=>go(i)); thumbs.appendChild(t);
+    }
+  });
+
+  // рендер фото/плейсхолдера
   function makeImgSlide(src) {
     const s = document.createElement('div'); s.className = 'glr-slide';
     if (src) {
@@ -158,97 +199,96 @@
       img.loading='eager'; img.decoding='async'; img.src=src; img.alt='preview';
       img.onerror = () => { s.innerHTML=''; s.appendChild(makeInlinePlaceholder()); };
       s.appendChild(img);
-    } else {
-      s.appendChild(makeInlinePlaceholder());
-    }
+    } else { s.appendChild(makeInlinePlaceholder()); }
     return s;
   }
 
+  // рендер контейнера STL
   function makeStlSlide() {
     const s = document.createElement('div'); s.className='glr-slide';
-    const holder=document.createElement('div'); holder.className='glr-stl'; holder.id='stl-holder';
+    const holder=document.createElement('div'); holder.className='glr-stl';
+    // унікальний id на випадок кількох STL
+    holder.id='stl-holder-'+Math.random().toString(36).slice(2);
     s.appendChild(holder); return s;
   }
 
-  const slideEls = slides.map(sl => sl.type==='img' ? makeImgSlide(sl.src) : makeStlSlide());
-  slideEls.forEach(el => stage.appendChild(el));
-
-  slides.forEach((sl,i)=>{
-    if (sl.type==='img') {
-      if (sl.src) {
-        const t=document.createElement('img'); t.src=sl.src; t.alt='thumb'; t.className='gthumb';
-        t.addEventListener('error',()=>{ t.replaceWith(makeInlinePlaceholder()); });
-        t.addEventListener('click',()=>go(i)); thumbs.appendChild(t);
-      } else {
-        const ph=makeInlinePlaceholder(); ph.style.width='70px'; ph.style.height='56px';
-        ph.style.border='1px solid var(--line)'; ph.style.borderRadius='8px';
-        ph.style.cursor='pointer'; ph.addEventListener('click',()=>go(i)); thumbs.appendChild(ph);
-      }
-    } else {
-      const t=document.createElement('div'); t.className='gthumb-stl'; t.title='STL';
-      t.style.display='grid'; t.style.placeItems='center'; t.textContent='STL';
-      t.addEventListener('click',()=>go(i)); thumbs.appendChild(t);
-    }
-  });
-
-  function markActive(){
-    slideEls.forEach((el,i)=> el.classList.toggle('active', i===idx));
-    [...thumbs.children].forEach((el,i)=> el.classList.toggle('active', i===idx));
-    if (slides[idx]?.type==='stl' && !stlInited){ stlInited=true; initSTL(); }
-  }
-  function go(newIdx){ if (!slides.length) return; idx=(newIdx+slides.length)%slides.length; markActive(); }
-
-  prevBtn.onclick=()=>go(idx-1);
-  nextBtn.onclick=()=>go(idx+1);
-
-  // --- свайп: ІГНОРУЄМО, коли активний STL або коли подія з canvas ---
-  let sx=null;
-  stage.addEventListener('pointerdown',e=>{
-    if (slides[idx]?.type==='stl') return;                 // не ловимо початок свайпа у STL
-    if (e.target.closest('#stl-holder')) return;           // або якщо таргет всередині STL
-    sx=e.clientX;
-  });
-  stage.addEventListener('pointerup',e=>{
-    if (slides[idx]?.type==='stl') return;                 // не перемикаємо слайд після обертання STL
-    if (e.target.closest('#stl-holder')) return;
-    if(sx==null) return;
-    const dx=e.clientX-sx; sx=null;
-    if(Math.abs(dx)>40)(dx>0?prevBtn.onclick():nextBtn.onclick());
-  });
-
-  slideEls[0].classList.add('active');
-  setTimeout(()=>go(0),0);
-
-  function initSTL(){
-    if(!urlSTL) return;
-    const container=document.getElementById('stl-holder'); if(!container) return;
+  // ініціалізація STL для активного слайда
+  const stlInited = new Set();
+  function initSTL(idxToInit){
+    const sl = slides[idxToInit];
+    if (!sl || sl.type!=='stl' || stlInited.has(idxToInit)) return;
+    stlInited.add(idxToInit);
+    const container = slideEls[idxToInit].querySelector('[id^=stl-holder-]');
+    if(!container) return;
 
     const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b0e14);
     const camera=new THREE.PerspectiveCamera(60,1,0.01,1000); camera.position.set(1,0.6,1.5);
     const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.outputColorSpace=THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
-    // ВАЖЛИВО: не пускаємо pointer події далі, щоб не триггерився свайп
+    // блокування «свайпу» поверх WebGL
     ['pointerdown','pointerup','pointermove','wheel','touchstart','touchend','mousedown','mouseup','mousemove','click'].forEach(ev=>{
       renderer.domElement.addEventListener(ev, ev2=>ev2.stopPropagation(), {passive:false});
     });
 
     const controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=true;
-    scene.add(new THREE.AmbientLight(0xffffff,0.6)); const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(2,2,2); scene.add(dir);
+    scene.add(new THREE.AmbientLight(0xffffff,0.6));
+    const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(2,2,2); scene.add(dir);
 
     const loader=new STLLoader();
-    loader.load(urlSTL,(geo)=>{
+    loader.load(sl.src,(geo)=>{
       const mat=new THREE.MeshStandardMaterial({color:0x9aa7c7,roughness:.8,metalness:.1});
-      const mesh=new THREE.Mesh(geo,mat); if(geo.computeVertexNormals) geo.computeVertexNormals(); scene.add(mesh);
-      const box=new THREE.Box3().setFromObject(mesh); const size=box.getSize(new THREE.Vector3()); const center=box.getCenter(new THREE.Vector3());
-      mesh.position.sub(center); camera.position.set(size.x*1.2+0.6,size.y*1.2+0.4,size.z*1.5+0.8); controls.update();
+      const mesh=new THREE.Mesh(geo,mat);
+      if(geo.computeVertexNormals) geo.computeVertexNormals();
+      scene.add(mesh);
+      const box=new THREE.Box3().setFromObject(mesh);
+      const size=box.getSize(new THREE.Vector3());
+      const center=box.getCenter(new THREE.Vector3());
+      mesh.position.sub(center);
+      camera.position.set(size.x*1.2+0.6,size.y*1.2+0.4,size.z*1.5+0.8);
+      controls.update();
     });
 
-    function resize(){ const w=container.clientWidth||container.offsetWidth||600; const h=container.clientHeight||420;
-      renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+    function resize(){
+      const w=container.clientWidth||container.offsetWidth||600;
+      const h=container.clientHeight||420;
+      renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+    }
     new ResizeObserver(resize).observe(container); resize();
 
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
   }
+
+  function markActive(){
+    slideEls.forEach((el,i)=> el.classList.toggle('active', i===idx));
+    [...thumbs.children].forEach((el,i)=> el.classList.toggle('active', i===idx));
+    initSTL(idx); // ініт STL тільки коли слайд став активним
+  }
+  function go(newIdx){ if (!slides.length) return; idx=(newIdx+slides.length)%slides.length; markActive(); }
+
+  const prevBtn = document.getElementById('glrPrev');
+  const nextBtn = document.getElementById('glrNext');
+  prevBtn.onclick=()=>go(idx-1);
+  nextBtn.onclick=()=>go(idx+1);
+
+  // свайп (не для STL)
+  let sx=null;
+  const stage = document.getElementById('glrStage');
+  stage.addEventListener('pointerdown',e=>{
+    if (slides[idx]?.type==='stl') return;
+    if (e.target.closest('[id^=stl-holder-]')) return;
+    sx=e.clientX;
+  });
+  stage.addEventListener('pointerup',e=>{
+    if (slides[idx]?.type==='stl') return;
+    if (e.target.closest('[id^=stl-holder-]')) return;
+    if(sx==null) return;
+    const dx=e.clientX-sx; sx=null;
+    if(Math.abs(dx)>40)(dx>0?prevBtn.onclick():nextBtn.onclick());
+  });
+
+  // старт
+  slideEls[0].classList.add('active');
+  setTimeout(()=>go(0),0);
 </script>
 {% endblock %}
