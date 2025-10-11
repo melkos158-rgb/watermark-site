@@ -305,19 +305,42 @@ def api_upload():
         except Exception:
             tags_val = raw_tags
 
+        # ------- STL -------
         file_url = (form.get("stl_url") or (form.get("url") or "")).strip()
+        stl_extra_files = files.getlist("stl_files") if "stl_files" in files else []
+        stl_urls = []
+
         if not file_url and "stl_file" in files:
             uid = _parse_int(session.get("user_id"), 0)
             saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
             if saved:
                 file_url = saved
 
+        if stl_extra_files:
+            uid = _parse_int(session.get("user_id"), 0)
+            for f in stl_extra_files[:5]:  # запас: якщо бек зашле 5 — все одно обмежимо
+                saved = _save_upload(f, f"user_{uid}/models", ALLOWED_MODEL_EXT)
+                if saved:
+                    stl_urls.append(saved)
+        # file_url головний, у stl_urls — додаткові (разом до 5 по шаблону)
+
+        # ------- ФОТО -------
         cover = (form.get("cover_url") or "").strip()
+        gallery_files = files.getlist("gallery_files") if "gallery_files" in files else []
+        images = []
+
         if not cover and "cover_file" in files:
             uid = _parse_int(session.get("user_id"), 0)
             saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
             if saved:
                 cover = saved
+
+        if gallery_files:
+            uid = _parse_int(session.get("user_id"), 0)
+            for f in gallery_files[:5]:
+                saved = _save_upload(f, f"user_{uid}/gallery", ALLOWED_IMAGE_EXT)
+                if saved:
+                    images.append(saved)
 
         user_id = _parse_int(form.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
     else:
@@ -330,6 +353,9 @@ def api_upload():
         cover = (data.get("cover") or "").strip()
         tags_val = data.get("tags") or ""
         user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
+        # API JSON: очікуємо опційні масиви
+        images = list((data.get("photos") or {}).get("images", [])) if isinstance(data.get("photos"), dict) else (data.get("photos") or [])
+        stl_urls = list((data.get("photos") or {}).get("stl", [])) if isinstance(data.get("photos"), dict) else list(data.get("stl_files") or [])
 
     if not cover:
         cover = COVER_PLACEHOLDER
@@ -339,10 +365,15 @@ def api_upload():
     else:
         tags_str = str(tags_val or "")
 
+    # головний STL обовʼязковий
     if not title or not file_url or not user_id:
         return jsonify({"ok": False, "error": "missing_fields"}), 400
 
-    photos_json = json_dumps_safe([])
+    # обмеження 5/5 і пакуємо у JSON-колонку photos
+    images = (images or [])[:5]
+    stl_urls = (stl_urls or [])[:5]
+    photos_payload = {"images": images, "stl": stl_urls}
+    photos_json = json_dumps_safe(photos_payload)
 
     dialect = db.session.get_bind().dialect.name
     if dialect == "postgresql":
@@ -423,6 +454,32 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d = _row_to_dict(row)
     d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
+
+    # ---- Розпаковуємо photos: підтримуємо старий формат (масив) і новий (об’єкт) ----
+    images: list = []
+    stl_files: list = []
+    try:
+        ph = d.get("photos")
+        if isinstance(ph, (dict, list)):
+            data = ph
+        else:
+            data = json.loads(ph or "[]")
+        if isinstance(data, list):
+            images = [s for s in data if s]
+        elif isinstance(data, dict):
+            images = [s for s in (data.get("images") or []) if s]
+            stl_files = [s for s in (data.get("stl") or []) if s]
+    except Exception:
+        images, stl_files = [], []
+
+    # якщо немає cover — ставимо перше фото
+    if not d.get("cover") and images:
+        d["cover"] = images[0]
+
+    d["photos"] = images[:5]
+    d["stl_files"] = stl_files[:5]
+    # url вже виставлено як i.file_url AS url (головний STL)
+
     return d
 
 
