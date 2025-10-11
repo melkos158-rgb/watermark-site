@@ -130,16 +130,39 @@
     const text=document.createElementNS(ns,'text'); text.setAttribute('x','400'); text.setAttribute('y','300'); text.setAttribute('text-anchor','middle'); text.setAttribute('fill','#8993a8'); text.setAttribute('font-size','28'); text.textContent='Немає зображення'; svg.appendChild(text);
     return svg;
   }
-  function toArray(x){
-    if (!x) return [];
-    if (Array.isArray(x)) return x;
-    if (typeof x==='string'){
-      const s=x.trim(); if(!s) return [];
-      if (s[0]==='['){ try{ return JSON.parse(s); }catch{return []} }
-      return s.split(',').map(v=>v.trim());
-    }
-    return [];
+  function uniq5(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).slice(0,5); }
+
+  // ---------- data ----------
+  const cover = {{ (item.cover or item.cover_url or '') | tojson }};
+  const photosFromItem = {{ item.photos | tojson }};              // може бути масив або об’єкт {images, stl}
+  const galleryUrls    = {{ (item.gallery_urls or '[]') | tojson }};
+  const stlMain        = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
+  const stlFromItem    = {{ (item.stl_files or '[]') | tojson }}; // може вже бути масив STL
+
+  // Витягуємо фото й STL з різних форматів
+  let images = [];
+  let stlList = [];
+
+  if (Array.isArray(photosFromItem)) {
+    images = photosFromItem;
+  } else if (photosFromItem && typeof photosFromItem === 'object') {
+    images = Array.isArray(photosFromItem.images) ? photosFromItem.images : [];
+    stlList = Array.isArray(photosFromItem.stl) ? photosFromItem.stl : [];
   }
+
+  // додаткові джерела (сумісність)
+  if (!images?.length && Array.isArray(galleryUrls)) images = galleryUrls;
+  if (Array.isArray(stlFromItem) && stlFromItem.length) stlList = stlList.concat(stlFromItem);
+
+  // додаємо cover і головний STL
+  if (cover) images = [cover, ...images];
+  if (stlMain) stlList = [stlMain, ...stlList];
+
+  // прибираємо дублікати та обмежуємо 5
+  images  = uniq5(images);
+  stlList = uniq5(stlList);
+
+  // ---------- builders ----------
   function makeImgSlide(src){
     const s=document.createElement('div'); s.className='glr-slide';
     if (src){
@@ -161,23 +184,6 @@
     return b;
   }
 
-  // ---------- data ----------
-  const cover = {{ (item.cover or item.cover_url or '') | tojson }};
-  const photosRaw = {{ (item.photos is not none and item.photos or item.gallery_urls is not none and item.gallery_urls or '[]') | tojson }};
-  let photos = toArray(photosRaw).filter(Boolean);
-  if (cover) photos.unshift(cover);
-  // прибираємо дублікати та обмежуємо 5
-  photos = Array.from(new Set(photos)).slice(0,5);
-
-  // ДОДАНО: підтримка item.stl_main_url
-  const stlMain = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
-  // stl_extra_urls уже підтримуємо
-  const stlRaw  = {{ (item.stl_files is not none and item.stl_files or item.stl_extra_urls is not none and item.stl_extra_urls or item.urls_stl is not none and item.urls_stl or '[]') | tojson }};
-  let stlList = toArray(stlRaw).filter(Boolean);
-  if (stlMain) stlList.unshift(stlMain);
-  // прибираємо дублікати та обмежуємо 5
-  stlList = Array.from(new Set(stlList)).slice(0,5);
-
   // ---------- build ----------
   const stage   = qs('#glrStage');
   const thumbs  = qs('#glrThumbs');
@@ -185,7 +191,7 @@
   const nextBtn = qs('#glrNext');
 
   const slides = [
-    ...photos.map(src => ({type:'img', src})),
+    ...images.map(src => ({type:'img', src})),
     ...stlList.map((src,i)=>({type:'stl', src, id:`stl-holder-${i}`, label:`STL ${i+1}`}))
   ];
   if (!slides.length) slides.push({type:'img', src:''});
@@ -193,7 +199,7 @@
   const slideEls = slides.map(sl => sl.type==='img' ? makeImgSlide(sl.src) : makeStlSlide(sl.id));
   slideEls.forEach(el => stage.appendChild(el));
 
-  // bottom thumbnails (кліки/клава перемикають)
+  // thumbs
   slides.forEach((sl,i)=>{
     if (sl.type==='img'){
       const img=document.createElement('img'); img.src=sl.src; img.alt='thumb';
@@ -217,10 +223,8 @@
   function markActive(){
     slideEls.forEach((el,i)=> el.classList.toggle('active', i===idx));
     qsa('.gthumb-btn').forEach((b,i)=> b.classList.toggle('active', i===idx));
-    // авто-прокрутка активної мініатюри в зону видимості
     const activeThumb = qsa('.gthumb-btn')[idx];
     if (activeThumb) activeThumb.scrollIntoView({block:'nearest', inline:'nearest', behavior:'smooth'});
-    // lazy init STL
     initSTL(idx);
   }
   function go(newIdx){
@@ -232,7 +236,7 @@
   prevBtn.addEventListener('click',()=>go(idx-1));
   nextBtn.addEventListener('click',()=>go(idx+1));
 
-  // свайп по великій сцені (вимкнений для STL)
+  // свайп (не під час STL взаємодії)
   let sx=null;
   stage.addEventListener('pointerdown',e=>{
     const isSTL = slides[idx]?.type==='stl';
@@ -247,7 +251,7 @@
     if (Math.abs(dx)>40) (dx>0 ? prevBtn.click() : nextBtn.click());
   });
 
-  // ініціалізація
+  // init
   slideEls[0].classList.add('active');
   markActive();
 
@@ -265,7 +269,6 @@
     const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.outputColorSpace=THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
-    // блок подій, щоб не зʼїдав кліки свайпа
     ['pointerdown','pointerup','pointermove','wheel','touchstart','touchend','mousedown','mouseup','mousemove','click']
       .forEach(ev=>renderer.domElement.addEventListener(ev, ev2=>ev2.stopPropagation(), {passive:false}));
 
