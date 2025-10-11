@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Редагувати модель{% endblock %}
+
+{% block content %}
+<h1>Редагувати STL</h1>
+
+<style>
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;max-width:900px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row > div{flex:1 1 220px}
+  .drop{width:100%;aspect-ratio:16/6;max-height:280px;display:flex;align-items:center;justify-content:center;
+        border:2px dashed #5a6380;border-radius:14px;background:linear-gradient(180deg,#3a3f51,#2a2f3d);
+        cursor:pointer;position:relative;overflow:hidden}
+  .drop h4{margin:0}
+  .badge{position:absolute;top:10px;right:10px;background:#111a;color:#fff;padding:4px 8px;border-radius:999px;border:1px solid #ffffff22;font-size:12px}
+  .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .thumb{width:100px;height:75px;border-radius:10px;overflow:hidden;border:1px solid #1b2131;background:#111}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .muted{color:var(--muted);font-size:12px}
+</style>
+
+<div class="card">
+  <div id="status" class="muted" style="margin-bottom:8px"></div>
+
+  <div class="row">
+    <div>
+      <label>Назва</label>
+      <input id="title" style="width:100%">
+    </div>
+    <div>
+      <label>Ціна (0 = безкоштовно)</label>
+      <input id="price" type="number" min="0" value="0" style="width:100%">
+    </div>
+    <div>
+      <label>Теги (через кому)</label>
+      <input id="tags" placeholder="dragon,toy,figure" style="width:100%">
+    </div>
+  </div>
+
+  <div style="height:12px"></div>
+
+  <label>Опис</label>
+  <textarea id="desc" rows="4" style="width:100%"></textarea>
+
+  <div style="height:16px"></div>
+
+  <!-- STL -->
+  <input id="stl_file" type="file" accept=".stl,.obj,.ply,.gltf,.glb" style="display:none">
+  <input id="stl_files" type="file" accept=".stl,.obj,.ply,.gltf,.glb" multiple style="display:none">
+  <div class="drop" id="stl_drop">
+    <div style="text-align:center;pointer-events:none">
+      <h4>Завантажити нові 3D-файли (до 5, не обовʼязково)</h4>
+      <div class="muted">Інакше залишимо старі посилання</div>
+    </div>
+    <span class="badge" id="stl_badge">0/5</span>
+  </div>
+  <div class="muted" id="stl_current_note" style="margin-top:6px">Поточні STL: <span id="stl_current"></span></div>
+
+  <div style="height:16px"></div>
+
+  <!-- PHOTOS -->
+  <input id="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp" style="display:none">
+  <input id="gallery_files" type="file" accept=".jpg,.jpeg,.png,.webp" multiple style="display:none">
+  <div class="drop" id="photo_drop">
+    <div style="text-align:center;pointer-events:none">
+      <h4>Завантажити нові фото (до 5, не обовʼязково)</h4>
+      <div class="muted">Інакше залишимо старі</div>
+    </div>
+    <span class="badge" id="gal_badge">0/5</span>
+  </div>
+  <div class="thumbs" id="gal_preview"></div>
+  <div class="muted" id="photos_current_note">Поточні фото: <span id="photos_current"></span></div>
+
+  <div style="height:16px"></div>
+
+  <label><input type="checkbox" id="replace_old" checked> Після збереження видалити старий лот і замінити новим</label>
+
+  <div style="height:12px"></div>
+
+  <button class="btn primary" id="saveBtn">Зберегти</button>
+  <span id="msg" class="muted" style="margin-left:10px"></span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const status = document.getElementById('status');
+  const msg    = document.getElementById('msg');
+
+  // -------- parse id from /edit/<id> --------
+  const m = location.pathname.match(/\/edit\/(\d+)/);
+  const ITEM_ID = m ? parseInt(m[1], 10) : null;
+  if(!ITEM_ID){ status.textContent = 'Помилка: некоректний URL.'; return; }
+
+  // form els
+  const titleEl = document.getElementById('title');
+  const priceEl = document.getElementById('price');
+  const tagsEl  = document.getElementById('tags');
+  const descEl  = document.getElementById('desc');
+
+  const stlFile = document.getElementById('stl_file');
+  const stlFiles= document.getElementById('stl_files');
+  const stlDrop = document.getElementById('stl_drop');
+  const stlBadge= document.getElementById('stl_badge');
+  const stlCurrent = document.getElementById('stl_current');
+
+  const coverFile   = document.getElementById('cover_file');
+  const galleryFiles= document.getElementById('gallery_files');
+  const photoDrop   = document.getElementById('photo_drop');
+  const galBadge    = document.getElementById('gal_badge');
+  const galPreview  = document.getElementById('gal_preview');
+  const photosCurrent = document.getElementById('photos_current');
+
+  const replaceOld = document.getElementById('replace_old');
+
+  let current = {
+    url: '',           // головний STL
+    stl: [],           // додаткові STL
+    images: [],        // фото (перше може бути cover)
+    cover: ''          // обкладинка
+  };
+
+  // -------- helpers --------
+  function attachDrop(tile, onClick){
+    tile.addEventListener('click', onClick);
+    ['dragenter','dragover'].forEach(ev=>{
+      tile.addEventListener(ev, e=>{ e.preventDefault(); tile.style.borderColor='#8ea0d8'; });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      tile.addEventListener(ev, e=>{ e.preventDefault(); tile.style.borderColor=''; });
+    });
+  }
+  function updSTLBadge(){
+    const n = (stlFile.files && stlFile.files.length ? 1 : 0) + (stlFiles.files?.length||0);
+    stlBadge.textContent = `${Math.min(n,5)}/5`;
+  }
+  function updGalPreview(){
+    galPreview.innerHTML='';
+    let list = [];
+    if (coverFile.files && coverFile.files[0]) list.push(coverFile.files[0]);
+    if (galleryFiles.files && galleryFiles.files.length){
+      list = list.concat(Array.from(galleryFiles.files));
+    }
+    list = list.slice(0,5);
+    galBadge.textContent = `${list.length}/5`;
+    list.forEach(f=>{
+      const url = URL.createObjectURL(f);
+      const d = document.createElement('div'); d.className='thumb';
+      const img=document.createElement('img'); img.src=url; d.appendChild(img); galPreview.appendChild(d);
+    });
+  }
+  function tagsToString(arr){
+    if (!arr) return '';
+    if (Array.isArray(arr)) return arr.join(',');
+    return String(arr);
+  }
+
+  // -------- load item --------
+  async function load(){
+    status.textContent = 'Завантаження...';
+    const r = await fetch(`/api/item/${ITEM_ID}`);
+    if(!r.ok){ status.textContent='Не знайдено.'; return; }
+    const item = await r.json();
+
+    titleEl.value = item.title || '';
+    priceEl.value = item.price || 0;
+    tagsEl.value  = tagsToString(item.tags);
+    descEl.value  = item.desc || '';
+
+    current.url = item.url || item.stl_main_url || '';
+    current.stl = Array.isArray(item.stl_files) ? item.stl_files.slice(0,5) : [];
+    // photos може бути масивом або обʼєктом
+    if (Array.isArray(item.photos)) {
+      current.images = item.photos.slice(0,5);
+    } else if (item.photos && typeof item.photos==='object'){
+      current.images = Array.isArray(item.photos.images)? item.photos.images.slice(0,5):[];
+      current.stl = current.stl.length? current.stl : (Array.isArray(item.photos.stl)? item.photos.stl.slice(0,5):[]);
+    } else {
+      current.images = Array.isArray(item.gallery_urls)? item.gallery_urls.slice(0,5):[];
+    }
+    current.cover = item.cover || (current.images[0]||'');
+
+    stlCurrent.textContent = [current.url].concat(current.stl||[]).filter(Boolean).join(' • ') || '—';
+    photosCurrent.textContent = (current.images||[]).join(' • ') || '—';
+
+    status.textContent = '';
+  }
+
+  // drop handlers
+  attachDrop(stlDrop, ()=>{ stlFile.click(); stlFiles.click(); });
+  stlFile.addEventListener('change', updSTLBadge);
+  stlFiles.addEventListener('change', updSTLBadge);
+
+  attachDrop(photoDrop, ()=>{ coverFile.click(); galleryFiles.click(); });
+  coverFile.addEventListener('change', updGalPreview);
+  galleryFiles.addEventListener('change', updGalPreview);
+
+  // -------- save --------
+  document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    msg.textContent = 'Збереження...';
+
+    const hasNewSTL = (stlFile.files && stlFile.files.length) || (stlFiles.files && stlFiles.files.length);
+    const hasNewIMG = (coverFile.files && coverFile.files.length) || (galleryFiles.files && galleryFiles.files.length);
+
+    const title = titleEl.value.trim();
+    const price = parseInt(priceEl.value||'0',10) || 0;
+    const tags  = tagsEl.value.split(',').map(s=>s.trim()).filter(Boolean);
+    const desc  = descEl.value.trim();
+
+    let createdId = null;
+
+    try{
+      if (hasNewSTL || hasNewIMG){
+        // multipart — завантажуємо нові файли
+        const fd = new FormData();
+        fd.set('title', title);
+        fd.set('price', String(price));
+        fd.set('tags', JSON.stringify(tags));
+        fd.set('desc', desc);
+        fd.set('format','stl');
+
+        if (stlFile.files && stlFile.files[0]) fd.set('stl_file', stlFile.files[0]);
+        if (stlFiles.files && stlFiles.files.length){
+          Array.from(stlFiles.files).slice(0,4).forEach(f=> fd.append('stl_files', f));
+        }
+
+        if (coverFile.files && coverFile.files[0]) fd.set('cover_file', coverFile.files[0]);
+        if (galleryFiles.files && galleryFiles.files.length){
+          Array.from(galleryFiles.files).slice(0,4).forEach(f=> fd.append('gallery_files', f));
+        }
+
+        const r = await fetch('/api/upload', {method:'POST', body:fd, headers:{'Accept':'application/json'}});
+        const j = await r.json();
+        if(!j.ok) throw new Error(j.error||'upload failed');
+        createdId = j.id;
+      } else {
+        // JSON — лишаємо старі URL-и
+        const payload = {
+          title, price, desc, format:'stl',
+          tags, cover: current.cover,
+          url: current.url,
+          photos: { images: current.images, stl: current.stl }
+        };
+        const r = await fetch('/api/upload', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Accept':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const j = await r.json();
+        if(!j.ok) throw new Error(j.error||'upload failed');
+        createdId = j.id;
+      }
+
+      // заміна старого
+      if (replaceOld.checked && createdId){
+        await fetch(`/api/item/${ITEM_ID}/delete`, {method:'POST'});
+      }
+
+      msg.textContent = 'Готово!';
+      setTimeout(()=>{ location.href = `/item/${createdId}`; }, 400);
+    }catch(e){
+      console.error(e);
+      msg.textContent = 'Помилка: ' + (e.message||'server');
+    }
+  });
+
+  load();
+})();
+</script>
+{% endblock %}
