@@ -3,6 +3,8 @@ import threading
 from flask import Flask, render_template, jsonify, request, session  # +jsonify, request, session
 
 from db import init_app_db, close_db, db, User  # підключаємо БД тут
+# >>> ДОДАНО: підключаємо моделі з models.py і ініціалізуємо їх db
+from models import db as models_db, MarketItem
 
 # === NEW: налаштування адміна та банера ===
 from functools import wraps
@@ -62,31 +64,6 @@ class BannerAd(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# === NEW: модель для ринку STL/фото (щоб зберігати масиви) ===
-class MarketItem(db.Model):
-    __tablename__ = "market_items"
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer)
-
-    title = db.Column(db.String(200))
-    price = db.Column(db.Integer, default=0)
-    tags = db.Column(db.Text, default="")
-    desc = db.Column(db.Text, default="")
-
-    # головне фото
-    cover_url = db.Column(db.Text)          # "/static/uploads/img/...."
-    # решта фото як JSON-рядок (масив URL)
-    gallery_urls = db.Column(db.Text)       # '["/static/...","/static/..."]'
-
-    # основний STL
-    stl_main_url = db.Column(db.Text)       # "/static/uploads/stl/...."
-    # додаткові STL як JSON-рядок (масив URL)
-    stl_extra_urls = db.Column(db.Text)     # '["/static/...","/static/..."]'
-
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-
 # ====== NEW: хелпери для JSON-API чату покращень ======
 def login_required_json(f):
     @wraps(f)
@@ -114,6 +91,9 @@ def create_app():
     init_app_db(app)
     app.teardown_appcontext(close_db)
 
+    # >>> ДОДАНО: ініціалізуємо db із models.py (MarketItem)
+    models_db.init_app(app)
+
     # --- NEW: гарантуємо наявність таблиць для чату покращень (одноразово, без падінь) ---
     _tables_ready_key = "FEEDBACK_TABLES_READY"
     _tables_lock = threading.Lock()
@@ -121,7 +101,7 @@ def create_app():
 
     def ensure_feedback_tables():
         """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite.
-           ДОДАНО: banner_ad, market_items
+           ДОДАНО: banner_ad, market_items (узгоджено з models.py: zip_url, updated_at, дефолтні '[]')
         """
         dialect = db.engine.dialect.name  # 'postgresql' | 'sqlite' | ін.
         with db.engine.begin() as conn:   # автокоміт DDL
@@ -186,10 +166,12 @@ def create_app():
                       tags TEXT DEFAULT '',
                       desc TEXT DEFAULT '',
                       cover_url TEXT,
-                      gallery_urls TEXT,
+                      gallery_urls TEXT DEFAULT '[]',
                       stl_main_url TEXT,
-                      stl_extra_urls TEXT,
-                      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                      stl_extra_urls TEXT DEFAULT '[]',
+                      zip_url TEXT,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
             else:
@@ -253,10 +235,12 @@ def create_app():
                       tags TEXT DEFAULT '',
                       desc TEXT DEFAULT '',
                       cover_url TEXT,
-                      gallery_urls TEXT,
+                      gallery_urls TEXT DEFAULT '[]',
                       stl_main_url TEXT,
-                      stl_extra_urls TEXT,
-                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                      stl_extra_urls TEXT DEFAULT '[]',
+                      zip_url TEXT,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
 
@@ -486,7 +470,7 @@ def create_app():
             flash(f"Користувача з email {email} не знайдено.")
             return redirect(url_for("admin_panel"))
 
-        if add_total and hasattr(User, "pxp"):
+        if add_total and hasattr(User, "pxп"):
             user.pxp = _to_int(user.pxp) + amount
 
         if add_month and hasattr(User, "pxp_month"):
