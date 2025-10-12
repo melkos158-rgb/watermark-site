@@ -23,7 +23,6 @@
 
     <!-- ПРАВО: перемикач тем + вкладки після входу -->
     <div class="nav-right" style="display:flex; align-items:center; gap:12px; margin-left:auto">
-      <!-- Перемикач тем -->
       <select id="themeSelect" aria-label="Тема" style="height:32px; border-radius:8px; padding:0 8px;">
         <option value="main">Main</option>
         <option value="cat">Cat</option>
@@ -117,7 +116,6 @@
 
 <script>
   (function(){
-    /* ===== ТЕМИ ===== */
     var THEME_MAP = {
       main:      "{{ url_for('static', filename='themes/main.css') }}",
       cat:       "{{ url_for('static', filename='themes/cat.css') }}",
@@ -150,7 +148,6 @@
       select.addEventListener('change', function(){ applyTheme(this.value); });
     }
 
-    /* ===== ДУБЛЮЄМО В ДРОВЕРІ ===== */
     var selectDrawer = document.getElementById('themeSelectDrawer');
     if (selectDrawer){
       selectDrawer.value = localStorage.getItem('theme') || 'main';
@@ -160,7 +157,6 @@
       });
     }
 
-    /* ===== БУРГЕР / ДРОВЕР ===== */
     var burger = document.getElementById('burger');
     var drawer = document.getElementById('mobileMenu');
     var overlay= document.getElementById('drawerOverlay');
@@ -197,45 +193,58 @@
 
 <style>
 /* ====== НАВІГАЦІЯ ====== */
-.navbar{position:sticky;top:0;z-index:50;background:#0b0d12;border-bottom:1px solid #1b2131}
+.navbar{
+  position:sticky;top:0;z-index:50;background:#0b0d12;border-bottom:1px solid #1b2131;
+  overflow-x:auto; /* щоб нічого не зрізало на вузьких екранах */
+}
 .nav-wrap{
-  max-width:1120px;
+  max-width:1368px;       /* ширший контейнер, щоб улізло «Вийти» */
   margin:0 auto;
   display:flex;
   align-items:center;
-  gap:10px;                 /* трохи менша відстань між елементами */
-  padding:6px 14px 6px 6px; /* <<< зменшив ЛІВИЙ padding (було 14px) */
-  min-height:76px;
+  flex-wrap:wrap;         /* як запасний варіант — перенос у 2 ряд */
+  gap:8px;                /* компактніші відступи */
+  padding:6px 10px 6px 4px; /* більше місця зліва */
+  min-height:72px;
 }
 
-/* бургер: ПРИХОВАНИЙ на десктопі (видно лише на мобілці) */
+/* бургер (десктоп приховано) */
 .burger{
   display:none;
   font-size:22px;line-height:1;
   border:1px solid #1b2131;background:transparent;color:#e8eaed;
-  border-radius:10px;width:44px;height:44px;cursor:pointer
+  border-radius:10px;width:40px;height:40px;cursor:pointer
 }
 
-/* ЛОГО + НАЗВА */
+/* ЛОГО + НАЗВА (компактніші відступи) */
 .brand{
-  display:flex;align-items:center;gap:10px;
-  padding:0 2px;             /* трохи менше внутрішнього відступу ліворуч */
-  border-radius:10px;border:1px solid transparent;
+  display:flex;align-items:center;gap:8px;
+  padding:0 2px;border-radius:10px;border:1px solid transparent;
   text-decoration:none;
 }
 .brand img{
-  height:48px; width:auto; display:block; object-fit:contain;
+  height:46px;width:auto;display:block;object-fit:contain;
   filter: drop-shadow(0 4px 10px rgba(173, 92, 255, .25));
 }
 .wordmark{
-  font-weight:900; letter-spacing:.4px; line-height:1;
-  font-size:26px; text-transform:capitalize;
+  font-weight:900;letter-spacing:.3px;line-height:1;
+  font-size:24px;text-transform:capitalize;
   background:linear-gradient(90deg,#ff3cac 0%, #784ba0 45%, #2b86c5 100%);
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-  text-shadow:0 0 18px rgba(123, 162, 255, .28);
-  transition:transform .15s ease, filter .15s ease, letter-spacing .15s ease;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 14px rgba(123,162,255,.24);
+  transition:transform .15s ease, letter-spacing .15s ease, filter .15s ease;
 }
-.brand:hover .wordmark{ transform:translateY(-1px); letter-spacing:.6px; filter:brightness(1.1); }
+.brand:hover .wordmark{ transform:translateY(-1px); letter-spacing:.5px; filter:brightness(1.08); }
+
+/* КНОПКИ — компактніший вигляд */
+.nav-btn{
+  padding:8px 12px !important;   /* було ширше */
+  margin:0 !important;
+  white-space:nowrap;
+}
+
+/* права група — трохи компактніше */
+.nav-right{ gap:8px !important; }
 
 /* Дровер + оверлей */
 .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:saturate(120%) blur(2px);z-index:60}
@@ -254,9 +263,9 @@
   .nav-wrap > .nav-btn,
   .nav-right{ display:none !important; }
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
-  .brand img{height:36px;}
+  .brand img{height:38px;}
   .wordmark{ font-size:20px; }
-  .nav-wrap{ min-height:64px; padding-left:8px; } /* злегка лівіше і тут */
+  .nav-wrap{ min-height:64px; padding-left:8px; }
 }
 
 /* ДЕСКТОП: дровер не потрібен */
