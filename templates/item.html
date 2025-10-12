@@ -39,11 +39,11 @@
         <div>🧩 Моделей: {{ item.items_count or 0 }}</div>
       </div>
 
-      {# ЄДИНЕ ДЖЕРЕЛО ДЛЯ КНОПКИ: ZIP -> STL main -> перший extra #}
-      {% set prefer_url = item.preferred_download_url
+      {# === ЄДИНА КНОПКА: пріоритет ZIP -> STL main -> перший extra === #}
+      {% set zip_url = item.zip_url %}
+      {% set prefer_url = zip_url
                           or item.stl_main_url
                           or (item.stl_extra[0] if item.stl_extra else None) %}
-      {% set zip_url = item.zip_url %}
 
       {% if item.price == 0 %}
         {% if prefer_url %}
@@ -130,7 +130,6 @@
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-  // ---------- helpers ----------
   const qs = (s) => document.querySelector(s);
   const qsa = (s) => Array.from(document.querySelectorAll(s));
   function makeInlinePlaceholder(){
@@ -147,7 +146,6 @@
   }
   function uniq5(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).slice(0,5); }
 
-  // ---------- data ----------
   const cover = {{ (item.cover or item.cover_url or '') | tojson }};
   const photosFromItem = {{ item.photos | tojson }};
   const galleryUrls    = {{ (item.gallery_urls or '[]') | tojson }};
@@ -173,7 +171,6 @@
   images  = uniq5(images);
   stlList = uniq5(stlList);
 
-  // ---------- builders ----------
   function makeImgSlide(src){
     const s=document.createElement('div'); s.className='glr-slide';
     if (src){
@@ -195,7 +192,6 @@
     return b;
   }
 
-  // ---------- build ----------
   const stage   = qs('#glrStage');
   const thumbs  = qs('#glrThumbs');
   const prevBtn = qs('#glrPrev');
@@ -210,7 +206,6 @@
   const slideEls = slides.map(sl => sl.type==='img' ? makeImgSlide(sl.src) : makeStlSlide(sl.id));
   slideEls.forEach(el => stage.appendChild(el));
 
-  // thumbs
   slides.forEach((sl,i)=>{
     if (sl.type==='img'){
       const img=document.createElement('img'); img.src=sl.src; img.alt='thumb';
@@ -227,7 +222,6 @@
     }
   });
 
-  // ---------- nav / state ----------
   let idx=0;
   const stlInited=new Set();
 
@@ -247,7 +241,6 @@
   prevBtn.addEventListener('click',()=>go(idx-1));
   nextBtn.addEventListener('click',()=>go(idx+1));
 
-  // свайп (не під час STL взаємодії)
   let sx=null;
   stage.addEventListener('pointerdown',e=>{
     const isSTL = slides[idx]?.type==='stl';
@@ -262,11 +255,9 @@
     if (Math.abs(dx)>40) (dx>0 ? prevBtn.click() : nextBtn.click());
   });
 
-  // init
   slideEls[0].classList.add('active');
   markActive();
 
-  // ---------- STL init ----------
   function initSTL(i){
     const sl=slides[i];
     if (!sl || sl.type!=='stl' || stlInited.has(i)) return;
@@ -311,7 +302,7 @@
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
   }
 
-  // ---------- download counter ----------
+  // ---- download counter for a single button ----
   const btnDownload = document.getElementById('btnDownload');
   async function trackAndGo(a){
     if (!a) return;
