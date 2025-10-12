@@ -4,48 +4,66 @@ from datetime import datetime
 import json
 from typing import List, Optional, Dict, Any
 
-from flask_sqlalchemy import SQLAlchemy
+# >>> використовуємо існуючий інстанс з db.py
+from db import db as _db  # реальний Flask-SQLAlchemy
 
-db = SQLAlchemy()
+
+class _DBProxy:
+    """
+    Проксі над реальним _db:
+    - усі атрибути делегуються у _db,
+    - init_app(app) — no-op, щоби не дублювати реєстрацію розширення.
+    """
+    def __getattr__(self, name):
+        return getattr(_db, name)
+
+    def init_app(self, app):
+        # no-op: справжня ініціалізація вже робиться у init_app_db(app)
+        return
 
 
-class MarketItem(db.Model):
+# Експортуємо проксі як 'db', щоб у app.py можна було:
+#   from models import db as models_db, MarketItem
+db = _DBProxy()
+
+
+class MarketItem(_db.Model):
     # ВАЖЛИВО: market.py працює з таблицею "items"
     __tablename__ = "items"
 
     # ---------- базові ----------
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200))
-    price = db.Column(db.Integer, default=0)
-    tags = db.Column(db.Text, default="")
-    desc = db.Column(db.Text, default="")
-    user_id = db.Column(db.Integer, index=True)
+    id = _db.Column(_db.Integer, primary_key=True)
+    title = _db.Column(_db.String(200))
+    price = _db.Column(_db.Integer, default=0)
+    tags = _db.Column(_db.Text, default="")
+    desc = _db.Column(_db.Text, default="")
+    user_id = _db.Column(_db.Integer, index=True)
 
     # ---------- медіа (твоя оригінальна схема) ----------
     # Головне фото
-    cover_url = db.Column(db.Text)
+    cover_url = _db.Column(_db.Text)
     # Список фото (JSON-рядок)
-    gallery_urls = db.Column(db.Text, default="[]")
+    gallery_urls = _db.Column(_db.Text, default="[]")
 
     # Основний STL
-    stl_main_url = db.Column(db.Text)
+    stl_main_url = _db.Column(_db.Text)
     # Додаткові STL (JSON-рядок)
-    stl_extra_urls = db.Column(db.Text, default="[]")
+    stl_extra_urls = _db.Column(_db.Text, default="[]")
 
     # Головний ZIP-архів (якщо є, пріоритет для скачування)
-    zip_url = db.Column(db.Text)
+    zip_url = _db.Column(_db.Text)
 
     # ---------- додано для сумісності з market.py ----------
     # Формат головного файлу (наприклад, "stl", "obj", "glb")
-    format = db.Column(db.String(16), default="stl")
+    format = _db.Column(_db.String(16), default="stl")
     # Рейтинг і кількість завантажень (у market.py є робота з цими полями)
-    rating = db.Column(db.Float, default=0)
-    downloads = db.Column(db.Integer, default=0)
+    rating = _db.Column(_db.Float, default=0)
+    downloads = _db.Column(_db.Integer, default=0)
 
     # Таймстампи
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    created_at = _db.Column(_db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = _db.Column(
+        _db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # ------------- ТВОЇ УТИЛІТИ (НЕ ЧІПАВ) -------------
