@@ -1,6 +1,6 @@
 <nav class="navbar">
   <div class="nav-wrap">
-    <!-- БУРГЕР ЗЛІВА (завжди видимий на мобілці) -->
+    <!-- БУРГЕР (видимий лише на мобілці) -->
     <button class="burger" id="burger" aria-label="Меню" aria-expanded="false">☰</button>
 
     <!-- ЛОГО -->
@@ -36,7 +36,6 @@
            (current_user is defined and current_user.is_authenticated) %}
 
       {% if has_user %}
-        <!-- Top-100 / Donate у blueprint 'profile' -->
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}"
            href="{{ url_for('profile.top100') }}">Top-100</a>
         <span aria-hidden="true">|</span>
@@ -44,11 +43,9 @@
            href="{{ url_for('profile.donate') }}">Donate</a>
         <span aria-hidden="true">|</span>
 
-        <!-- Профіль: прямий шлях -->
         <a class="nav-btn {{ 'active' if (request.path == '/profile') else '' }}"
            href="/profile">Профіль</a>
 
-        <!-- Admin тільки для адміністратора -->
         {% if session.is_admin %}
           <span aria-hidden="true">|</span>
           <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}"
@@ -81,20 +78,16 @@
   </div>
 
   <nav class="drawer-links">
-    <!-- дублюємо ті самі пункти, щоб усе було доступне в боковому меню -->
     <a href="{{ url_for('index') }}"     class="{{ 'active' if request.endpoint=='index' else '' }}">Головна</a>
     <a href="{{ url_for('stl') }}"       class="{{ 'active' if request.endpoint=='stl' else '' }}">STL3D</a>
     <a href="{{ url_for('video') }}"     class="{{ 'active' if request.endpoint=='video' else '' }}">Video</a>
     <a href="{{ url_for('enhance') }}"   class="{{ 'active' if request.endpoint=='enhance' else '' }}">Photo Enhance</a>
     <a href="{{ url_for('edit_photo') }}"class="{{ 'active' if request.endpoint=='edit_photo' else '' }}">Edit Photo</a>
     <a href="{{ url_for('photo') }}"     class="{{ 'active' if request.endpoint=='photo' else '' }}">Photo</a>
-
-    <!-- Market у дровері -->
     <a href="{{ url_for('market.page_market') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}">Market</a>
 
     <hr>
 
-    <!-- тема -->
     <div class="drawer-theme">
       <label for="themeSelectDrawer">Тема</label>
       <select id="themeSelectDrawer">
@@ -123,7 +116,7 @@
 
 <script>
   (function(){
-    /* ===== ТЕМИ (твоя логіка — БЕЗ змін) ===== */
+    /* ===== ТЕМИ ===== */
     var THEME_MAP = {
       main:      "{{ url_for('static', filename='themes/main.css') }}",
       cat:       "{{ url_for('static', filename='themes/cat.css') }}",
@@ -156,13 +149,13 @@
       select.addEventListener('change', function(){ applyTheme(this.value); });
     }
 
-    /* ===== ДУБЛЮЄМО ВИБІР ТЕМИ В ДРОВЕРІ ===== */
+    /* ===== ДУБЛЮЄМО В ДРОВЕРІ ===== */
     var selectDrawer = document.getElementById('themeSelectDrawer');
     if (selectDrawer){
       selectDrawer.value = localStorage.getItem('theme') || 'main';
       selectDrawer.addEventListener('change', function(){
         applyTheme(this.value);
-        if (select) select.value = this.value; // синхронізуємо
+        if (select) select.value = this.value;
       });
     }
 
@@ -191,27 +184,27 @@
     overlay && overlay.addEventListener('click', closeDrawer);
     close && close.addEventListener('click', closeDrawer);
 
-    // Закривати по ESC
     document.addEventListener('keydown', function(e){
       if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
     });
   })();
 </script>
 
-{# ====== ГЛОБАЛЬНИЙ ЧАТ ПІДКЛЮЧАЄМО ОКРЕМИМ ШАБЛОНОМ ====== #}
 {% if request.endpoint not in ["auth.login", "auth.register", "auth.logout"] %}
   {% include "chat.html" %}
 {% endif %}
 
 <style>
-/* ====== МІНІМАЛЬНИЙ CSS ДЛЯ МОБІЛЬНОГО МЕНЮ ====== */
+/* ====== НАВІГАЦІЯ ====== */
 .navbar{position:sticky;top:0;z-index:50;background:#0b0d12;border-bottom:1px solid #1b2131}
 .nav-wrap{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:8px 14px}
-.burger{font-size:22px;line-height:1;border:1px solid #1b2131;background:transparent;color:#e8eaed;border-radius:10px;width:44px;height:44px;cursor:pointer}
 
-/* ЛОГО */
+/* бургер: за замовчуванням ПРИХОВАНИЙ (видно лише на мобілці) */
+.burger{display:none;font-size:22px;line-height:1;border:1px solid #1b2131;background:transparent;color:#e8eaed;border-radius:10px;width:44px;height:44px;cursor:pointer}
+
+/* ЛОГО — більше */
 .brand{display:flex;align-items:center;padding:0 4px;border-radius:10px;border:1px solid transparent}
-.brand img{height:28px;width:auto;display:block}
+.brand img{height:40px;width:auto;display:block}
 
 /* Дровер + оверлей */
 .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:saturate(120%) blur(2px);z-index:60}
@@ -225,15 +218,15 @@
 .drawer-theme{display:flex;align-items:center;gap:10px;padding:8px 6px}
 .drawer-theme select{height:38px;border-radius:8px;padding:0 8px;background:#0b0d12;color:#e8eaed;border:1px solid #1b2131}
 
-/* Мобайл-first: на вузьких екранах ховаємо старі вкладки і правий блок — лишаємо бургер + логотип */
+/* МОБІЛЬНИЙ ВИГЛЯД */
 @media (max-width: 768px){
   .nav-wrap > .nav-btn,
   .nav-right{ display:none !important; }
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
-  .brand img{height:26px}
+  .brand img{height:30px;} /* трішки менше на мобілі */
 }
 
-/* На десктопі дровер не потрібен */
+/* ДЕСКТОП: дровер не потрібен */
 @media (min-width: 769px){
   .drawer, .drawer-overlay{ display:none !important; }
 }
