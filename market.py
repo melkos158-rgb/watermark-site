@@ -9,11 +9,15 @@ from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
 
-from db import db, User
+# ✅ беремо db та модель з models.py
+from models import db, MarketItem
+# якщо User у тебе лишається в db.py — імпортуємо тільки його звідти
+from db import User
 
 bp = Blueprint("market", __name__)
 
-ITEMS_TBL = "items"
+# ✅ назву таблиці тепер беремо з моделі (fallback на "items" якщо що)
+ITEMS_TBL = getattr(MarketItem, "__tablename__", "items") or "items"
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
 # логічний шлях; фізично пишемо у app/static/... всередині _save_upload
