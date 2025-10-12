@@ -1,246 +1,428 @@
 {% extends "base.html" %}
-{% block title %}Редагувати модель{% endblock %}
+{% block title %}Редагувати лот{% endblock %}
 
 {% block content %}
-<h1>Редагувати STL</h1>
+<h1>Редагувати лот</h1>
 
 <style>
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;max-width:900px}
+  .grid{display:grid;gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
   .row{display:flex;gap:12px;flex-wrap:wrap}
-  .row > div{flex:1 1 220px}
-  .drop{width:100%;aspect-ratio:16/6;max-height:280px;display:flex;align-items:center;justify-content:center;
-        border:2px dashed #5a6380;border-radius:14px;background:linear-gradient(180deg,#3a3f51,#2a2f3d);
-        cursor:pointer;position:relative;overflow:hidden}
-  .drop h4{margin:0}
-  .badge{position:absolute;top:10px;right:10px;background:#111a;color:#fff;padding:4px 8px;border-radius:999px;border:1px solid #ffffff22;font-size:12px}
-  .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-  .thumb{width:100px;height:75px;border-radius:10px;overflow:hidden;border:1px solid #1b2131;background:#111}
-  .thumb img{width:100%;height:100%;object-fit:cover}
-  .muted{color:var(--muted);font-size:12px}
+  .w-1{flex:1;min-width:180px}
+  .w-2{flex:2;min-width:260px}
+
+  .section-title{font-weight:800;margin-bottom:6px}
+  .note{color:var(--muted);font-size:12px}
+
+  .list{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+  .chip{
+    position:relative;display:flex;align-items:center;gap:6px;
+    border:1px solid var(--line);background:#0d1118;padding:6px 8px;border-radius:10px;
+    cursor:grab;user-select:none
+  }
+  .chip:active{cursor:grabbing}
+  .chip img{width:64px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #1c2435}
+  .chip .label{font-size:12px;color:#cfd6ea;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip .handle{font-weight:700;opacity:.5}
+  .chip .del{border:none;background:#0000;color:#fff;opacity:.6;font-weight:700;cursor:pointer}
+  .chip .del:hover{opacity:1}
+  .chip.cover::after{
+    content:"COVER";position:absolute;top:-7px;right:-7px;font-size:10px;background:#1f6feb;color:#fff;
+    padding:2px 5px;border-radius:6px;border:1px solid #1a4fbd
+  }
+
+  .tile-drop{
+    width:100%;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border:2px dashed #55607d;border-radius:12px;background:linear-gradient(180deg,#31384a,#252b39);
+    cursor:pointer;position:relative;overflow:hidden;padding:14px
+  }
+  .tile-drop:hover{border-color:#7d8fbe}
+  .badge{position:absolute;top:8px;right:10px;background:#0b0f18cc;color:#fff;border:1px solid #ffffff22;
+    font-size:12px;border-radius:999px;padding:3px 8px}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .btn-sm{font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer}
+  .btn-danger{background:#7f2a2a;color:#fff;border-color:#8a2f2f}
 </style>
 
-<div class="card">
-  <div id="status" class="muted" style="margin-bottom:8px"></div>
-
-  <div class="row">
-    <div>
-      <label>Назва</label>
-      <input id="title" style="width:100%">
+<div class="card" style="max-width:980px">
+  <form id="editForm" enctype="multipart/form-data" novalidate>
+    <div class="row">
+      <div class="w-1">
+        <label>Назва</label>
+        <input id="title" name="title" required style="width:100%">
+      </div>
+      <div class="w-1">
+        <label>Ціна (0 = безкоштовно)</label>
+        <input id="price" name="price" type="number" min="0" value="0" required style="width:100%">
+      </div>
+      <div class="w-2">
+        <label>Теги (через кому)</label>
+        <input id="tags" name="tags" placeholder="dragon,toy,figure" style="width:100%">
+      </div>
     </div>
-    <div>
-      <label>Ціна (0 = безкоштовно)</label>
-      <input id="price" type="number" min="0" value="0" style="width:100%">
+
+    <div style="height:10px"></div>
+
+    <label>Опис</label>
+    <textarea id="desc" name="desc" rows="5" style="width:100%"></textarea>
+
+    <div style="height:16px"></div>
+
+    <!-- ================= STL ================= -->
+    <div class="card">
+      <div class="section-title">Існуючі STL (перетягни, щоб змінити порядок / видалити)</div>
+      <div id="stlList" class="list"></div>
+      <div class="note">Перший у списку — <b>основний STL</b>.</div>
+
+      <div class="toolbar">
+        <button class="btn-sm" type="button" id="stlAddUrlBtn">+ Додати STL за URL</button>
+        <button class="btn-sm btn-danger" type="button" id="stlClearBtn">Очистити все</button>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="tile-drop" id="stlDrop">
+        <div style="text-align:center">
+          <div style="font-weight:700;font-size:16px;color:#e4ecff">Додати нові 3D-файли (до 5)</div>
+          <div class="note">Перетягни файли сюди або натисни для вибору</div>
+        </div>
+        <div class="badge" id="stlBadge">0/5</div>
+        <input id="stlInput" type="file" accept=".stl,.obj,.ply,.gltf,.glb" multiple style="display:none">
+      </div>
+
+      <div class="section-title" style="margin-top:10px">Нові STL (черга на завантаження)</div>
+      <div id="stlPending" class="list"></div>
     </div>
-    <div>
-      <label>Теги (через кому)</label>
-      <input id="tags" placeholder="dragon,toy,figure" style="width:100%">
+
+    <div style="height:14px"></div>
+
+    <!-- ================ PHOTOS ================ -->
+    <div class="card">
+      <div class="section-title">Існуючі фото (перетягни / видали)</div>
+      <div id="imgList" class="list"></div>
+      <div class="note">Перше фото стане <b>обкладинкою</b>.</div>
+
+      <div class="toolbar">
+        <button class="btn-sm" type="button" id="imgAddUrlBtn">+ Додати фото за URL</button>
+        <button class="btn-sm btn-danger" type="button" id="imgClearBtn">Очистити все</button>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="tile-drop" id="imgDrop">
+        <div style="text-align:center">
+          <div style="font-weight:700;font-size:16px;color:#e4ecff">Додати нові фото (до 5)</div>
+          <div class="note">Перетягни файли сюди або натисни для вибору</div>
+        </div>
+        <div class="badge" id="imgBadge">0/5</div>
+        <input id="imgInput" type="file" accept=".jpg,.jpeg,.png,.webp" multiple style="display:none">
+      </div>
+
+      <div class="section-title" style="margin-top:10px">Нові фото (черга на завантаження)</div>
+      <div id="imgPending" class="list"></div>
     </div>
-  </div>
 
-  <div style="height:12px"></div>
+    <div style="height:12px"></div>
 
-  <label>Опис</label>
-  <textarea id="desc" rows="4" style="width:100%"></textarea>
+    <label style="display:flex;gap:8px;align-items:center">
+      <input type="checkbox" id="deleteOld" checked>
+      Після збереження видалити старий лот і замінити новим
+    </label>
 
-  <div style="height:16px"></div>
-
-  <!-- STL -->
-  <input id="stl_file" type="file" accept=".stl,.obj,.ply,.gltf,.glb" style="display:none">
-  <input id="stl_files" type="file" accept=".stl,.obj,.ply,.gltf,.glb" multiple style="display:none">
-  <div class="drop" id="stl_drop">
-    <div style="text-align:center;pointer-events:none">
-      <h4>Завантажити нові 3D-файли (до 5, не обовʼязково)</h4>
-      <div class="muted">Інакше залишимо старі посилання</div>
-    </div>
-    <span class="badge" id="stl_badge">0/5</span>
-  </div>
-  <div class="muted" id="stl_current_note" style="margin-top:6px">Поточні STL: <span id="stl_current"></span></div>
-
-  <div style="height:16px"></div>
-
-  <!-- PHOTOS -->
-  <input id="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp" style="display:none">
-  <input id="gallery_files" type="file" accept=".jpg,.jpeg,.png,.webp" multiple style="display:none">
-  <div class="drop" id="photo_drop">
-    <div style="text-align:center;pointer-events:none">
-      <h4>Завантажити нові фото (до 5, не обовʼязково)</h4>
-      <div class="muted">Інакше залишимо старі</div>
-    </div>
-    <span class="badge" id="gal_badge">0/5</span>
-  </div>
-  <div class="thumbs" id="gal_preview"></div>
-  <div class="muted" id="photos_current_note">Поточні фото: <span id="photos_current"></span></div>
-
-  <div style="height:16px"></div>
-
-  <label><input type="checkbox" id="replace_old" checked> Після збереження видалити старий лот і замінити новим</label>
-
-  <div style="height:12px"></div>
-
-  <button class="btn primary" id="saveBtn">Зберегти</button>
-  <span id="msg" class="muted" style="margin-left:10px"></span>
+    <div style="height:12px"></div>
+    <button class="btn primary" type="submit">Зберегти</button>
+    <span id="msg" class="note" style="margin-left:8px"></span>
+  </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function(){
-  const status = document.getElementById('status');
-  const msg    = document.getElementById('msg');
+  const ITEM_ID = parseInt((location.pathname.split('/').pop()||'0'),10)||0;
+  const form = document.getElementById('editForm');
+  const msg  = document.getElementById('msg');
 
-  // -------- parse id from /edit/<id> --------
-  const m = location.pathname.match(/\/edit\/(\d+)/);
-  const ITEM_ID = m ? parseInt(m[1], 10) : null;
-  if(!ITEM_ID){ status.textContent = 'Помилка: некоректний URL.'; return; }
-
-  // form els
+  // поля
   const titleEl = document.getElementById('title');
   const priceEl = document.getElementById('price');
   const tagsEl  = document.getElementById('tags');
   const descEl  = document.getElementById('desc');
 
-  const stlFile = document.getElementById('stl_file');
-  const stlFiles= document.getElementById('stl_files');
-  const stlDrop = document.getElementById('stl_drop');
-  const stlBadge= document.getElementById('stl_badge');
-  const stlCurrent = document.getElementById('stl_current');
+  // існуючі посилання
+  let stlLinks = []; // [main, ...]
+  let imgLinks = []; // [cover, ...]
 
-  const coverFile   = document.getElementById('cover_file');
-  const galleryFiles= document.getElementById('gallery_files');
-  const photoDrop   = document.getElementById('photo_drop');
-  const galBadge    = document.getElementById('gal_badge');
-  const galPreview  = document.getElementById('gal_preview');
-  const photosCurrent = document.getElementById('photos_current');
+  // нові файли (масиви File у потрібному порядку)
+  let newStlFiles  = [];
+  let newImgFiles  = [];
 
-  const replaceOld = document.getElementById('replace_old');
+  const STL_LIMIT = 5, IMG_LIMIT = 5;
 
-  let current = {
-    url: '',           // головний STL
-    stl: [],           // додаткові STL
-    images: [],        // фото (перше може бути cover)
-    cover: ''          // обкладинка
-  };
+  // елементи UI
+  const stlList   = document.getElementById('stlList');
+  const imgList   = document.getElementById('imgList');
+  const stlPending= document.getElementById('stlPending');
+  const imgPending= document.getElementById('imgPending');
 
-  // -------- helpers --------
-  function attachDrop(tile, onClick){
-    tile.addEventListener('click', onClick);
-    ['dragenter','dragover'].forEach(ev=>{
-      tile.addEventListener(ev, e=>{ e.preventDefault(); tile.style.borderColor='#8ea0d8'; });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      tile.addEventListener(ev, e=>{ e.preventDefault(); tile.style.borderColor=''; });
-    });
-  }
-  function updSTLBadge(){
-    const n = (stlFile.files && stlFile.files.length ? 1 : 0) + (stlFiles.files?.length||0);
-    stlBadge.textContent = `${Math.min(n,5)}/5`;
-  }
-  function updGalPreview(){
-    galPreview.innerHTML='';
-    let list = [];
-    if (coverFile.files && coverFile.files[0]) list.push(coverFile.files[0]);
-    if (galleryFiles.files && galleryFiles.files.length){
-      list = list.concat(Array.from(galleryFiles.files));
+  const stlInput  = document.getElementById('stlInput');
+  const imgInput  = document.getElementById('imgInput');
+  const stlDrop   = document.getElementById('stlDrop');
+  const imgDrop   = document.getElementById('imgDrop');
+  const stlBadge  = document.getElementById('stlBadge');
+  const imgBadge  = document.getElementById('imgBadge');
+
+  const stlAddUrlBtn = document.getElementById('stlAddUrlBtn');
+  const imgAddUrlBtn = document.getElementById('imgAddUrlBtn');
+  const stlClearBtn  = document.getElementById('stlClearBtn');
+  const imgClearBtn  = document.getElementById('imgClearBtn');
+
+  // helpers
+  const shortName = (u)=> (u||'').split('/').pop()?.split('?')[0]||u||'';
+  const imgPreviewURL = (file)=> URL.createObjectURL(file);
+
+  function chip({thumb,label,isCover, onDelete}){
+    const el = document.createElement('div'); el.className='chip';
+    if (isCover) el.classList.add('cover');
+    if (thumb){
+      const im=document.createElement('img'); im.src=thumb; el.appendChild(im);
     }
-    list = list.slice(0,5);
-    galBadge.textContent = `${list.length}/5`;
-    list.forEach(f=>{
-      const url = URL.createObjectURL(f);
-      const d = document.createElement('div'); d.className='thumb';
-      const img=document.createElement('img'); img.src=url; d.appendChild(img); galPreview.appendChild(d);
-    });
-  }
-  function tagsToString(arr){
-    if (!arr) return '';
-    if (Array.isArray(arr)) return arr.join(',');
-    return String(arr);
+    const h = document.createElement('span'); h.className='handle'; h.textContent='≡';
+    const lab = document.createElement('span'); lab.className='label'; lab.textContent = label;
+    const del = document.createElement('button'); del.className='del'; del.type='button'; del.textContent='×';
+    del.addEventListener('click', onDelete);
+    el.appendChild(h); el.appendChild(lab); el.appendChild(del);
+    el.draggable = true;
+    return el;
   }
 
-  // -------- load item --------
-  async function load(){
-    status.textContent = 'Завантаження...';
+  function wireDnd(listEl, getArr, setArr){
+    let dragEl=null, dragIdx=-1;
+    listEl.addEventListener('dragstart', e=>{
+      const node = e.target.closest('.chip'); if(!node) return;
+      dragEl=node; dragIdx=[...listEl.children].indexOf(node);
+      e.dataTransfer.setData('text/plain','x');
+    });
+    listEl.addEventListener('dragover', e=>{
+      e.preventDefault();
+      const node = e.target.closest('.chip'); if(!node || node===dragEl) return;
+      const children=[...listEl.children];
+      const overIdx = children.indexOf(node);
+      if (overIdx>dragIdx) node.after(dragEl); else node.before(dragEl);
+    });
+    listEl.addEventListener('drop', ()=>{
+      const children=[...listEl.children];
+      const old = getArr();
+      const labels = children.map(ch=> ch.querySelector('.label').textContent);
+      const map = new Map(old.map(v=>[v.key,v]));
+      const reordered = [];
+      labels.forEach(l=>{ const v=map.get(l); if(v) reordered.push(v.val); });
+      setArr(reordered);
+      render();
+    });
+  }
+
+  function render(){
+    // існуючі STL
+    stlList.innerHTML='';
+    stlLinks.slice(0,STL_LIMIT).forEach((u,i)=>{
+      const el = chip({
+        thumb:null,
+        label: shortName(u),
+        isCover:false,
+        onDelete: ()=>{ stlLinks.splice(i,1); render(); }
+      });
+      stlList.appendChild(el);
+    });
+
+    // існуючі фото
+    imgList.innerHTML='';
+    imgLinks.slice(0,IMG_LIMIT).forEach((u,i)=>{
+      const el = chip({
+        thumb:u,
+        label: shortName(u),
+        isCover: i===0,
+        onDelete: ()=>{ imgLinks.splice(i,1); render(); }
+      });
+      imgList.appendChild(el);
+    });
+
+    // pending STL (файли)
+    stlPending.innerHTML='';
+    newStlFiles.slice(0,STL_LIMIT).forEach((f,i)=>{
+      const el = chip({
+        thumb:null,
+        label: f.name,
+        isCover:false,
+        onDelete: ()=>{ newStlFiles.splice(i,1); updateBadges(); render(); }
+      });
+      stlPending.appendChild(el);
+    });
+
+    // pending Photos
+    imgPending.innerHTML='';
+    newImgFiles.slice(0,IMG_LIMIT).forEach((f,i)=>{
+      const el = chip({
+        thumb: imgPreviewURL(f),
+        label: f.name,
+        isCover: i===0,
+        onDelete: ()=>{ newImgFiles.splice(i,1); updateBadges(); render(); }
+      });
+      imgPending.appendChild(el);
+    });
+  }
+
+  wireDnd(stlList,
+    ()=> stlLinks.map(v=>({key:shortName(v), val:v})),
+    (arr)=>{ stlLinks = arr; }
+  );
+  wireDnd(imgList,
+    ()=> imgLinks.map(v=>({key:shortName(v), val:v})),
+    (arr)=>{ imgLinks = arr; }
+  );
+  wireDnd(stlPending,
+    ()=> newStlFiles.map(v=>({key:v.name, val:v})),
+    (arr)=>{ newStlFiles = arr; }
+  );
+  wireDnd(imgPending,
+    ()=> newImgFiles.map(v=>({key:v.name, val:v})),
+    (arr)=>{ newImgFiles = arr; }
+  );
+
+  function attachDrop(tile,input,limit,bagdeEl,onAdd){
+    tile.addEventListener('click', ()=> input.click());
+    ['dragenter','dragover'].forEach(ev=>tile.addEventListener(ev, e=>{e.preventDefault(); tile.style.borderColor='#7d8fbe'}));
+    ['dragleave','drop'].forEach(ev=>tile.addEventListener(ev, e=>{e.preventDefault(); tile.style.borderColor='#55607d'}));
+    tile.addEventListener('drop', e=>{
+      if(e.dataTransfer && e.dataTransfer.files){
+        const files=[...e.dataTransfer.files].slice(0,limit);
+        onAdd(files); updateBadges(); render();
+      }
+    });
+    input.addEventListener('change', ()=>{
+      const files=[...input.files].slice(0,limit);
+      onAdd(files); updateBadges(); render();
+      input.value=''; // щоб можна було вибрати ті самі ще раз
+    });
+  }
+  function updateBadges(){
+    stlBadge.textContent = `${Math.min(newStlFiles.length,STL_LIMIT)}/${STL_LIMIT}`;
+    imgBadge.textContent = `${Math.min(newImgFiles.length,IMG_LIMIT)}/${IMG_LIMIT}`;
+  }
+
+  attachDrop(stlDrop, stlInput, STL_LIMIT, stlBadge, (files)=>{
+    const remaining = STL_LIMIT - newStlFiles.length;
+    newStlFiles.push(...files.slice(0,remaining));
+  });
+  attachDrop(imgDrop, imgInput, IMG_LIMIT, imgBadge, (files)=>{
+    const remaining = IMG_LIMIT - newImgFiles.length;
+    newImgFiles.push(...files.slice(0,remaining));
+  });
+
+  // додавання URL
+  stlAddUrlBtn.addEventListener('click', ()=>{
+    if (stlLinks.length>=STL_LIMIT){ alert('Максимум 5 STL'); return; }
+    const u = prompt('Встав URL STL/OBJ/PLY/GLTF/GLB:');
+    if(!u) return;
+    stlLinks.push(u.trim()); render();
+  });
+  imgAddUrlBtn.addEventListener('click', ()=>{
+    if (imgLinks.length>=IMG_LIMIT){ alert('Максимум 5 фото'); return; }
+    const u = prompt('Встав URL JPG/PNG/WEBP:');
+    if(!u) return;
+    imgLinks.push(u.trim()); render();
+  });
+
+  stlClearBtn.addEventListener('click', ()=>{ if(confirm('Очистити всі існуючі STL?')){ stlLinks=[]; render(); }});
+  imgClearBtn.addEventListener('click', ()=>{ if(confirm('Очистити всі існуючі фото?')){ imgLinks=[]; render(); }});
+
+  // завантажити поточний лот
+  async function loadItem(){
+    msg.textContent='Завантаження...';
     const r = await fetch(`/api/item/${ITEM_ID}`);
-    if(!r.ok){ status.textContent='Не знайдено.'; return; }
-    const item = await r.json();
+    if(!r.ok){ msg.textContent='Не знайдено.'; return; }
+    const it = await r.json();
 
-    titleEl.value = item.title || '';
-    priceEl.value = item.price || 0;
-    tagsEl.value  = tagsToString(item.tags);
-    descEl.value  = item.desc || '';
+    titleEl.value = it.title||'';
+    priceEl.value = it.price||0;
+    tagsEl.value  = (it.tags||'');
+    descEl.value  = it.desc||'';
 
-    current.url = item.url || item.stl_main_url || '';
-    current.stl = Array.isArray(item.stl_files) ? item.stl_files.slice(0,5) : [];
-    // photos може бути масивом або обʼєктом
-    if (Array.isArray(item.photos)) {
-      current.images = item.photos.slice(0,5);
-    } else if (item.photos && typeof item.photos==='object'){
-      current.images = Array.isArray(item.photos.images)? item.photos.images.slice(0,5):[];
-      current.stl = current.stl.length? current.stl : (Array.isArray(item.photos.stl)? item.photos.stl.slice(0,5):[]);
-    } else {
-      current.images = Array.isArray(item.gallery_urls)? item.gallery_urls.slice(0,5):[];
-    }
-    current.cover = item.cover || (current.images[0]||'');
+    const photos = Array.isArray(it.photos) ? it.photos : (it.photos||[]);
+    const stlExtras = it.stl_files || [];
+    const mainStl = (it.url||it.stl_main_url||'');
 
-    stlCurrent.textContent = [current.url].concat(current.stl||[]).filter(Boolean).join(' • ') || '—';
-    photosCurrent.textContent = (current.images||[]).join(' • ') || '—';
+    stlLinks = [mainStl, ...stlExtras].filter(Boolean).slice(0,STL_LIMIT);
+    imgLinks = [];
+    if (it.cover) imgLinks.push(it.cover);
+    (photos||[]).forEach(p=>{ if(p && p!==imgLinks[0]) imgLinks.push(p); });
+    imgLinks = imgLinks.slice(0,IMG_LIMIT);
 
-    status.textContent = '';
+    msg.textContent='';
+    render();
+    updateBadges();
   }
+  loadItem();
 
-  // drop handlers
-  attachDrop(stlDrop, ()=>{ stlFile.click(); stlFiles.click(); });
-  stlFile.addEventListener('change', updSTLBadge);
-  stlFiles.addEventListener('change', updSTLBadge);
+  // сабміт
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    msg.textContent='';
 
-  attachDrop(photoDrop, ()=>{ coverFile.click(); galleryFiles.click(); });
-  coverFile.addEventListener('change', updGalPreview);
-  galleryFiles.addEventListener('change', updGalPreview);
-
-  // -------- save --------
-  document.getElementById('saveBtn').addEventListener('click', async ()=>{
-    msg.textContent = 'Збереження...';
-
-    const hasNewSTL = (stlFile.files && stlFile.files.length) || (stlFiles.files && stlFiles.files.length);
-    const hasNewIMG = (coverFile.files && coverFile.files.length) || (galleryFiles.files && galleryFiles.files.length);
-
-    const title = titleEl.value.trim();
-    const price = parseInt(priceEl.value||'0',10) || 0;
-    const tags  = tagsEl.value.split(',').map(s=>s.trim()).filter(Boolean);
-    const desc  = descEl.value.trim();
-
-    let createdId = null;
+    const tagsRaw = (tagsEl.value||'').trim();
+    const tagsArr = tagsRaw ? tagsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
 
     try{
-      if (hasNewSTL || hasNewIMG){
-        // multipart — завантажуємо нові файли
+      if (newStlFiles.length || newImgFiles.length){
+        // MULTIPART з урахуванням упорядкування pending-масивів
         const fd = new FormData();
-        fd.set('title', title);
-        fd.set('price', String(price));
-        fd.set('tags', JSON.stringify(tags));
-        fd.set('desc', desc);
+        fd.set('title', titleEl.value||'');
+        fd.set('price', String(+priceEl.value||0));
+        fd.set('desc',  descEl.value||'');
         fd.set('format','stl');
+        fd.set('tags', JSON.stringify(tagsArr));
 
-        if (stlFile.files && stlFile.files[0]) fd.set('stl_file', stlFile.files[0]);
-        if (stlFiles.files && stlFiles.files.length){
-          Array.from(stlFiles.files).slice(0,4).forEach(f=> fd.append('stl_files', f));
+        if (newStlFiles.length){
+          fd.set('stl_file', newStlFiles[0], newStlFiles[0].name);
+          for(let i=1;i<Math.min(newStlFiles.length,STL_LIMIT);i++){
+            fd.append('stl_files', newStlFiles[i], newStlFiles[i].name);
+          }
+        } else if (stlLinks[0]) {
+          // підстраховка, якщо файлів немає, але хочемо зберегти існуючий
+          fd.set('stl_url', stlLinks[0]);
+          stlLinks.slice(1,STL_LIMIT).forEach(u=> fd.append('stl_files', new File([], u)) ); // не обов’язково
         }
 
-        if (coverFile.files && coverFile.files[0]) fd.set('cover_file', coverFile.files[0]);
-        if (galleryFiles.files && galleryFiles.files.length){
-          Array.from(galleryFiles.files).slice(0,4).forEach(f=> fd.append('gallery_files', f));
+        if (newImgFiles.length){
+          fd.set('cover_file', newImgFiles[0], newImgFiles[0].name);
+          for(let i=1;i<Math.min(newImgFiles.length,IMG_LIMIT);i++){
+            fd.append('gallery_files', newImgFiles[i], newImgFiles[i].name);
+          }
+        } else if (imgLinks[0]) {
+          fd.set('cover_url', imgLinks[0]);
         }
 
-        const r = await fetch('/api/upload', {method:'POST', body:fd, headers:{'Accept':'application/json'}});
+        const r = await fetch('/api/upload', { method:'POST', body:fd, headers:{'Accept':'application/json'}});
         const j = await r.json();
-        if(!j.ok) throw new Error(j.error||'upload failed');
-        createdId = j.id;
+        if (!r.ok || !j.ok) throw new Error(j.error||'upload failed');
+
+        if (document.getElementById('deleteOld').checked){
+          await fetch(`/api/item/${ITEM_ID}/delete`, { method:'POST' });
+        }
+        location.href = `/item/${j.id}`;
       } else {
-        // JSON — лишаємо старі URL-и
+        // JSON лише з перевпорядкуванням/видаленням існуючих
         const payload = {
-          title, price, desc, format:'stl',
-          tags, cover: current.cover,
-          url: current.url,
-          photos: { images: current.images, stl: current.stl }
+          title: titleEl.value||'',
+          price: +priceEl.value||0,
+          desc:  descEl.value||'',
+          format:'stl',
+          tags:  tagsArr,
+          url:   (stlLinks[0]||''),
+          cover: (imgLinks[0]||''),
+          photos: {
+            images: imgLinks.slice(1,IMG_LIMIT),
+            stl:    stlLinks.slice(1,STL_LIMIT)
+          }
         };
         const r = await fetch('/api/upload', {
           method:'POST',
@@ -248,24 +430,18 @@
           body: JSON.stringify(payload)
         });
         const j = await r.json();
-        if(!j.ok) throw new Error(j.error||'upload failed');
-        createdId = j.id;
-      }
+        if (!r.ok || !j.ok) throw new Error(j.error||'save failed');
 
-      // заміна старого
-      if (replaceOld.checked && createdId){
-        await fetch(`/api/item/${ITEM_ID}/delete`, {method:'POST'});
+        if (document.getElementById('deleteOld').checked){
+          await fetch(`/api/item/${ITEM_ID}/delete`, { method:'POST' });
+        }
+        location.href = `/item/${j.id}`;
       }
-
-      msg.textContent = 'Готово!';
-      setTimeout(()=>{ location.href = `/item/${createdId}`; }, 400);
-    }catch(e){
-      console.error(e);
-      msg.textContent = 'Помилка: ' + (e.message||'server');
+    }catch(err){
+      console.error(err);
+      msg.textContent='Помилка збереження.';
     }
   });
-
-  load();
 })();
 </script>
 {% endblock %}
