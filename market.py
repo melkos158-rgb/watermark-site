@@ -26,6 +26,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_MODEL_EXT = {".stl", ".obj", ".ply", ".gltf", ".glb"}
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_ARCHIVE_EXT = {".zip"}
 
 COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
 
@@ -127,9 +128,17 @@ def api_items():
     if dialect == "postgresql":
         title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
         tags_expr  = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
+        cover_expr = "COALESCE(cover_url, '')"
+        url_expr   = "stl_main_url"
+        rating_expr = "COALESCE(rating, 0)"
+        downloads_expr = "COALESCE(downloads, 0)"
     else:
         title_expr = "LOWER(COALESCE(title, ''))"
         tags_expr  = "LOWER(COALESCE(tags,  ''))"
+        cover_expr = "COALESCE(cover_url, '')"
+        url_expr   = "stl_main_url"
+        rating_expr = "COALESCE(rating, 0)"
+        downloads_expr = "COALESCE(downloads, 0)"
 
     where, params = [], {}
     if q:
@@ -157,17 +166,24 @@ def api_items():
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
     ).scalar() or 0
 
+    # primary: з rating/format/downloads; fallback: без них (на випадок, якщо їх немає у схемі)
     sql_primary = f"""
-        SELECT id, title, price, tags, cover, rating, downloads,
-               file_url AS url, format, user_id, created_at
+        SELECT id, title, price, tags,
+               {cover_expr} AS cover,
+               {rating_expr} AS rating,
+               {downloads_expr} AS downloads,
+               {url_expr} AS url,
+               format, user_id, created_at
         FROM {ITEMS_TBL}
         {where_sql}
         {order_sql}
         LIMIT :limit OFFSET :offset
     """
     sql_fallback = f"""
-        SELECT id, title, price, tags, cover, downloads,
-               file_url AS url, format, user_id, created_at
+        SELECT id, title, price, tags,
+               {cover_expr} AS cover,
+               {url_expr} AS url,
+               user_id, created_at
         FROM {ITEMS_TBL}
         {where_sql}
         {order_sql}
@@ -189,6 +205,7 @@ def api_items():
         for r in rows:
             d = _row_to_dict(r)
             d.setdefault("rating", 0)
+            d.setdefault("downloads", 0)
             items.append(d)
 
     return jsonify({
@@ -217,8 +234,12 @@ def api_my_items():
         ).scalar() or 0
 
         sql_primary = f"""
-            SELECT id, title, price, tags, cover, rating, downloads,
-                   file_url AS url, format, user_id, created_at
+            SELECT id, title, price, tags,
+                   COALESCE(cover_url, '') AS cover,
+                   COALESCE(rating, 0) AS rating,
+                   COALESCE(downloads, 0) AS downloads,
+                   stl_main_url AS url,
+                   format, user_id, created_at
             FROM {ITEMS_TBL}
             WHERE user_id = :uid
             ORDER BY created_at DESC, id DESC
@@ -231,11 +252,13 @@ def api_my_items():
         items = [_row_to_dict(r) for r in rows]
 
     except sa_exc.ProgrammingError:
-        # якщо, наприклад, немає колонки rating
+        # якщо, наприклад, немає колонки rating/format/downloads
         db.session.rollback()
         sql_fallback = f"""
-            SELECT id, title, price, tags, cover, downloads,
-                   file_url AS url, format, user_id, created_at
+            SELECT id, title, price, tags,
+                   COALESCE(cover_url, '') AS cover,
+                   stl_main_url AS url,
+                   user_id, created_at
             FROM {ITEMS_TBL}
             WHERE user_id = :uid
             ORDER BY created_at DESC, id DESC
@@ -249,6 +272,7 @@ def api_my_items():
         for r in rows:
             d = _row_to_dict(r)
             d.setdefault("rating", 0)
+            d.setdefault("downloads", 0)
             items.append(d)
 
     except Exception as e:
@@ -272,13 +296,38 @@ def api_item(item_id: int):
 
 @bp.post("/api/item/<int:item_id>/download")
 def api_item_download(item_id: int):
-    upd = db.session.execute(
-        text(f"UPDATE {ITEMS_TBL} SET downloads = downloads + 1, updated_at = NOW() WHERE id = :id"),
-        {"id": item_id}
-    )
-    db.session.commit()
-    if upd.rowcount == 0:
-        return jsonify({"ok": False, "error": "not_found"}), 404
+    dialect = db.session.get_bind().dialect.name
+    try:
+        if dialect == "postgresql":
+            upd = db.session.execute(
+                text(f"""UPDATE {ITEMS_TBL}
+                         SET downloads = COALESCE(downloads,0) + 1,
+                             updated_at = NOW()
+                         WHERE id = :id"""),
+                {"id": item_id}
+            )
+        else:
+            upd = db.session.execute(
+                text(f"""UPDATE {ITEMS_TBL}
+                         SET downloads = COALESCE(downloads,0) + 1,
+                             updated_at = CURRENT_TIMESTAMP
+                         WHERE id = :id"""),
+                {"id": item_id}
+            )
+        db.session.commit()
+        if upd.rowcount == 0:
+            return jsonify({"ok": False, "error": "not_found"}), 404
+    except sa_exc.ProgrammingError:
+        # якщо колонки downloads/updated_at відсутні — просто "ок"
+        db.session.rollback()
+        try:
+            db.session.execute(
+                text(f"UPDATE {ITEMS_TBL} SET updated_at = { 'NOW()' if dialect=='postgresql' else 'CURRENT_TIMESTAMP' } WHERE id = :id"),
+                {"id": item_id}
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
     return jsonify({"ok": True})
 
 # ---------- НОВЕ: видалення (тільки власник) ----------
@@ -316,24 +365,31 @@ def api_upload():
         except Exception:
             tags_val = raw_tags
 
-        # ------- STL -------
+        # ------- STL / ZIP -------
         file_url = (form.get("stl_url") or (form.get("url") or "")).strip()
+        zip_url  = (form.get("zip_url") or "").strip()
+
         stl_extra_files = files.getlist("stl_files") if "stl_files" in files else []
         stl_urls = []
 
+        uid = _parse_int(session.get("user_id"), 0)
+
         if not file_url and "stl_file" in files:
-            uid = _parse_int(session.get("user_id"), 0)
             saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
             if saved:
                 file_url = saved
 
+        if not zip_url and "zip_file" in files:
+            saved_zip = _save_upload(files["zip_file"], f"user_{uid}/zips", ALLOWED_ARCHIVE_EXT)
+            if saved_zip:
+                zip_url = saved_zip
+
         if stl_extra_files:
-            uid = _parse_int(session.get("user_id"), 0)
-            for f in stl_extra_files[:5]:  # запас: якщо бек зашле 5 — все одно обмежимо
+            for f in stl_extra_files[:5]:
                 saved = _save_upload(f, f"user_{uid}/models", ALLOWED_MODEL_EXT)
                 if saved:
                     stl_urls.append(saved)
-        # file_url головний, у stl_urls — додаткові (разом до 5 по шаблону)
+        # file_url — головний STL, zip_url — головний ZIP (пріоритетне скачування)
 
         # ------- ФОТО -------
         cover = (form.get("cover_url") or "").strip()
@@ -341,13 +397,11 @@ def api_upload():
         images = []
 
         if not cover and "cover_file" in files:
-            uid = _parse_int(session.get("user_id"), 0)
             saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
             if saved:
                 cover = saved
 
         if gallery_files:
-            uid = _parse_int(session.get("user_id"), 0)
             for f in gallery_files[:5]:
                 saved = _save_upload(f, f"user_{uid}/gallery", ALLOWED_IMAGE_EXT)
                 if saved:
@@ -361,12 +415,18 @@ def api_upload():
         desc  = (data.get("desc") or "").strip()
         fmt   = (data.get("format") or "stl").strip().lower()
         file_url = (data.get("url") or data.get("file_url") or "").strip()
-        cover = (data.get("cover") or "").strip()
+        zip_url  = (data.get("zip_url") or "").strip()
+        cover = (data.get("cover") or data.get("cover_url") or "").strip()
         tags_val = data.get("tags") or ""
         user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
         # API JSON: очікуємо опційні масиви
-        images = list((data.get("photos") or {}).get("images", [])) if isinstance(data.get("photos"), dict) else (data.get("photos") or [])
-        stl_urls = list((data.get("photos") or {}).get("stl", [])) if isinstance(data.get("photos"), dict) else list(data.get("stl_files") or [])
+        photos_data = data.get("photos")
+        if isinstance(photos_data, dict):
+            images = list(photos_data.get("images", []))
+            stl_urls = list(photos_data.get("stl", []))
+        else:
+            images = list(data.get("photos") or [])
+            stl_urls = list(data.get("stl_files") or [])
 
     if not cover:
         cover = COVER_PLACEHOLDER
@@ -376,35 +436,51 @@ def api_upload():
     else:
         tags_str = str(tags_val or "")
 
-    # головний STL обовʼязковий
+    # головний STL і користувач — обовʼязкові
     if not title or not file_url or not user_id:
         return jsonify({"ok": False, "error": "missing_fields"}), 400
 
-    # обмеження 5/5 і пакуємо у JSON-колонку photos
+    # обмеження 5/5; у схему кладемо окремі JSON-рядки
     images = (images or [])[:5]
     stl_urls = (stl_urls or [])[:5]
-    photos_payload = {"images": images, "stl": stl_urls}
-    photos_json = json_dumps_safe(photos_payload)
+    gallery_json = json_dumps_safe(images)
+    stl_extra_json = json_dumps_safe(stl_urls)
 
     dialect = db.session.get_bind().dialect.name
     if dialect == "postgresql":
         sql = f"""
             INSERT INTO {ITEMS_TBL}
-              (title, "desc", price, tags, cover, photos, file_url, format,
+              (title, "description", price, tags,
+               cover_url, gallery_urls,
+               stl_main_url, stl_extra_urls,
+               zip_url,
+               format,
                downloads, user_id, created_at, updated_at)
             VALUES
-              (:title, :desc, :price, :tags, :cover, CAST(:photos AS JSON),
-               :file_url, :format, 0, :user_id, NOW(), NOW())
+              (:title, :desc, :price, :tags,
+               :cover_url, :gallery_urls,
+               :stl_main_url, :stl_extra_urls,
+               :zip_url,
+               :format,
+               0, :user_id, NOW(), NOW())
             RETURNING id
         """
     else:
         sql = f"""
             INSERT INTO {ITEMS_TBL}
-              (title, "desc", price, tags, cover, photos, file_url, format,
+              (title, "description", price, tags,
+               cover_url, gallery_urls,
+               stl_main_url, stl_extra_urls,
+               zip_url,
+               format,
                downloads, user_id, created_at, updated_at)
             VALUES
-              (:title, :desc, :price, :tags, :cover, :photos,
-               :file_url, :format, 0, :user_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              (:title, :desc, :price, :tags,
+               :cover_url, :gallery_urls,
+               :stl_main_url, :stl_extra_urls,
+               :zip_url,
+               :format,
+               0, :user_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """
 
     row = db.session.execute(
@@ -414,9 +490,11 @@ def api_upload():
             "desc": desc,
             "price": price,
             "tags": tags_str,
-            "cover": cover,
-            "photos": photos_json,
-            "file_url": file_url,
+            "cover_url": cover,
+            "gallery_urls": gallery_json,
+            "stl_main_url": file_url,
+            "stl_extra_urls": stl_extra_json,
+            "zip_url": zip_url,
             "format": fmt,
             "user_id": user_id,
         }
@@ -433,7 +511,7 @@ def api_upload():
 def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     sql_primary = f"""
       SELECT i.*, 
-             i.file_url AS url,
+             COALESCE(i.stl_main_url, '') AS url,
              u.name   AS author_name,
              u.email  AS author_email,
              u.id     AS author_id,
@@ -443,21 +521,19 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
       LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
       WHERE i.id = :id
     """
-    sql_fallback = f"""
-      SELECT i.*, 
-             i.file_url AS url,
-             u.name   AS author_name,
-             u.email  AS author_email,
-             u.id     AS author_id
-      FROM {ITEMS_TBL} i
-      LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-      WHERE i.id = :id
-    """
     try:
         row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
     except sa_exc.ProgrammingError:
         db.session.rollback()
-        row = db.session.execute(text(sql_fallback), {"id": item_id}).fetchone()
+        row = db.session.execute(text(f"""
+          SELECT i.*,
+                 u.name AS author_name,
+                 u.email AS author_email,
+                 u.id AS author_id
+          FROM {ITEMS_TBL} i
+          LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+          WHERE i.id = :id
+        """), {"id": item_id}).fetchone()
 
     if not row:
         return None
@@ -466,9 +542,10 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
 
-    # ---- Розпаковуємо photos: підтримуємо старий формат (масив) і новий (об’єкт) ----
+    # ---- Розпаковуємо photos/galleries ----
     images: list = []
     stl_files: list = []
+    # спочатку намагаємось прочитати старе поле photos
     try:
         ph = d.get("photos")
         if isinstance(ph, (dict, list)):
@@ -483,13 +560,36 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     except Exception:
         images, stl_files = [], []
 
-    # якщо немає cover — ставимо перше фото
-    if not d.get("cover") and images:
-        d["cover"] = images[0]
+    # якщо старого поля немає — беремо з нових колонок
+    if not images:
+        try:
+            g = d.get("gallery_urls")
+            g_list = g if isinstance(g, list) else json.loads(g or "[]")
+            if isinstance(g_list, list):
+                images = [s for s in g_list if s]
+        except Exception:
+            pass
+    if not stl_files:
+        try:
+            s = d.get("stl_extra_urls")
+            s_list = s if isinstance(s, list) else json.loads(s or "[]")
+            if isinstance(s_list, list):
+                stl_files = [s for s in s_list if s]
+        except Exception:
+            pass
 
+    # якщо немає cover — ставимо cover_url або перше фото
+    if not d.get("cover"):
+        d["cover"] = d.get("cover_url") or (images[0] if images else None)
+
+    # url (для перегляду в three.js): головний STL
+    if not d.get("url"):
+        d["url"] = d.get("stl_main_url") or (stl_files[0] if stl_files else None)
+
+    # залишаємо для фронта короткі ключі
     d["photos"] = images[:5]
     d["stl_files"] = stl_files[:5]
-    # url вже виставлено як i.file_url AS url (головний STL)
+    # zip_url вже є в d, шаблон віддає йому пріоритет на кнопку скачування
 
     return d
 
@@ -540,7 +640,7 @@ def _mount_persistent_uploads(setup_state):
 def _static_market_uploads_fallback():
     """
     Якщо браузер просить /static/market_uploads/... а файлу нема,
-    повертаємо плейсхолдер з /static/img/placeholder_stл.jpg.
+    повертаємо плейсхолдер з /static/img/placeholder_stl.jpg.
     Це запобігає «битим» картинкам, навіть якщо старі файли зникли.
     """
     p = request.path
