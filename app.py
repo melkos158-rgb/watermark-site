@@ -101,7 +101,7 @@ def create_app():
 
     def ensure_feedback_tables():
         """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite.
-           ДОДАНО: banner_ad, items (узгоджено з models.py: zip_url, updated_at, дефолтні '[]')
+           ДОДАНО: banner_ad, items (сумісно з market.py: cover, photos, file_url, format, downloads, zip_url, "desc")
         """
         dialect = db.engine.dialect.name  # 'postgresql' | 'sqlite' | ін.
         with db.engine.begin() as conn:   # автокоміт DDL
@@ -156,7 +156,7 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
-                # --- NEW: таблиця ринку (узгоджено з models.py -> __tablename__ = 'items') ---
+                # --- NEW: таблиця ринку ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS items (
                       id SERIAL PRIMARY KEY,
@@ -164,11 +164,12 @@ def create_app():
                       title VARCHAR(200),
                       price INTEGER DEFAULT 0,
                       tags TEXT DEFAULT '',
-                      "description" TEXT DEFAULT '',
-                      cover_url TEXT,
-                      gallery_urls TEXT DEFAULT '[]',
-                      stl_main_url TEXT,
-                      stl_extra_urls TEXT DEFAULT '[]',
+                      "desc" TEXT DEFAULT '',
+                      cover TEXT,
+                      photos JSON DEFAULT '[]'::json,
+                      file_url TEXT,
+                      format VARCHAR(16) DEFAULT 'stl',
+                      downloads INTEGER DEFAULT 0,
                       zip_url TEXT,
                       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -225,7 +226,7 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
-                # --- NEW: таблиця ринку (узгоджено з models.py -> 'items') ---
+                # --- NEW: таблиця ринку ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS items (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -233,11 +234,12 @@ def create_app():
                       title TEXT,
                       price INTEGER DEFAULT 0,
                       tags TEXT DEFAULT '',
-                      "description" TEXT DEFAULT '',
-                      cover_url TEXT,
-                      gallery_urls TEXT DEFAULT '[]',
-                      stl_main_url TEXT,
-                      stl_extra_urls TEXT DEFAULT '[]',
+                      "desc" TEXT DEFAULT '',
+                      cover TEXT,
+                      photos TEXT DEFAULT '[]',
+                      file_url TEXT,
+                      format TEXT DEFAULT 'stl',
+                      downloads INTEGER DEFAULT 0,
                       zip_url TEXT,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
