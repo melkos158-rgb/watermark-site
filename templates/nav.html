@@ -3,9 +3,10 @@
     <!-- БУРГЕР (видимий лише на мобілці) -->
     <button class="burger" id="burger" aria-label="Меню" aria-expanded="false">☰</button>
 
-    <!-- ЛОГО -->
+    <!-- ЛОГО + НАЗВА -->
     <a href="{{ url_for('index') }}" class="brand" aria-label="На головну">
       <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+      <span class="wordmark" aria-label="Proofly">Proofly</span>
     </a>
 
     <!-- ЛІВО: завжди видимі -->
@@ -204,7 +205,7 @@
   align-items:center;
   gap:14px;
   padding:6px 14px;
-  min-height:76px;              /* під менший логотип */
+  min-height:76px;
 }
 
 /* бургер: ПРИХОВАНИЙ на десктопі (видно лише на мобілці) */
@@ -215,13 +216,25 @@
   border-radius:10px;width:44px;height:44px;cursor:pointer
 }
 
-/* ЛОГО — у 2× менший від попереднього (тепер 48px на десктопі) */
-.brand{display:flex;align-items:center;padding:0 4px;border-radius:10px;border:1px solid transparent}
-.brand img{
-  height:48px;                   /* було 96px → стало 48px */
-  width:auto;display:block;
-  object-fit:contain;
+/* ЛОГО + НАЗВА */
+.brand{
+  display:flex;align-items:center;gap:10px;
+  padding:0 4px;border-radius:10px;border:1px solid transparent;
+  text-decoration:none;
 }
+.brand img{
+  height:48px; width:auto; display:block; object-fit:contain;
+  filter: drop-shadow(0 4px 10px rgba(173, 92, 255, .25));
+}
+.wordmark{
+  font-weight:900; letter-spacing:.4px; line-height:1;
+  font-size:26px; text-transform:capitalize;
+  background:linear-gradient(90deg,#ff3cac 0%, #784ba0 45%, #2b86c5 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 0 18px rgba(123, 162, 255, .28);
+  transition:transform .15s ease, filter .15s ease, letter-spacing .15s ease;
+}
+.brand:hover .wordmark{ transform:translateY(-1px); letter-spacing:.6px; filter:brightness(1.1); }
 
 /* Дровер + оверлей */
 .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:saturate(120%) blur(2px);z-index:60}
@@ -240,7 +253,8 @@
   .nav-wrap > .nav-btn,
   .nav-right{ display:none !important; }
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
-  .brand img{height:36px;}     /* пропорційно менший логотип на мобілці */
+  .brand img{height:36px;}
+  .wordmark{ font-size:20px; }
   .nav-wrap{ min-height:64px; }
 }
 
