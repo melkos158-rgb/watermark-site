@@ -3,6 +3,11 @@
     <!-- БУРГЕР ЗЛІВА (завжди видимий на мобілці) -->
     <button class="burger" id="burger" aria-label="Меню" aria-expanded="false">☰</button>
 
+    <!-- ЛОГО -->
+    <a href="{{ url_for('index') }}" class="brand" aria-label="На головну">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+    </a>
+
     <!-- ЛІВО: завжди видимі -->
     <a class="nav-btn {{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a>
@@ -204,6 +209,10 @@
 .nav-wrap{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:8px 14px}
 .burger{font-size:22px;line-height:1;border:1px solid #1b2131;background:transparent;color:#e8eaed;border-radius:10px;width:44px;height:44px;cursor:pointer}
 
+/* ЛОГО */
+.brand{display:flex;align-items:center;padding:0 4px;border-radius:10px;border:1px solid transparent}
+.brand img{height:28px;width:auto;display:block}
+
 /* Дровер + оверлей */
 .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:saturate(120%) blur(2px);z-index:60}
 .drawer{position:fixed;inset:0 auto 0 0;width:82%;max-width:360px;background:#11141b;border-right:1px solid #1b2131;transform:translateX(-100%);transition:transform .28s ease;z-index:70;display:flex;flex-direction:column}
@@ -216,11 +225,12 @@
 .drawer-theme{display:flex;align-items:center;gap:10px;padding:8px 6px}
 .drawer-theme select{height:38px;border-radius:8px;padding:0 8px;background:#0b0d12;color:#e8eaed;border:1px solid #1b2131}
 
-/* Мобайл-first: на вузьких екранах ховаємо старі вкладки і правий блок — лишаємо бургер */
+/* Мобайл-first: на вузьких екранах ховаємо старі вкладки і правий блок — лишаємо бургер + логотип */
 @media (max-width: 768px){
   .nav-wrap > .nav-btn,
   .nav-right{ display:none !important; }
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
+  .brand img{height:26px}
 }
 
 /* На десктопі дровер не потрібен */
