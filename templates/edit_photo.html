@@ -11,7 +11,6 @@
      ПРИВʼЯЗКА ДО ГЛОБАЛЬНИХ ЗМІННИХ САЙТУ (без зміни логіки)
      ========================================================== */
   :root{
-    /* мапимо локальні токени на ті, що вже є в темі сайту */
     --bg-x:      var(--bg, #0b0e14);
     --panel-x:   var(--card, #101522);
     --border-x:  var(--line, #1b2131);
@@ -67,8 +66,14 @@
   .stage img{
     position:absolute;inset:0;margin:auto;
     width:auto;height:auto;max-width:100%;max-height:100%;
-    object-fit:contain;display:none;pointer-events:none
+    object-fit:contain;display:none;pointer-events:none;
+    will-change:filter
   }
+  /* Порядок шарів і стартова прозорість:
+     imgAfter = відредаговане (внизу), imgBefore = оригінал (зверху, але прозорий) */
+  #imgAfter{z-index:1}
+  #imgBefore{z-index:2;opacity:0}
+
   .placeholder{
     position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     color:var(--hint-x);font-size:14px;text-align:center
@@ -202,11 +207,17 @@
 
   // file
   $('pickBtn').onclick=()=>$('file').click();
-  $('clearBtn').onclick=()=>{imgA.removeAttribute('src');imgB.removeAttribute('src');imgA.style.display='none';imgB.style.display='none';badge.style.display='none';ph.style.display='block';$('file').value='';ORIG=null;};
+  $('clearBtn').onclick=()=>{imgA.removeAttribute('src');imgB.removeAttribute('src');imgA.style.display='none';imgB.style.display='none';badge.style.display='none';ph.style.display='block';$('file').value='';ORIG=null;imgB.style.opacity=0;};
   $('file').addEventListener('change',e=>{
     const f=e.target.files?.[0]; if(!f) return;
     const url=URL.createObjectURL(f);
-    ORIG=new Image(); ORIG.onload=()=>{ imgB.src=url; imgB.style.display='block'; badge.style.display='block'; ph.style.display='none'; render(); };
+    ORIG=new Image(); ORIG.onload=()=>{
+      imgB.src=url; imgB.style.display='block';
+      badge.style.display='block'; ph.style.display='none';
+      render();
+      // відразу показуємо "ПІСЛЯ", щоб оригінал не закривав результат
+      pressOff();
+    };
     ORIG.src=url;
   });
 
@@ -311,6 +322,7 @@
     $('v-hue').textContent='0°'; $('v-sepia').textContent='0%'; $('v-gray').textContent='0%'; $('v-blur').textContent='0px';
     $('v-temp').textContent='0'; $('v-tint').textContent='0'; $('v-high').textContent='0'; $('v-shadows').textContent='0';
     $('v-whites').textContent='0'; $('v-blacks').textContent='0'; $('v-sharp').textContent='0'; $('v-grain').textContent='0'; $('v-vignette').textContent='0%';
+    imgB.style.opacity=0; // повертаємо у режим "ПІСЛЯ"
     render();
   };
 
