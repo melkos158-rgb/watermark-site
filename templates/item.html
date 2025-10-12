@@ -39,33 +39,22 @@
         <div>🧩 Моделей: {{ item.items_count or 0 }}</div>
       </div>
 
-      {# --- ГОЛОВНЕ: беремо підготовлений URL з моделі (ZIP -> STL main -> перший extra) --- #}
+      {# ЄДИНЕ ДЖЕРЕЛО ДЛЯ КНОПКИ: ZIP -> STL main -> перший extra #}
       {% set prefer_url = item.preferred_download_url
                           or item.stl_main_url
                           or (item.stl_extra[0] if item.stl_extra else None) %}
       {% set zip_url = item.zip_url %}
 
       {% if item.price == 0 %}
-        <!-- ГОЛОВНА КНОПКА: качає ZIP, а якщо нема — STL -->
         {% if prefer_url %}
           <a href="{{ prefer_url }}" id="btnDownload" download class="btn primary">
             ⬇️ {{ 'Завантажити ZIP' if zip_url else 'Завантажити STL' }}
           </a>
-        {% endif %}
-
-        <!-- ДОДАТКОВА: завжди посилання саме на ZIP, якщо він існує -->
-        {% if zip_url %}
-          <a href="{{ zip_url }}" id="btnZipOnly" download class="btn"
-             title="Завантажити саме ZIP-архів">
-            🗜️ ZIP-архів
-          </a>
-        {% endif %}
-
-        {% if not prefer_url %}
+        {% else %}
           <div class="muted">Немає файлу для завантаження.</div>
         {% endif %}
         <div class="muted" style="margin-top:6px">
-          Перегляд STL/фото зверху — лише перегляд. Завантаження відбувається через ZIP (якщо є), або через основний STL.
+          Перегляд STL/фото зверху — лише перегляд. Завантаження відбувається через ZIP (якщо є) або через основний STL.
         </div>
       {% else %}
         <button class="btn primary" disabled title="Оплата поки що не підключена">💳 Купити STL</button>
@@ -160,12 +149,11 @@
 
   // ---------- data ----------
   const cover = {{ (item.cover or item.cover_url or '') | tojson }};
-  const photosFromItem = {{ item.photos | tojson }};              // може бути масив або об’єкт {images, stl}
+  const photosFromItem = {{ item.photos | tojson }};
   const galleryUrls    = {{ (item.gallery_urls or '[]') | tojson }};
   const stlMain        = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
-  const stlFromItem    = {{ (item.stl_files or '[]') | tojson }}; // може вже бути масив STL
+  const stlFromItem    = {{ (item.stl_files or '[]') | tojson }};
 
-  // Витягуємо фото й STL з різних форматів
   let images = [];
   let stlList = [];
 
@@ -176,15 +164,12 @@
     stlList = Array.isArray(photosFromItem.stl) ? photosFromItem.stl : [];
   }
 
-  // додаткові джерела (сумісність)
   if (!images?.length && Array.isArray(galleryUrls)) images = galleryUrls;
   if (Array.isArray(stlFromItem) && stlFromItem.length) stlList = stlList.concat(stlFromItem);
 
-  // додаємо cover і головний STL
   if (cover) images = [cover, ...images];
   if (stlMain) stlList = [stlMain, ...stlList];
 
-  // прибираємо дублікати та обмежуємо 5
   images  = uniq5(images);
   stlList = uniq5(stlList);
 
@@ -326,15 +311,13 @@
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
   }
 
-  // ---------- download counter (free items) ----------
+  // ---------- download counter ----------
   const btnDownload = document.getElementById('btnDownload');
-  const btnZipOnly  = document.getElementById('btnZipOnly');
   async function trackAndGo(a){
     if (!a) return;
     try { await fetch(`/api/item/{{ item.id }}/download`, {method:'POST'}); } catch(e){}
     window.location.href = a.href;
   }
   if (btnDownload) btnDownload.addEventListener('click', (e)=>{ e.preventDefault(); trackAndGo(btnDownload); });
-  if (btnZipOnly)  btnZipOnly.addEventListener('click', (e)=>{ e.preventDefault(); trackAndGo(btnZipOnly ); });
 </script>
 {% endblock %}
