@@ -212,7 +212,27 @@
       const tagsArr = Array.isArray(it.tags)
         ? it.tags
         : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
-      const coverSrc = assetUrl(it.cover);
+
+      // ---- НОВЕ: надійний вибір обкладинки (cover -> cover_url -> photos.images[0] -> gallery_urls[0]) ----
+      let coverCandidate = it.cover || it.cover_url || null;
+
+      // якщо бекенд віддав it.photos
+      if (!coverCandidate && it.photos){
+        try{
+          const ph = (typeof it.photos === 'string') ? JSON.parse(it.photos) : it.photos;
+          if (ph && Array.isArray(ph.images) && ph.images.length) coverCandidate = ph.images[0];
+        }catch(_){}
+      }
+      // якщо бекенд віддав it.gallery_urls як масив або рядок JSON
+      if (!coverCandidate && it.gallery_urls){
+        try{
+          const g = Array.isArray(it.gallery_urls) ? it.gallery_urls
+                  : JSON.parse(it.gallery_urls || '[]');
+          if (Array.isArray(g) && g.length) coverCandidate = g[0];
+        }catch(_){}
+      }
+
+      const coverSrc = assetUrl(coverCandidate);
 
       const el = document.createElement('div');
       el.className='item';
