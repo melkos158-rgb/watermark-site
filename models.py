@@ -36,7 +36,8 @@ class MarketItem(_db.Model):
     title = _db.Column(_db.String(200))
     price = _db.Column(_db.Integer, default=0)
     tags = _db.Column(_db.Text, default="")
-    desc = _db.Column(_db.Text, default="")
+    # важливо: атрибут лишається 'desc', але БД-колонка називається "description"
+    desc = _db.Column("description", _db.Text, default="")
     user_id = _db.Column(_db.Integer, index=True)
 
     # ---------- медіа (твоя оригінальна схема) ----------
