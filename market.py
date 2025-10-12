@@ -90,10 +90,8 @@ def json_dumps_safe(obj) -> str:
 def page_market():
     return render_template("market.html")
 
-# (опційно) окрема сторінка «Мої оголошення», якщо хочеш мати її окремо від /market
 @bp.get("/market/mine")
 def page_market_mine():
-    # створи шаблон market_mine.html або можеш рендерити той самий market.html і керувати режимом на фронті
     return render_template("market_mine.html")
 
 @bp.get("/item/<int:item_id>")
@@ -107,12 +105,9 @@ def page_item(item_id: int):
 def page_upload():
     return render_template("upload.html")
 
-# --------- ДОДАНО: сторінка редагування ---------
 @bp.get("/edit/<int:item_id>")
 def page_edit_item(item_id: int):
-    # Шаблон сам підтягне дані через /api/item/<id>
     return render_template("edit.html")
-# -----------------------------------------------
 
 
 @bp.get("/api/items")
@@ -123,22 +118,17 @@ def api_items():
     page = max(1, _parse_int(request.args.get("page"), 1))
     per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
 
-    # діалектно-безпечні вирази (tags може бути JSON у PG)
     dialect = db.session.get_bind().dialect.name
     if dialect == "postgresql":
         title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
         tags_expr  = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
         cover_expr = "COALESCE(cover_url, '')"
         url_expr   = "stl_main_url"
-        rating_expr = "COALESCE(rating, 0)"
-        downloads_expr = "COALESCE(downloads, 0)"
     else:
         title_expr = "LOWER(COALESCE(title, ''))"
         tags_expr  = "LOWER(COALESCE(tags,  ''))"
         cover_expr = "COALESCE(cover_url, '')"
         url_expr   = "stl_main_url"
-        rating_expr = "COALESCE(rating, 0)"
-        downloads_expr = "COALESCE(downloads, 0)"
 
     where, params = [], {}
     if q:
@@ -148,7 +138,6 @@ def api_items():
         where.append("price = 0")
     elif free == "paid":
         where.append("price > 0")
-
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
     if sort == "price_asc":
@@ -162,16 +151,17 @@ def api_items():
 
     offset = (page - 1) * per_page
 
+    # COUNT завжди має пройти навіть на старій схемі
     total = db.session.execute(
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
     ).scalar() or 0
 
-    # primary: з rating/format/downloads; fallback: без них (на випадок, якщо їх немає у схемі)
-    sql_primary = f"""
+    # --- primary (нова схема) ---
+    sql_new = f"""
         SELECT id, title, price, tags,
-               {cover_expr} AS cover,
-               {rating_expr} AS rating,
-               {downloads_expr} AS downloads,
+               COALESCE(cover_url, '') AS cover,
+               COALESCE(rating, 0) AS rating,
+               COALESCE(downloads, 0) AS downloads,
                {url_expr} AS url,
                format, user_id, created_at
         FROM {ITEMS_TBL}
@@ -179,34 +169,60 @@ def api_items():
         {order_sql}
         LIMIT :limit OFFSET :offset
     """
-    sql_fallback = f"""
+    # --- fallback 1 (без rating/format/downloads, але все ще нові назви полів) ---
+    sql_new_min = f"""
         SELECT id, title, price, tags,
                {cover_expr} AS cover,
-               {url_expr} AS url,
+               {url_expr}   AS url,
                user_id, created_at
         FROM {ITEMS_TBL}
         {where_sql}
         {order_sql}
         LIMIT :limit OFFSET :offset
     """
+    # --- fallback 2 (стара схема: cover/file_url/photos/desc) ---
+    sql_legacy = f"""
+        SELECT id, title, price, tags,
+               COALESCE(cover, '')   AS cover,
+               COALESCE(file_url,'') AS url,
+               user_id, created_at
+        FROM {ITEMS_TBL}
+        {where_sql}
+        {order_sql}
+        LIMIT :limit OFFSET :offset
+    """
+
     try:
         rows = db.session.execute(
-            text(sql_primary),
+            text(sql_new),
             {**params, "limit": per_page, "offset": offset}
         ).fetchall()
         items = [_row_to_dict(r) for r in rows]
     except sa_exc.ProgrammingError:
         db.session.rollback()
-        rows = db.session.execute(
-            text(sql_fallback),
-            {**params, "limit": per_page, "offset": offset}
-        ).fetchall()
-        items = []
-        for r in rows:
-            d = _row_to_dict(r)
-            d.setdefault("rating", 0)
-            d.setdefault("downloads", 0)
-            items.append(d)
+        try:
+            rows = db.session.execute(
+                text(sql_new_min),
+                {**params, "limit": per_page, "offset": offset}
+            ).fetchall()
+            items = []
+            for r in rows:
+                d = _row_to_dict(r)
+                d.setdefault("rating", 0)
+                d.setdefault("downloads", 0)
+                items.append(d)
+        except sa_exc.ProgrammingError:
+            db.session.rollback()
+            rows = db.session.execute(
+                text(sql_legacy),
+                {**params, "limit": per_page, "offset": offset}
+            ).fetchall()
+            items = []
+            for r in rows:
+                d = _row_to_dict(r)
+                d.setdefault("rating", 0)
+                d.setdefault("downloads", 0)
+                items.append(d)
 
     return jsonify({
         "items": items,
@@ -216,7 +232,7 @@ def api_items():
         "total": total
     })
 
-# ---------- НОВЕ: список тільки моїх оголошень з пагінацією (з fallback як у /api/items) ----------
+
 @bp.get("/api/my/items")
 def api_my_items():
     uid = _parse_int(session.get("user_id"), 0)
@@ -227,57 +243,84 @@ def api_my_items():
     per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
     offset = (page - 1) * per_page
 
+    # new
+    sql_new = f"""
+        SELECT id, title, price, tags,
+               COALESCE(cover_url, '') AS cover,
+               COALESCE(rating, 0) AS rating,
+               COALESCE(downloads, 0) AS downloads,
+               stl_main_url AS url,
+               format, user_id, created_at
+        FROM {ITEMS_TBL}
+        WHERE user_id = :uid
+        ORDER BY created_at DESC, id DESC
+        LIMIT :limit OFFSET :offset
+    """
+    # new (minimal)
+    sql_new_min = f"""
+        SELECT id, title, price, tags,
+               COALESCE(cover_url, '') AS cover,
+               stl_main_url AS url,
+               user_id, created_at
+        FROM {ITEMS_TBL}
+        WHERE user_id = :uid
+        ORDER BY created_at DESC, id DESC
+        LIMIT :limit OFFSET :offset
+    """
+    # legacy
+    sql_legacy = f"""
+        SELECT id, title, price, tags,
+               COALESCE(cover, '') AS cover,
+               COALESCE(file_url,'') AS url,
+               user_id, created_at
+        FROM {ITEMS_TBL}
+        WHERE user_id = :uid
+        ORDER BY created_at DESC, id DESC
+        LIMIT :limit OFFSET :offset
+    """
     try:
+        rows = db.session.execute(
+            text(sql_new),
+            {"uid": uid, "limit": per_page, "offset": offset}
+        ).fetchall()
+        items = [_row_to_dict(r) for r in rows]
         total = db.session.execute(
             text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
             {"uid": uid}
         ).scalar() or 0
-
-        sql_primary = f"""
-            SELECT id, title, price, tags,
-                   COALESCE(cover_url, '') AS cover,
-                   COALESCE(rating, 0) AS rating,
-                   COALESCE(downloads, 0) AS downloads,
-                   stl_main_url AS url,
-                   format, user_id, created_at
-            FROM {ITEMS_TBL}
-            WHERE user_id = :uid
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit OFFSET :offset
-        """
-        rows = db.session.execute(
-            text(sql_primary),
-            {"uid": uid, "limit": per_page, "offset": offset}
-        ).fetchall()
-        items = [_row_to_dict(r) for r in rows]
-
     except sa_exc.ProgrammingError:
-        # якщо, наприклад, немає колонки rating/format/downloads
         db.session.rollback()
-        sql_fallback = f"""
-            SELECT id, title, price, tags,
-                   COALESCE(cover_url, '') AS cover,
-                   stl_main_url AS url,
-                   user_id, created_at
-            FROM {ITEMS_TBL}
-            WHERE user_id = :uid
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit OFFSET :offset
-        """
-        rows = db.session.execute(
-            text(sql_fallback),
-            {"uid": uid, "limit": per_page, "offset": offset}
-        ).fetchall()
-        items = []
-        for r in rows:
-            d = _row_to_dict(r)
-            d.setdefault("rating", 0)
-            d.setdefault("downloads", 0)
-            items.append(d)
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": "server", "detail": str(e)}), 500
+        try:
+            rows = db.session.execute(
+                text(sql_new_min),
+                {"uid": uid, "limit": per_page, "offset": offset}
+            ).fetchall()
+            items = []
+            for r in rows:
+                d = _row_to_dict(r)
+                d.setdefault("rating", 0)
+                d.setdefault("downloads", 0)
+                items.append(d)
+            total = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                {"uid": uid}
+            ).scalar() or 0
+        except sa_exc.ProgrammingError:
+            db.session.rollback()
+            rows = db.session.execute(
+                text(sql_legacy),
+                {"uid": uid, "limit": per_page, "offset": offset}
+            ).fetchall()
+            items = []
+            for r in rows:
+                d = _row_to_dict(r)
+                d.setdefault("rating", 0)
+                d.setdefault("downloads", 0)
+                items.append(d)
+            total = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                {"uid": uid}
+            ).scalar() or 0
 
     return jsonify({
         "items": items,
@@ -287,12 +330,14 @@ def api_my_items():
         "total": total
     })
 
+
 @bp.get("/api/item/<int:item_id>")
 def api_item(item_id: int):
     it = _fetch_item_with_author(item_id)
     if not it:
         return jsonify({"error": "not_found"}), 404
     return jsonify(it)
+
 
 @bp.post("/api/item/<int:item_id>/download")
 def api_item_download(item_id: int):
@@ -318,7 +363,6 @@ def api_item_download(item_id: int):
         if upd.rowcount == 0:
             return jsonify({"ok": False, "error": "not_found"}), 404
     except sa_exc.ProgrammingError:
-        # якщо колонки downloads/updated_at відсутні — просто "ок"
         db.session.rollback()
         try:
             db.session.execute(
@@ -330,7 +374,7 @@ def api_item_download(item_id: int):
             db.session.rollback()
     return jsonify({"ok": True})
 
-# ---------- НОВЕ: видалення (тільки власник) ----------
+
 @bp.post("/api/item/<int:item_id>/delete")
 def api_item_delete(item_id: int):
     uid = _parse_int(session.get("user_id"), 0)
@@ -389,7 +433,6 @@ def api_upload():
                 saved = _save_upload(f, f"user_{uid}/models", ALLOWED_MODEL_EXT)
                 if saved:
                     stl_urls.append(saved)
-        # file_url — головний STL, zip_url — головний ZIP (пріоритетне скачування)
 
         # ------- ФОТО -------
         cover = (form.get("cover_url") or "").strip()
@@ -419,7 +462,6 @@ def api_upload():
         cover = (data.get("cover") or data.get("cover_url") or "").strip()
         tags_val = data.get("tags") or ""
         user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
-        # API JSON: очікуємо опційні масиви
         photos_data = data.get("photos")
         if isinstance(photos_data, dict):
             images = list(photos_data.get("images", []))
@@ -436,11 +478,9 @@ def api_upload():
     else:
         tags_str = str(tags_val or "")
 
-    # головний STL і користувач — обовʼязкові
     if not title or not file_url or not user_id:
         return jsonify({"ok": False, "error": "missing_fields"}), 400
 
-    # обмеження 5/5; у схему кладемо окремі JSON-рядки
     images = (images or [])[:5]
     stl_urls = (stl_urls or [])[:5]
     gallery_json = json_dumps_safe(images)
@@ -545,7 +585,6 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     # ---- Розпаковуємо photos/galleries ----
     images: list = []
     stl_files: list = []
-    # спочатку намагаємось прочитати старе поле photos
     try:
         ph = d.get("photos")
         if isinstance(ph, (dict, list)):
@@ -560,7 +599,6 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     except Exception:
         images, stl_files = [], []
 
-    # якщо старого поля немає — беремо з нових колонок
     if not images:
         try:
             g = d.get("gallery_urls")
@@ -578,37 +616,24 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
         except Exception:
             pass
 
-    # якщо немає cover — ставимо cover_url або перше фото
+    # cover: cover_url -> legacy cover -> перше фото
     if not d.get("cover"):
-        d["cover"] = d.get("cover_url") or (images[0] if images else None)
+        d["cover"] = d.get("cover_url") or d.get("cover") or (images[0] if images else None)
 
-    # url (для перегляду в three.js): головний STL
+    # url: новий stl_main_url -> legacy file_url -> перший з додаткових
     if not d.get("url"):
-        d["url"] = d.get("stl_main_url") or (stl_files[0] if stl_files else None)
+        d["url"] = d.get("stl_main_url") or d.get("file_url") or (stl_files[0] if stl_files else None)
 
-    # залишаємо для фронта короткі ключі
     d["photos"] = images[:5]
     d["stl_files"] = stl_files[:5]
-    # zip_url вже є в d, шаблон віддає йому пріоритет на кнопку скачування
-
     return d
 
 
-# ====================== ДОДАНО НИЖЧЕ ======================
-
 @bp.record_once
 def _mount_persistent_uploads(setup_state):
-    """
-    Якщо задано UPLOADS_ROOT (env або app.config) — робимо симлінк:
-      <app>/static/market_uploads  ->  UPLOADS_ROOT
-
-    Якщо папка static/market_uploads вже існує (не симлінк), мігруємо її вміст
-    у персистентний том і замінюємо на симлінк. Так файли не губляться після перезапусків.
-    """
     app = setup_state.app
     persist_root = app.config.get("UPLOADS_ROOT") or os.environ.get("UPLOADS_ROOT")
     if not persist_root:
-        # Можеш у Railway задати UPLOADS_ROOT=/data/market_uploads
         return
     try:
         os.makedirs(persist_root, exist_ok=True)
@@ -617,17 +642,14 @@ def _mount_persistent_uploads(setup_state):
         link_path = os.path.join(static_root, "market_uploads")
 
         if os.path.islink(link_path):
-            # вже посилання — нічого не робимо
             return
 
         if os.path.isdir(link_path):
-            # мігруємо поточний вміст у персистентний том
             for name in os.listdir(link_path):
                 src = os.path.join(link_path, name)
                 dst = os.path.join(persist_root, name)
                 if not os.path.exists(dst):
                     shutil.move(src, dst)
-            # прибираємо папку і ставимо симлінк
             os.rmdir(link_path)
 
         if not os.path.exists(link_path):
@@ -638,11 +660,6 @@ def _mount_persistent_uploads(setup_state):
 
 @bp.before_app_request
 def _static_market_uploads_fallback():
-    """
-    Якщо браузер просить /static/market_uploads/... а файлу нема,
-    повертаємо плейсхолдер з /static/img/placeholder_stl.jpg.
-    Це запобігає «битим» картинкам, навіть якщо старі файли зникли.
-    """
     p = request.path
     if request.method != "GET":
         return
@@ -650,5 +667,4 @@ def _static_market_uploads_fallback():
         return
     fs_path = os.path.join(current_app.root_path, p.lstrip("/"))
     if not os.path.exists(fs_path):
-        # Віддаємо плейсхолдер з каталогу static
         return current_app.send_static_file("img/placeholder_stl.jpg")
