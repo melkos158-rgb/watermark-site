@@ -219,10 +219,15 @@
     input.addEventListener('change', ()=> onFiles && onFiles(input.files||[]));
   }
 
+  // ⬇️ ВАЖЛИВО: при оновленні UI одразу дзеркалимо файли в приховані поля,
+  // щоб під час submit ZIP/STL/Фото точно пішли на бекенд.
   function updateZipUI(files){
     const n = files.length;
     zipBadge.textContent = n ? '1' : '—';
     zipList.textContent  = n ? files[0].name : '';
+    // дзеркало → zip_file
+    if (n) safeAssignFiles(zipFile, [files[0]], 1);
+    else   safeAssignFiles(zipFile, [], 1);
   }
 
   function updateStlUI(files){
@@ -230,6 +235,15 @@
     stlBadge.textContent = `${n}/${STL_LIMIT}`;
     stlList.textContent = n ? Array.from(files).slice(0,STL_LIMIT).map(f=>f.name).join(' • ') : '';
     stlHint.textContent = n ? 'Файли вибрано.' : 'Перший файл стане основним для перегляду, решта — додаткові.';
+    // дзеркало → stl_file + stl_files
+    if (n){
+      const list = Array.from(files).slice(0, STL_LIMIT);
+      safeAssignFiles(stlMain,  [list[0]], 1);
+      safeAssignFiles(stlExtras, list.slice(1), 4);
+    } else {
+      safeAssignFiles(stlMain,  [], 1);
+      safeAssignFiles(stlExtras, [], 4);
+    }
   }
 
   function updatePhotoUI(files){
@@ -246,29 +260,9 @@
     }
     galBadge.textContent = `${n}/${PHOTO_LIMIT}`;
     galNote.textContent  = 'Перше фото стане обкладинкою, решта — в галерею.' + (files.length>PHOTO_LIMIT ? ' Зайві будуть проігноровані.' : '');
-  }
-
-  function distributeFiles(){
-    // ZIP → zip_file (1 файл)
-    if (zipPool.files && zipPool.files.length){
-      safeAssignFiles(zipFile, [zipPool.files[0]], 1);
-    } else {
-      safeAssignFiles(zipFile, [], 1);
-    }
-
-    // STL → stl_file + stl_files
-    if (stlPool.files && stlPool.files.length){
-      const list = Array.from(stlPool.files).slice(0, STL_LIMIT);
-      safeAssignFiles(stlMain,  [list[0]], 1);
-      safeAssignFiles(stlExtras, list.slice(1), 4);
-    } else {
-      safeAssignFiles(stlMain,  [], 1);
-      safeAssignFiles(stlExtras, [], 4);
-    }
-
-    // Photos → cover_file + gallery_files
-    if (photoPool.files && photoPool.files.length){
-      const list = Array.from(photoPool.files).slice(0, PHOTO_LIMIT);
+    // дзеркало → cover_file + gallery_files
+    if (n){
+      const list = Array.from(files).slice(0, PHOTO_LIMIT);
       safeAssignFiles(coverFile, [list[0]], 1);
       safeAssignFiles(galFiles,  list.slice(1), 4);
     } else {
@@ -298,14 +292,11 @@
     if (!CURRENT_USER_ID){ msg.textContent = 'Потрібно увійти, щоб додати модель.'; return; }
     if (!validateFiles()){ msg.textContent = 'Додай 3D-файли (мінімум 1).'; return; }
 
-    // Розкладаємо пули у реальні поля
-    distributeFiles();
-
     const fd = new FormData(form);
 
-    // якщо порожньо — видаляємо (як і раніше)
-    if (!(zipFile.files && zipFile.files.length))   fd.delete('zip_file');
-    if (!(stlMain.files && stlMain.files.length))   fd.delete('stl_file');
+    // якщо порожньо — видаляємо (перестраховка)
+    if (!(zipFile.files && zipFile.files.length))     fd.delete('zip_file');
+    if (!(stlMain.files && stlMain.files.length))     fd.delete('stl_file');
     if (!(coverFile.files && coverFile.files.length)) fd.delete('cover_file');
 
     const tagsRaw = (document.getElementById('tags').value || '').trim();
@@ -313,7 +304,7 @@
     fd.set('tags', JSON.stringify(tagsArr));
     fd.set('user_id', String(CURRENT_USER_ID));
 
-    // контроль лімітів для старих браузерів (перестраховка)
+    // контроль лімітів для старих браузерів
     if (stlExtras && stlExtras.files && stlExtras.files.length){
       const keep = Math.min(stlExtras.files.length, 4);
       fd.delete('stl_files');
