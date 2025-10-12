@@ -94,14 +94,14 @@ def create_app():
     # >>> ДОДАНО: ініціалізуємо db із models.py (MarketItem)
     models_db.init_app(app)
 
-    # --- NEW: гарантуємо наявність таблиць для чату покращень (одноразово, без падінь) ---
+    # --- NEW: гарантуємо наявність таблиць (з урахуванням ринку) ---
     _tables_ready_key = "FEEDBACK_TABLES_READY"
     _tables_lock = threading.Lock()
     app.config.setdefault(_tables_ready_key, False)
 
     def ensure_feedback_tables():
-        """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite.
-           ДОДАНО: banner_ad, items (сумісно з market.py: cover, photos, file_url, format, downloads, zip_url, "desc")
+        """Створює/оновлює таблиці. Працює для PostgreSQL та SQLite.
+           ВАЖЛИВО: таблиця items містить format, rating, downloads.
         """
         dialect = db.engine.dialect.name  # 'postgresql' | 'sqlite' | ін.
         with db.engine.begin() as conn:   # автокоміт DDL
@@ -145,7 +145,7 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
-                # --- NEW: таблиця банерів ---
+                # --- банери ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS banner_ad (
                       id SERIAL PRIMARY KEY,
@@ -156,7 +156,7 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
-                # --- NEW: таблиця ринку ---
+                # --- ринок (нова схема) ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS items (
                       id SERIAL PRIMARY KEY,
@@ -164,17 +164,31 @@ def create_app():
                       title VARCHAR(200),
                       price INTEGER DEFAULT 0,
                       tags TEXT DEFAULT '',
-                      "desc" TEXT DEFAULT '',
-                      cover TEXT,
-                      photos JSON DEFAULT '[]'::json,
-                      file_url TEXT,
-                      format VARCHAR(16) DEFAULT 'stl',
-                      downloads INTEGER DEFAULT 0,
+                      "description" TEXT DEFAULT '',
+                      cover_url TEXT,
+                      gallery_urls TEXT DEFAULT '[]',
+                      stl_main_url TEXT,
+                      stl_extra_urls TEXT DEFAULT '[]',
                       zip_url TEXT,
+                      format VARCHAR(16) DEFAULT 'stl',
+                      rating DOUBLE PRECISION DEFAULT 0,
+                      downloads INTEGER DEFAULT 0,
                       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
+                # на всяк випадок — догонимо колонки, якщо таблиця стара
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS "description" TEXT DEFAULT ''"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS cover_url TEXT"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS gallery_urls TEXT DEFAULT '[]'"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS stl_main_url TEXT"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS stl_extra_urls TEXT DEFAULT '[]'"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS zip_url TEXT"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS format VARCHAR(16) DEFAULT 'stl'"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS rating DOUBLE PRECISION DEFAULT 0"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS downloads INTEGER DEFAULT 0"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW()"""))
+                conn.execute(text("""ALTER TABLE items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW()"""))
             else:
                 # --- існуючі ---
                 conn.execute(text("""
@@ -215,7 +229,7 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
-                # --- NEW: таблиця банерів ---
+                # --- банери ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS banner_ad (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -226,7 +240,7 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
-                # --- NEW: таблиця ринку ---
+                # --- ринок (нова схема) ---
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS items (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -234,45 +248,63 @@ def create_app():
                       title TEXT,
                       price INTEGER DEFAULT 0,
                       tags TEXT DEFAULT '',
-                      "desc" TEXT DEFAULT '',
-                      cover TEXT,
-                      photos TEXT DEFAULT '[]',
-                      file_url TEXT,
-                      format TEXT DEFAULT 'stl',
-                      downloads INTEGER DEFAULT 0,
+                      "description" TEXT DEFAULT '',
+                      cover_url TEXT,
+                      gallery_urls TEXT DEFAULT '[]',
+                      stl_main_url TEXT,
+                      stl_extra_urls TEXT DEFAULT '[]',
                       zip_url TEXT,
+                      format TEXT DEFAULT 'stl',
+                      rating REAL DEFAULT 0,
+                      downloads INTEGER DEFAULT 0,
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
+                # доганяємо відсутні колонки (SQLite не має IF NOT EXISTS для ADD COLUMN у старих версіях — ловимо помилки)
+                for ddl in [
+                    """ALTER TABLE items ADD COLUMN "description" TEXT DEFAULT ''""",
+                    """ALTER TABLE items ADD COLUMN cover_url TEXT""",
+                    """ALTER TABLE items ADD COLUMN gallery_urls TEXT DEFAULT '[]'""",
+                    """ALTER TABLE items ADD COLUMN stl_main_url TEXT""",
+                    """ALTER TABLE items ADD COLUMN stl_extra_urls TEXT DEFAULT '[]'""",
+                    """ALTER TABLE items ADD COLUMN zip_url TEXT""",
+                    """ALTER TABLE items ADD COLUMN format TEXT DEFAULT 'stl'""",
+                    """ALTER TABLE items ADD COLUMN rating REAL DEFAULT 0""",
+                    """ALTER TABLE items ADD COLUMN downloads INTEGER DEFAULT 0""",
+                    """ALTER TABLE items ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP""",
+                    """ALTER TABLE items ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP""",
+                ]:
+                    try:
+                        conn.execute(text(ddl))
+                    except Exception:
+                        pass  # вже є — ок
 
     # одноразовий виклик на першому запиті (Flask 3: before_first_request відсутній)
     @app.before_request
     def _ensure_tables_once():
         if app.config.get(_tables_ready_key, False):
             return
-        # простий lock проти гонок у кількох воркерах
         with _tables_lock:
             if app.config.get(_tables_ready_key, False):
                 return
             try:
                 ensure_feedback_tables()
             except Exception as e:
-                # не валимо запит; логни в консолі Railway
                 print("[ensure_feedback_tables] skipped:", e)
             finally:
                 app.config[_tables_ready_key] = True
     # ----------------------------------------------------------------------
 
     # 2) тільки після ініціалізації БД — імпорт і реєстрація blueprints
-    import auth           # auth.bp
-    import profile        # profile.bp
-    import chat           # chat.bp
-    import market         # ← додано
+    import auth
+    import profile
+    import chat
+    import market
     app.register_blueprint(auth.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(chat.bp)
-    app.register_blueprint(market.bp)  # ← додано
+    app.register_blueprint(market.bp)
 
     # === NEW: before_request — відмічаємо адміна за email із ENV ===
     @app.before_request
@@ -472,7 +504,7 @@ def create_app():
             flash(f"Користувача з email {email} не знайдено.")
             return redirect(url_for("admin_panel"))
 
-        if add_total and hasattr(User, "pxп"):
+        if add_total and hasattr(User, "pxp"):
             user.pxp = _to_int(user.pxp) + amount
 
         if add_month and hasattr(User, "pxp_month"):
