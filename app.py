@@ -101,7 +101,7 @@ def create_app():
 
     def ensure_feedback_tables():
         """Створює таблиці, якщо їх немає. Працює для PostgreSQL та SQLite.
-           ДОДАНО: banner_ad, market_items (узгоджено з models.py: zip_url, updated_at, дефолтні '[]')
+           ДОДАНО: banner_ad, items (узгоджено з models.py: zip_url, updated_at, дефолтні '[]')
         """
         dialect = db.engine.dialect.name  # 'postgresql' | 'sqlite' | ін.
         with db.engine.begin() as conn:   # автокоміт DDL
@@ -156,9 +156,9 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
-                # --- NEW: таблиця ринку (фото + STL як JSON-рядки у TEXT) ---
+                # --- NEW: таблиця ринку (узгоджено з models.py -> __tablename__ = 'items') ---
                 conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS market_items (
+                    CREATE TABLE IF NOT EXISTS items (
                       id SERIAL PRIMARY KEY,
                       user_id INTEGER,
                       title VARCHAR(200),
@@ -225,9 +225,9 @@ def create_app():
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
-                # --- NEW: таблиця ринку ---
+                # --- NEW: таблиця ринку (узгоджено з models.py -> 'items') ---
                 conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS market_items (
+                    CREATE TABLE IF NOT EXISTS items (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
                       user_id INTEGER,
                       title TEXT,
