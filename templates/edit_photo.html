@@ -7,9 +7,6 @@
 <title>Edit Photo</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <style>
-  /* ==========================================================
-     ПРИВʼЯЗКА ДО ГЛОБАЛЬНИХ ЗМІННИХ САЙТУ (без зміни логіки)
-     ========================================================== */
   :root{
     --bg-x:      var(--bg, #0b0e14);
     --panel-x:   var(--card, #101522);
@@ -24,7 +21,6 @@
 
   body{background:var(--bg-x);color:var(--text-x);margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
 
-  /* Контейнер і панелі у стилі карток сайту */
   .container{max-width:1280px;margin:0 auto;padding:16px}
   .grid-3{display:grid;grid-template-columns:320px 1fr 320px;gap:16px}
   .panel{
@@ -35,80 +31,61 @@
   }
   .panel h3{margin:0 0 8px;font-size:13px;letter-spacing:.3px;color:var(--muted-x);text-transform:uppercase}
 
-  /* Контроли */
   .controls{display:flex;flex-direction:column;gap:12px}
   .control{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center}
   .control label{font-size:13px;color:var(--muted-x)}
   .control input[type=range]{grid-column:1/3;width:100%}
 
-  /* Кнопки як глобальні .btn */
   .btnrow{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
-  .btn{
-    background:var(--panel-x);
-    border:1px solid var(--border-x);
-    color:var(--text-x);
-    padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600
-  }
+  .btn{background:var(--panel-x);border:1px solid var(--border-x);color:var(--text-x);
+       padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
   .btn:hover{background:rgba(255,255,255,.03)}
   .btn.primary{background:var(--primary-x);color:var(--primary-contrast-x);border-color:var(--primary-x)}
   .btn.primary:hover{filter:brightness(1.06)}
-
   .hint{font-size:12px;color:var(--hint-x)}
 
   /* Сцена */
-  .stage{
-    height:64vh;min-height:420px;
-    background:var(--panel-x);
-    border:1px dashed var(--border-x);
-    border-radius:12px;position:relative;overflow:hidden
-  }
+  .stage{height:64vh;min-height:420px;background:var(--panel-x);border:1px dashed var(--border-x);
+         border-radius:12px;position:relative;overflow:hidden}
   .stage .inner{position:absolute;inset:0}
-  .stage img{
-    position:absolute;inset:0;margin:auto;
-    width:auto;height:auto;max-width:100%;max-height:100%;
-    object-fit:contain;display:none;pointer-events:none;
-    will-change:filter
-  }
-  /* Порядок шарів і стартова прозорість:
-     imgAfter = відредаговане (внизу), imgBefore = оригінал (зверху, але прозорий) */
+  .stage img{position:absolute;inset:0;margin:auto;width:auto;height:auto;max-width:100%;max-height:100%;
+             object-fit:contain;display:none;pointer-events:none;will-change:filter}
   #imgAfter{z-index:1}
   #imgBefore{z-index:2;opacity:0}
-
-  .placeholder{
-    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    color:var(--hint-x);font-size:14px;text-align:center
-  }
-  .badge{
-    position:absolute;right:10px;bottom:10px;font-size:11px;color:var(--muted-x);
-    background:rgba(0,0,0,.25);border:1px solid var(--border-x);
-    border-radius:999px;padding:6px 10px;display:none
-  }
+  .placeholder{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--hint-x);font-size:14px;text-align:center}
+  .badge{position:absolute;right:10px;bottom:10px;font-size:11px;color:var(--muted-x);
+         background:rgba(0,0,0,.25);border:1px solid var(--border-x);border-radius:999px;padding:6px 10px;display:none}
 
   .split-title{margin:6px 0 4px;font-size:12px;color:var(--muted-x);text-transform:uppercase;letter-spacing:.6px}
   .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-  /* Слайдери узгоджуємо з акцентом сайту */
+  /* Слайдери */
   input[type=range]{appearance:none;height:4px;background:#94a3b826;border-radius:999px;outline:none}
-  input[type=range]::-webkit-slider-thumb{
-    appearance:none;width:16px;height:16px;border-radius:50%;
-    background:var(--primary-x);border:2px solid #182034
-  }
+  input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--primary-x);border:2px solid #182034}
 
   .vignette-row{display:flex;align-items:center;gap:10px}
-  select{
-    border:1px solid var(--border-x);
-    background:transparent;color:var(--text-x);
-    border-radius:8px;padding:6px 8px
-  }
+  select{border:1px solid var(--border-x);background:transparent;color:var(--text-x);border-radius:8px;padding:6px 8px}
 
-  /* Вузькі екрани */
-  @media (max-width: 980px){
-    .grid-3{grid-template-columns:1fr;gap:12px}
-  }
+  /* === РОЛИКИ (scrollable toolbars) === */
+  .rail-wrap{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin:8px 0 6px}
+  .rail{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px;border:1px solid var(--border-x);
+        border-radius:14px;background:#0f1216}
+  .rail::-webkit-scrollbar{display:none}
+  .tool{flex:0 0 auto;min-width:110px;padding:8px 12px;border-radius:12px;border:1px solid var(--border-x);
+        background:#161a20;color:#dbe2ee;scroll-snap-align:start;cursor:pointer}
+  .tool.active{outline:2px solid var(--primary-x);background:#1b2230}
+  .rail-arrow{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-x);
+              background:#131821;color:#dbe2ee;cursor:pointer}
+
+  /* підсвічування обраного контролу при стрибку */
+  .pulse{animation:pulse 900ms ease}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,124,255,.8)}100%{box-shadow:0 0 0 12px rgba(79,124,255,0)}}
+
+  @media (max-width: 980px){.grid-3{grid-template-columns:1fr;gap:12px}}
 </style>
 </head>
 <body>
-  <!-- NAV -->
   {% include 'nav.html' %}
 
   <div class="container">
@@ -116,7 +93,23 @@
       <!-- LEFT -->
       <section class="panel">
         <h3>Корегувати (базове)</h3>
-        <div class="controls">
+
+        <!-- РОЛИК (БАЗОВЕ) -->
+        <div class="rail-wrap" id="rail-left">
+          <button class="rail-arrow" data-dir="-1">‹</button>
+          <div class="rail" role="tablist" aria-label="Базові інструменти">
+            <button class="tool active" data-target="brightness">Яскравість</button>
+            <button class="tool" data-target="contrast">Контраст</button>
+            <button class="tool" data-target="saturate">Насиченість</button>
+            <button class="tool" data-target="hue">Відтінок</button>
+            <button class="tool" data-target="sepia">Сепія</button>
+            <button class="tool" data-target="grayscale">Ч/Б</button>
+            <button class="tool" data-target="blur">Розмиття</button>
+          </div>
+          <button class="rail-arrow" data-dir="1">›</button>
+        </div>
+
+        <div class="controls" id="controls-left">
           <div class="control">
             <label>Вибір файлу</label>
             <div class="btnrow">
@@ -126,13 +119,13 @@
             </div>
           </div>
 
-          <div class="control"><label>Яскравість</label><span id="v-bright">100%</span><input type="range" id="brightness" min="0" max="200" value="100"></div>
-          <div class="control"><label>Контраст</label><span id="v-contrast">100%</span><input type="range" id="contrast"  min="0" max="200" value="100"></div>
-          <div class="control"><label>Насиченість</label><span id="v-sat">100%</span><input type="range" id="saturate"  min="0" max="300" value="100"></div>
-          <div class="control"><label>Відтінок (Hue)</label><span id="v-hue">0°</span><input type="range" id="hue" min="-180" max="180" value="0"></div>
-          <div class="control"><label>Сепія</label><span id="v-sepia">0%</span><input type="range" id="sepia" min="0" max="100" value="0"></div>
-          <div class="control"><label>Ч/Б</label><span id="v-gray">0%</span><input type="range" id="grayscale" min="0" max="100" value="0"></div>
-          <div class="control"><label>Розмиття</label><span id="v-blur">0px</span><input type="range" id="blur" min="0" max="10" step="0.1" value="0"></div>
+          <div class="control" data-name="brightness"><label>Яскравість</label><span id="v-bright">100%</span><input type="range" id="brightness" min="0" max="200" value="100"></div>
+          <div class="control" data-name="contrast"><label>Контраст</label><span id="v-contrast">100%</span><input type="range" id="contrast"  min="0" max="200" value="100"></div>
+          <div class="control" data-name="saturate"><label>Насиченість</label><span id="v-sat">100%</span><input type="range" id="saturate"  min="0" max="300" value="100"></div>
+          <div class="control" data-name="hue"><label>Відтінок (Hue)</label><span id="v-hue">0°</span><input type="range" id="hue" min="-180" max="180" value="0"></div>
+          <div class="control" data-name="sepia"><label>Сепія</label><span id="v-sepia">0%</span><input type="range" id="sepia" min="0" max="100" value="0"></div>
+          <div class="control" data-name="grayscale"><label>Ч/Б</label><span id="v-gray">0%</span><input type="range" id="grayscale" min="0" max="100" value="0"></div>
+          <div class="control" data-name="blur"><label>Розмиття</label><span id="v-blur">0px</span><input type="range" id="blur" min="0" max="10" step="0.1" value="0"></div>
 
           <div class="btnrow">
             <button class="btn primary" id="saveBtn">Завантажити (PNG)</button>
@@ -158,36 +151,55 @@
       <!-- RIGHT -->
       <section class="panel">
         <h3>Корегувати (просунуте)</h3>
-        <div class="controls">
+
+        <!-- РОЛИК (ПРОСУНУТЕ) -->
+        <div class="rail-wrap" id="rail-right">
+          <button class="rail-arrow" data-dir="-1">‹</button>
+          <div class="rail" role="tablist" aria-label="Просунуті інструменти">
+            <button class="tool active" data-target="temperature">Тепло/Холод</button>
+            <button class="tool" data-target="tint">Tint</button>
+            <button class="tool" data-target="highlights">Світла</button>
+            <button class="tool" data-target="shadows">Тіні</button>
+            <button class="tool" data-target="whites">Білі відт.</button>
+            <button class="tool" data-target="blacks">Чорні відт.</button>
+            <button class="tool" data-target="sharpness">Різкість</button>
+            <button class="tool" data-target="vignette">Віньєтка</button>
+            <button class="tool" data-target="vignetteStrength">Сила віньєтки</button>
+            <button class="tool" data-target="grain">Зерно</button>
+          </div>
+          <button class="rail-arrow" data-dir="1">›</button>
+        </div>
+
+        <div class="controls" id="controls-right">
           <div class="split-title">ТЕМПЕРАТУРА / ТОН</div>
-          <div class="control"><label>Тепло/Холод</label><span id="v-temp">0</span><input type="range" id="temperature" min="-100" max="100" value="0"></div>
-          <div class="control"><label>Tint</label><span id="v-tint">0</span><input type="range" id="tint" min="-100" max="100" value="0"></div>
+          <div class="control" data-name="temperature"><label>Тепло/Холод</label><span id="v-temp">0</span><input type="range" id="temperature" min="-100" max="100" value="0"></div>
+          <div class="control" data-name="tint"><label>Tint</label><span id="v-tint">0</span><input type="range" id="tint" min="-100" max="100" value="0"></div>
 
           <div class="split-title">СВІТЛА / ТІНІ</div>
           <div class="pair">
-            <div class="control"><label>Світла</label><span id="v-high">0</span><input type="range" id="highlights" min="-100" max="100" value="0"></div>
-            <div class="control"><label>Тіні</label><span id="v-shadows">0</span><input type="range" id="shadows" min="-100" max="100" value="0"></div>
+            <div class="control" data-name="highlights"><label>Світла</label><span id="v-high">0</span><input type="range" id="highlights" min="-100" max="100" value="0"></div>
+            <div class="control" data-name="shadows"><label>Тіні</label><span id="v-shadows">0</span><input type="range" id="shadows" min="-100" max="100" value="0"></div>
           </div>
           <div class="pair">
-            <div class="control"><label>Білі відтінки</label><span id="v-whites">0</span><input type="range" id="whites" min="-100" max="100" value="0"></div>
-            <div class="control"><label>Чорні відтінки</label><span id="v-blacks">0</span><input type="range" id="blacks" min="-100" max="100" value="0"></div>
+            <div class="control" data-name="whites"><label>Білі відтінки</label><span id="v-whites">0</span><input type="range" id="whites" min="-100" max="100" value="0"></div>
+            <div class="control" data-name="blacks"><label>Чорні відтінки</label><span id="v-blacks">0</span><input type="range" id="blacks" min="-100" max="100" value="0"></div>
           </div>
 
           <div class="split-title">РІЗКІСТЬ / ДОДАТКОВО</div>
-          <div class="control"><label>Різкість</label><span id="v-sharp">0</span><input type="range" id="sharpness" min="0" max="5" step="0.1" value="0"></div>
+          <div class="control" data-name="sharpness"><label>Різкість</label><span id="v-sharp">0</span><input type="range" id="sharpness" min="0" max="5" step="0.1" value="0"></div>
 
-          <div class="control" style="grid-template-columns:auto 1fr">
+          <div class="control" data-name="vignette" style="grid-template-columns:auto 1fr">
             <div class="vignette-row">
               <label><input type="checkbox" id="vignette"> Віньєтка</label>
               <select id="vignetteColor"><option value="black">Чорна</option><option value="white">Біла</option></select>
             </div>
           </div>
-          <div class="control">
+          <div class="control" data-name="vignetteStrength">
             <label>Сила віньєтки</label><span id="v-vignette">0%</span>
             <input type="range" id="vignetteStrength" min="0" max="100" value="0">
           </div>
 
-          <div class="control"><label>Зерно</label><span id="v-grain">0</span><input type="range" id="grain" min="0" max="100" value="0"></div>
+          <div class="control" data-name="grain"><label>Зерно</label><span id="v-grain">0</span><input type="range" id="grain" min="0" max="100" value="0"></div>
         </div>
       </section>
     </div>
@@ -215,13 +227,12 @@
       imgB.src=url; imgB.style.display='block';
       badge.style.display='block'; ph.style.display='none';
       render();
-      // відразу показуємо "ПІСЛЯ", щоб оригінал не закривав результат
-      pressOff();
+      pressOff(); // одразу показуємо "ПІСЛЯ"
     };
     ORIG.src=url;
   });
 
-  // binds
+  // binds (НЕ змінює логіку фільтрів)
   const binds=[
     ['brightness','v-bright',v=>v+'%'],['contrast','v-contrast',v=>v+'%'],['saturate','v-sat',v=>v+'%'],['hue','v-hue',v=>v+'°'],
     ['sepia','v-sepia',v=>v+'%'],['grayscale','v-gray',v=>v+'%'],['blur','v-blur',v=>v+'px'],
@@ -230,8 +241,13 @@
     ['sharpness','v-sharp',v=>v],['grain','v-grain',v=>v],
     ['vignetteStrength','v-vignette',v=>v+'%']
   ];
-  binds.forEach(([id,l,fmt])=>{$(id).addEventListener('input',()=>{S[id]=Number($(id).value); $(l).textContent=fmt(S[id]); render();});});
-  $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render();});
+  binds.forEach(([id,l,fmt])=>{
+    $(id).addEventListener('input',()=>{
+      S[id]=Number($(id).value); $(l).textContent=fmt(S[id]); render();
+      markActiveByControl(id); // підсвітити відповідну кнопку в ролику
+    });
+  });
+  $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render(); markActiveByControl('vignette');});
   $('vignetteColor').addEventListener('change',e=>{S.vignetteColor=e.target.value; render();});
 
   const baseFilter=()=>`brightness(${S.brightness}%) contrast(${S.contrast}%) saturate(${S.saturate}%) hue-rotate(${S.hue}deg) sepia(${S.sepia}%) grayscale(${S.grayscale}%) blur(${S.blur}px)`;
@@ -246,14 +262,12 @@
     ctx.drawImage(ORIG,0,0,w,h);
     ctx.filter='none';
 
-    // температура / tint
     if(S.temperature||S.tint){
       const r=Math.max(0,S.temperature)/100*255, g=(100-Math.abs(S.tint))/100*255, b=Math.max(0,-S.temperature)/100*255;
       ctx.save(); ctx.globalAlpha=(Math.abs(S.temperature)+Math.abs(S.tint))/220; ctx.globalCompositeOperation='color';
       ctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`; ctx.fillRect(0,0,w,h); ctx.restore();
     }
 
-    // світла / тіні / whites / blacks
     if([S.highlights,S.shadows,S.whites,S.blacks].some(v=>v)){
       const id=ctx.getImageData(0,0,w,h), d=id.data;
       for(let i=0;i<d.length;i+=4){
@@ -267,7 +281,6 @@
       ctx.putImageData(id,0,0);
     }
 
-    // різкість (unsharp)
     if(S.sharpness>0){
       const k=[1,2,1,2,4,2,1,2,1], ks=16, src=ctx.getImageData(0,0,w,h), s=src.data, out=ctx.createImageData(w,h), o=out.data;
       const idx=(x,y)=>(y*w+x)*4;
@@ -281,7 +294,6 @@
       function cl(v){return v<0?0:v>255?255:v}
     }
 
-    // віньєтка
     if(S.vignette && S.vignetteStrength>0){
       const color = S.vignetteColor==='white' ? '255,255,255' : '0,0,0';
       const strength = Math.min(1, S.vignetteStrength/100);
@@ -291,7 +303,6 @@
       ctx.fillStyle=grd; ctx.fillRect(0,0,w,h);
     }
 
-    // зерно
     if(S.grain>0){
       const lvl=S.grain/100*30, id=ctx.getImageData(0,0,w,h), d=id.data;
       for(let i=0;i<d.length;i+=4){ const n=(Math.random()*2-1)*lvl; d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
@@ -322,7 +333,7 @@
     $('v-hue').textContent='0°'; $('v-sepia').textContent='0%'; $('v-gray').textContent='0%'; $('v-blur').textContent='0px';
     $('v-temp').textContent='0'; $('v-tint').textContent='0'; $('v-high').textContent='0'; $('v-shadows').textContent='0';
     $('v-whites').textContent='0'; $('v-blacks').textContent='0'; $('v-sharp').textContent='0'; $('v-grain').textContent='0'; $('v-vignette').textContent='0%';
-    imgB.style.opacity=0; // повертаємо у режим "ПІСЛЯ"
+    imgB.style.opacity=0;
     render();
   };
 
@@ -332,6 +343,60 @@
     const dataURL = render(true);
     const a=document.createElement('a'); a.href=dataURL; a.download='edited.png'; a.click();
   };
+
+  /* ======== JS ДЛЯ РОЛИКІВ ======== */
+  function initRail(railWrapId, controlsContainerId){
+    const wrap = document.getElementById(railWrapId);
+    const rail = wrap.querySelector('.rail');
+    const arrows = wrap.querySelectorAll('.rail-arrow');
+    const controlsRoot = document.getElementById(controlsContainerId);
+
+    // клік по кнопці -> проскролити до відповідного контролу
+    rail.addEventListener('click', e=>{
+      const btn = e.target.closest('.tool'); if(!btn) return;
+      const id = btn.dataset.target;
+      const ctrl = controlsRoot.querySelector(`.control[data-name="${id}"]`) ||
+                   document.getElementById(id)?.closest('.control');
+      if(ctrl){
+        ctrl.scrollIntoView({block:'center', behavior:'smooth'});
+        ctrl.classList.remove('pulse'); void ctrl.offsetWidth; ctrl.classList.add('pulse');
+      }
+      rail.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+
+    // стрілки
+    arrows.forEach(a=>{
+      a.addEventListener('click', ()=> rail.scrollBy({left:(+a.dataset.dir)*240, behavior:'smooth'}));
+    });
+
+    // свайп
+    let sx=0; rail.addEventListener('pointerdown', e=>{sx=e.clientX;});
+    rail.addEventListener('pointerup', e=>{const dx=e.clientX-sx; if(Math.abs(dx)>60) rail.scrollBy({left:-dx,behavior:'smooth'});});
+  }
+
+  // коли рухаєш будь-який слайдер — підсвічуємо відповідну кнопку ролика
+  function markActiveByControl(controlId){
+    const map = {
+      left: ['brightness','contrast','saturate','hue','sepia','grayscale','blur'],
+      right:['temperature','tint','highlights','shadows','whites','blacks','sharpness','vignette','vignetteStrength','grain']
+    };
+    const hitLeft = map.left.includes(controlId);
+    const hitRight = map.right.includes(controlId);
+
+    if(hitLeft){
+      const rail = document.querySelector('#rail-left .rail');
+      rail.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+    }
+    if(hitRight){
+      const rail = document.querySelector('#rail-right .rail');
+      rail.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+    }
+  }
+
+  // ініціалізація двох роликів
+  initRail('rail-left','controls-left');
+  initRail('rail-right','controls-right');
 </script>
 </body>
 </html>
