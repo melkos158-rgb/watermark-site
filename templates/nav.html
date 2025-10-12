@@ -204,7 +204,7 @@
   align-items:center;
   gap:14px;
   padding:6px 14px;
-  min-height:108px;              /* більше місця під дуже великий логотип */
+  min-height:76px;              /* під менший логотип */
 }
 
 /* бургер: ПРИХОВАНИЙ на десктопі (видно лише на мобілці) */
@@ -215,10 +215,10 @@
   border-radius:10px;width:44px;height:44px;cursor:pointer
 }
 
-/* ЛОГО — у 3× більший розмір (десктоп) */
+/* ЛОГО — у 2× менший від попереднього (тепер 48px на десктопі) */
 .brand{display:flex;align-items:center;padding:0 4px;border-radius:10px;border:1px solid transparent}
 .brand img{
-  height:96px;                   /* <<< було маленьке — тепер ~3× */
+  height:48px;                   /* було 96px → стало 48px */
   width:auto;display:block;
   object-fit:contain;
 }
@@ -240,8 +240,8 @@
   .nav-wrap > .nav-btn,
   .nav-right{ display:none !important; }
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
-  .brand img{height:56px;}     /* великий і на мобілці, але не перебор */
-  .nav-wrap{ min-height:72px; }
+  .brand img{height:36px;}     /* пропорційно менший логотип на мобілці */
+  .nav-wrap{ min-height:64px; }
 }
 
 /* ДЕСКТОП: дровер не потрібен */
