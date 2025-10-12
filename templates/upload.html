@@ -49,9 +49,35 @@
 
     <div style="height:14px"></div>
 
+    <!-- ZIP (головний файл для скачування) -->
+    <fieldset class="fieldset">
+      <legend style="padding:0 6px">ZIP (головний файл для скачування, необовʼязково)</legend>
+
+      <!-- Пул ZIP -->
+      <input id="zip_pool" type="file" accept=".zip" style="display:none">
+
+      <!-- Реальне поле для бекенду -->
+      <input id="zip_file" name="zip_file" type="file" accept=".zip" style="display:none">
+
+      <div id="zip_tile" class="drop-tile" tabindex="0" aria-label="Додай ZIP-архів">
+        <div class="drop-center">
+          <div class="drop-title">Додай ZIP-архів</div>
+          <div class="drop-sub">ZIP — перетягни або натисни (цей файл буде качатися користувачам)</div>
+        </div>
+        <div id="zip_badge" class="badge">—</div>
+      </div>
+
+      <div id="zip_list" class="list"></div>
+      <div class="note-muted" style="margin-top:6px">
+        Якщо ZIP не додано — при скачуванні піде основний STL. STL/Фото нижче — лише для перегляду на сторінці товару.
+      </div>
+    </fieldset>
+
+    <div style="height:14px"></div>
+
     <!-- 3D-ФАЙЛИ (одна плитка, до 5) -->
     <fieldset class="fieldset">
-      <legend style="padding:0 6px">3D-файли (обовʼязково, до 5)</legend>
+      <legend style="padding:0 6px">3D-файли (обовʼязково, до 5 — для перегляду)</legend>
 
       <!-- Пул (користувач обирає тут) -->
       <input id="stl_pool" type="file" multiple accept=".stl,.obj,.ply,.gltf,.glb" style="display:none" aria-required="true">
@@ -69,14 +95,14 @@
       </div>
 
       <div id="stl_list" class="list"></div>
-      <div id="stl_file_hint" class="note-muted" style="margin-top:6px">Перший файл стане основним, решта — додаткові.</div>
+      <div id="stl_file_hint" class="note-muted" style="margin-top:6px">Перший файл стане основним для перегляду, решта — додаткові.</div>
     </fieldset>
 
     <div style="height:14px"></div>
 
     <!-- ФОТО (одна плитка, до 5) -->
     <fieldset class="fieldset">
-      <legend style="padding:0 6px">Фото (необовʼязково, до 5)</legend>
+      <legend style="padding:0 6px">Фото (необовʼязково, до 5 — для перегляду)</legend>
 
       <!-- Пул -->
       <input id="photo_pool" type="file" multiple accept=".jpg,.jpeg,.png,.webp" style="display:none">
@@ -117,16 +143,22 @@
   const msg  = document.getElementById('msg');
 
   // Пули
+  const zipPool   = document.getElementById('zip_pool');
   const stlPool   = document.getElementById('stl_pool');
   const photoPool = document.getElementById('photo_pool');
 
   // Реальні поля для бекенду
+  const zipFile   = document.getElementById('zip_file');
   const stlMain   = document.getElementById('stl_file');
   const stlExtras = document.getElementById('stl_files');
   const coverFile = document.getElementById('cover_file');
   const galFiles  = document.getElementById('gallery_files');
 
   // Плитки/віджети
+  const zipTile   = document.getElementById('zip_tile');
+  const zipBadge  = document.getElementById('zip_badge');
+  const zipList   = document.getElementById('zip_list');
+
   const stlTile   = document.getElementById('stl_tile');
   const stlBadge  = document.getElementById('stl_badge');
   const stlList   = document.getElementById('stl_list');
@@ -180,19 +212,24 @@
     tile.addEventListener('drop', (e)=>{
       if (!e.dataTransfer || !e.dataTransfer.files) return;
       const files = Array.from(e.dataTransfer.files);
-      // призначення через DataTransfer для кросбраузерності
-      safeAssignFiles(input, files, input===stlPool ? STL_LIMIT : PHOTO_LIMIT);
+      safeAssignFiles(input, files, input===stlPool ? STL_LIMIT : (input===photoPool ? PHOTO_LIMIT : 1));
       onFiles && onFiles(input.files);
     });
 
     input.addEventListener('change', ()=> onFiles && onFiles(input.files||[]));
   }
 
+  function updateZipUI(files){
+    const n = files.length;
+    zipBadge.textContent = n ? '1' : '—';
+    zipList.textContent  = n ? files[0].name : '';
+  }
+
   function updateStlUI(files){
     const n = Math.min(files.length, STL_LIMIT);
     stlBadge.textContent = `${n}/${STL_LIMIT}`;
     stlList.textContent = n ? Array.from(files).slice(0,STL_LIMIT).map(f=>f.name).join(' • ') : '';
-    stlHint.textContent = n ? 'Файли вибрано.' : 'Перший файл стане основним, решта — додаткові.';
+    stlHint.textContent = n ? 'Файли вибрано.' : 'Перший файл стане основним для перегляду, решта — додаткові.';
   }
 
   function updatePhotoUI(files){
@@ -212,6 +249,13 @@
   }
 
   function distributeFiles(){
+    // ZIP → zip_file (1 файл)
+    if (zipPool.files && zipPool.files.length){
+      safeAssignFiles(zipFile, [zipPool.files[0]], 1);
+    } else {
+      safeAssignFiles(zipFile, [], 1);
+    }
+
     // STL → stl_file + stl_files
     if (stlPool.files && stlPool.files.length){
       const list = Array.from(stlPool.files).slice(0, STL_LIMIT);
@@ -233,14 +277,17 @@
     }
   }
 
-  attachTile(stlTile, stlPool, updateStlUI);
-  attachTile(photoTile, photoPool, updatePhotoUI);
+  attachTile(zipTile,  zipPool,  updateZipUI);
+  attachTile(stlTile,  stlPool,  updateStlUI);
+  attachTile(photoTile,photoPool,updatePhotoUI);
 
   // init
+  updateZipUI(zipPool.files||[]);
   updateStlUI(stlPool.files||[]);
   updatePhotoUI(photoPool.files||[]);
 
   function validateFiles(){
+    // STL обовʼязково (для перегляду і резервного скачування, якщо ZIP відсутній)
     return !!(stlPool.files && stlPool.files.length);
   }
 
@@ -257,7 +304,8 @@
     const fd = new FormData(form);
 
     // якщо порожньо — видаляємо (як і раніше)
-    if (!(stlMain.files && stlMain.files.length)) fd.delete('stl_file');
+    if (!(zipFile.files && zipFile.files.length))   fd.delete('zip_file');
+    if (!(stlMain.files && stlMain.files.length))   fd.delete('stl_file');
     if (!(coverFile.files && coverFile.files.length)) fd.delete('cover_file');
 
     const tagsRaw = (document.getElementById('tags').value || '').trim();
