@@ -90,7 +90,8 @@ const PRESETS = [
   {key:'film', label:'Film',     fx: ctx=>ctx.filter='sepia(24%) contrast(110%) saturate(105%)'},
 ];
 
-const BASE_FILE = 'img/filters-base.jpg'; // ← твоя фото-основа
+// ✅ Виправлений шлях до базової фотки
+const BASE_FILE = "{{ url_for('static', filename='img/filters-base.jpg') }}";
 
 // === СТВОРЕННЯ ПРЕВ’Ю ===
 function buildTiles(img){
@@ -114,7 +115,7 @@ function buildTiles(img){
 
     const fname = document.createElement('div');
     fname.className='filename';
-    fname.textContent = BASE_FILE;
+    fname.textContent = 'filters-base.jpg';
 
     const name = document.createElement('div');
     name.className='name';
@@ -149,7 +150,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('empty').style.display='none';
   };
   im.onerror = ()=>{
-    document.getElementById('empty').textContent = 'Не знайдено '+BASE_FILE;
+    document.getElementById('empty').textContent = 'Не знайдено filters-base.jpg';
   };
   im.src = BASE_FILE;
 });
