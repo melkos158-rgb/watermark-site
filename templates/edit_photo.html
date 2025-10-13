@@ -35,7 +35,10 @@
   .control{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center}
   .control label{font-size:13px;color:var(--muted-x)}
   .control input[type=range]{grid-column:1/3;width:100%}
+  /* приховані керування, коли обраний інший інструмент */
+  .control.hidden{display:none}
 
+  /* Кнопки */
   .btnrow{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
   .btn{background:var(--panel-x);border:1px solid var(--border-x);color:var(--text-x);
        padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
@@ -58,6 +61,8 @@
 
   .split-title{margin:6px 0 4px;font-size:12px;color:var(--muted-x);text-transform:uppercase;letter-spacing:.6px}
   .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* коли з пари видимий тільки один інструмент — робимо 1 колонку */
+  .pair.onecol{grid-template-columns:1fr}
 
   /* Слайдери */
   input[type=range]{appearance:none;height:4px;background:#94a3b826;border-radius:999px;outline:none}
@@ -78,7 +83,6 @@
   .rail-arrow{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-x);
               background:#131821;color:#dbe2ee;cursor:pointer}
 
-  /* підсвічування обраного контролу при стрибку */
   .pulse{animation:pulse 900ms ease}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,124,255,.8)}100%{box-shadow:0 0 0 12px rgba(79,124,255,0)}}
 
@@ -244,10 +248,11 @@
   binds.forEach(([id,l,fmt])=>{
     $(id).addEventListener('input',()=>{
       S[id]=Number($(id).value); $(l).textContent=fmt(S[id]); render();
-      markActiveByControl(id); // підсвітити відповідну кнопку в ролику
+      // підсвітити відповідну кнопку в ролику + показати лише цей блок
+      markActiveByControl(id, true);
     });
   });
-  $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render(); markActiveByControl('vignette');});
+  $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render(); markActiveByControl('vignette', true);});
   $('vignetteColor').addEventListener('change',e=>{S.vignetteColor=e.target.value; render();});
 
   const baseFilter=()=>`brightness(${S.brightness}%) contrast(${S.contrast}%) saturate(${S.saturate}%) hue-rotate(${S.hue}deg) sepia(${S.sepia}%) grayscale(${S.grayscale}%) blur(${S.blur}px)`;
@@ -291,7 +296,7 @@
         o[p]=cl(s[p]+(s[p]-br)*a); o[p+1]=cl(s[p+1]+(s[p+1]-bg)*a); o[p+2]=cl(s[p+2]+(s[p+2]-bb)*a); o[p+3]=s[p+3];
       }
       ctx.putImageData(out,0,0);
-      function cl(v){return v<0?0:v>255?255:v}
+      function cl(v){return v<0?0:v>255?255?v: v}
     }
 
     if(S.vignette && S.vignetteStrength>0){
@@ -334,6 +339,9 @@
     $('v-temp').textContent='0'; $('v-tint').textContent='0'; $('v-high').textContent='0'; $('v-shadows').textContent='0';
     $('v-whites').textContent='0'; $('v-blacks').textContent='0'; $('v-sharp').textContent='0'; $('v-grain').textContent='0'; $('v-vignette').textContent='0%';
     imgB.style.opacity=0;
+    // повертаємо видимість першого інструмента в кожній колонці
+    showOnly('brightness', document.getElementById('controls-left'), document.querySelector('#rail-left .rail'));
+    showOnly('temperature', document.getElementById('controls-right'), document.querySelector('#rail-right .rail'));
     render();
   };
 
@@ -344,25 +352,48 @@
     const a=document.createElement('a'); a.href=dataURL; a.download='edited.png'; a.click();
   };
 
-  /* ======== JS ДЛЯ РОЛИКІВ ======== */
+  /* ======== JS ДЛЯ РОЛИКІВ + Видимість лише одного інструмента ======== */
+
+  // показати лише один control у контейнері controlsRoot
+  function showOnly(controlId, controlsRoot, railRoot){
+    // ховаємо всі керування з data-name
+    controlsRoot.querySelectorAll('.control[data-name]').forEach(ctrl=>{
+      ctrl.classList.toggle('hidden', ctrl.dataset.name !== controlId);
+    });
+
+    // парні блоки -> одна колонка, якщо видимий тільки один
+    controlsRoot.querySelectorAll('.pair').forEach(pair=>{
+      const visible = [...pair.querySelectorAll('.control')].filter(c=>!c.classList.contains('hidden'));
+      pair.classList.toggle('onecol', visible.length === 1);
+    });
+
+    // підсвічування відповідної кнопки на ролику
+    if(railRoot){
+      railRoot.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+    }
+
+    // при навігації — мʼяко прогортаємо до видимого
+    const activeCtrl = controlsRoot.querySelector(`.control[data-name="${controlId}"]`);
+    if(activeCtrl){
+      activeCtrl.classList.remove('pulse'); void activeCtrl.offsetWidth; activeCtrl.classList.add('pulse');
+      activeCtrl.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }
+  }
+
   function initRail(railWrapId, controlsContainerId){
     const wrap = document.getElementById(railWrapId);
     const rail = wrap.querySelector('.rail');
     const arrows = wrap.querySelectorAll('.rail-arrow');
     const controlsRoot = document.getElementById(controlsContainerId);
 
-    // клік по кнопці -> проскролити до відповідного контролу
+    // початкова видимість: перша активна кнопка
+    const first = rail.querySelector('.tool.active') || rail.querySelector('.tool');
+    if(first) showOnly(first.dataset.target, controlsRoot, rail);
+
+    // клік по кнопці -> показати тільки її
     rail.addEventListener('click', e=>{
       const btn = e.target.closest('.tool'); if(!btn) return;
-      const id = btn.dataset.target;
-      const ctrl = controlsRoot.querySelector(`.control[data-name="${id}"]`) ||
-                   document.getElementById(id)?.closest('.control');
-      if(ctrl){
-        ctrl.scrollIntoView({block:'center', behavior:'smooth'});
-        ctrl.classList.remove('pulse'); void ctrl.offsetWidth; ctrl.classList.add('pulse');
-      }
-      rail.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
+      showOnly(btn.dataset.target, controlsRoot, rail);
     });
 
     // стрілки
@@ -375,8 +406,8 @@
     rail.addEventListener('pointerup', e=>{const dx=e.clientX-sx; if(Math.abs(dx)>60) rail.scrollBy({left:-dx,behavior:'smooth'});});
   }
 
-  // коли рухаєш будь-який слайдер — підсвічуємо відповідну кнопку ролика
-  function markActiveByControl(controlId){
+  // коли рухаєш слайдер — підсвічуємо кнопку + показуємо лише цей блок
+  function markActiveByControl(controlId, alsoShow=false){
     const map = {
       left: ['brightness','contrast','saturate','hue','sepia','grayscale','blur'],
       right:['temperature','tint','highlights','shadows','whites','blacks','sharpness','vignette','vignetteStrength','grain']
@@ -387,16 +418,22 @@
     if(hitLeft){
       const rail = document.querySelector('#rail-left .rail');
       rail.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+      if(alsoShow) showOnly(controlId, document.getElementById('controls-left'), rail);
     }
     if(hitRight){
       const rail = document.querySelector('#rail-right .rail');
       rail.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+      if(alsoShow) showOnly(controlId, document.getElementById('controls-right'), rail);
     }
   }
 
   // ініціалізація двох роликів
   initRail('rail-left','controls-left');
   initRail('rail-right','controls-right');
+
+  // одразу залишаємо тільки перший інструмент у кожній колонці (щоб не було «все одразу»)
+  showOnly('brightness', document.getElementById('controls-left'), document.querySelector('#rail-left .rail'));
+  showOnly('temperature', document.getElementById('controls-right'), document.querySelector('#rail-right .rail'));
 </script>
 </body>
 </html>
