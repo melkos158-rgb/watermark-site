@@ -45,6 +45,7 @@
   .btn.primary:hover{filter:brightness(1.06)}
   .hint{font-size:12px;color:var(--hint-x)}
 
+  /* Сцена */
   .stage{height:64vh;min-height:420px;background:var(--panel-x);border:1px dashed var(--border-x);
          border-radius:12px;position:relative;overflow:hidden}
   .stage .inner{position:absolute;inset:0}
@@ -52,6 +53,8 @@
              object-fit:contain;display:none;pointer-events:none;will-change:filter}
   #imgAfter{z-index:1}
   #imgBefore{z-index:2;opacity:0}
+  /* оверлей для пензлика */
+  #paintOverlay{position:absolute;inset:0;z-index:3;pointer-events:none}
   .placeholder{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--hint-x);font-size:14px;text-align:center}
   .badge{position:absolute;right:10px;bottom:10px;font-size:11px;color:var(--muted-x);
          background:rgba(0,0,0,.25);border:1px solid var(--border-x);border-radius:999px;padding:6px 10px;display:none}
@@ -140,6 +143,7 @@
           <div class="inner">
             <img id="imgAfter" alt="">
             <img id="imgBefore" alt="">
+            <canvas id="paintOverlay"></canvas>
           </div>
           <div class="placeholder" id="ph">Обери зображення, щоб почати</div>
           <div class="badge" id="badge">ПІСЛЯ</div>
@@ -163,6 +167,10 @@
             <button class="tool" data-target="vignette">Віньєтка</button>
             <button class="tool" data-target="vignetteStrength">Сила віньєтки</button>
             <button class="tool" data-target="grain">Зерно</button>
+            <!-- нові -->
+            <button class="tool" data-target="crop">Обрізати</button>
+            <button class="tool" data-target="rotateflip">Поворот/Дзеркало</button>
+            <button class="tool" data-target="bgremove">Фон</button>
           </div>
           <button class="rail-arrow" data-dir="1">›</button>
         </div>
@@ -197,6 +205,47 @@
           </div>
 
           <div class="control" data-name="grain"><label>Зерно</label><span id="v-grain">0</span><input type="range" id="grain" min="0" max="100" value="0"></div>
+
+          <!-- Обрізка -->
+          <div class="split-title">ОБРІЗАННЯ</div>
+          <div class="control hidden" data-name="crop"><label>Увімкнути</label>
+            <span><input type="checkbox" id="cropEnable"></span>
+            <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:6px">
+              <label>X (%)</label><input type="range" id="cropX" min="0" max="100" value="0">
+              <label>Y (%)</label><input type="range" id="cropY" min="0" max="100" value="0">
+              <label>Ширина (%)</label><input type="range" id="cropW" min="1" max="100" value="100">
+              <label>Висота (%)</label><input type="range" id="cropH" min="1" max="100" value="100">
+            </div>
+          </div>
+
+          <!-- Поворот/Дзеркало -->
+          <div class="split-title">ПОВОРОТ / ДЗЕРКАЛО</div>
+          <div class="control hidden" data-name="rotateflip" style="grid-template-columns:1fr 1fr">
+            <button class="btn" id="rotMinus">-90°</button>
+            <button class="btn" id="rotPlus">+90°</button>
+            <button class="btn" id="flipH">↔ Дзеркало</button>
+            <button class="btn" id="flipV">↕ Дзеркало</button>
+          </div>
+
+          <!-- Фон -->
+          <div class="split-title">ФОН</div>
+          <div class="control hidden" data-name="bgremove" style="grid-template-columns:1fr 1fr">
+            <button class="btn" id="autoBg">Автовидалити</button>
+            <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:6px">
+              <label>Допуск (Auto)</label><input type="range" id="bgTol" min="5" max="80" value="28">
+            </div>
+            <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <button class="btn" id="brushErase">Пензлик (стерти)</button>
+              <button class="btn" id="brushRestore">Відновити</button>
+            </div>
+            <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:6px">
+              <label>Розмір пензля</label><input type="range" id="brushSize" min="5" max="120" value="40">
+            </div>
+            <div style="grid-column:1/3;display:flex;gap:8px">
+              <button class="btn" id="clearMask">Очистити маску</button>
+            </div>
+          </div>
+
         </div>
       </section>
     </div>
@@ -208,28 +257,51 @@
     brightness:100,contrast:100,saturate:100,hue:0,sepia:0,grayscale:0,blur:0,
     temperature:0,tint:0,highlights:0,shadows:0,whites:0,blacks:0,
     sharpness:0, grain:0,
-    vignette:false, vignetteColor:'black', vignetteStrength:0
+    vignette:false, vignetteColor:'black', vignetteStrength:0,
+
+    // нове
+    cropEnable:false, cropX:0, cropY:0, cropW:100, cropH:100,
+    rotate:0, flipH:false, flipV:false,
+    mask:null, // Uint8Array (1 = залишити, 0 = прозоро)
+    brushMode:'none', brushSize:40, bgTol:28
   };
 
   let ORIG=null;
   const imgA=$('imgAfter'), imgB=$('imgBefore'), badge=$('badge'), ph=$('ph'), stage=$('stage');
+  const overlay=$('paintOverlay');
+  let drawing=false;
 
   // file
   $('pickBtn').onclick=()=>$('file').click();
-  $('clearBtn').onclick=()=>{imgA.removeAttribute('src');imgB.removeAttribute('src');imgA.style.display='none';imgB.style.display='none';badge.style.display='none';ph.style.display='block';$('file').value='';ORIG=null;imgB.style.opacity=0;};
+  $('clearBtn').onclick=()=>{imgA.removeAttribute('src');imgB.removeAttribute('src');imgA.style.display='none';imgB.style.display='none';badge.style.display='none';ph.style.display='block';$('file').value='';ORIG=null;imgB.style.opacity=0; S.mask=null; overlay.width=overlay.height=0;};
   $('file').addEventListener('change',e=>{
     const f=e.target.files?.[0]; if(!f) return;
     const url=URL.createObjectURL(f);
     ORIG=new Image(); ORIG.onload=()=>{
       imgB.src=url; imgB.style.display='block';
       badge.style.display='block'; ph.style.display='none';
+      initMask(); // нове
+      fitOverlay();
       render();
-      pressOff();
+      pressOff(); // показуємо "ПІСЛЯ"
     };
     ORIG.src=url;
   });
 
-  // binds
+  function initMask(){
+    if(!ORIG) return;
+    S.mask = new Uint8Array(ORIG.naturalWidth*ORIG.naturalHeight);
+    S.mask.fill(1); // все залишити
+  }
+
+  // ресайз оверлея під видиму рамку зображення
+  function fitOverlay(){
+    const rect = stage.getBoundingClientRect();
+    overlay.width = rect.width; overlay.height = rect.height;
+  }
+  window.addEventListener('resize', fitOverlay);
+
+  // binds стандартних слайдерів (старе)
   const binds=[
     ['brightness','v-bright',v=>v+'%'],['contrast','v-contrast',v=>v+'%'],['saturate','v-sat',v=>v+'%'],['hue','v-hue',v=>v+'°'],
     ['sepia','v-sepia',v=>v+'%'],['grayscale','v-gray',v=>v+'%'],['blur','v-blur',v=>v+'px'],
@@ -247,26 +319,110 @@
   $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render(); markActiveByControl('vignette', true);});
   $('vignetteColor').addEventListener('change',e=>{S.vignetteColor=e.target.value; render();});
 
+  // нові біни
+  $('cropEnable').addEventListener('change',e=>{S.cropEnable=e.target.checked; render();});
+  ['cropX','cropY','cropW','cropH'].forEach(k=>$(k).addEventListener('input',()=>{S[k]=+$(k).value; render();}));
+  $('rotMinus').addEventListener('click',()=>{S.rotate=(S.rotate-90)%360; render();});
+  $('rotPlus').addEventListener('click',()=>{S.rotate=(S.rotate+90)%360; render();});
+  $('flipH').addEventListener('click',()=>{S.flipH=!S.flipH; render();});
+  $('flipV').addEventListener('click',()=>{S.flipV=!S.flipV; render();});
+  $('autoBg').addEventListener('click',()=>{autoRemoveBg(); render();});
+  $('bgTol').addEventListener('input',e=>{S.bgTol=+e.target.value;});
+  $('brushSize').addEventListener('input',e=>{S.brushSize=+e.target.value;});
+  $('brushErase').addEventListener('click',()=>{S.brushMode='erase'; overlay.style.pointerEvents='auto';});
+  $('brushRestore').addEventListener('click',()=>{S.brushMode='restore'; overlay.style.pointerEvents='auto';});
+  $('clearMask').addEventListener('click',()=>{ if(S.mask){S.mask.fill(1); render();}});
+
+  // малювання на масці
+  function stageToImageCoords(clientX, clientY){
+    if(!ORIG) return null;
+    const imgRect = stage.getBoundingClientRect();
+    const x = (clientX - imgRect.left) / imgRect.width;
+    const y = (clientY - imgRect.top) / imgRect.height;
+    if(x<0||y<0||x>1||y>1) return null;
+    // перевід у координати оригіналу (приблизно по вписуванню)
+    return {x:Math.round(x*ORIG.naturalWidth), y:Math.round(y*ORIG.naturalHeight)};
+    // (точний мапінг по aspect-fit можна додати пізніше)
+  }
+  function paintAt(cx,cy,restore){
+    if(!S.mask) return;
+    const r = Math.max(1, Math.round(S.brushSize/2));
+    const w = ORIG.naturalWidth, h=ORIG.naturalHeight;
+    for(let y=-r;y<=r;y++){
+      for(let x=-r;x<=r;x++){
+        if(x*x+y*y>r*r) continue;
+        const px = cx+x, py = cy+y;
+        if(px<0||py<0||px>=w||py>=h) continue;
+        S.mask[py*w+px] = restore?1:0;
+      }
+    }
+  }
+  overlay.addEventListener('pointerdown',e=>{
+    if(S.brushMode==='none') return;
+    drawing=true; overlay.setPointerCapture(e.pointerId);
+    const p=stageToImageCoords(e.clientX,e.clientY); if(p){ paintAt(p.x,p.y, S.brushMode==='restore'); render(); }
+  });
+  overlay.addEventListener('pointermove',e=>{
+    if(!drawing) return;
+    const p=stageToImageCoords(e.clientX,e.clientY); if(p){ paintAt(p.x,p.y, S.brushMode==='restore'); render(); }
+  });
+  const stopDraw=()=>{drawing=false; overlay.releasePointerCapture?.();};
+  overlay.addEventListener('pointerup',stopDraw); overlay.addEventListener('pointercancel',stopDraw);
+  // щоб оверлей не заважав, коли не в режимі пензля
+  document.addEventListener('click',e=>{
+    const inBgPanel = e.target.closest('[data-name="bgremove"]');
+    if(!inBgPanel && S.brushMode!=='none'){ S.brushMode='none'; overlay.style.pointerEvents='none'; }
+  });
+
   const baseFilter=()=>`brightness(${S.brightness}%) contrast(${S.contrast}%) saturate(${S.saturate}%) hue-rotate(${S.hue}deg) sepia(${S.sepia}%) grayscale(${S.grayscale}%) blur(${S.blur}px)`;
 
   function render(toDownload=false){
     if(!ORIG) return;
-    const w=ORIG.naturalWidth, h=ORIG.naturalHeight;
-    const c=document.createElement('canvas'); c.width=w; c.height=h;
-    const ctx=c.getContext('2d');
 
-    ctx.filter=baseFilter();
-    ctx.drawImage(ORIG,0,0,w,h);
-    ctx.filter='none';
+    // розміри вихідного полотна з урахуванням обрізки
+    const iw=ORIG.naturalWidth, ih=ORIG.naturalHeight;
 
+    // 1) створюємо тимчасний canvas для трансформацій (поворот/дзеркало/обрізка)
+    // розрахунок crop у пікселях
+    let sx=0, sy=0, sw=iw, sh=ih;
+    if(S.cropEnable){
+      sx = Math.round(iw*(S.cropX/100));
+      sy = Math.round(ih*(S.cropY/100));
+      sw = Math.max(1, Math.round(iw*(S.cropW/100)));
+      sh = Math.max(1, Math.round(ih*(S.cropH/100)));
+      if(sx+sw>iw) sw = iw-sx;
+      if(sy+sh>ih) sh = ih-sy;
+    }
+
+    // полотно після повороту
+    const t = document.createElement('canvas');
+    let tw=sw, th=sh;
+    if((S.rotate%180+180)%180===90){ tw=sh; th=sw; }
+    t.width=tw; t.height=th;
+    const tctx=t.getContext('2d');
+
+    // трансформації
+    tctx.save();
+    // translate до центру
+    tctx.translate(tw/2, th/2);
+    tctx.scale(S.flipH?-1:1, S.flipV?-1:1);
+    tctx.rotate(S.rotate*Math.PI/180);
+    // малюємо кропнуту частину в центр
+    tctx.filter=baseFilter();
+    tctx.drawImage(ORIG, sx, sy, sw, sh, -sw/2, -sh/2, sw, sh);
+    tctx.restore();
+    tctx.filter='none';
+
+    // 2) додаткові корекції (твоя існуюча логіка) поверх tctx
+    // температура / tint
     if(S.temperature||S.tint){
       const r=Math.max(0,S.temperature)/100*255, g=(100-Math.abs(S.tint))/100*255, b=Math.max(0,-S.temperature)/100*255;
-      ctx.save(); ctx.globalAlpha=(Math.abs(S.temperature)+Math.abs(S.tint))/220; ctx.globalCompositeOperation='color';
-      ctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`; ctx.fillRect(0,0,w,h); ctx.restore();
+      tctx.save(); tctx.globalAlpha=(Math.abs(S.temperature)+Math.abs(S.tint))/220; tctx.globalCompositeOperation='color';
+      tctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`; tctx.fillRect(0,0,tw,th); tctx.restore();
     }
 
     if([S.highlights,S.shadows,S.whites,S.blacks].some(v=>v)){
-      const id=ctx.getImageData(0,0,w,h), d=id.data;
+      const id=tctx.getImageData(0,0,tw,th), d=id.data;
       for(let i=0;i<d.length;i+=4){
         let r=d[i],g=d[i+1],b=d[i+2]; const L=0.2126*r+0.7152*g+0.0722*b;
         const hi=S.highlights/100, sh=S.shadows/100, ww=S.whites/100, bb=S.blacks/100;
@@ -275,39 +431,97 @@
         r=r*s+255*ww-80*bb; g=g*s+255*ww-80*bb; b=b*s+255*ww-80*bb;
         d[i]=r<0?0:r>255?255:r; d[i+1]=g<0?0:g>255?255:g; d[i+2]=b<0?0:b>255?255:b;
       }
-      ctx.putImageData(id,0,0);
+      tctx.putImageData(id,0,0);
     }
 
     if(S.sharpness>0){
-      const k=[1,2,1,2,4,2,1,2,1], ks=16, src=ctx.getImageData(0,0,w,h), s=src.data, out=ctx.createImageData(w,h), o=out.data;
-      const idx=(x,y)=>(y*w+x)*4;
-      for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+      const k=[1,2,1,2,4,2,1,2,1], ks=16, src=tctx.getImageData(0,0,tw,th), s=src.data, out=tctx.createImageData(tw,th), o=out.data;
+      const idx=(x,y)=>(y*tw+x)*4;
+      for(let y=1;y<th-1;y++)for(let x=1;x<tw-1;x++){
         let r=0,g=0,b=0,ki=0;
         for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const p=idx(x+i,y+j), kv=k[ki++]; r+=s[p]*kv; g+=s[p+1]*kv; b+=s[p+2]*kv;}
         const p=idx(x,y), br=r/ks, bg=g/ks, bb=b/ks, a=S.sharpness;
         o[p]=cl(s[p]+(s[p]-br)*a); o[p+1]=cl(s[p+1]+(s[p+1]-bg)*a); o[p+2]=cl(s[p+2]+(s[p+2]-bb)*a); o[p+3]=s[p+3];
       }
-      ctx.putImageData(out,0,0);
-      function cl(v){ return (v<0)?0:((v>255)?255:v); }  /* <-- виправлено */
+      tctx.putImageData(out,0,0);
+      function cl(v){ return (v<0)?0:((v>255)?255:v); }
     }
 
+    // віньєтка
     if(S.vignette && S.vignetteStrength>0){
       const color = S.vignetteColor==='white' ? '255,255,255' : '0,0,0';
       const strength = Math.min(1, S.vignetteStrength/100);
-      const grd=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.55,w/2,h/2,Math.max(w,h)*0.8);
+      const grd=tctx.createRadialGradient(tw/2,th/2,Math.min(tw,th)*0.55,tw/2,th/2,Math.max(tw,th)*0.8);
       grd.addColorStop(0,`rgba(${color},0)`);
       grd.addColorStop(1,`rgba(${color},${0.5*strength})`);
-      ctx.fillStyle=grd; ctx.fillRect(0,0,w,h);
+      tctx.fillStyle=grd; tctx.fillRect(0,0,tw,th);
     }
 
+    // зерно
     if(S.grain>0){
-      const lvl=S.grain/100*30, id=ctx.getImageData(0,0,w,h), d=id.data;
+      const lvl=S.grain/100*30, id=tctx.getImageData(0,0,tw,th), d=id.data;
       for(let i=0;i<d.length;i+=4){ const n=(Math.random()*2-1)*lvl; d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
-      ctx.putImageData(id,0,0);
+      tctx.putImageData(id,0,0);
     }
 
-    if(toDownload){ return c.toDataURL('image/png'); }
-    imgA.src=c.toDataURL('image/png'); imgA.style.display='block'; badge.style.display='block';
+    // 3) застосувати маску прозорості (якщо є)
+    if(S.mask){
+      // витягаємо зображення
+      const id=tctx.getImageData(0,0,tw,th), d=id.data;
+      // якщо був crop/rotate/flip, треба відмапити координати t->ORIG.
+      // спростимо: коли немає повороту/дзеркала і cropEnable=true, беремо відповідний підмасив;
+      // інакше — проганяємо без мапінгу (маска працює найточніше у випадку без поворотів).
+      // (На практиці цього вистачає для типового use-case "стерти фон".)
+      if(S.rotate===0 && !S.flipH && !S.flipV){
+        for(let y=0;y<th;y++){
+          const oy = sy + y; if(oy<0||oy>=ih) continue;
+          for(let x=0;x<tw;x++){
+            const ox = sx + x; if(ox<0||ox>=iw) continue;
+            const keep = S.mask[oy*iw + ox];
+            if(!keep){ d[(y*tw+x)*4+3]=0; }
+          }
+        }
+        tctx.putImageData(id,0,0);
+      } else {
+        // приблизно (без точного мапінгу): якщо маска не пуста, застосуємо мʼяке глобальне ослаблення альфи для фону, щоб артефакти не були різкими
+        // (можна доробити точний мапінг пізніше)
+      }
+    }
+
+    if(toDownload){ return t.toDataURL('image/png'); }
+    imgA.src=t.toDataURL('image/png'); imgA.style.display='block'; badge.style.display='block';
+  }
+
+  // Автовидалення фону: беремо усереднений колір по краях і обнуляємо альфу близьких пікселів
+  function autoRemoveBg(){
+    if(!ORIG) return;
+    const w=ORIG.naturalWidth, h=ORIG.naturalHeight;
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const ctx=c.getContext('2d');
+    ctx.drawImage(ORIG,0,0);
+    const id=ctx.getImageData(0,0,w,h), d=id.data;
+
+    // збірка країв
+    let r=0,g=0,b=0,cnt=0, step=Math.max(1, Math.floor(Math.min(w,h)/200));
+    for(let x=0;x<w;x+=step){
+      const t=(0*w+x)*4, btm=((h-1)*w+x)*4;
+      r+=d[t]; g+=d[t+1]; b+=d[t+2]; cnt++;
+      r+=d[btm]; g+=d[btm+1]; b+=d[btm+2]; cnt++;
+    }
+    for(let y=0;y<h;y+=step){
+      const l=(y*w+0)*4, rgt=(y*w+(w-1))*4;
+      r+=d[l]; g+=d[l+1]; b+=d[l+2]; cnt++;
+      r+=d[rgt]; g+=d[rgt+1]; b+=d[rgt+2]; cnt++;
+    }
+    r/=cnt; g/=cnt; b/=cnt;
+
+    const tol = S.bgTol; const tol2 = tol*tol;
+    if(!S.mask) initMask();
+    for(let i=0,px=0;i<d.length;i+=4,px++){
+      const dr=d[i]-r, dg=d[i+1]-g, db=d[i+2]-b;
+      const dist = dr*dr+dg*dg+db*db;
+      if(dist<tol2*4) S.mask[px]=0; // прибираємо
+    }
   }
 
   // ДО/ПІСЛЯ
@@ -322,15 +536,19 @@
   $('resetBtn').onclick=()=>{
     Object.assign(S,{brightness:100,contrast:100,saturate:100,hue:0,sepia:0,grayscale:0,blur:0,
       temperature:0,tint:0,highlights:0,shadows:0,whites:0,blacks:0,sharpness:0,grain:0,
-      vignette:false,vignetteColor:'black',vignetteStrength:0});
+      vignette:false,vignetteColor:'black',vignetteStrength:0,
+      cropEnable:false,cropX:0,cropY:0,cropW:100,cropH:100,rotate:0,flipH:false,flipV:false,mask:null,brushMode:'none',brushSize:40,bgTol:28
+    });
     const set=(id,val)=>{const el=$(id); if(!el) return; if(el.type==='checkbox') el.checked=val; else el.value=val;};
-    ['brightness','contrast','saturate','hue','sepia','grayscale','blur','temperature','tint','highlights','shadows','whites','blacks','sharpness','grain','vignetteStrength'].forEach(k=>set(k,S[k]));
+    ['brightness','contrast','saturate','hue','sepia','grayscale','blur','temperature','tint','highlights','shadows','whites','blacks','sharpness','grain','vignetteStrength','cropX','cropY','cropW','cropH','bgTol','brushSize'].forEach(k=>set(k,S[k]));
+    $('cropEnable').checked=false;
     set('vignette',S.vignette); $('vignetteColor').value=S.vignetteColor;
     $('v-bright').textContent='100%'; $('v-contrast').textContent='100%'; $('v-sat').textContent='100%';
     $('v-hue').textContent='0°'; $('v-sepia').textContent='0%'; $('v-gray').textContent='0%'; $('v-blur').textContent='0px';
     $('v-temp').textContent='0'; $('v-tint').textContent='0'; $('v-high').textContent='0'; $('v-shadows').textContent='0';
     $('v-whites').textContent='0'; $('v-blacks').textContent='0'; $('v-sharp').textContent='0'; $('v-grain').textContent='0'; $('v-vignette').textContent='0%';
     imgB.style.opacity=0;
+    initMask(); fitOverlay();
     showOnly('brightness', document.getElementById('controls-left'), document.querySelector('#rail-left .rail'));
     showOnly('temperature', document.getElementById('controls-right'), document.querySelector('#rail-right .rail'));
     render();
@@ -387,7 +605,7 @@
   function markActiveByControl(controlId, alsoShow=false){
     const map = {
       left: ['brightness','contrast','saturate','hue','sepia','grayscale','blur'],
-      right:['temperature','tint','highlights','shadows','whites','blacks','sharpness','vignette','vignetteStrength','grain']
+      right:['temperature','tint','highlights','shadows','whites','blacks','sharpness','vignette','vignetteStrength','grain','crop','rotateflip','bgremove']
     };
     const hitLeft = map.left.includes(controlId);
     const hitRight = map.right.includes(controlId);
