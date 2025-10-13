@@ -256,6 +256,18 @@
         </div> <!-- /controls-right -->
       </section>
     </div>
+
+    <!-- === ПАНЕЛЬ ФІЛЬТРІВ знизу сторінки === -->
+    <section class="panel" style="margin-top:16px; overflow:hidden">
+      <h3>Фільтри</h3>
+      <iframe
+        id="filtersFrame"
+        src="{{ url_for('static', filename='filters.html') }}?v=1"
+        style="width:100%; height:220px; border:0; border-radius:12px; background:transparent;"
+        loading="lazy"
+      ></iframe>
+    </section>
+
   </div>
 
 <script>
