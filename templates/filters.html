@@ -80,14 +80,14 @@
 <script>
 // === НАБІР ФІЛЬТРІВ ===
 const PRESETS = [
-  {key:'orig', label:'Original', fx: null},
-  {key:'pop',  label:'Pop',      fx: ctx=>ctx.filter='contrast(120%) saturate(125%) brightness(105%)'},
+  {key:'orig', label:'Original',   fx: null},
+  {key:'pop',  label:'Pop',        fx: ctx=>ctx.filter='contrast(120%) saturate(125%) brightness(105%)'},
   {key:'acc',  label:'Accentuate', fx: ctx=>ctx.filter='contrast(135%) saturate(115%)'},
-  {key:'fade', label:'Fade',     fx: ctx=>ctx.filter='contrast(90%) brightness(107%) saturate(80%)'},
-  {key:'cool', label:'Cool',     fx: ctx=>ctx.filter='hue-rotate(-5deg) saturate(110%)'},
-  {key:'warm', label:'Morning',  fx: ctx=>ctx.filter='sepia(8%) saturate(112%) brightness(104%)'},
-  {key:'mono', label:'Mono',     fx: ctx=>ctx.filter='grayscale(100%) contrast(110%)'},
-  {key:'film', label:'Film',     fx: ctx=>ctx.filter='sepia(24%) contrast(110%) saturate(105%)'},
+  {key:'fade', label:'Fade',       fx: ctx=>ctx.filter='contrast(90%) brightness(107%) saturate(80%)'},
+  {key:'cool', label:'Cool',       fx: ctx=>ctx.filter='hue-rotate(-5deg) saturate(110%)'},
+  {key:'warm', label:'Morning',    fx: ctx=>ctx.filter='sepia(8%) saturate(112%) brightness(104%)'},
+  {key:'mono', label:'Mono',       fx: ctx=>ctx.filter='grayscale(100%) contrast(110%)'},
+  {key:'film', label:'Film',       fx: ctx=>ctx.filter='sepia(24%) contrast(110%) saturate(105%)'},
 ];
 
 // ✅ Виправлений шлях до базової фотки
@@ -125,8 +125,16 @@ function buildTiles(img){
     tile.appendChild(fname);
     tile.appendChild(name);
 
-    tile.addEventListener('click', ()=> {
-      window.parent?.postMessage({type:'preset_clicked', presetKey:p.key}, '*');
+    // 🔗 Надсилаємо сигнал ВСІМА безпечними шляхами:
+    tile.addEventListener('click', ()=>{
+      // 1) postMessage (основний спосіб)
+      try { window.parent?.postMessage({type:'preset_clicked', presetKey:p.key}, '*'); } catch(e){}
+
+      // 2) прямий виклик, якщо батько надав функцію
+      try { if (window.parent && typeof window.parent.applyPreset === 'function') { window.parent.applyPreset(p.key); } } catch(e){}
+
+      // 3) дубль через localStorage (батьківська сторінка може слухати 'storage')
+      try { localStorage.setItem('proofly_preset_clicked', JSON.stringify({key:p.key, t:Date.now()})); } catch(e){}
     });
 
     rail.appendChild(tile);
