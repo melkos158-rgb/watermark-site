@@ -675,24 +675,36 @@
   /* =========================
      >>> ДОДАНО для фільтрів <<<
      ========================= */
-  // Мапа пресетів (базові повзунки, щоб render усе порахував)
-  const PRESET_MAP = {
-    orig: { brightness:100, contrast:100, saturate:100, hue:0,   sepia:0,  grayscale:0,  blur:0 },
-    pop:  { brightness:105, contrast:120, saturate:125 },
-    acc:  { brightness:100, contrast:135, saturate:115 },
-    fade: { brightness:107, contrast:90,  saturate:80  },
-    cool: { hue:-5,        saturate:110 },
-    warm: { brightness:104, sepia:8,     saturate:112 },
-    mono: { grayscale:100, contrast:110 },
-    film: { sepia:24,      contrast:110, saturate:105 }
-  };
 
   // Базові ключі та дефолти — щоб новий пресет не накладався на попередній
   const BASE_KEYS = ['brightness','contrast','saturate','hue','sepia','grayscale','blur'];
-  const BASE_DEFAULTS = {
-    brightness:100, contrast:100, saturate:100,
-    hue:0, sepia:0, grayscale:0, blur:0
-  };
+  const BASE_DEFAULTS = { brightness:100, contrast:100, saturate:100, hue:0, sepia:0, grayscale:0, blur:0 };
+
+  // Формули слайдерів для категорії/рівня (мають відповідати фрейму з плитками)
+  function slidersFromCategoryLevel(cat, lvl){
+    const lerp = (a,b)=> Math.round(a + (b-a)*((lvl-1)/10)); // lvl 1..11
+    switch(cat){
+      case 'pop':  return { contrast: lerp(110,140), saturate: lerp(115,150), brightness: lerp(102,108) };
+      case 'acc':  return { contrast: lerp(120,150), saturate: lerp(110,130) };
+      case 'fade': return { contrast: lerp(95,85),   brightness: lerp(103,112), saturate: lerp(90,70) };
+      case 'cool': return { hue: lerp(-3,-12),       saturate: lerp(108,120) };
+      case 'warm': return { sepia: lerp(6,16),       saturate: lerp(108,125),  brightness: lerp(102,108) };
+      case 'mono': return { grayscale: lerp(60,100), contrast: lerp(105,120) };
+      case 'film': return { sepia: lerp(15,32),      contrast: lerp(105,120),  saturate: lerp(102,112) };
+      case 'dusk': return { hue: lerp(8,18),         contrast: lerp(98,110),   brightness: lerp(98,103) };
+      case 'vivid':return { contrast: lerp(115,145), saturate: lerp(120,165) };
+      default:     return {};
+    }
+  }
+
+  // Генеруємо PRESET_MAP на 100 ключів: orig + 9×11
+  const PRESET_CATS = ['pop','acc','fade','cool','warm','mono','film','dusk','vivid'];
+  const PRESET_MAP = { orig: { ...BASE_DEFAULTS } };
+  PRESET_CATS.forEach(cat=>{
+    for(let lvl=1; lvl<=11; lvl++){
+      PRESET_MAP[`${cat}${lvl}`] = { ...slidersFromCategoryLevel(cat, lvl) };
+    }
+  });
 
   // Синхронізація інпутів/лейблів під S
   function syncControl(id){
