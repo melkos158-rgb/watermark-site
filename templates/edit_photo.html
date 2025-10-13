@@ -671,6 +671,65 @@
   initRail('rail-right','controls-right');
   showOnly('brightness', $('controls-left'), document.querySelector('#rail-left .rail'));
   showOnly('temperature', $('controls-right'), document.querySelector('#rail-right .rail'));
+
+  /* =========================
+     >>> ДОДАНО для фільтрів <<<
+     ========================= */
+  // Мапа пресетів (лише базові повзунки, щоб твій render усе порахував)
+  const PRESET_MAP = {
+    orig: { brightness:100, contrast:100, saturate:100, hue:0,   sepia:0,  grayscale:0,  blur:0 },
+    pop:  { brightness:105, contrast:120, saturate:125 },
+    acc:  { brightness:100, contrast:135, saturate:115 },
+    fade: { brightness:107, contrast:90,  saturate:80  },
+    cool: { hue:-5,        saturate:110 },
+    warm: { brightness:104, sepia:8,     saturate:112 },
+    mono: { grayscale:100, contrast:110 },
+    film: { sepia:24,      contrast:110, saturate:105 }
+  };
+
+  // Синхронізація інпутів/лейблів під S
+  function syncControl(id){
+    const el=$(id);
+    if(!el) return;
+    if(el.type==='range'){ el.value = S[id]; }
+    const labelIds = {
+      brightness:'v-bright', contrast:'v-contrast', saturate:'v-sat',
+      hue:'v-hue', sepia:'v-sepia', grayscale:'v-gray', blur:'v-blur'
+    };
+    const fmt = {
+      brightness:v=>v+'%', contrast:v=>v+'%', saturate:v=>v+'%',
+      hue:v=>v+'°', sepia:v=>v+'%', grayscale:v=>v+'%', blur:v=>v+'px'
+    };
+    const lid = labelIds[id];
+    if(lid) $(lid).textContent = fmt[id](S[id]);
+  }
+
+  // Застосувати пресет (доступно і як window.applyPreset для прямого виклику з iframe)
+  function applyPreset(key){
+    if(!ORIG) return; // щоб не лякало без зображення
+    const patch = PRESET_MAP[key] || PRESET_MAP.orig;
+    Object.keys(patch).forEach(k => { S[k] = patch[k]; syncControl(k); markActiveByControl(k); });
+    render();
+  }
+  window.applyPreset = applyPreset;
+
+  // 1) Слухаємо postMessage від iframe
+  window.addEventListener('message', (e)=>{
+    const data = e.data || {};
+    if(data.type === 'preset_clicked' && data.presetKey){
+      applyPreset(data.presetKey);
+    }
+  });
+
+  // 2) Дубль: слухач 'storage' (на випадок safari/edge нюансів)
+  window.addEventListener('storage', (e)=>{
+    if(e.key === 'proofly_preset_clicked' && e.newValue){
+      try{
+        const msg = JSON.parse(e.newValue);
+        if(msg && msg.key) applyPreset(msg.key);
+      }catch(_){}
+    }
+  });
 </script>
 </body>
 </html>
