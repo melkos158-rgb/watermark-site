@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Фільтри — Preview</title>
+<style>
+  :root{
+    --bg:#0b0e14; --card:#101522; --line:#1b2131; --text:#e6e9ef; --muted:#aab1c7; --chip:#161a20; --accent:#4f7cff;
+  }
+  html,body{
+    margin:0;
+    padding:0;
+    height:100%;
+    background:transparent;
+    color:var(--text);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+  }
+
+  .rail{
+    display:flex;
+    gap:10px;
+    overflow-x:auto;
+    padding:10px 14px;
+  }
+  .rail::-webkit-scrollbar{height:8px}
+  .rail::-webkit-scrollbar-thumb{background:#273044;border-radius:8px}
+
+  .tile{
+    flex:0 0 120px;
+    background:var(--chip);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:8px;
+    text-align:center;
+    cursor:pointer;
+    user-select:none;
+    transition:transform .2s ease;
+  }
+  .tile:hover{transform:scale(1.04);border-color:var(--accent)}
+  .thumb{
+    width:100%;
+    height:80px;
+    border-radius:8px;
+    object-fit:cover;
+    display:block;
+    background:#0f141c;
+  }
+  .filename{
+    font-size:11px;
+    color:#8aa0bf;
+    margin-top:4px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .name{
+    font-size:12px;
+    color:#e6e9ef;
+    margin-top:2px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .tile:active{outline:2px solid var(--accent)}
+  .empty{
+    color:#8aa0bf;
+    font-size:13px;
+    padding:16px;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="empty" id="empty">Генерація прев’ю...</div>
+  <div class="rail" id="rail" style="display:none"></div>
+</div>
+
+<script>
+// === НАБІР ФІЛЬТРІВ ===
+const PRESETS = [
+  {key:'orig', label:'Original', fx: null},
+  {key:'pop',  label:'Pop',      fx: ctx=>ctx.filter='contrast(120%) saturate(125%) brightness(105%)'},
+  {key:'acc',  label:'Accentuate', fx: ctx=>ctx.filter='contrast(135%) saturate(115%)'},
+  {key:'fade', label:'Fade',     fx: ctx=>ctx.filter='contrast(90%) brightness(107%) saturate(80%)'},
+  {key:'cool', label:'Cool',     fx: ctx=>ctx.filter='hue-rotate(-5deg) saturate(110%)'},
+  {key:'warm', label:'Morning',  fx: ctx=>ctx.filter='sepia(8%) saturate(112%) brightness(104%)'},
+  {key:'mono', label:'Mono',     fx: ctx=>ctx.filter='grayscale(100%) contrast(110%)'},
+  {key:'film', label:'Film',     fx: ctx=>ctx.filter='sepia(24%) contrast(110%) saturate(105%)'},
+];
+
+const BASE_FILE = 'filters-base.jpg'; // ← твоя фото-основа
+
+// === СТВОРЕННЯ ПРЕВ’Ю ===
+function buildTiles(img){
+  const rail = document.getElementById('rail');
+  rail.innerHTML = '';
+  PRESETS.forEach(p=>{
+    const tile = document.createElement('div');
+    tile.className='tile';
+    tile.dataset.key=p.key;
+
+    const cnv = document.createElement('canvas');
+    cnv.width = 160; cnv.height = 120;
+    const ctx = cnv.getContext('2d');
+    if (p.fx) p.fx(ctx); else ctx.filter = 'none';
+    const r = fitCover(img.naturalWidth, img.naturalHeight, cnv.width, cnv.height);
+    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, r.dx, r.dy, r.dw, r.dh);
+
+    const thumb = document.createElement('img');
+    thumb.className='thumb';
+    thumb.src = cnv.toDataURL('image/jpeg', 0.85);
+
+    const fname = document.createElement('div');
+    fname.className='filename';
+    fname.textContent = BASE_FILE;
+
+    const name = document.createElement('div');
+    name.className='name';
+    name.textContent = p.label;
+
+    tile.appendChild(thumb);
+    tile.appendChild(fname);
+    tile.appendChild(name);
+
+    tile.addEventListener('click', ()=> {
+      window.parent?.postMessage({type:'preset_clicked', presetKey:p.key}, '*');
+    });
+
+    rail.appendChild(tile);
+  });
+}
+
+// fit image to canvas keeping aspect
+function fitCover(sw,sh,dw,dh){
+  const s = Math.max(dw/sw, dh/sh);
+  const rw = sw*s, rh = sh*s;
+  const dx = (dw - rw)/2, dy = (dh - rh)/2;
+  return {sx:0, sy:0, sw, sh, dx, dy, dw:rw, dh:rh};
+}
+
+// === ЗАВАНТАЖЕННЯ БАЗОВОГО ФОТО ===
+window.addEventListener('DOMContentLoaded',()=>{
+  const im = new Image();
+  im.onload = ()=>{
+    buildTiles(im);
+    document.getElementById('rail').style.display='flex';
+    document.getElementById('empty').style.display='none';
+  };
+  im.onerror = ()=>{
+    document.getElementById('empty').textContent = 'Не знайдено '+BASE_FILE;
+  };
+  im.src = BASE_FILE;
+});
+</script>
+</body>
+</html>
