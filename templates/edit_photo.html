@@ -35,10 +35,8 @@
   .control{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center}
   .control label{font-size:13px;color:var(--muted-x)}
   .control input[type=range]{grid-column:1/3;width:100%}
-  /* приховані керування, коли обраний інший інструмент */
   .control.hidden{display:none}
 
-  /* Кнопки */
   .btnrow{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
   .btn{background:var(--panel-x);border:1px solid var(--border-x);color:var(--text-x);
        padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
@@ -47,7 +45,6 @@
   .btn.primary:hover{filter:brightness(1.06)}
   .hint{font-size:12px;color:var(--hint-x)}
 
-  /* Сцена */
   .stage{height:64vh;min-height:420px;background:var(--panel-x);border:1px dashed var(--border-x);
          border-radius:12px;position:relative;overflow:hidden}
   .stage .inner{position:absolute;inset:0}
@@ -61,10 +58,8 @@
 
   .split-title{margin:6px 0 4px;font-size:12px;color:var(--muted-x);text-transform:uppercase;letter-spacing:.6px}
   .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  /* коли з пари видимий тільки один інструмент — робимо 1 колонку */
   .pair.onecol{grid-template-columns:1fr}
 
-  /* Слайдери */
   input[type=range]{appearance:none;height:4px;background:#94a3b826;border-radius:999px;outline:none}
   input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;
     background:var(--primary-x);border:2px solid #182034}
@@ -72,7 +67,7 @@
   .vignette-row{display:flex;align-items:center;gap:10px}
   select{border:1px solid var(--border-x);background:transparent;color:var(--text-x);border-radius:8px;padding:6px 8px}
 
-  /* === РОЛИКИ (scrollable toolbars) === */
+  /* ролики */
   .rail-wrap{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin:8px 0 6px}
   .rail{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px;border:1px solid var(--border-x);
         border-radius:14px;background:#0f1216}
@@ -98,7 +93,6 @@
       <section class="panel">
         <h3>Корегувати (базове)</h3>
 
-        <!-- РОЛИК (БАЗОВЕ) -->
         <div class="rail-wrap" id="rail-left">
           <button class="rail-arrow" data-dir="-1">‹</button>
           <div class="rail" role="tablist" aria-label="Базові інструменти">
@@ -156,7 +150,6 @@
       <section class="panel">
         <h3>Корегувати (просунуте)</h3>
 
-        <!-- РОЛИК (ПРОСУНУТЕ) -->
         <div class="rail-wrap" id="rail-right">
           <button class="rail-arrow" data-dir="-1">‹</button>
           <div class="rail" role="tablist" aria-label="Просунуті інструменти">
@@ -231,12 +224,12 @@
       imgB.src=url; imgB.style.display='block';
       badge.style.display='block'; ph.style.display='none';
       render();
-      pressOff(); // одразу показуємо "ПІСЛЯ"
+      pressOff();
     };
     ORIG.src=url;
   });
 
-  // binds (НЕ змінює логіку фільтрів)
+  // binds
   const binds=[
     ['brightness','v-bright',v=>v+'%'],['contrast','v-contrast',v=>v+'%'],['saturate','v-sat',v=>v+'%'],['hue','v-hue',v=>v+'°'],
     ['sepia','v-sepia',v=>v+'%'],['grayscale','v-gray',v=>v+'%'],['blur','v-blur',v=>v+'px'],
@@ -248,7 +241,6 @@
   binds.forEach(([id,l,fmt])=>{
     $(id).addEventListener('input',()=>{
       S[id]=Number($(id).value); $(l).textContent=fmt(S[id]); render();
-      // підсвітити відповідну кнопку в ролику + показати лише цей блок
       markActiveByControl(id, true);
     });
   });
@@ -296,7 +288,7 @@
         o[p]=cl(s[p]+(s[p]-br)*a); o[p+1]=cl(s[p+1]+(s[p+1]-bg)*a); o[p+2]=cl(s[p+2]+(s[p+2]-bb)*a); o[p+3]=s[p+3];
       }
       ctx.putImageData(out,0,0);
-      function cl(v){return v<0?0:v>255?255?v: v}
+      function cl(v){ return (v<0)?0:((v>255)?255:v); }  /* <-- виправлено */
     }
 
     if(S.vignette && S.vignetteStrength>0){
@@ -339,7 +331,6 @@
     $('v-temp').textContent='0'; $('v-tint').textContent='0'; $('v-high').textContent='0'; $('v-shadows').textContent='0';
     $('v-whites').textContent='0'; $('v-blacks').textContent='0'; $('v-sharp').textContent='0'; $('v-grain').textContent='0'; $('v-vignette').textContent='0%';
     imgB.style.opacity=0;
-    // повертаємо видимість першого інструмента в кожній колонці
     showOnly('brightness', document.getElementById('controls-left'), document.querySelector('#rail-left .rail'));
     showOnly('temperature', document.getElementById('controls-right'), document.querySelector('#rail-right .rail'));
     render();
@@ -352,27 +343,18 @@
     const a=document.createElement('a'); a.href=dataURL; a.download='edited.png'; a.click();
   };
 
-  /* ======== JS ДЛЯ РОЛИКІВ + Видимість лише одного інструмента ======== */
-
-  // показати лише один control у контейнері controlsRoot
+  /* ======== ролики + показ лише одного інструмента ======== */
   function showOnly(controlId, controlsRoot, railRoot){
-    // ховаємо всі керування з data-name
     controlsRoot.querySelectorAll('.control[data-name]').forEach(ctrl=>{
       ctrl.classList.toggle('hidden', ctrl.dataset.name !== controlId);
     });
-
-    // парні блоки -> одна колонка, якщо видимий тільки один
     controlsRoot.querySelectorAll('.pair').forEach(pair=>{
       const visible = [...pair.querySelectorAll('.control')].filter(c=>!c.classList.contains('hidden'));
       pair.classList.toggle('onecol', visible.length === 1);
     });
-
-    // підсвічування відповідної кнопки на ролику
     if(railRoot){
       railRoot.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
     }
-
-    // при навігації — мʼяко прогортаємо до видимого
     const activeCtrl = controlsRoot.querySelector(`.control[data-name="${controlId}"]`);
     if(activeCtrl){
       activeCtrl.classList.remove('pulse'); void activeCtrl.offsetWidth; activeCtrl.classList.add('pulse');
@@ -386,27 +368,22 @@
     const arrows = wrap.querySelectorAll('.rail-arrow');
     const controlsRoot = document.getElementById(controlsContainerId);
 
-    // початкова видимість: перша активна кнопка
     const first = rail.querySelector('.tool.active') || rail.querySelector('.tool');
     if(first) showOnly(first.dataset.target, controlsRoot, rail);
 
-    // клік по кнопці -> показати тільки її
     rail.addEventListener('click', e=>{
       const btn = e.target.closest('.tool'); if(!btn) return;
       showOnly(btn.dataset.target, controlsRoot, rail);
     });
 
-    // стрілки
     arrows.forEach(a=>{
       a.addEventListener('click', ()=> rail.scrollBy({left:(+a.dataset.dir)*240, behavior:'smooth'}));
     });
 
-    // свайп
     let sx=0; rail.addEventListener('pointerdown', e=>{sx=e.clientX;});
     rail.addEventListener('pointerup', e=>{const dx=e.clientX-sx; if(Math.abs(dx)>60) rail.scrollBy({left:-dx,behavior:'smooth'});});
   }
 
-  // коли рухаєш слайдер — підсвічуємо кнопку + показуємо лише цей блок
   function markActiveByControl(controlId, alsoShow=false){
     const map = {
       left: ['brightness','contrast','saturate','hue','sepia','grayscale','blur'],
@@ -427,11 +404,8 @@
     }
   }
 
-  // ініціалізація двох роликів
   initRail('rail-left','controls-left');
   initRail('rail-right','controls-right');
-
-  // одразу залишаємо тільки перший інструмент у кожній колонці (щоб не було «все одразу»)
   showOnly('brightness', document.getElementById('controls-left'), document.querySelector('#rail-left .rail'));
   showOnly('temperature', document.getElementById('controls-right'), document.querySelector('#rail-right .rail'));
 </script>
