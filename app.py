@@ -370,6 +370,13 @@ def create_app():
     def edit_photo():
         return render_template("edit_photo.html")
 
+    # --- ДОДАНО: сторінка фільтрів (щоб <iframe src="filters.html"> не давала 404) ---
+    @app.route("/filters")
+    @app.route("/filters.html")
+    def filters_page():
+        return render_template("filters.html")
+    # ----------------------------------------------------------------------------------
+
     @app.route("/photo")
     def photo():
         return render_template("photo.html")
