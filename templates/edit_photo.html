@@ -48,9 +48,15 @@
   #imgAfter{z-index:1}
   #imgBefore{z-index:2;opacity:0}
   #paintOverlay{position:absolute;inset:0;z-index:3;pointer-events:none}
+
   /* Crop box */
-  #cropBox{position:absolute;border:2px dashed var(--primary-x);border-radius:6px;display:none;
-           box-shadow:0 0 0 100vmax rgba(0,0,0,.35);cursor:move;z-index:4}
+  #cropBox{
+    position:absolute;border:2px dashed var(--primary-x);border-radius:6px;display:none;
+    box-shadow:0 0 0 100vmax rgba(0,0,0,.35);
+    cursor:default; /* не рухається без перетягування */
+    z-index:4;
+    touch-action:none; /* блокує скрол на драг */
+  }
   .crop-h{position:absolute;width:14px;height:14px;background:var(--primary-x);border:2px solid #0b0e14;border-radius:50%;box-sizing:border-box}
   .h-nw{left:-7px;top:-7px;cursor:nwse-resize}.h-ne{right:-7px;top:-7px;cursor:nesw-resize}
   .h-sw{left:-7px;bottom:-7px;cursor:nesw-resize}.h-se{right:-7px;bottom:-7px;cursor:nwse-resize}
@@ -59,7 +65,9 @@
   .h-w{left:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
   .h-e{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
 
-  .split-title{display:none} /* прибрав сині підзаголовки */
+  /* Прибрали сині підзаголовки */
+  .split-title{display:none}
+
   .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .pair.onecol{grid-template-columns:1fr}
 
@@ -143,6 +151,7 @@
             <img id="imgAfter" alt="">
             <img id="imgBefore" alt="">
             <canvas id="paintOverlay"></canvas>
+
             <!-- Crop box -->
             <div id="cropBox">
               <div class="crop-h h-nw"></div><div class="crop-h h-ne"></div>
@@ -209,7 +218,7 @@
 
           <div class="control" data-name="grain"><label>Зерно</label><span id="v-grain">0</span><input type="range" id="grain" min="0" max="100" value="0"></div>
 
-          <!-- Обрізка (рамка + кнопки) -->
+          <!-- Обрізка: кнопки керування -->
           <div class="control hidden" data-name="crop" style="grid-template-columns:1fr">
             <div class="btnrow">
               <button class="btn primary" id="cropStart">Обрізати</button>
@@ -218,7 +227,7 @@
             </div>
           </div>
 
-          <!-- ПОВОРОТ / ДЗЕРКАЛО -->
+          <!-- Поворот / Дзеркало -->
           <div class="control hidden" data-name="rotateflip" style="grid-template-columns:1fr 1fr">
             <button class="btn" id="rotMinus">-90°</button>
             <button class="btn" id="rotPlus">+90°</button>
@@ -226,7 +235,7 @@
             <button class="btn" id="flipV">↕ Дзеркало</button>
           </div>
 
-          <!-- ФОН -->
+          <!-- Фон -->
           <div class="control hidden" data-name="bgremove" style="grid-template-columns:1fr 1fr">
             <button class="btn" id="autoBg">Автовидалити</button>
             <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:6px">
@@ -286,7 +295,7 @@
   function fitOverlay(){ const r=stage.getBoundingClientRect(); overlay.width=r.width; overlay.height=r.height; }
   window.addEventListener('resize', fitOverlay);
 
-  // ===== binds існуючих слайдерів =====
+  /* ===== binds слайдерів (без змін функцій) ===== */
   const binds=[
     ['brightness','v-bright',v=>v+'%'],['contrast','v-contrast',v=>v+'%'],['saturate','v-sat',v=>v+'%'],['hue','v-hue',v=>v+'°'],
     ['sepia','v-sepia',v=>v+'%'],['grayscale','v-gray',v=>v+'%'],['blur','v-blur',v=>v+'px'],
@@ -301,13 +310,13 @@
   $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render(); markActiveByControl('vignette',true);});
   $('vignetteColor').addEventListener('change',e=>{S.vignetteColor=e.target.value; render();});
 
-  // ===== Поворот / дзеркало =====
+  /* ===== Поворот / дзеркало ===== */
   $('rotMinus').addEventListener('click',()=>{S.rotate=(S.rotate-90)%360; render();});
   $('rotPlus').addEventListener('click',()=>{S.rotate=(S.rotate+90)%360; render();});
   $('flipH').addEventListener('click',()=>{S.flipH=!S.flipH; render();});
   $('flipV').addEventListener('click',()=>{S.flipV=!S.flipV; render();});
 
-  // ===== Фон =====
+  /* ===== Фон ===== */
   $('autoBg').addEventListener('click',()=>{autoRemoveBg(); render();});
   $('bgTol').addEventListener('input',e=>{S.bgTol=+e.target.value;});
   $('brushSize').addEventListener('input',e=>{S.brushSize=+e.target.value;});
@@ -315,7 +324,7 @@
   $('brushRestore').addEventListener('click',()=>{S.brushMode='restore'; overlay.style.pointerEvents='auto';});
   $('clearMask').addEventListener('click',()=>{ if(S.mask){S.mask.fill(1); render();}});
 
-  // ===== Малювання маски =====
+  /* ===== Малювання маски ===== */
   function stageToImageCoords(clientX, clientY){
     if(!ORIG) return null;
     const rect = stage.getBoundingClientRect();
@@ -350,25 +359,25 @@
     if(!inBg && S.brushMode!=='none'){ S.brushMode='none'; overlay.style.pointerEvents='none'; }
   });
 
-  // ===== Рамка обрізання =====
-  let cropState={active:false, drag:null, startX:0, startY:0, startRect:null};
+  /* ===== Рамка обрізання (fixed drag behaviour) ===== */
+  let cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
   function toggleCropButtons(on){
     $('cropApply').disabled=!on; $('cropCancel').disabled=!on;
   }
   $('cropStart').addEventListener('click',()=>{
     if(!ORIG) return;
-    // показати рамку посередині
     const r=stage.getBoundingClientRect();
     const w=r.width*0.6, h=r.height*0.6, x=(r.width-w)/2, y=(r.height-h)/2;
     Object.assign(cropBox.style,{display:'block',left:`${x}px`,top:`${y}px`,width:`${w}px`,height:`${h}px`});
-    cropState.active=true; toggleCropButtons(true);
+    cropState.active=true; cropState.drag=null; cropState.dragging=false;
+    toggleCropButtons(true);
   });
   $('cropCancel').addEventListener('click',()=>{
-    cropBox.style.display='none'; cropState.active=false; toggleCropButtons(false);
+    cropBox.style.display='none'; cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
+    toggleCropButtons(false);
   });
   $('cropApply').addEventListener('click',()=>{
     if(!ORIG||!cropState.active) return;
-    // перевести рамку у відсотки оригіналу (через координати сцени)
     const rS=stage.getBoundingClientRect();
     const rB=cropBox.getBoundingClientRect();
     const x=(rB.left - rS.left)/rS.width, y=(rB.top - rS.top)/rS.height;
@@ -378,22 +387,28 @@
     S.cropW=Math.max(1, Math.min(100, Math.round(w*100)));
     S.cropH=Math.max(1, Math.min(100, Math.round(h*100)));
     S.cropEnable=true;
-    cropBox.style.display='none'; cropState.active=false; toggleCropButtons(false);
+    cropBox.style.display='none';
+    cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
+    toggleCropButtons(false);
     render();
   });
 
-  // drag/resize handlers
+  // Початок перетягування/ресайзу — тільки ЛКМ
   cropBox.addEventListener('pointerdown',e=>{
     if(!cropState.active) return;
+    if(e.button!==0 || e.buttons!==1) return; // тільки натиснута ЛКМ
     const target=e.target;
     const rect=cropBox.getBoundingClientRect(); const s=stage.getBoundingClientRect();
     cropState.drag = target.classList.contains('crop-h') ? target.className.split(' ')[1].slice(2) : 'move';
+    cropState.dragging = true;
     cropState.startX=e.clientX; cropState.startY=e.clientY;
     cropState.startRect={x:rect.left-s.left, y:rect.top-s.top, w:rect.width, h:rect.height};
     cropBox.setPointerCapture(e.pointerId);
   });
+
+  // Рухаємось тільки коли dragging=true
   cropBox.addEventListener('pointermove',e=>{
-    if(!cropState.drag) return;
+    if(!cropState.dragging || !cropState.drag) return;
     const dx=e.clientX-cropState.startX, dy=e.clientY-cropState.startY;
     const s=stage.getBoundingClientRect();
     let {x,y,w,h}=cropState.startRect;
@@ -418,10 +433,18 @@
     }
     apply();
   });
-  const cropUp=()=>{ cropBox.releasePointerCapture?.(); cropState.drag=null; };
-  cropBox.addEventListener('pointerup',cropUp); cropBox.addEventListener('pointercancel',cropUp);
 
-  // ===== Рендер (твоя логіка з урахуванням crop/rotate/flip і решти) =====
+  const stopCropDrag=()=>{
+    cropBox.releasePointerCapture?.();
+    cropState.drag=null;
+    cropState.dragging=false;
+  };
+  cropBox.addEventListener('pointerup',stopCropDrag);
+  cropBox.addEventListener('pointercancel',stopCropDrag);
+  cropBox.addEventListener('pointerleave',stopCropDrag);
+  cropBox.addEventListener('lostpointercapture',stopCropDrag);
+
+  /* ===== Рендер (твоя логіка) ===== */
   const baseFilter=()=>`brightness(${S.brightness}%) contrast(${S.contrast}%) saturate(${S.saturate}%) hue-rotate(${S.hue}deg) sepia(${S.sepia}%) grayscale(${S.grayscale}%) blur(${S.blur}px)`;
 
   function render(toDownload=false){
@@ -570,6 +593,8 @@
     showOnly('brightness', $('controls-left'), document.querySelector('#rail-left .rail'));
     showOnly('temperature', $('controls-right'), document.querySelector('#rail-right .rail'));
     cropBox.style.display='none'; toggleCropButtons(false);
+    // скидання стану рамки
+    cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
     render();
   };
 
