@@ -675,7 +675,7 @@
   /* =========================
      >>> ДОДАНО для фільтрів <<<
      ========================= */
-  // Мапа пресетів (лише базові повзунки, щоб твій render усе порахував)
+  // Мапа пресетів (базові повзунки, щоб render усе порахував)
   const PRESET_MAP = {
     orig: { brightness:100, contrast:100, saturate:100, hue:0,   sepia:0,  grayscale:0,  blur:0 },
     pop:  { brightness:105, contrast:120, saturate:125 },
@@ -685,6 +685,13 @@
     warm: { brightness:104, sepia:8,     saturate:112 },
     mono: { grayscale:100, contrast:110 },
     film: { sepia:24,      contrast:110, saturate:105 }
+  };
+
+  // Базові ключі та дефолти — щоб новий пресет не накладався на попередній
+  const BASE_KEYS = ['brightness','contrast','saturate','hue','sepia','grayscale','blur'];
+  const BASE_DEFAULTS = {
+    brightness:100, contrast:100, saturate:100,
+    hue:0, sepia:0, grayscale:0, blur:0
   };
 
   // Синхронізація інпутів/лейблів під S
@@ -704,11 +711,26 @@
     if(lid) $(lid).textContent = fmt[id](S[id]);
   }
 
-  // Застосувати пресет (доступно і як window.applyPreset для прямого виклику з iframe)
+  // Застосувати пресет (замінює попередній, без накладання)
   function applyPreset(key){
     if(!ORIG) return; // щоб не лякало без зображення
+
+    // 1) скидаємо всі базові повзунки до дефолтів
+    BASE_KEYS.forEach(k => {
+      S[k] = BASE_DEFAULTS[k];
+      syncControl(k);
+      markActiveByControl(k);
+    });
+
+    // 2) застосовуємо обраний пресет
     const patch = PRESET_MAP[key] || PRESET_MAP.orig;
-    Object.keys(patch).forEach(k => { S[k] = patch[k]; syncControl(k); markActiveByControl(k); });
+    Object.keys(patch).forEach(k => {
+      S[k] = patch[k];
+      syncControl(k);
+      markActiveByControl(k);
+    });
+
+    // 3) перемальовуємо
     render();
   }
   window.applyPreset = applyPreset;
@@ -721,7 +743,7 @@
     }
   });
 
-  // 2) Дубль: слухач 'storage' (на випадок safari/edge нюансів)
+  // 2) Дубль: слухач 'storage'
   window.addEventListener('storage', (e)=>{
     if(e.key === 'proofly_preset_clicked' && e.newValue){
       try{
