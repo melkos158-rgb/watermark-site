@@ -14,7 +14,7 @@
     <a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a>
 
-    <!-- DROPDOWN: Photo (зі стрілкою вниз) + пункти Photo Enhance / Edit Photo -->
+    <!-- DROPDOWN: Photo -->
     <div class="nav-dropdown" data-dd>
       <button
         class="nav-btn dd-trigger {{ 'active' if request.endpoint in ['photo','enhance','edit_photo'] else '' }}"
@@ -81,6 +81,9 @@
   </div>
 </nav>
 
+<!-- Портал для дропдаунів (щоб поверх усіх шарів) -->
+<div id="nav-portal" style="position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none;"></div>
+
 <!-- ОВЕРЛЕЙ І ВИЇЗНЕ МЕНЮ ДЛЯ МОБІЛКИ -->
 <div class="drawer-overlay" id="drawerOverlay" hidden></div>
 <aside class="drawer" id="mobileMenu" aria-hidden="true">
@@ -93,12 +96,9 @@
     <a href="{{ url_for('index') }}"     class="{{ 'active' if request.endpoint=='index' else '' }}">Головна</a>
     <a href="{{ url_for('stl') }}"       class="{{ 'active' if request.endpoint=='stl' else '' }}">STL3D</a>
     <a href="{{ url_for('video') }}"     class="{{ 'active' if request.endpoint=='video' else '' }}">Video</a>
-
-    <!-- На мобілці — прямі пункти -->
     <a href="{{ url_for('photo') }}"      class="{{ 'active' if request.endpoint=='photo' else '' }}">Photo — Gallery / Tools</a>
     <a href="{{ url_for('enhance') }}"    class="{{ 'active' if request.endpoint=='enhance' else '' }}">Photo Enhance</a>
     <a href="{{ url_for('edit_photo') }}" class="{{ 'active' if request.endpoint=='edit_photo' else '' }}">Edit Photo</a>
-
     <a href="{{ url_for('market.page_market') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}">Market</a>
 
     <hr>
@@ -198,19 +198,43 @@
     });
   })();
 
-  /* Дропдаун для Photo — окремий невтручальний скрипт */
+  /* Дропдаун Photo — портал у body, щоб НІХТО його не перекривав */
   (function(){
-    var root = document.querySelector('[data-dd]');
+    var root   = document.querySelector('[data-dd]');
     if(!root) return;
-    var btn  = root.querySelector('.dd-trigger');
 
-    function close(){
-      root.classList.remove('open');
-      if(btn) btn.setAttribute('aria-expanded','false');
+    var btn    = root.querySelector('.dd-trigger');
+    var menu   = root.querySelector('.dd-menu');
+    var portal = document.getElementById('nav-portal');
+    var inPortal = false;
+
+    function placeMenu(){
+      if(!btn || !menu || !portal) return;
+      var r = btn.getBoundingClientRect();
+      portal.style.pointerEvents = 'none';
+      menu.style.position = 'fixed';
+      menu.style.left = r.left + 'px';
+      menu.style.top  = (r.bottom + 6) + 'px';
+      menu.style.display = 'block';
+      menu.style.zIndex  = '2147483647';
+      portal.appendChild(menu);
+      inPortal = true;
+      btn.setAttribute('aria-expanded','true');
     }
+
+    function restoreMenu(){
+      if(inPortal && root && menu){
+        menu.removeAttribute('style');
+        root.appendChild(menu);
+      }
+      inPortal = false;
+      btn && btn.setAttribute('aria-expanded','false');
+      root.classList.remove('open');
+    }
+
     function toggle(){
-      var isOpen = root.classList.toggle('open');
-      if(btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if(inPortal){ restoreMenu(); }
+      else { root.classList.add('open'); placeMenu(); }
     }
 
     btn && btn.addEventListener('click', function(e){
@@ -218,12 +242,25 @@
       toggle();
     });
 
+    // Закриття при кліку поза меню
     document.addEventListener('click', function(e){
-      if(!root.contains(e.target)) close();
+      if(!inPortal) return;
+      if(menu && !menu.contains(e.target) && btn && !btn.contains(e.target)){
+        restoreMenu();
+      }
     });
 
+    // Закриття по Escape
     document.addEventListener('keydown', function(e){
-      if(e.key === 'Escape') close();
+      if(e.key === 'Escape') restoreMenu();
+    });
+
+    // Підлаштувати позицію при скролі/ресайзі
+    ['scroll','resize'].forEach(ev=>{
+      window.addEventListener(ev, function(){
+        if(!inPortal) return;
+        placeMenu();
+      }, { passive:true });
     });
   })();
 </script>
@@ -234,15 +271,14 @@
 
 <style>
 /* ====== НАВІГАЦІЯ ====== */
-/* робимо шапку найвищою і не обрізаємо випадаючі елементи */
 .navbar{
   position:sticky;
   top:0;
-  z-index:2147483647;      /* максимально поверх усього */
+  z-index:2147483647;
   background:#0b0d12;
   border-bottom:1px solid #1b2131;
-  overflow:visible;        /* важливо: не обрізати dropdown */
-  isolation:isolate;       /* новий stacking context для стабільного z-index */
+  overflow:visible;
+  isolation:isolate;
 }
 .nav-wrap{
   max-width:1368px;
@@ -254,8 +290,6 @@
   gap:6px;
   padding:6px 10px 6px 4px;
   min-height:72px;
-
-  /* даємо горизонтальний скрол, але без обрізання по Y */
   overflow-x:auto;
   overflow-y:visible;
 }
@@ -268,7 +302,7 @@
   border-radius:10px;width:38px;height:38px;cursor:pointer
 }
 
-/* ЛОГО + НАЗВА (трохи компактніше) */
+/* ЛОГО + НАЗВА */
 .brand{display:flex;align-items:center;gap:8px;padding:0 2px;border-radius:10px;border:1px solid transparent;text-decoration:none}
 .brand img{height:44px;width:auto;display:block;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(173,92,255,.25))}
 .wordmark{
@@ -280,28 +314,20 @@
 }
 .brand:hover .wordmark{transform:translateY(-1px);letter-spacing:.4px;filter:brightness(1.08)}
 
-/* КНОПКИ — ущільнені, щоб влізали в рядок */
-.nav-btn{
-  padding:7px 11px !important;
-  font-size:14.5px !important;
-  margin:0 !important;
-  white-space:nowrap;
-}
+/* КНОПКИ */
+.nav-btn{ padding:7px 11px !important; font-size:14.5px !important; margin:0 !important; white-space:nowrap; }
 
-/* селект теми компактніший */
-.theme-select{
-  height:30px; border-radius:8px; padding:0 8px; font-size:14px;
-  background:transparent; color:#e8eaed; border:1px solid #1b2131;
-}
+/* селект теми */
+.theme-select{ height:30px; border-radius:8px; padding:0 8px; font-size:14px; background:transparent; color:#e8eaed; border:1px solid #1b2131; }
 
 /* роздільники */
 .sep{opacity:.7}
 
-/* правий блок — трохи компактніше */
+/* правий блок */
 .nav-right{gap:8px !important}
 
-/* ===== Dropdown (Photo) ===== */
-.nav-dropdown{ position:relative; display:inline-block; z-index:2147483647; }
+/* Dropdown (базові стилі) — тепер реальне меню летить у портал, тож тут лиш мінімум */
+.nav-dropdown{ position:relative; display:inline-block; }
 .dd-trigger{ display:inline-flex; align-items:center; gap:6px; }
 .dd-caret{
   display:inline-block; width:0; height:0;
@@ -311,40 +337,28 @@
 }
 .nav-dropdown.open .dd-caret{ transform:rotate(180deg); }
 
-/* саме меню — ще вище, щоб не перекривали жодні панелі сторінки */
 .dd-menu{
-  position:absolute; top:110%; left:0;
-  min-width:220px;
+  /* ці властивості будуть перезаписані JS (fixed + координати) */
   background:var(--card, #101522);
   border:1px solid #1b2131;
   border-radius:10px;
   padding:6px;
   box-shadow:0 8px 24px rgba(0,0,0,.35);
   display:none;
-  z-index:2147483647;
-  pointer-events:auto;
 }
-.nav-dropdown.open .dd-menu{ display:block; }
-
-.dd-item{
-  display:block; padding:10px 12px; border-radius:8px;
-  color:var(--text, #e8eaed); text-decoration:none; white-space:nowrap;
-}
+.dd-item{ display:block; padding:10px 12px; border-radius:8px; color:var(--text, #e8eaed); text-decoration:none; white-space:nowrap; }
 .dd-item:hover{ background:var(--chip, #182034); }
 
-/* Якщо ширина стає критичною — ховаємо довгу «user-chip», залишаємо кнопки */
+/* При малій ширині — моб. варіант */
 @media (max-width: 1360px){
   .user-chip{display:none}
   .sep{display:none}
 }
-/* ще трохи стискаємо кнопки на 1280 і менше */
 @media (max-width: 1280px){
   .nav-btn{padding:6px 10px !important;font-size:14px !important}
   .brand img{height:42px}
   .wordmark{font-size:21px}
 }
-
-/* МОБІЛЬНИЙ ВИГЛЯД */
 @media (max-width: 768px){
   .nav-wrap > .nav-btn, .nav-right, .nav-dropdown{ display:none !important; }
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
@@ -352,8 +366,6 @@
   .wordmark{font-size:20px}
   .nav-wrap{ min-height:64px; padding-left:8px; }
 }
-
-/* Для десктопа дровер не потрібен */
 @media (min-width: 769px){
   .drawer, .drawer-overlay{ display:none !important; }
 }
