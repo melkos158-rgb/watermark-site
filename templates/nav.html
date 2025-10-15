@@ -13,9 +13,23 @@
     <a class="nav-btn {{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='enhance' else '' }}" href="{{ url_for('enhance') }}">Photo Enhance</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo</a>
+
+    <!-- DROPDOWN: Photo (зі стрілкою вниз) + пункти Photo Enhance / Edit Photo -->
+    <div class="nav-dropdown" data-dd>
+      <button
+        class="nav-btn dd-trigger {{ 'active' if request.endpoint in ['photo','enhance','edit_photo'] else '' }}"
+        type="button"
+        aria-expanded="false"
+      >
+        Photo <span class="dd-caret" aria-hidden="true"></span>
+      </button>
+      <div class="dd-menu" role="menu">
+        <a class="dd-item {{ 'active' if request.endpoint=='photo' else '' }}" href="{{ url_for('photo') }}">Photo — Gallery / Tools</a>
+        <a class="dd-item {{ 'active' if request.endpoint=='enhance' else '' }}" href="{{ url_for('enhance') }}">Photo Enhance</a>
+        <a class="dd-item {{ 'active' if request.endpoint=='edit_photo' else '' }}" href="{{ url_for('edit_photo') }}">Edit Photo</a>
+      </div>
+    </div>
+
     <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}"
        href="{{ url_for('market.page_market') }}">Market</a>
 
@@ -79,9 +93,12 @@
     <a href="{{ url_for('index') }}"     class="{{ 'active' if request.endpoint=='index' else '' }}">Головна</a>
     <a href="{{ url_for('stl') }}"       class="{{ 'active' if request.endpoint=='stl' else '' }}">STL3D</a>
     <a href="{{ url_for('video') }}"     class="{{ 'active' if request.endpoint=='video' else '' }}">Video</a>
-    <a href="{{ url_for('enhance') }}"   class="{{ 'active' if request.endpoint=='enhance' else '' }}">Photo Enhance</a>
-    <a href="{{ url_for('edit_photo') }}"class="{{ 'active' if request.endpoint=='edit_photo' else '' }}">Edit Photo</a>
-    <a href="{{ url_for('photo') }}"     class="{{ 'active' if request.endpoint=='photo' else '' }}">Photo</a>
+
+    <!-- На мобілці залишимо прямі пункти для швидкого доступу -->
+    <a href="{{ url_for('photo') }}"      class="{{ 'active' if request.endpoint=='photo' else '' }}">Photo — Gallery / Tools</a>
+    <a href="{{ url_for('enhance') }}"    class="{{ 'active' if request.endpoint=='enhance' else '' }}">Photo Enhance</a>
+    <a href="{{ url_for('edit_photo') }}" class="{{ 'active' if request.endpoint=='edit_photo' else '' }}">Edit Photo</a>
+
     <a href="{{ url_for('market.page_market') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}">Market</a>
 
     <hr>
@@ -180,6 +197,36 @@
       if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
     });
   })();
+
+  /* Дропдаун для Photo — окремий невтручальний скрипт */
+  (function(){
+    var root = document.querySelector('[data-dd]');
+    if(!root) return;
+    var btn  = root.querySelector('.dd-trigger');
+    var menu = root.querySelector('.dd-menu');
+
+    function close(){
+      root.classList.remove('open');
+      if(btn) btn.setAttribute('aria-expanded','false');
+    }
+    function toggle(){
+      var isOpen = root.classList.toggle('open');
+      if(btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    btn && btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      toggle();
+    });
+
+    document.addEventListener('click', function(e){
+      if(!root.contains(e.target)) close();
+    });
+
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') close();
+    });
+  })();
 </script>
 
 {% if request.endpoint not in ["auth.login", "auth.register", "auth.logout"] %}
@@ -244,6 +291,35 @@
 /* правий блок — трохи компактніше */
 .nav-right{gap:8px !important}
 
+/* ===== Dropdown (Photo) ===== */
+.nav-dropdown{ position:relative; display:inline-block; }
+.dd-trigger{ display:inline-flex; align-items:center; gap:6px; }
+.dd-caret{
+  display:inline-block; width:0; height:0;
+  border-left:5px solid transparent; border-right:5px solid transparent;
+  border-top:6px solid var(--text, #e8eaed);
+  transition:transform .15s ease;
+}
+.nav-dropdown.open .dd-caret{ transform:rotate(180deg); }
+
+.dd-menu{
+  position:absolute; top:110%; left:0;
+  min-width:220px;
+  background:var(--card, #101522);
+  border:1px solid #1b2131;
+  border-radius:10px;
+  padding:6px;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  display:none; z-index:60;
+}
+.nav-dropdown.open .dd-menu{ display:block; }
+
+.dd-item{
+  display:block; padding:10px 12px; border-radius:8px;
+  color:var(--text, #e8eaed); text-decoration:none; white-space:nowrap;
+}
+.dd-item:hover{ background:var(--chip, #182034); }
+
 /* Якщо ширина стає критичною — ховаємо довгу «user-chip», залишаємо кнопки */
 @media (max-width: 1360px){
   .user-chip{display:none}
@@ -258,7 +334,7 @@
 
 /* МОБІЛЬНИЙ ВИГЛЯД */
 @media (max-width: 768px){
-  .nav-wrap > .nav-btn, .nav-right{ display:none !important; }
+  .nav-wrap > .nav-btn, .nav-right, .nav-dropdown{ display:none !important; }
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
   .brand img{height:38px}
   .wordmark{font-size:20px}
