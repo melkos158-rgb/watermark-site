@@ -94,7 +94,7 @@
     <a href="{{ url_for('stl') }}"       class="{{ 'active' if request.endpoint=='stl' else '' }}">STL3D</a>
     <a href="{{ url_for('video') }}"     class="{{ 'active' if request.endpoint=='video' else '' }}">Video</a>
 
-    <!-- На мобілці залишимо прямі пункти для швидкого доступу -->
+    <!-- На мобілці — прямі пункти -->
     <a href="{{ url_for('photo') }}"      class="{{ 'active' if request.endpoint=='photo' else '' }}">Photo — Gallery / Tools</a>
     <a href="{{ url_for('enhance') }}"    class="{{ 'active' if request.endpoint=='enhance' else '' }}">Photo Enhance</a>
     <a href="{{ url_for('edit_photo') }}" class="{{ 'active' if request.endpoint=='edit_photo' else '' }}">Edit Photo</a>
@@ -238,10 +238,11 @@
 .navbar{
   position:sticky;
   top:0;
-  z-index: 9999;          /* було 50 — через це меню йшло під контент */
+  z-index:2147483647;      /* максимально поверх усього */
   background:#0b0d12;
   border-bottom:1px solid #1b2131;
-  overflow: visible;      /* було overflow-x:auto; через це могло обрізати */
+  overflow:visible;        /* важливо: не обрізати dropdown */
+  isolation:isolate;       /* новий stacking context для стабільного z-index */
 }
 .nav-wrap{
   max-width:1368px;
@@ -254,8 +255,7 @@
   padding:6px 10px 6px 4px;
   min-height:72px;
 
-  /* горизонтальний скрол тільки якщо не влазить,
-     але без створення clipping-контейнера */
+  /* даємо горизонтальний скрол, але без обрізання по Y */
   overflow-x:auto;
   overflow-y:visible;
 }
@@ -301,7 +301,7 @@
 .nav-right{gap:8px !important}
 
 /* ===== Dropdown (Photo) ===== */
-.nav-dropdown{ position:relative; display:inline-block; z-index: 10000; } /* поверх усього іншого */
+.nav-dropdown{ position:relative; display:inline-block; z-index:2147483647; }
 .dd-trigger{ display:inline-flex; align-items:center; gap:6px; }
 .dd-caret{
   display:inline-block; width:0; height:0;
@@ -311,7 +311,7 @@
 }
 .nav-dropdown.open .dd-caret{ transform:rotate(180deg); }
 
-/* саме меню — ще вище, щоб не перекривали панелі сторінки */
+/* саме меню — ще вище, щоб не перекривали жодні панелі сторінки */
 .dd-menu{
   position:absolute; top:110%; left:0;
   min-width:220px;
@@ -321,7 +321,8 @@
   padding:6px;
   box-shadow:0 8px 24px rgba(0,0,0,.35);
   display:none;
-  z-index: 10001;
+  z-index:2147483647;
+  pointer-events:auto;
 }
 .nav-dropdown.open .dd-menu{ display:block; }
 
