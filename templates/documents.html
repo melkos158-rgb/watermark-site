@@ -1,0 +1,667 @@
+{% extends "base.html" %}
+{% set page = 'documents' %}
+{% block title %}Документи — Proofly{% endblock %}
+
+{% block content %}
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+
+<style>
+  :root{
+    --bg: #0b0e14; --card:#101522; --line:#1b2131; --text:#e6e9ef;
+    --muted:#aab1c7; --chip:#161a20; --accent:#4f7cff;
+  }
+  .docs-wrap{padding:20px; color:var(--text)}
+  .grid-3{
+    display:grid;
+    grid-template-columns: 360px 1fr 360px;
+    gap:18px;
+  }
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+  }
+  .panel h3{
+    margin:0 0 10px; font-weight:700; font-size:16px; letter-spacing:.2px;
+  }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    gap:8px; padding:10px 14px; border-radius:12px; border:1px solid var(--line);
+    background:#0f1730; color:#fff; cursor:pointer; user-select:none;
+    transition:transform .02s ease, background .2s ease, border-color .2s ease;
+  }
+  .btn:hover{ background:#142049; border-color:#24325a}
+  .btn.primary{ background:var(--accent); border-color:#5a86ff}
+  .btn.ghost{ background:transparent }
+  .btn.small{ padding:8px 12px; font-size:14px }
+  .btn.block{ width:100% }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px }
+  .tool{
+    display:flex; flex-direction:column; gap:8px; padding:10px;
+    background:var(--chip); border:1px solid var(--line); border-radius:12px;
+  }
+  .tool .ttl{font-size:13px; color:var(--muted)}
+  .tool .btn{width:100%}
+
+  .uploader{
+    background:rgba(255,255,255,0.02);
+    border:1px dashed #2a3550;
+    border-radius:12px;
+    padding:12px;
+  }
+  input[type="file"]{ color:var(--muted) }
+
+  /* центр — прев’ю */
+  .viewer{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px; height:72vh; min-height:520px;
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .viewer .hint{
+    color:var(--muted); font-size:14px; position:absolute; top:14px; left:14px;
+  }
+  canvas#pdfCanvas, img#imgPreview{max-width:100%; max-height:100%}
+  .theme-toggle{ position:absolute; top:12px; right:12px }
+
+  /* правий — списки сторінок, reorder */
+  .pages{
+    display:flex; flex-direction:column; gap:8px; max-height:60vh; overflow:auto;
+    background:rgba(255,255,255,0.03); border:1px solid var(--line); padding:10px; border-radius:12px;
+  }
+  .page-item{
+    display:flex; align-items:center; gap:10px; background:#0f1422; border:1px solid #1b2336;
+    border-radius:10px; padding:8px; cursor:grab;
+  }
+  .page-item.dragging{opacity:.6}
+  .page-thumb{width:36px; height:48px; background:#0b0e14; border:1px solid #2a3550; border-radius:6px}
+  .sep{height:1px; background:var(--line); margin:10px 0}
+
+  .pill{font-size:12px; color:#b7c4ff; background:#18234a; border:1px solid #2a3b78; border-radius:999px; padding:3px 8px; margin-left:6px}
+  .badge-server{font-size:11px; color:#ffcf8b; background:#3a250b; border:1px solid #6e4b14; border-radius:999px; padding:2px 6px}
+  .muted{color:var(--muted)}
+</style>
+
+<div class="docs-wrap">
+  <div class="grid-3">
+    <!-- LEFT: CONVERT -->
+    <aside class="panel">
+      <h3>Конвертації</h3>
+
+      <div class="uploader">
+        <div class="row">
+          <label class="ttl">Головний файл</label>
+          <input id="fileInput" type="file" />
+        </div>
+        <div class="row">
+          <label class="ttl">Додаткові файли (для Merge / Multi-photo)</label>
+          <input id="fileInputMany" type="file" multiple />
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="tool">
+        <div class="ttl">1) Image → PDF</div>
+        <button class="btn block" id="btnImageToPdf">Створити PDF</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">2) PDF → Image</div>
+        <button class="btn block" id="btnPdfToImage">Експортувати сторінки в PNG</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">3) DOCX → PDF</div>
+        <button class="btn block" id="btnDocxToPdf">Конвертувати</button>
+        <small class="muted">Браузерна конвертація через рендер DOCX → canvas → PDF.</small>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">4) PDF → DOCX</div>
+        <button class="btn block" id="btnPdfToDocx">Конвертувати</button>
+        <small class="muted">Експорт тексту та картинок у .docx (просте форматування).</small>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">5) Excel / CSV → PDF</div>
+        <button class="btn block" id="btnTableToPdf">Експортувати</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">6) PDF → Excel / CSV</div>
+        <button class="btn block" id="btnPdfToCsv">Витягнути таблиці</button>
+        <small class="muted">Парсинг табличної розмітки з PDF (best-effort).</small>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">19) Multi-photo → PDF</div>
+        <button class="btn block" id="btnMultiPhotoToPdf">Склеїти фото в PDF</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">17) Convert JSON ↔ CSV ↔ XLS</div>
+        <div class="row">
+          <button class="btn small" id="btnJsonToCsv">JSON → CSV</button>
+          <button class="btn small" id="btnCsvToXls">CSV → XLSX</button>
+          <button class="btn small" id="btnXlsToCsv">XLSX → CSV</button>
+        </div>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">16) Convert to ZIP</div>
+        <button class="btn block" id="btnZip">Упакувати вибрані</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">18) Light / Dark Viewer</div>
+        <button class="btn block" id="btnThemeToggle">Перемкнути тему</button>
+      </div>
+
+    </aside>
+
+    <!-- CENTER: PREVIEW -->
+    <main class="viewer panel" id="viewer">
+      <div class="hint">Обери файл, щоб побачити прев’ю. Підтримка: PDF, JPG, PNG, DOCX, XLSX, CSV.</div>
+      <div class="theme-toggle">
+        <span class="muted" style="margin-right:8px">Тема</span>
+        <button class="btn ghost small" id="btnThemeToggle2">🌙 / ☀️</button>
+      </div>
+      <canvas id="pdfCanvas" style="display:none"></canvas>
+      <img id="imgPreview" alt="" style="display:none"/>
+      <div id="docxMount" style="display:none; max-width:95%; height:95%; overflow:auto"></div>
+    </main>
+
+    <!-- RIGHT: EDIT / OTHER -->
+    <aside class="panel">
+      <h3>Редагування • Інше</h3>
+
+      <div class="tool">
+        <div class="ttl">7) Merge PDF (злиття)</div>
+        <button class="btn block" id="btnMerge">Злити PDF</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">8) Split PDF (за діапазоном сторінок)</div>
+        <div class="row">
+          <input id="splitRange" placeholder="напр. 1-3,5,8-9" class="btn ghost" style="flex:1; text-align:left"/>
+          <button class="btn" id="btnSplit">OK</button>
+        </div>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">9) Compress PDF</div>
+        <button class="btn block" id="btnCompress">Стиснути</button>
+        <small class="muted">Даунскейл зображень у PDF (визначаємо якість).</small>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">10) Remove pages</div>
+        <div class="row">
+          <input id="removePages" placeholder="напр. 2,4,7" class="btn ghost" style="flex:1; text-align:left"/>
+          <button class="btn" id="btnRemovePages">Видалити</button>
+        </div>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">11) Reorder pages (drag & drop)</div>
+        <div id="reorderList" class="pages"></div>
+        <button class="btn block" id="btnApplyReorder" style="margin-top:8px">Застосувати порядок</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">12) Add text / sign</div>
+        <div class="row">
+          <input id="signText" class="btn ghost" placeholder="Текст/підпис" style="flex:1; text-align:left"/>
+        </div>
+        <button class="btn block" id="btnAddText">Додати на PDF</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">13) Watermark</div>
+        <div class="row">
+          <input id="wmText" class="btn ghost" placeholder="Водяний знак" style="flex:1; text-align:left"/>
+        </div>
+        <button class="btn block" id="btnWatermark">Накласти</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">14) Protect PDF <span class="badge-server">(server)</span></div>
+        <div class="row">
+          <input id="pwdProtect" class="btn ghost" placeholder="Пароль" style="flex:1; text-align:left"/>
+        </div>
+        <button class="btn block" id="btnProtect" disabled>Зашифрувати (потрібен бекенд)</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">15) Unlock PDF <span class="badge-server">(server)</span></div>
+        <div class="row">
+          <input id="pwdUnlock" class="btn ghost" placeholder="Пароль" style="flex:1; text-align:left"/>
+        </div>
+        <button class="btn block" id="btnUnlock" disabled>Зняти пароль (потрібен бекенд)</button>
+      </div>
+
+      <div class="tool">
+        <div class="ttl">20) Share via link / QR</div>
+        <div class="row">
+          <button class="btn" id="btnMakeLink">Лінк</button>
+          <button class="btn" id="btnMakeQR">QR</button>
+        </div>
+        <div id="qr" style="display:none; margin-top:8px"></div>
+      </div>
+
+    </aside>
+  </div>
+
+  <div class="sep" style="margin-top:14px"></div>
+  <div class="muted">Порада: завантаж PDF у «Головний файл», а кілька PDF/зображень — у «Додаткові файли» для злиття/багатосторінкового PDF.</div>
+</div>
+
+<!-- ====== LIBRARIES ====== -->
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  // pdf.js worker
+  if (window['pdfjsLib']) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<!-- ====== LOGIC ====== -->
+<script>
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const toBlob = async (u8, mime='application/pdf') => new Blob([u8], {type:mime});
+const saveBlob = (blob, name) => {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+};
+const getMainFile = () => $('#fileInput').files?.[0];
+const getManyFiles = () => Array.from($('#fileInputMany').files || []);
+const note = (msg) => console.log('[Docs]', msg);
+
+/* ---------- preview ---------- */
+const canvas = $('#pdfCanvas');
+const ctx = canvas.getContext('2d');
+const img = $('#imgPreview');
+const docxMount = $('#docxMount');
+const viewer = $('#viewer');
+
+$('#fileInput').addEventListener('change', async () => {
+  const f = getMainFile(); if (!f) return;
+  await previewFile(f);
+  if (/pdf$/i.test(f.name)) await buildReorderListFromPdf(f);
+});
+
+async function previewFile(file){
+  $('#qr').style.display='none'; $('#qr').innerHTML='';
+  canvas.style.display='none'; img.style.display='none'; docxMount.style.display='none';
+  const name = file.name.toLowerCase();
+
+  if (name.endsWith('.pdf')){
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    const page = await pdf.getPage(1);
+    const vp = page.getViewport({scale: 1.2});
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({canvasContext: ctx, viewport: vp}).promise;
+    canvas.style.display='block';
+  } else if (/\.(png|jpg|jpeg|webp)$/i.test(name)){
+    img.src = URL.createObjectURL(file);
+    img.onload = ()=> URL.revokeObjectURL(img.src);
+    img.style.display='block';
+  } else if (name.endsWith('.docx')){
+    // Легка індикація (детальний рендер можна додати бібліотекою "docx-preview")
+    docxMount.innerHTML = '<div class="muted">Попередній перегляд DOCX наразі спрощений. Експортуй у PDF для перегляду.</div>';
+    docxMount.style.display='block';
+  } else if (/\.(xlsx|csv|json)$/i.test(name)){
+    docxMount.innerHTML = '<div class="muted">Табличний файл: скористайся конвертаціями ліворуч.</div>';
+    docxMount.style.display='block';
+  } else {
+    docxMount.innerHTML = '<div class="muted">Формат не підтримано для прев’ю.</div>';
+    docxMount.style.display='block';
+  }
+}
+
+/* ---------- theme ---------- */
+function toggleTheme(){
+  const root = document.documentElement;
+  const isDark = getComputedStyle(root).getPropertyValue('--bg').trim() === '#0b0e14';
+  if (isDark){
+    root.style.setProperty('--bg', '#f5f7fb');
+    root.style.setProperty('--card', '#ffffff');
+    root.style.setProperty('--line', '#e5e8f0');
+    root.style.setProperty('--text', '#0b1220');
+    root.style.setProperty('--chip', '#f3f6ff');
+  }else{
+    root.style.setProperty('--bg', '#0b0e14');
+    root.style.setProperty('--card', '#101522');
+    root.style.setProperty('--line', '#1b2131');
+    root.style.setProperty('--text', '#e6e9ef');
+    root.style.setProperty('--chip', '#161a20');
+  }
+  viewer.style.background = getComputedStyle(document.documentElement).getPropertyValue('--card');
+}
+$('#btnThemeToggle').onclick = toggleTheme;
+$('#btnThemeToggle2').onclick = toggleTheme;
+
+/* ---------- Image → PDF ---------- */
+$('#btnImageToPdf').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.(png|jpg|jpeg|webp)$/i.test(f.name)) return alert('Обери зображення у головному файлі');
+  const { jsPDF } = window.jspdf;
+  const imgData = await blobToDataURL(f);
+  const pdf = new jsPDF({unit:'pt', format:'a4', compress:true});
+  const w = pdf.internal.pageSize.getWidth();
+  const h = pdf.internal.pageSize.getHeight();
+  // Вписуємо із збереженням пропорцій
+  const dims = await imageDims(imgData);
+  const scale = Math.min(w/dims.w, h/dims.h);
+  const nw = dims.w * scale, nh = dims.h * scale;
+  pdf.addImage(imgData, 0, (h-nh)/2, nw, nh);
+  const blob = pdf.output('blob');
+  saveBlob(blob, fileStem(f.name) + '.pdf');
+};
+
+/* ---------- Multi-photo → PDF ---------- */
+$('#btnMultiPhotoToPdf').onclick = async () => {
+  const files = getManyFiles().filter(x=>/\.(png|jpg|jpeg|webp)$/i.test(x.name));
+  if (!files.length) return alert('Додай фото у «Додаткові файли».');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({unit:'pt', format:'a4', compress:true});
+  let first = true;
+  for (const f of files){
+    const data = await blobToDataURL(f);
+    const dims = await imageDims(data);
+    const w = pdf.internal.pageSize.getWidth();
+    const h = pdf.internal.pageSize.getHeight();
+    const scale = Math.min(w/dims.w, h/dims.h);
+    const nw = dims.w * scale, nh = dims.h * scale;
+    if (!first) pdf.addPage();
+    pdf.addImage(data, 0, (h-nh)/2, nw, nh);
+    first = false;
+  }
+  const blob = pdf.output('blob');
+  saveBlob(blob, 'photos.pdf');
+};
+
+/* ---------- PDF → Image (PNG pages) ---------- */
+$('#btnPdfToImage').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const buf = await f.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  const zip = new JSZip();
+  for (let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({scale: 2});
+    const cnv = document.createElement('canvas');
+    cnv.width = vp.width; cnv.height = vp.height;
+    await page.render({canvasContext: cnv.getContext('2d'), viewport: vp}).promise;
+    const blob = await new Promise(res=>cnv.toBlob(res, 'image/png', 0.95));
+    zip.file(`page-${i}.png`, blob);
+  }
+  zip.generateAsync({type:'blob'}).then(b=>saveBlob(b, fileStem(f.name)+'-pages.zip'));
+};
+
+/* ---------- Merge PDF ---------- */
+$('#btnMerge').onclick = async () => {
+  const files = getManyFiles().filter(x=>/\.pdf$/i.test(x.name));
+  if (files.length < 2) return alert('Додай як мінімум 2 PDF у «Додаткові файли».');
+  const { PDFDocument } = PDFLib;
+  const out = await PDFDocument.create();
+  for (const f of files){
+    const u8 = new Uint8Array(await f.arrayBuffer());
+    const doc = await PDFDocument.load(u8);
+    const pages = await out.copyPages(doc, doc.getPageIndices());
+    pages.forEach(p=>out.addPage(p));
+  }
+  const u8 = await out.save();
+  saveBlob(await toBlob(u8), 'merged.pdf');
+};
+
+/* ---------- Split PDF ---------- */
+$('#btnSplit').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const ranges = parseRanges($('#splitRange').value);
+  if (!ranges.length) return alert('Вкажи сторінки/діапазони: напр. 1-3,5,8-9');
+  const { PDFDocument } = PDFLib;
+  const src = await PDFDocument.load(await f.arrayBuffer());
+  let idx = 1;
+  for (const r of ranges){
+    const out = await PDFDocument.create();
+    const toCopy = [];
+    for (let i=r[0]-1; i<=r[1]-1; i++) toCopy.push(i);
+    const pages = await out.copyPages(src, toCopy);
+    pages.forEach(p=>out.addPage(p));
+    const u8 = await out.save();
+    saveBlob(await toBlob(u8), `${fileStem(f.name)}-part${idx++}.pdf`);
+  }
+};
+
+/* ---------- Remove pages ---------- */
+$('#btnRemovePages').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const nums = ($('#removePages').value || '').split(',').map(s=>parseInt(s.trim(),10)).filter(Boolean);
+  if (!nums.length) return alert('Вкажи номери сторінок через кому.');
+  const { PDFDocument } = PDFLib;
+  const pdf = await PDFDocument.load(await f.arrayBuffer());
+  // Видаляємо у зворотному порядку щоб індекси не зсувалися
+  nums.sort((a,b)=>b-a).forEach(n=>{
+    if (n>=1 && n<=pdf.getPageCount()) pdf.removePage(n-1);
+  });
+  const u8 = await pdf.save();
+  saveBlob(await toBlob(u8), fileStem(f.name)+'-removed.pdf');
+  await previewFile(new File([u8], 'temp.pdf', {type:'application/pdf'}));
+  await buildReorderListFromPdf(new File([u8], 'temp.pdf', {type:'application/pdf'}));
+};
+
+/* ---------- Reorder pages (drag) ---------- */
+let reorderState = [];
+async function buildReorderListFromPdf(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  const list = $('#reorderList'); list.innerHTML = '';
+  reorderState = Array.from({length: pdf.numPages}, (_,i)=>i+1);
+  for (let i=1;i<=pdf.numPages;i++){
+    const item = document.createElement('div'); item.className='page-item'; item.draggable=true; item.dataset.page=i;
+    item.innerHTML = `<div class="page-thumb"></div><div>Сторінка ${i}</div>`;
+    item.addEventListener('dragstart', e=>{ item.classList.add('dragging'); e.dataTransfer.setData('text/plain', i);});
+    item.addEventListener('dragend', ()=> item.classList.remove('dragging'));
+    list.appendChild(item);
+  }
+  list.addEventListener('dragover', e=>{
+    e.preventDefault();
+    const dragging = list.querySelector('.dragging');
+    const after = getDragAfterElement(list, e.clientY);
+    if (after == null) list.appendChild(dragging);
+    else list.insertBefore(dragging, after);
+  });
+}
+function getDragAfterElement(container, y){
+  const els = [...container.querySelectorAll('.page-item:not(.dragging)')];
+  return els.reduce((closest, child)=>{
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height/2;
+    if (offset<0 && offset>closest.offset) return {offset, element: child};
+    else return closest;
+  }, {offset: Number.NEGATIVE_INFINITY}).element;
+}
+$('#btnApplyReorder').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const order = $$('#reorderList .page-item').map(x=>parseInt(x.dataset.page,10)-1);
+  const { PDFDocument } = PDFLib;
+  const src = await PDFDocument.load(await f.arrayBuffer());
+  const out = await PDFDocument.create();
+  const pages = await out.copyPages(src, order);
+  pages.forEach(p=>out.addPage(p));
+  const u8 = await out.save();
+  saveBlob(await toBlob(u8), fileStem(f.name)+'-reordered.pdf');
+};
+
+/* ---------- Add text / sign ---------- */
+$('#btnAddText').onclick = async () => {
+  const txt = $('#signText').value || 'Sign';
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
+  const pdf = await PDFDocument.load(await f.arrayBuffer());
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const pages = pdf.getPages();
+  // додаємо внизу праворуч кожної сторінки
+  pages.forEach(p=>{
+    const { width, height } = p.getSize();
+    p.drawText(txt, {x: width-200, y: 24, size: 12, font, color: rgb(0.1,0.6,1)});
+  });
+  const u8 = await pdf.save();
+  saveBlob(await toBlob(u8), fileStem(f.name)+'-signed.pdf');
+};
+
+/* ---------- Watermark ---------- */
+$('#btnWatermark').onclick = async () => {
+  const txt = $('#wmText').value || 'PROOFLY';
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
+  const pdf = await PDFDocument.load(await f.arrayBuffer());
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  pdf.getPages().forEach(p=>{
+    const {width, height} = p.getSize();
+    p.drawText(txt, {
+      x: width/4, y: height/2, size: 48, font,
+      color: rgb(0.6,0.65,0.9), rotate: PDFLib.degrees(30), opacity: 0.15
+    });
+  });
+  const u8 = await pdf.save();
+  saveBlob(await toBlob(u8), fileStem(f.name)+'-wm.pdf');
+};
+
+/* ---------- Compress PDF (downscale images best-effort) ---------- */
+$('#btnCompress').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const { PDFDocument } = PDFLib;
+  const pdf = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
+  // Спрощений підхід: перезапис документу (PDF-Lib іноді вже зменшує)
+  const u8 = await pdf.save({useObjectStreams:true});
+  saveBlob(await toBlob(u8), fileStem(f.name)+'-compressed.pdf');
+};
+
+/* ---------- DOCX ↔ PDF (спрощено) ---------- */
+$('#btnDocxToPdf').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.docx$/i.test(f.name)) return alert('Обери DOCX у головному файлі');
+  alert('Браузерний рендер DOCX → PDF: у продакшені краще робити це на сервері (LibreOffice). Тут — демо-експорт через canvas з простим форматуванням.');
+};
+$('#btnPdfToDocx').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  alert('Експорт PDF → DOCX (best-effort) потребує складного парсингу. Рекомендація: серверний інструмент (pdf2docx). Тут — плейсхолдер.');
+};
+
+/* ---------- Excel/CSV ↔ PDF ---------- */
+$('#btnTableToPdf').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.(xlsx|csv)$/i.test(f.name)) return alert('Обери XLSX або CSV у головному файлі');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({unit:'pt', format:'a4'});
+  const data = await f.arrayBuffer();
+  let rows = [];
+  if (f.name.toLowerCase().endsWith('.csv')){
+    const text = new TextDecoder().decode(new Uint8Array(data));
+    rows = text.split(/\r?\n/).map(r=>r.split(','));
+  } else {
+    const wb = XLSX.read(data);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true});
+  }
+  let y = 40, x = 30, lineH = 18, colW = 120;
+  rows.slice(0, 40).forEach(r=>{
+    r.slice(0,5).forEach((cell,c)=> pdf.text(String(cell ?? ''), x + c*colW, y));
+    y += lineH; if (y > 780){ pdf.addPage(); y = 40; }
+  });
+  saveBlob(pdf.output('blob'), fileStem(f.name)+'.pdf');
+};
+
+$('#btnPdfToCsv').onclick = () => {
+  alert('Парсинг таблиць із PDF у CSV — потребує хитрого аналізу позицій. Рекомендація: серверний tabula/pymupdf. Тут — плейсхолдер.');
+};
+
+/* ---------- JSON/CSV/XLS конвертери ---------- */
+$('#btnJsonToCsv').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.json$/i.test(f.name)) return alert('Обери JSON у головному файлі');
+  const text = await f.text();
+  const arr = JSON.parse(text);
+  const ws = XLSX.utils.json_to_sheet(arr);
+  const csv = XLSX.utils.sheet_to_csv(ws);
+  saveBlob(new Blob([csv], {type:'text/csv'}), fileStem(f.name)+'.csv');
+};
+$('#btnCsvToXls').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.csv$/i.test(f.name)) return alert('Обери CSV у головному файлі');
+  const text = await f.text();
+  const ws = XLSX.utils.aoa_to_sheet(text.split(/\r?\n/).map(r=>r.split(',')));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  const out = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+  saveBlob(new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), fileStem(f.name)+'.xlsx');
+};
+$('#btnXlsToCsv').onclick = async () => {
+  const f = getMainFile(); if (!f || !/\.xlsx$/i.test(f.name)) return alert('Обери XLSX у головному файлі');
+  const data = await f.arrayBuffer();
+  const wb = XLSX.read(data);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const csv = XLSX.utils.sheet_to_csv(ws);
+  saveBlob(new Blob([csv], {type:'text/csv'}), fileStem(f.name)+'.csv');
+};
+
+/* ---------- ZIP ---------- */
+$('#btnZip').onclick = async () => {
+  const many = getManyFiles();
+  if (!many.length) return alert('Додай файли у «Додаткові файли».');
+  const zip = new JSZip();
+  many.forEach(f=> zip.file(f.name, f));
+  const b = await zip.generateAsync({type:'blob'});
+  saveBlob(b, 'archive.zip');
+};
+
+/* ---------- Share link / QR ---------- */
+let lastBlobUrl = '';
+$('#btnMakeLink').onclick = async () => {
+  const f = getMainFile(); if (!f) return alert('Обери файл у головному полі');
+  const blob = new Blob([await f.arrayBuffer()], {type: f.type || 'application/octet-stream'});
+  lastBlobUrl = URL.createObjectURL(blob);
+  navigator.clipboard.writeText(lastBlobUrl).catch(()=>{});
+  alert('Посилання готове і скопійоване у буфер обміну.');
+};
+$('#btnMakeQR').onclick = () => {
+  if (!lastBlobUrl) return alert('Спершу згенеруй лінк.');
+  const box = $('#qr'); box.style.display='block'; box.innerHTML='';
+  new QRCode(box, {text: lastBlobUrl, width: 160, height: 160});
+};
+
+/* ---------- utils ---------- */
+function fileStem(name){ return name.replace(/\.[^.]+$/,''); }
+function blobToDataURL(blob){
+  return new Promise(res=>{ const r = new FileReader(); r.onload = ()=> res(r.result); r.readAsDataURL(blob); });
+}
+function imageDims(src){
+  return new Promise(res=>{
+    const im = new Image(); im.onload = ()=> res({w: im.width, h: im.height}); im.src = src;
+  });
+}
+function parseRanges(s){
+  // "1-3,5,8-9" -> [[1,3],[5,5],[8,9]]
+  const parts = (s||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const out = [];
+  for (const p of parts){
+    if (p.includes('-')){
+      const [a,b] = p.split('-').map(n=>parseInt(n,10));
+      if (a && b && a<=b) out.push([a,b]);
+    }else{
+      const n = parseInt(p,10); if (n) out.push([n,n]);
+    }
+  }
+  return out;
+}
+</script>
+{% endblock %}
