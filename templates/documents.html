@@ -1,27 +1,36 @@
 {% extends "base.html" %}
-{% set page = 'documents' %}
-{% block title %}PDF Test{% endblock %}
+{% block title %}Документи — Proofly{% endblock %}
 
 {% block content %}
-<input id="fileInput" type="file" accept="application/pdf">
-<canvas id="pdfCanvas" style="width:100%;max-width:900px;margin-top:10px;border:1px solid #555;"></canvas>
+<style>
+  :root{
+    --bg:#0b0e14; --text:#e6e9ef;
+  }
+  body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui;}
+  .docs-wrap{padding:20px;text-align:center;}
+  iframe{
+    width:90vw;
+    height:85vh;
+    border:none;
+    background:#101522;
+    border-radius:8px;
+  }
+</style>
 
-<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<div class="docs-wrap">
+  <h2>Перегляд PDF</h2>
+  <input type="file" id="fileInput" accept="application/pdf">
+  <div id="viewer"></div>
+</div>
+
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-
-document.getElementById('fileInput').addEventListener('change', async (e) => {
+document.getElementById("fileInput").addEventListener("change", e => {
   const file = e.target.files[0];
-  if (!file) return alert("Обери PDF!");
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-  const page = await pdf.getPage(1);
-  const viewport = page.getViewport({scale: 1.5});
-  const canvas = document.getElementById('pdfCanvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  await page.render({canvasContext: ctx, viewport: viewport}).promise;
+  if (!file) return;
+
+  const blobUrl = URL.createObjectURL(file);
+  document.getElementById("viewer").innerHTML =
+    `<iframe src="${blobUrl}"></iframe>`;
 });
 </script>
 {% endblock %}
