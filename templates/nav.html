@@ -203,7 +203,6 @@
     var root = document.querySelector('[data-dd]');
     if(!root) return;
     var btn  = root.querySelector('.dd-trigger');
-    var menu = root.querySelector('.dd-menu');
 
     function close(){
       root.classList.remove('open');
@@ -235,20 +234,30 @@
 
 <style>
 /* ====== НАВІГАЦІЯ ====== */
+/* робимо шапку найвищою і не обрізаємо випадаючі елементи */
 .navbar{
-  position:sticky;top:0;z-index:50;background:#0b0d12;border-bottom:1px solid #1b2131;
-  overflow-x:auto;
+  position:sticky;
+  top:0;
+  z-index: 9999;          /* було 50 — через це меню йшло під контент */
+  background:#0b0d12;
+  border-bottom:1px solid #1b2131;
+  overflow: visible;      /* було overflow-x:auto; через це могло обрізати */
 }
 .nav-wrap{
   max-width:1368px;
   margin:0 auto;
   display:flex;
   align-items:center;
-  flex-wrap:nowrap;        /* не даємо переноситись у 2 рядки */
-  white-space:nowrap;      /* і тут теж */
-  gap:6px;                 /* ще компактніше */
+  flex-wrap:nowrap;
+  white-space:nowrap;
+  gap:6px;
   padding:6px 10px 6px 4px;
   min-height:72px;
+
+  /* горизонтальний скрол тільки якщо не влазить,
+     але без створення clipping-контейнера */
+  overflow-x:auto;
+  overflow-y:visible;
 }
 
 /* бургер (десктоп приховано) */
@@ -292,7 +301,7 @@
 .nav-right{gap:8px !important}
 
 /* ===== Dropdown (Photo) ===== */
-.nav-dropdown{ position:relative; display:inline-block; }
+.nav-dropdown{ position:relative; display:inline-block; z-index: 10000; } /* поверх усього іншого */
 .dd-trigger{ display:inline-flex; align-items:center; gap:6px; }
 .dd-caret{
   display:inline-block; width:0; height:0;
@@ -302,6 +311,7 @@
 }
 .nav-dropdown.open .dd-caret{ transform:rotate(180deg); }
 
+/* саме меню — ще вище, щоб не перекривали панелі сторінки */
 .dd-menu{
   position:absolute; top:110%; left:0;
   min-width:220px;
@@ -310,7 +320,8 @@
   border-radius:10px;
   padding:6px;
   box-shadow:0 8px 24px rgba(0,0,0,.35);
-  display:none; z-index:60;
+  display:none;
+  z-index: 10001;
 }
 .nav-dropdown.open .dd-menu{ display:block; }
 
