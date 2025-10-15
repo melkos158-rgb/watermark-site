@@ -1,81 +1,27 @@
 {% extends "base.html" %}
 {% set page = 'documents' %}
-{% block title %}Простий перегляд PDF — Proofly{% endblock %}
+{% block title %}PDF Test{% endblock %}
 
 {% block content %}
-<style>
-  :root{ --bg:#0b0e14; --card:#101522; --line:#1b2131; --text:#e6e9ef }
-  body{ color:var(--text) }
-  .wrap{ max-width:960px; margin:24px auto; padding:0 16px }
-  .row{ display:flex; gap:12px; align-items:center; margin-bottom:12px }
-  .viewer{
-    background:var(--card); border:1px solid var(--line);
-    border-radius:12px; height:75vh; min-height:420px;
-    display:flex; align-items:center; justify-content:center; overflow:hidden;
-  }
-  #pdfCanvas{ max-width:100%; max-height:100%; display:none }
-  .hint{ opacity:.7; font-size:14px }
-</style>
+<input id="fileInput" type="file" accept="application/pdf">
+<canvas id="pdfCanvas" style="width:100%;max-width:900px;margin-top:10px;border:1px solid #555;"></canvas>
 
-<div class="wrap">
-  <div class="row">
-    <input id="fileInput" type="file" accept="application/pdf">
-    <span class="hint">Обери PDF, і нижче зʼявиться превʼю (1-а сторінка).</span>
-  </div>
-
-  <div class="viewer" id="viewer">
-    <canvas id="pdfCanvas"></canvas>
-    <div class="hint" id="hint">Тут буде превʼю PDF…</div>
-  </div>
-</div>
-
-<!-- Легкий підключ: pdf.js з unpkg + воркер -->
 <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
-  // Налаштування воркера
-  if (window.pdfjsLib) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-  }
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
-  const input = document.getElementById('fileInput');
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return alert("Обери PDF!");
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({scale: 1.5});
   const canvas = document.getElementById('pdfCanvas');
   const ctx = canvas.getContext('2d');
-  const viewer = document.getElementById('viewer');
-  const hint = document.getElementById('hint');
-
-  input.addEventListener('change', async () => {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    if (!/\.pdf$/i.test(file.name)) { alert('Оберіть PDF'); return; }
-
-    try {
-      const buf = await file.arrayBuffer();
-      await renderFirstPage(buf);
-    } catch (e) {
-      console.error(e);
-      alert('Не вдалося відрендерити PDF');
-    }
-  });
-
-  async function renderFirstPage(arrayBuffer){
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const page = await pdf.getPage(1);
-
-    // Підігнати під видиму область .viewer
-    const base = page.getViewport({ scale: 1 });
-    const maxW = viewer.clientWidth - 24;
-    const maxH = viewer.clientHeight - 24;
-    const scale = Math.min(maxW / base.width, maxH / base.height);
-    const vp = page.getViewport({ scale: Math.max(0.5, scale) });
-
-    canvas.width = Math.floor(vp.width);
-    canvas.height = Math.floor(vp.height);
-
-    hint.style.display = 'none';
-    canvas.style.display = 'block';
-
-    await page.render({ canvasContext: ctx, viewport: vp }).promise;
-  }
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({canvasContext: ctx, viewport: viewport}).promise;
+});
 </script>
 {% endblock %}
