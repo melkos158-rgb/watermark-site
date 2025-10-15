@@ -81,8 +81,8 @@
   </div>
 </nav>
 
-<!-- Портал для дропдаунів (щоб поверх усіх шарів) -->
-<div id="nav-portal" style="position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none;"></div>
+<!-- Портал для дропдаунів -->
+<div id="nav-portal" style="position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;"></div>
 
 <!-- ОВЕРЛЕЙ І ВИЇЗНЕ МЕНЮ ДЛЯ МОБІЛКИ -->
 <div class="drawer-overlay" id="drawerOverlay" hidden></div>
@@ -198,7 +198,7 @@
     });
   })();
 
-  /* Дропдаун Photo — портал у body, щоб НІХТО його не перекривав */
+  /* Дропдаун Photo — портал у body + кліки по лінках */
   (function(){
     var root   = document.querySelector('[data-dd]');
     if(!root) return;
@@ -211,7 +211,6 @@
     function placeMenu(){
       if(!btn || !menu || !portal) return;
       var r = btn.getBoundingClientRect();
-      portal.style.pointerEvents = 'none';
       menu.style.position = 'fixed';
       menu.style.left = r.left + 'px';
       menu.style.top  = (r.bottom + 6) + 'px';
@@ -242,7 +241,7 @@
       toggle();
     });
 
-    // Закриття при кліку поза меню
+    // Клік поза — закрити
     document.addEventListener('click', function(e){
       if(!inPortal) return;
       if(menu && !menu.contains(e.target) && btn && !btn.contains(e.target)){
@@ -250,17 +249,24 @@
       }
     });
 
-    // Закриття по Escape
+    // Escape — закрити
     document.addEventListener('keydown', function(e){
       if(e.key === 'Escape') restoreMenu();
     });
 
-    // Підлаштувати позицію при скролі/ресайзі
+    // Перерахунок позиції
     ['scroll','resize'].forEach(ev=>{
       window.addEventListener(ev, function(){
         if(!inPortal) return;
         placeMenu();
       }, { passive:true });
+    });
+
+    // Гарантовано дозволяємо переходи по лінках і просто закриваємо меню
+    menu.querySelectorAll('a.dd-item').forEach(function(a){
+      a.addEventListener('click', function(){
+        setTimeout(restoreMenu, 0); // не блокуємо навігацію
+      });
     });
   })();
 </script>
@@ -326,7 +332,7 @@
 /* правий блок */
 .nav-right{gap:8px !important}
 
-/* Dropdown (базові стилі) — тепер реальне меню летить у портал, тож тут лиш мінімум */
+/* Dropdown — базові стилі; реальне меню рендериться у портал */
 .nav-dropdown{ position:relative; display:inline-block; }
 .dd-trigger{ display:inline-flex; align-items:center; gap:6px; }
 .dd-caret{
@@ -338,14 +344,15 @@
 .nav-dropdown.open .dd-caret{ transform:rotate(180deg); }
 
 .dd-menu{
-  /* ці властивості будуть перезаписані JS (fixed + координати) */
   background:var(--card, #101522);
   border:1px solid #1b2131;
   border-radius:10px;
   padding:6px;
   box-shadow:0 8px 24px rgba(0,0,0,.35);
   display:none;
+  pointer-events:auto;
 }
+.dd-menu, .dd-menu *{ pointer-events:auto; } /* гарантія для кліків */
 .dd-item{ display:block; padding:10px 12px; border-radius:8px; color:var(--text, #e8eaed); text-decoration:none; white-space:nowrap; }
 .dd-item:hover{ background:var(--chip, #182034); }
 
