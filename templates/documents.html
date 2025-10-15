@@ -1,97 +1,81 @@
 {% extends "base.html" %}
 {% set page = 'documents' %}
-{% block title %}Перегляд PDF — Proofly{% endblock %}
+{% block title %}Простий перегляд PDF — Proofly{% endblock %}
 
 {% block content %}
-
 <style>
-  .wrap{max-width:960px;margin:24px auto;padding:0 12px;color:#e6e9ef}
-  .row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-  #viewer{border:1px solid #30384a;border-radius:10px;height:80vh;min-height:420px;
-          display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:#101522}
-  #hint{position:absolute;top:12px;left:12px;color:#aab1c7;font-size:14px}
-  canvas{max-width:100%;max-height:100%}
+  :root{ --bg:#0b0e14; --card:#101522; --line:#1b2131; --text:#e6e9ef }
+  body{ color:var(--text) }
+  .wrap{ max-width:960px; margin:24px auto; padding:0 16px }
+  .row{ display:flex; gap:12px; align-items:center; margin-bottom:12px }
+  .viewer{
+    background:var(--card); border:1px solid var(--line);
+    border-radius:12px; height:75vh; min-height:420px;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  #pdfCanvas{ max-width:100%; max-height:100%; display:none }
+  .hint{ opacity:.7; font-size:14px }
 </style>
 
 <div class="wrap">
   <div class="row">
     <input id="fileInput" type="file" accept="application/pdf">
-    <span id="fname" style="color:#aab1c7"></span>
+    <span class="hint">Обери PDF, і нижче зʼявиться превʼю (1-а сторінка).</span>
   </div>
 
-  <div id="viewer">
-    <span id="hint">Виберіть PDF-файл для перегляду</span>
+  <div class="viewer" id="viewer">
     <canvas id="pdfCanvas"></canvas>
+    <div class="hint" id="hint">Тут буде превʼю PDF…</div>
   </div>
 </div>
 
-<!-- pdf.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- Легкий підключ: pdf.js з unpkg + воркер -->
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
-  (function ensurePdfJs(){
-    function setWorker(url){
-      try{ pdfjsLib.GlobalWorkerOptions.workerSrc = url; }catch(e){}
-    }
-    if (window.pdfjsLib){
-      setWorker("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js");
-    }else{
-      var s=document.createElement('script');
-      s.src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js";
-      s.onload=()=>setWorker("https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js");
-      document.head.appendChild(s);
-    }
-  })();
-</script>
+  // Налаштування воркера
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+  }
 
-<script>
-  const $ = s => document.querySelector(s);
-  const canvas = $('#pdfCanvas');
+  const input = document.getElementById('fileInput');
+  const canvas = document.getElementById('pdfCanvas');
   const ctx = canvas.getContext('2d');
-  const viewer = $('#viewer');
-  const hint = $('#hint');
-  const fname = $('#fname');
+  const viewer = document.getElementById('viewer');
+  const hint = document.getElementById('hint');
 
-  $('#fileInput').addEventListener('change', async (e)=>{
-    const f = e.target.files?.[0];
-    if(!f){ return; }
-    fname.textContent = f.name;
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name)) { alert('Оберіть PDF'); return; }
 
-    // читаємо як ArrayBuffer
-    const buf = await f.arrayBuffer();
-
-    // чекаємо, поки pdfjs завантажиться
-    async function waitPdf() {
-      return new Promise((res)=> {
-        const i = setInterval(()=>{
-          if (window.pdfjsLib){ clearInterval(i); res(); }
-        }, 30);
-      });
-    }
-    await waitPdf();
-
-    // відкриваємо документ і рендеримо першу сторінку
-    try{
-      const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-      const page = await pdf.getPage(1);
-
-      // підганяємо під розмір контейнера
-      const base = page.getViewport({scale:1});
-      const maxW = viewer.clientWidth - 16;
-      const maxH = viewer.clientHeight - 16;
-      const scale = Math.min(maxW / base.width, maxH / base.height);
-      const vp = page.getViewport({scale: Math.max(0.25, Math.min(scale, 4))});
-
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-
-      hint.style.display = 'none';
-      await page.render({canvasContext: ctx, viewport: vp}).promise;
-    }catch(err){
-      hint.textContent = 'Не вдалося відобразити PDF (' + (err?.message || err) + ')';
-      hint.style.display = 'block';
-      console.error(err);
+    try {
+      const buf = await file.arrayBuffer();
+      await renderFirstPage(buf);
+    } catch (e) {
+      console.error(e);
+      alert('Не вдалося відрендерити PDF');
     }
   });
-</script>
 
+  async function renderFirstPage(arrayBuffer){
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+
+    // Підігнати під видиму область .viewer
+    const base = page.getViewport({ scale: 1 });
+    const maxW = viewer.clientWidth - 24;
+    const maxH = viewer.clientHeight - 24;
+    const scale = Math.min(maxW / base.width, maxH / base.height);
+    const vp = page.getViewport({ scale: Math.max(0.5, scale) });
+
+    canvas.width = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+
+    hint.style.display = 'none';
+    canvas.style.display = 'block';
+
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  }
+</script>
 {% endblock %}
