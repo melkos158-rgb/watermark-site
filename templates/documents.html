@@ -18,6 +18,9 @@
     grid-template-columns: 360px 1fr 360px;
     gap:18px;
   }
+  /* ФІКС: не даємо колонкам стискатись до нуля */
+  .grid-3 > * { min-width: 0; }
+
   .panel{
     background:var(--card);
     border:1px solid var(--line);
@@ -60,7 +63,11 @@
     border:1px solid var(--line);
     border-radius:14px; height:72vh; min-height:520px;
     display:flex; align-items:center; justify-content:center; position:relative;
+    width:100%; /* ФІКС: розтягнутися в колонці */
   }
+  /* ФІКС: скинути глобальні стилі для main.viewer, якщо десь лишився main */
+  main.viewer{ all: unset; }
+
   .viewer .hint{
     color:var(--muted); font-size:14px; position:absolute; top:14px; left:14px;
   }
@@ -163,8 +170,8 @@
 
     </aside>
 
-    <!-- CENTER: PREVIEW -->
-    <main class="viewer panel" id="viewer">
+    <!-- CENTER: PREVIEW (tag fixed to avoid global main styles) -->
+    <div class="viewer panel" id="viewer">
       <div class="hint">Обери файл, щоб побачити прев’ю. Підтримка: PDF, JPG, PNG, DOCX, XLSX, CSV.</div>
       <div class="theme-toggle">
         <span class="muted" style="margin-right:8px">Тема</span>
@@ -173,7 +180,7 @@
       <canvas id="pdfCanvas" style="display:none"></canvas>
       <img id="imgPreview" alt="" style="display:none"/>
       <div id="docxMount" style="display:none; max-width:95%; height:95%; overflow:auto"></div>
-    </main>
+    </div>
 
     <!-- RIGHT: EDIT / OTHER -->
     <aside class="panel">
