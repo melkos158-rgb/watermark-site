@@ -381,6 +381,13 @@ def create_app():
     def photo():
         return render_template("photo.html")
 
+    # --- ДОДАНО: сторінка документів (Documents) ---
+    @app.route("/documents")
+    @app.route("/documents.html")
+    def documents():
+        return render_template("documents.html")
+    # -----------------------------------------------
+
     @app.route("/ad/click")
     def ad_click():
         from flask import session, redirect, url_for, request
