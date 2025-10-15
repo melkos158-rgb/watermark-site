@@ -15,10 +15,11 @@
   .docs-wrap{padding:20px; color:var(--text)}
   .grid-3{
     display:grid;
-    grid-template-columns: 360px 1fr 360px;
+    /* ліво/право фіксовані, центр значно ширший */
+    grid-template-columns: 320px minmax(720px, 2fr) 320px;
     gap:18px;
   }
-  /* ФІКС: не даємо колонкам стискатись до нуля */
+  /* не даємо колонкам стискатись */
   .grid-3 > * { min-width: 0; }
 
   .panel{
@@ -63,16 +64,22 @@
     border:1px solid var(--line);
     border-radius:14px; height:72vh; min-height:520px;
     display:flex; align-items:center; justify-content:center; position:relative;
-    width:100%; /* ФІКС: розтягнутися в колонці */
+    width:100%;
+    overflow:hidden;
   }
-  /* ФІКС: скинути глобальні стилі для main.viewer, якщо десь лишився main */
-  main.viewer{ all: unset; }
+  main.viewer{ all: unset; } /* захист від глобальних стилів на <main> */
 
   .viewer .hint{
-    color:var(--muted); font-size:14px; position:absolute; top:14px; left:14px;
+    color:var(--muted); font-size:14px; position:absolute; top:14px; left:14px; z-index:2;
   }
-  canvas#pdfCanvas, img#imgPreview{max-width:100%; max-height:100%}
-  .theme-toggle{ position:absolute; top:12px; right:12px }
+  /* ховаємо підказку, коли є прев’ю */
+  .viewer.has-preview .hint{ display:none; }
+
+  canvas#pdfCanvas, img#imgPreview{
+    max-width:100%; max-height:100%;
+    position:relative; z-index:1;
+  }
+  .theme-toggle{ position:absolute; top:12px; right:12px; z-index:3 }
 
   /* правий — списки сторінок, reorder */
   .pages{
@@ -170,7 +177,7 @@
 
     </aside>
 
-    <!-- CENTER: PREVIEW (tag fixed to avoid global main styles) -->
+    <!-- CENTER: PREVIEW -->
     <div class="viewer panel" id="viewer">
       <div class="hint">Обери файл, щоб побачити прев’ю. Підтримка: PDF, JPG, PNG, DOCX, XLSX, CSV.</div>
       <div class="theme-toggle">
@@ -272,7 +279,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-  // pdf.js worker
   if (window['pdfjsLib']) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
@@ -312,27 +318,40 @@ $('#fileInput').addEventListener('change', async () => {
 async function previewFile(file){
   $('#qr').style.display='none'; $('#qr').innerHTML='';
   canvas.style.display='none'; img.style.display='none'; docxMount.style.display='none';
+  viewer.classList.remove('has-preview');
+
   const name = file.name.toLowerCase();
 
   if (name.endsWith('.pdf')){
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
     const page = await pdf.getPage(1);
-    const vp = page.getViewport({scale: 1.2});
+
+    /* масштаб під розмір колонки */
+    const v1 = page.getViewport({scale: 1});
+    const pad = 24; /* невеличкі відступи */
+    const maxW = Math.max(300, viewer.clientWidth - pad);
+    const maxH = Math.max(300, viewer.clientHeight - pad);
+    const scale = Math.min(maxW / v1.width, maxH / v1.height);
+    const vp = page.getViewport({scale: Math.max(0.5, Math.min(scale, 3))});
+
     canvas.width = vp.width; canvas.height = vp.height;
     await page.render({canvasContext: ctx, viewport: vp}).promise;
     canvas.style.display='block';
+    viewer.classList.add('has-preview');
   } else if (/\.(png|jpg|jpeg|webp)$/i.test(name)){
     img.src = URL.createObjectURL(file);
     img.onload = ()=> URL.revokeObjectURL(img.src);
     img.style.display='block';
+    viewer.classList.add('has-preview');
   } else if (name.endsWith('.docx')){
-    // Легка індикація (детальний рендер можна додати бібліотекою "docx-preview")
     docxMount.innerHTML = '<div class="muted">Попередній перегляд DOCX наразі спрощений. Експортуй у PDF для перегляду.</div>';
     docxMount.style.display='block';
+    viewer.classList.add('has-preview');
   } else if (/\.(xlsx|csv|json)$/i.test(name)){
     docxMount.innerHTML = '<div class="muted">Табличний файл: скористайся конвертаціями ліворуч.</div>';
     docxMount.style.display='block';
+    viewer.classList.add('has-preview');
   } else {
     docxMount.innerHTML = '<div class="muted">Формат не підтримано для прев’ю.</div>';
     docxMount.style.display='block';
@@ -369,7 +388,6 @@ $('#btnImageToPdf').onclick = async () => {
   const pdf = new jsPDF({unit:'pt', format:'a4', compress:true});
   const w = pdf.internal.pageSize.getWidth();
   const h = pdf.internal.pageSize.getHeight();
-  // Вписуємо із збереженням пропорцій
   const dims = await imageDims(imgData);
   const scale = Math.min(w/dims.w, h/dims.h);
   const nw = dims.w * scale, nh = dims.h * scale;
@@ -460,7 +478,6 @@ $('#btnRemovePages').onclick = async () => {
   if (!nums.length) return alert('Вкажи номери сторінок через кому.');
   const { PDFDocument } = PDFLib;
   const pdf = await PDFDocument.load(await f.arrayBuffer());
-  // Видаляємо у зворотному порядку щоб індекси не зсувалися
   nums.sort((a,b)=>b-a).forEach(n=>{
     if (n>=1 && n<=pdf.getPageCount()) pdf.removePage(n-1);
   });
@@ -521,7 +538,6 @@ $('#btnAddText').onclick = async () => {
   const pdf = await PDFDocument.load(await f.arrayBuffer());
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const pages = pdf.getPages();
-  // додаємо внизу праворуч кожної сторінки
   pages.forEach(p=>{
     const { width, height } = p.getSize();
     p.drawText(txt, {x: width-200, y: 24, size: 12, font, color: rgb(0.1,0.6,1)});
@@ -548,24 +564,23 @@ $('#btnWatermark').onclick = async () => {
   saveBlob(await toBlob(u8), fileStem(f.name)+'-wm.pdf');
 };
 
-/* ---------- Compress PDF (downscale images best-effort) ---------- */
+/* ---------- Compress PDF ---------- */
 $('#btnCompress').onclick = async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const { PDFDocument } = PDFLib;
   const pdf = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
-  // Спрощений підхід: перезапис документу (PDF-Lib іноді вже зменшує)
   const u8 = await pdf.save({useObjectStreams:true});
   saveBlob(await toBlob(u8), fileStem(f.name)+'-compressed.pdf');
 };
 
-/* ---------- DOCX ↔ PDF (спрощено) ---------- */
+/* ---------- DOCX ↔ PDF (плейсхолдери) ---------- */
 $('#btnDocxToPdf').onclick = async () => {
   const f = getMainFile(); if (!f || !/\.docx$/i.test(f.name)) return alert('Обери DOCX у головному файлі');
-  alert('Браузерний рендер DOCX → PDF: у продакшені краще робити це на сервері (LibreOffice). Тут — демо-експорт через canvas з простим форматуванням.');
+  alert('Браузерний рендер DOCX → PDF: у продакшені краще робити це на сервері (LibreOffice). Тут — демо-плейсхолдер.');
 };
 $('#btnPdfToDocx').onclick = async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
-  alert('Експорт PDF → DOCX (best-effort) потребує складного парсингу. Рекомендація: серверний інструмент (pdf2docx). Тут — плейсхолдер.');
+  alert('PDF → DOCX потребує серверного парсингу (pdf2docx/tabula). Тут — плейсхолдер.');
 };
 
 /* ---------- Excel/CSV ↔ PDF ---------- */
@@ -590,9 +605,8 @@ $('#btnTableToPdf').onclick = async () => {
   });
   saveBlob(pdf.output('blob'), fileStem(f.name)+'.pdf');
 };
-
 $('#btnPdfToCsv').onclick = () => {
-  alert('Парсинг таблиць із PDF у CSV — потребує хитрого аналізу позицій. Рекомендація: серверний tabula/pymupdf. Тут — плейсхолдер.');
+  alert('Парсинг таблиць із PDF у CSV — краще сервером (tabula/pymupdf). Тут — плейсхолдер.');
 };
 
 /* ---------- JSON/CSV/XLS конвертери ---------- */
