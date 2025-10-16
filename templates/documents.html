@@ -13,36 +13,41 @@
     --muted:#aab1c7; --chip:#161a20; --accent:#4f7cff;
   }
 
+  /* універсальний box-sizing, щоб бордери/паддінги не “роздували” ширини */
+  html{box-sizing:border-box}
+  *,*:before,*:after{box-sizing:inherit}
+
   /* контейнер для рівних відступів і вирівнювання */
   .docs-wrap{
-    padding:20px; color:var(--text);
-    overflow-x:hidden; /* на всяк випадок прибираємо горизонтальний скрол */
+    padding:20px;
+    color:var(--text);
+    /* не ховаємо правий край — краще правильно підігнати ширини */
+    overflow-x:visible;
   }
+
+  /* ширина тепер під вікно: максимум 1280, але не більше за viewport-48px */
   .docs-container{
-    /* було 1280px, але мінімальна ширина трьох колонок + два gap була більшою.
-       Тепер гарантовано вміщується. */
-    max-width:1200px;
+    width:min(1280px, calc(100vw - 48px));
     margin:0 auto;
   }
 
   .grid-3{
     display:grid;
-    /* Раніше: 320px minmax(640px,1.6fr) 320px -> мінімум 1316px з gap і колонки «виїжджали».
-       Тепер мінімум = 300 + 540 + 300 + 2*16 = 1172px — всередині max-width. */
-    grid-template-columns: 300px minmax(540px, 1fr) 300px;
+    /* Бокові колонки стискаються в розумних межах, центр еластичний */
+    grid-template-columns:
+      clamp(260px, 22vw, 300px)
+      minmax(520px, 1fr)
+      clamp(260px, 22vw, 300px);
     gap:16px;
     align-items:start;
+    width:100%;
   }
 
   /* не даємо колонкам ламатись всередині гріда */
   .grid-3 > * { min-width:0; }
 
-  /* адаптив: на трохи вужчих екранах зменшуємо бокові колонки */
-  @media (max-width: 1180px){
-    .grid-3{ grid-template-columns: 280px minmax(480px, 1fr) 280px; }
-  }
-  /* мобільний/дуже вузький: стекаємо в одну колонку */
-  @media (max-width: 960px){
+  /* адаптив */
+  @media (max-width: 980px){
     .grid-3{ grid-template-columns: 1fr; }
   }
 
