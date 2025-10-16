@@ -89,23 +89,35 @@
     position:relative; width:100%; overflow:hidden;
 
     /* місце під шапку */
-    padding-top:52px;
+    padding-top:56px;
   }
-  /* верхня шапка редактора */
+
+  /* верхня шапка інструментів */
   .viewer-bar{
-    position:absolute; inset:0 0 auto 0; height:52px;
-    display:flex; align-items:center; justify-content:flex-start;
-    padding:0 16px;
+    position:absolute; inset:0 0 auto 0; height:56px;
+    display:flex; align-items:center; gap:8px;
+    padding:0 12px;
     background:rgba(255,255,255,.03);
     border-bottom:1px solid var(--line);
     border-top-left-radius:14px; border-top-right-radius:14px;
-    font-weight:700;
   }
+  .viewer-bar .toolbtn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:36px; height:36px; border-radius:10px;
+    border:1px solid var(--line); background:#0f1730; font-size:18px;
+    cursor:pointer; transition:transform .05s ease, background .2s ease, border-color .2s ease;
+  }
+  .viewer-bar .toolbtn:hover{ background:#142049; border-color:#24325a; transform:translateY(-1px); }
+  .viewer-bar .toolbtn:active{ transform:translateY(0); }
+  .viewer-bar .vr{
+    width:1px; height:28px; background:var(--line); margin:0 2px;
+  }
+  .viewer-bar .toolbtn[disabled]{ opacity:.45; cursor:not-allowed }
 
-  /* підказку опускаємо нижче шапки */
+  /* підказка — нижче шапки */
   .viewer .hint{
     color:var(--muted); font-size:14px;
-    position:absolute; top:64px; left:14px; z-index:2;
+    position:absolute; top:68px; left:14px; z-index:2;
   }
   .viewer.has-preview .hint{ display:none; }
 
@@ -114,7 +126,7 @@
     display:block; position:relative; z-index:3;
   }
 
-  /* старий перемикач теми — схований, щоб не ламати JS */
+  /* старий перемикач теми — сховано */
   .theme-toggle{ display:none !important; }
 
   /* правий — reorder */
@@ -215,12 +227,23 @@
 
       <!-- CENTER -->
       <div class="viewer panel" id="viewer">
-        <!-- шапка над переглядом -->
-        <div class="viewer-bar">Редагування PDF</div>
+        <!-- панель-іконки -->
+        <div class="viewer-bar">
+          <button class="toolbtn" id="tb-text" title="Додати текст ✏️">✏️</button>
+          <button class="toolbtn" id="tb-image" title="Зображення → PDF 🖼️">🖼️</button>
+          <button class="toolbtn" id="tb-watermark" title="Водяний знак 💧">💧</button>
+          <span class="vr"></span>
+          <button class="toolbtn" id="tb-split" title="Розділити PDF ✂️">✂️</button>
+          <button class="toolbtn" id="tb-merge" title="Злити PDF 🔗">🔗</button>
+          <button class="toolbtn" id="tb-reorder" title="Застосувати порядок ↕️">↕️</button>
+          <span class="vr"></span>
+          <button class="toolbtn" id="tb-export" title="Експорт сторінок у PNG 🖨️">🖨️</button>
+          <button class="toolbtn" id="tb-compress" title="Стиснути PDF 🗜️">🗜️</button>
+        </div>
 
         <div class="hint">Обери файл, щоб побачити прев’ю. Підтримка: PDF, JPG, PNG, DOCX, XLSX, CSV.</div>
 
-        <!-- залишаємо, але приховано через CSS (щоб не міняти JS) -->
+        <!-- лишаємо блок, але схований CSS (щоб не чіпати JS) -->
         <div class="theme-toggle">
           <span class="muted" style="margin-right:8px">Тема</span>
           <button class="btn ghost small" id="btnThemeToggle2">🌙 / ☀️</button>
@@ -423,6 +446,22 @@ function toggleTheme(){
 }
 $('#btnThemeToggle').onclick = toggleTheme;
 $('#btnThemeToggle2').onclick = toggleTheme;
+
+/* ---------- Toolbar proxy (НЕ міняє самі функції) ---------- */
+const proxyMap = [
+  ['#tb-text',    '#btnAddText'],
+  ['#tb-image',   '#btnImageToPdf'],
+  ['#tb-watermark','#btnWatermark'],
+  ['#tb-split',   '#btnSplit'],
+  ['#tb-merge',   '#btnMerge'],
+  ['#tb-reorder', '#btnApplyReorder'],
+  ['#tb-export',  '#btnPdfToImage'],
+  ['#tb-compress','#btnCompress'],
+];
+proxyMap.forEach(([a,b])=>{
+  const A=$(a), B=$(b);
+  if (A && B) A.addEventListener('click', ()=> B.click());
+});
 
 /* ---------- решта інструментів (без змін функцій) ---------- */
 $('#btnImageToPdf').onclick = async () => {
