@@ -16,20 +16,35 @@
   /* контейнер для рівних відступів і вирівнювання */
   .docs-wrap{
     padding:20px; color:var(--text);
+    overflow-x:hidden; /* на всяк випадок прибираємо горизонтальний скрол */
   }
   .docs-container{
-    max-width:1280px;   /* рівна ширина макета */
-    margin:0 auto;      /* по центру */
+    /* було 1280px, але мінімальна ширина трьох колонок + два gap була більшою.
+       Тепер гарантовано вміщується. */
+    max-width:1200px;
+    margin:0 auto;
   }
 
   .grid-3{
     display:grid;
-    grid-template-columns: 320px minmax(640px, 1.6fr) 320px; /* центр ~20% вужчий */
-    gap:18px;
+    /* Раніше: 320px minmax(640px,1.6fr) 320px -> мінімум 1316px з gap і колонки «виїжджали».
+       Тепер мінімум = 300 + 540 + 300 + 2*16 = 1172px — всередині max-width. */
+    grid-template-columns: 300px minmax(540px, 1fr) 300px;
+    gap:16px;
     align-items:start;
   }
-  /* не даємо колонкам ламатись */
+
+  /* не даємо колонкам ламатись всередині гріда */
   .grid-3 > * { min-width:0; }
+
+  /* адаптив: на трохи вужчих екранах зменшуємо бокові колонки */
+  @media (max-width: 1180px){
+    .grid-3{ grid-template-columns: 280px minmax(480px, 1fr) 280px; }
+  }
+  /* мобільний/дуже вузький: стекаємо в одну колонку */
+  @media (max-width: 960px){
+    .grid-3{ grid-template-columns: 1fr; }
+  }
 
   .panel{
     background:var(--card);
