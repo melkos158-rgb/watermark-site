@@ -11,53 +11,43 @@
   :root{ --bg:#0b0e14; --card:#101522; --line:#1b2131; --text:#e6e9ef; --muted:#aab1c7; --chip:#161a20; --accent:#4f7cff; }
 
   html{box-sizing:border-box} *,*:before,*:after{box-sizing:inherit}
-
   body{ background:var(--bg); color:var(--text) }
 
-  /* ====== ЛЕЙАУТ ЯК НА СКРІНІ ====== */
-  .doc-shell{
-    max-width: 1400px; margin: 0 auto; padding: 12px 16px 20px;
-  }
+  .doc-shell{ max-width:1400px; margin:0 auto; padding:12px 16px 20px; }
 
-  /* Верхня стрічка з іконками */
+  /* ==== РІББОН В ДВА РЯДКИ ==== */
   .ribbon{
-    display:flex; align-items:center; gap:12px; padding:8px 10px;
-    background:var(--card); border:1px solid var(--line); border-radius:12px;
     position:sticky; top:8px; z-index:50;
+    display:flex; flex-direction:column; gap:8px;
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px 10px;
   }
-  .ribbon .group{ display:flex; gap:6px; align-items:center; }
-  .ribbon .vr{ width:1px; height:34px; background:var(--line); margin:0 6px; }
+  .rrow{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .rrow .group{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .rrow .vr{ width:1px; height:34px; background:var(--line); margin:0 6px; }
+
   .rib-btn{
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     width:70px; height:58px; gap:4px;
     border:1px solid var(--line); border-radius:10px; background:#0f1730;
-    cursor:pointer; transition:transform .05s ease, background .2s ease, border-color .2s ease;
-    text-align:center;
+    cursor:pointer; transition:transform .05s ease, background .2s ease, border-color .2s ease; text-align:center;
   }
   .rib-btn:hover{ background:#142049; border-color:#24325a; transform:translateY(-1px) }
   .rib-btn:active{ transform:translateY(0) }
   .rib-ico{ font-size:18px; line-height:18px }
   .rib-txt{ font-size:12px; color:var(--muted); white-space:nowrap }
 
-  /* Контейнер: ліво (мініатюри) + центр (канвас/редактор) + без правої колонки */
-  .doc-body{
-    display:grid; grid-template-columns: 220px 1fr; gap:14px; margin-top:12px;
-  }
+  /* Тіло */
+  .doc-body{ display:grid; grid-template-columns:220px 1fr; gap:14px; margin-top:12px; }
 
-  /* Ліва колонка — мініатюри */
   .thumbs{
     background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px;
     display:flex; flex-direction:column; gap:10px; height: calc(100vh - 140px); overflow:auto;
   }
-  .thumb{
-    display:flex; flex-direction:column; align-items:center; gap:6px;
-    padding:8px; border:1px solid var(--line); border-radius:10px; background:#0f1422; cursor:pointer;
-  }
+  .thumb{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px; border:1px solid var(--line); border-radius:10px; background:#0f1422; cursor:pointer; }
   .thumb.active{ outline:2px solid var(--accent) }
   .thumb .pgnum{ font-size:12px; color:var(--muted) }
   .thumb .box{ width:100%; height:120px; background:#0b0e14; border:1px solid #2a3550; border-radius:8px }
 
-  /* Центр — в’ювер + редактор */
   .viewer{
     background:var(--card); border:1px solid var(--line); border-radius:12px; position:relative;
     display:flex; align-items:center; justify-content:center; height: calc(100vh - 140px); min-height:520px; overflow:hidden;
@@ -66,95 +56,80 @@
   .viewer.has-preview .hint{ display:none }
   canvas#pdfCanvas, img#imgPreview{ max-width:100%; max-height:100%; display:block; position:relative; z-index:1 }
 
-  /* Редакторський шар */
   .editor-layer{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:3; pointer-events:none; }
   .editor-stage{ position:relative; pointer-events:all }
-  .edit-toolbar-float{
-    position:absolute; top:10px; right:10px; display:flex; gap:8px; z-index:4;
-  }
+  .edit-toolbar-float{ position:absolute; top:10px; right:10px; display:flex; gap:8px; z-index:4; }
   .chip{ padding:8px 10px; border-radius:10px; border:1px solid var(--line); background:#0f1730; cursor:pointer }
   .chip.active{ outline:2px solid var(--accent) }
 
-  .edit-box{ position:absolute; min-width:80px; min-height:28px; padding:6px 8px; border:1px dashed #6b7bb8; border-radius:8px;
-             background:rgba(0,0,0,.25); color:#fff; font:16px/1.35 "Inter", system-ui, Arial; cursor:move; }
+  .edit-box{ position:absolute; min-width:80px; min-height:28px; padding:6px 8px; border:1px dashed #6b7bb8; border-radius:8px; background:rgba(0,0,0,.25); color:#fff; font:16px/1.35 "Inter", system-ui, Arial; cursor:move; }
   .edit-img{ position:absolute; max-width:100%; max-height:100%; border:1px dashed #6b7bb8; border-radius:8px; cursor:move; }
   .hl-rect{ position:absolute; background:rgba(255,255,0,.22); border:1px solid rgba(255,255,0,.35); border-radius:4px; cursor:move; }
   .hl-ellipse{ position:absolute; background:rgba(255,255,0,.18); border:1px solid rgba(255,255,0,.35); border-radius:999px; cursor:move; }
   .freehand{ position:absolute; pointer-events:none }
 
-  .pager{
-    position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:center; z-index:4;
-  }
+  .pager{ position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:center; z-index:4; }
   .pager .pbtn{ width:34px; height:34px; border-radius:999px; border:1px solid var(--line); background:#0f1730; display:inline-flex; align-items:center; justify-content:center; cursor:pointer }
   .muted{ color:var(--muted) }
 
-  /* Приховуємо старі блоки/кнопки теми, але функції залишаються */
   .theme-toggle{ display:none !important }
-  /* Панель завантаження зверху сторінки */
+
   .uploader{
     margin:12px 0; display:flex; gap:12px; flex-wrap:wrap;
     background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px;
   }
   .uploader .row{ display:flex; gap:8px; align-items:center }
-  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 14px; border-radius:12px; border:1px solid var(--line);
-        background:#0f1730; color:#fff; cursor:pointer }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 14px; border-radius:12px; border:1px solid var(--line); background:#0f1730; color:#fff; cursor:pointer }
 </style>
 
 <div class="doc-shell">
-
-  <!-- Панель завантаження (твоя «Конвертації» тут не потрібна для макету зі скріну) -->
   <div class="uploader">
     <div class="row"><strong>Головний файл:</strong> <input id="fileInput" type="file"/></div>
     <div class="row"><strong>Додаткові файли:</strong> <input id="fileInputMany" type="file" multiple/></div>
   </div>
 
-  <!-- ВЕРХНЯ СТРІЧКА (іконки + підписи, як на фото) -->
+  <!-- РЯДОК 1 -->
   <div class="ribbon">
-    <div class="group">
-      <button class="rib-btn" id="rb-thumbs"><div class="rib-ico">🗂️</div><div class="rib-txt">Miniatury</div></button>
+    <div class="rrow">
+      <div class="group">
+        <button class="rib-btn" id="rb-thumbs"><div class="rib-ico">🗂️</div><div class="rib-txt">Miniatury</div></button>
+        <div class="vr"></div>
+        <button class="rib-btn" id="rb-undo"><div class="rib-ico">↶</div><div class="rib-txt">Cofnij</div></button>
+        <button class="rib-btn" id="rb-redo"><div class="rib-ico">↷</div><div class="rib-txt">Ponów</div></button>
+      </div>
       <div class="vr"></div>
-      <button class="rib-btn" id="rb-undo"><div class="rib-ico">↶</div><div class="rib-txt">Cofnij</div></button>
-      <button class="rib-btn" id="rb-redo"><div class="rib-ico">↷</div><div class="rib-txt">Ponów</div></button>
+      <div class="group">
+        <button class="rib-btn" id="rb-addtext"><div class="rib-ico">✏️</div><div class="rib-txt">Dodaj tekst</div></button>
+        <button class="rib-btn" id="rb-edit"><div class="rib-ico">🖱️</div><div class="rib-txt">Edytuj tekst</div></button>
+        <button class="rib-btn" id="rb-erase"><div class="rib-ico">🧽</div><div class="rib-txt">Gumka</div></button>
+        <button class="rib-btn" id="rb-highlight"><div class="rib-ico">🟨</div><div class="rib-txt">Podświetl</div></button>
+        <button class="rib-btn" id="rb-pencil"><div class="rib-ico">✍️</div><div class="rib-txt">Ołówek</div></button>
+        <button class="rib-btn" id="rb-image"><div class="rib-ico">🖼️</div><div class="rib-txt">Obraz</div></button>
+        <button class="rib-btn" id="rb-ellipse"><div class="rib-ico">⭕</div><div class="rib-txt">Elipsa</div></button>
+        <button class="rib-btn" id="rb-rect"><div class="rib-ico">▭</div><div class="rib-txt">Zaznaczenie</div></button>
+        <button class="rib-btn" id="rb-sign"><div class="rib-ico">✒️</div><div class="rib-txt">Podpis</div></button>
+      </div>
     </div>
 
-    <div class="vr"></div>
-
-    <div class="group">
-      <button class="rib-btn" id="rb-addtext"><div class="rib-ico">✏️</div><div class="rib-txt">Dodaj tekst</div></button>
-      <button class="rib-btn" id="rb-edit"><div class="rib-ico">🖱️</div><div class="rib-txt">Edytuj tekst</div></button>
-      <button class="rib-btn" id="rb-erase"><div class="rib-ico">🧽</div><div class="rib-txt">Gumka</div></button>
-      <button class="rib-btn" id="rb-highlight"><div class="rib-ico">🟨</div><div class="rib-txt">Podświetl</div></button>
-      <button class="rib-btn" id="rb-pencil"><div class="rib-ico">✍️</div><div class="rib-txt">Ołówek</div></button>
-      <button class="rib-btn" id="rb-image"><div class="rib-ico">🖼️</div><div class="rib-txt">Obraz</div></button>
-      <button class="rib-btn" id="rb-ellipse"><div class="rib-ico">⭕</div><div class="rib-txt">Elipsa</div></button>
-      <button class="rib-btn" id="rb-rect"><div class="rib-ico">▭</div><div class="rib-txt">Zaznaczenie</div></button>
-      <button class="rib-btn" id="rb-sign"><div class="rib-ico">✒️</div><div class="rib-txt">Podpis</div></button>
-    </div>
-
-    <div class="vr"></div>
-
-    <div class="group">
-      <button class="rib-btn" id="rb-split"><div class="rib-ico">✂️</div><div class="rib-txt">Split</div></button>
-      <button class="rib-btn" id="rb-merge"><div class="rib-ico">🔗</div><div class="rib-txt">Merge</div></button>
-      <button class="rib-btn" id="rb-reorder"><div class="rib-ico">↕️</div><div class="rib-txt">Reorder</div></button>
-      <button class="rib-btn" id="rb-export"><div class="rib-ico">🖨️</div><div class="rib-txt">PNG</div></button>
-      <button class="rib-btn" id="rb-compress"><div class="rib-ico">🗜️</div><div class="rib-txt">Compress</div></button>
-      <button class="rib-btn" id="rb-watermark"><div class="rib-ico">💧</div><div class="rib-txt">Watermark</div></button>
+    <!-- РЯДОК 2 -->
+    <div class="rrow">
+      <div class="group">
+        <button class="rib-btn" id="rb-split"><div class="rib-ico">✂️</div><div class="rib-txt">Split</div></button>
+        <button class="rib-btn" id="rb-merge"><div class="rib-ico">🔗</div><div class="rib-txt">Merge</div></button>
+        <button class="rib-btn" id="rb-reorder"><div class="rib-ico">↕️</div><div class="rib-txt">Reorder</div></button>
+        <button class="rib-btn" id="rb-export"><div class="rib-ico">🖨️</div><div class="rib-txt">PNG</div></button>
+        <button class="rib-btn" id="rb-compress"><div class="rib-ico">🗜️</div><div class="rib-txt">Compress</div></button>
+        <button class="rib-btn" id="rb-watermark"><div class="rib-ico">💧</div><div class="rib-txt">Watermark</div></button>
+      </div>
     </div>
   </div>
 
-  <!-- ТІЛО: МІНІАТЮРИ + ПЕРЕГЛЯД/РЕДАКТОР -->
   <div class="doc-body">
-    <!-- Ліва колонка (toggle кнопкою Miniatury) -->
-    <aside class="thumbs" id="thumbs" style="display:flex">
-      <!-- генеруємо після завантаження PDF -->
-    </aside>
+    <aside class="thumbs" id="thumbs" style="display:flex"></aside>
 
-    <!-- Центр -->
     <div class="viewer" id="viewer">
       <div class="hint">Завантаж PDF/зображення вище. Натисни «Dodaj tekst»/«Obraz» для редагування.</div>
 
-      <!-- редакторський шар -->
       <div class="editor-layer" id="editorLayer">
         <div class="edit-toolbar-float">
           <button class="chip" id="chipSelect" title="Виділення (V)">🖱️</button>
@@ -194,9 +169,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-<!-- ====== LOGIC ====== -->
+<!-- ====== LOGIC (функції залишені без змін) ====== -->
 <script>
-/* ---------- helpers ---------- */
+/* helpers */
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const toBlob = async (u8, mime='application/pdf') => new Blob([u8], {type:mime});
@@ -205,7 +180,7 @@ const getMainFile = () => $('#fileInput').files?.[0];
 const getManyFiles = () => Array.from($('#fileInputMany').files || []);
 const note = (msg) => console.log('[Docs]', msg);
 
-/* ---------- preview ---------- */
+/* preview */
 const canvas = $('#pdfCanvas'); const ctx = canvas.getContext('2d');
 const img = $('#imgPreview'); const docxMount = $('#docxMount'); const viewer = $('#viewer');
 const thumbs = $('#thumbs');
@@ -237,7 +212,7 @@ function buildThumbs(num){
   }
 }
 
-/* on file */
+/* file change */
 const onMainFileChange = async () => {
   const f = getMainFile(); if (!f) return;
   await previewFile(f);
@@ -280,9 +255,9 @@ async function previewFile(file){
   }
 }
 
-/* ====== Редактор ====== */
+/* ====== редактор ====== */
 let editMode=false;
-let pageOverlays = {}; // pageIndex -> nodes
+let pageOverlays = {};
 let actionStack=[], redoStack=[];
 let activeTool='select';
 let rectStart=null,tempRect=null, tempEllipse=null;
@@ -342,7 +317,6 @@ function addImageAtCenter(file){
   addAction(im,'add');
 }
 
-/* подвійний клік — текст */
 editorStage.addEventListener('dblclick', e=>{
   if(activeTool!=='text') return;
   const box=document.createElement('div'); box.className='edit-box'; box.contentEditable='true'; box.textContent='Текст';
@@ -350,7 +324,6 @@ editorStage.addEventListener('dblclick', e=>{
   (pageOverlays[currPageIndex] ||= []).push(box); addAction(box,'add'); box.focus();
 });
 
-/* прямокутник/еліпс */
 editorStage.addEventListener('pointerdown', e=>{
   if(activeTool==='rect'){
     rectStart={x:e.offsetX,y:e.offsetY};
@@ -392,12 +365,10 @@ editorStage.addEventListener('pointerup', ()=>{
 
 function clearStage(){ editorStage.innerHTML=''; }
 
-/* Пейджер */
 $('#pgPrev').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.max(0, currPageIndex-1); await renderPageForPreview(currPdfDoc, currPageIndex); pgInfo.textContent=`${currPageIndex+1} / ${currPdfPages}`; renderOverlaysForPage(currPageIndex); ensureStageSize(); highlightThumb(); };
 $('#pgNext').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.min(currPdfPages-1, currPageIndex+1); await renderPageForPreview(currPdfDoc, currPageIndex); pgInfo.textContent=`${currPageIndex+1} / ${currPdfPages}`; renderOverlaysForPage(currPageIndex); ensureStageSize(); highlightThumb(); };
 function highlightThumb(){ $$('.thumb').forEach((x,i)=> x.classList.toggle('active', i===currPageIndex)); }
 
-/* Застосувати */
 $('#chipApply').onclick = async ()=>{
   const f = getMainFile(); if (!f) return;
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
@@ -410,7 +381,6 @@ $('#chipApply').onclick = async ()=>{
     const { width, height } = page.getSize();
     const ov = pageOverlays[p] || [];
     for (const el of ov){
-      // координати з прев’ю в PDF
       const kx = width / (previewViewport ? previewViewport.width : canvas.width);
       const ky = height / (previewViewport ? previewViewport.height : canvas.height);
 
@@ -435,7 +405,6 @@ $('#chipApply').onclick = async ()=>{
         const w = elW * kx, h = elH * ky;
         page.drawEllipse({ x: px + w/2, y: py + h/2, xScale: w/2, yScale: h/2, color: rgb(1,1,0), opacity:0.18, borderColor: rgb(1,1,0), borderWidth:1 });
       } else if (el.classList.contains('freehand')){
-        // растеризуємо підпис у PNG і вставляємо як зображення
         const c = el; const data = c.toDataURL('image/png'); const imgBytes = Uint8Array.from(atob(data.split(',')[1]), c=>c.charCodeAt(0));
         const imgEmbed = await pdf.embedPng(imgBytes);
         page.drawImage(imgEmbed, { x:0, y:0, width, height, opacity:0.9 });
@@ -448,10 +417,10 @@ $('#chipApply').onclick = async ()=>{
 };
 $('#chipCancel').onclick = ()=> exitEditor();
 
-/* Резайз сцени */
+/* resize */
 new ResizeObserver(()=>{ if(editMode) ensureStageSize(); }).observe(viewer);
 
-/* ====== КНОПКИ РІББОНУ ====== */
+/* ribbon actions */
 $('#rb-thumbs').onclick = ()=>{ thumbs.style.display = (thumbs.style.display==='none'?'flex':'none'); };
 $('#rb-undo').onclick = ()=>{ const a=actionStack.pop(); if(!a) return; if(a.type==='add'){ a.node.remove(); redoStack.push(a);} };
 $('#rb-redo').onclick = ()=>{ const a=redoStack.pop(); if(!a) return; if(a.type==='add'){ editorStage.appendChild(a.node); actionStack.push(a);} };
@@ -473,7 +442,7 @@ $('#rb-export').onclick = ()=> $('#btnPdfToImage')?.click();
 $('#rb-compress').onclick = ()=> $('#btnCompress')?.click();
 $('#rb-watermark').onclick = ()=> $('#btnWatermark')?.click();
 
-/* ====== СТАРІ КНОПКИ/ФУНКЦІЇ — НЕ ЗМІНЮВАВ (тільки проксі вище) ====== */
+/* ваші функції — без змін */
 function fileStem(name){ return name.replace(/\.[^.]+$/,''); }
 function blobToDataURL(blob){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); }); }
 function imageDims(src){ return new Promise(res=>{ const im=new Image(); im.onload=()=>res({w:im.width,h:im.height}); im.src=src; }); }
@@ -484,7 +453,7 @@ function parseRanges(s){
   return out;
 }
 
-/* == НИЖЧЕ — ВАШІ НЕЗМІНЕНІ ОБРОБНИКИ == */
+/* == нижче — існуючі обробники збережені як є == */
 $('#btnImageToPdf').onclick = async () => {
   const f = getMainFile(); if (!f || !/\.(png|jpg|jpeg|webp)$/i.test(f.name)) return alert('Обери зображення у головному файлі');
   const { jsPDF } = window.jspdf; const imgData = await blobToDataURL(f);
@@ -549,7 +518,7 @@ function getDragAfterElement(container, y){
 }
 $('#btnApplyReorder').onclick = async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
-  const order = Array.from({length: currPdfPages}, (_,i)=>i); // залишив як no-op тут; реальний reorder у твоєму правому модулі
+  const order = Array.from({length: currPdfPages}, (_,i)=>i);
   const { PDFDocument } = PDFLib; const src = await PDFDocument.load(await f.arrayBuffer()); const out = await PDFDocument.create();
   const pages = await out.copyPages(src, order); pages.forEach(p=>out.addPage(p)); const u8 = await out.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-reordered.pdf');
 };
