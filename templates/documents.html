@@ -319,7 +319,7 @@ function createTextBoxAtCanvasPoint(clientX, clientY){
   addAction(box,'add');
   box.focus();
 
-  // коли блок втрачає фокус — завершуємо одноразове додавання
+  // завершуємо одноразове додавання при втраті фокусу
   box.addEventListener('blur', ()=>{ if(singleAddMode){ singleAddMode=false; setTool('select'); } }, {once:true});
 }
 
@@ -339,8 +339,6 @@ canvas.addEventListener('pointerdown', (e)=>{
   if(activeTool==='text'){ 
     createTextBoxAtCanvasPoint(e.clientX, e.clientY);
     e.preventDefault();
-    // в одноразовому режимі не додаємо наступні блоки без виходу
-    if(singleAddMode){ /* очікуємо blur або клік поза полотном */ }
   }
 });
 
@@ -356,7 +354,7 @@ viewer.addEventListener('pointerdown', (e)=>{
   }
 });
 
-/* існуючі інструменти малювання */
+/* інші інструменти */
 editorStage.addEventListener('pointerdown', e=>{
   if(activeTool==='rect'){
     rectStart={x:e.offsetX,y:e.offsetY};
@@ -403,8 +401,9 @@ $('#pgPrev').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.
 $('#pgNext').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.min(currPdfPages-1, currPageIndex+1); await renderPageForPreview(currPdfDoc, currPageIndex); pgInfo.textContent=`${currPageIndex+1} / ${currPdfPages}`; renderOverlaysForPage(currPageIndex); ensureStageSize(); highlightThumb(); };
 function highlightThumb(){ $$('.thumb').forEach((x,i)=> x.classList.toggle('active', i===currPageIndex)); }
 
-/* збереження в PDF / скасування — як було */
-$('#chipApply').onclick = async ()=>{
+/* збереження в PDF / скасування — підв'язуємо лише якщо кнопки існують */
+const chipApply = $('#chipApply');
+if (chipApply) chipApply.onclick = async ()=>{
   const f = getMainFile(); if (!f) return;
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
   const srcU8 = new Uint8Array(await f.arrayBuffer());
@@ -450,7 +449,8 @@ $('#chipApply').onclick = async ()=>{
   saveBlob(await toBlob(outU8), (f.name.replace(/\.[^.]+$/,'')||'edited')+'-edited.pdf');
   exitEditor();
 };
-$('#chipCancel').onclick = ()=> exitEditor();
+const chipCancel = $('#chipCancel');
+if (chipCancel) chipCancel.onclick = ()=> exitEditor();
 
 /* resize */
 new ResizeObserver(()=>{ if(editMode) ensureStageSize(); }).observe(viewer);
@@ -565,7 +565,9 @@ $('#btnAddText').onclick = async () => {
 
 $('#btnWatermark').onclick = async () => {
   const txt = $('#wmText')?.value || 'PROOFLY'; const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
-  const { PDFDocument, StandardFonts, rgb } = PDFLib; const pdf = await PDFDocument.load	await f.arrayBuffer(); const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const { PDFDocument, StandardFonts, rgb } = PDFLib; 
+  const pdf = await PDFDocument.load(await f.arrayBuffer()); /* ← виправлено */
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
   pdf.getPages().forEach(p=>{ const {width, height} = p.getSize(); p.drawText(txt, { x: width/4, y: height/2, size: 48, font, color: rgb(0.6,0.65,0.9), rotate: PDFLib.degrees(30), opacity: 0.15 }); });
   const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-wm.pdf');
 };
@@ -576,7 +578,7 @@ $('#btnCompress').onclick = async () => {
   const u8 = await pdf.save({useObjectStreams:true}); saveBlob(await toBlob(u8), fileStem(f.name)+'-compressed.pdf');
 };
 
-/* керування з ріббону — як було, але з урахуванням одноразового режиму */
+/* керування з ріббону — як було */
 $('#rb-split').onclick = ()=> $('#btnSplit')?.click();
 $('#rb-merge').onclick = ()=> $('#btnMerge')?.click();
 $('#rb-reorder').onclick = ()=> $('#btnApplyReorder')?.click();
