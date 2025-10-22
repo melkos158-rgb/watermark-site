@@ -103,7 +103,7 @@
       <div class="vr"></div>
       <div class="group">
         <button class="rib-btn" id="rb-addtext"><div class="rib-ico">✏️</div><div class="rib-txt">Dodaj tekst</div></button>
-        <button class="rib-btn" id="rb-edit"><div class="rib-ico">🖱️</div><div class="rib-txt">Edytuj tekst</div></button>
+        <button class="rib-btn" id="rb-edit"><div class="rib-ico">🖱️</div><div class="rib-txt">Edytuj текст</div></button>
         <button class="rib-btn" id="rb-erase"><div class="rib-ico">🧽</div><div class="rib-txt">Gumka</div></button>
         <button class="rib-btn" id="rb-highlight"><div class="rib-ico">🟨</div><div class="rib-txt">Podświetl</div></button>
         <button class="rib-btn" id="rb-pencil"><div class="rib-ico">✍️</div><div class="rib-txt">Ołówek</div></button>
@@ -255,7 +255,7 @@ let pageOverlays = {};
 let actionStack=[], redoStack=[];
 let activeTool='select';
 let rectStart=null,tempRect=null, tempEllipse=null;
-let penPath=null, penPoints=[];
+let penPath=null, penPoints[];
 
 /* одноразове додавання тексту */
 let singleAddMode = false;
@@ -486,25 +486,27 @@ function parseRanges(s){
   return out;
 }
 
-/* == нижче — існуючі обробники збережені як є == */
-$('#btnImageToPdf').onclick = async () => {
+/* == нижче — існуючі обробники збережені як є, але ПРИВ’ЯЗКА БЕЗПЕЧНА == */
+const _b = (sel, fn)=>{ const el=$(sel); if(el) el.onclick = fn; };
+
+_b('#btnImageToPdf', async () => {
   const f = getMainFile(); if (!f || !/\.(png|jpg|jpeg|webp)$/i.test(f.name)) return alert('Обери зображення у головному файлі');
   const { jsPDF } = window.jspdf; const imgData = await blobToDataURL(f);
   const pdf = new jsPDF({unit:'pt', format:'a4', compress:true}); const w = pdf.internal.pageSize.getWidth(); const h = pdf.internal.pageSize.getHeight();
   const dims = await imageDims(imgData); const scale = Math.min(w/dims.w, h/dims.h); const nw = dims.w * scale, nh = dims.h * scale;
   pdf.addImage(imgData, 0, (h-nh)/2, nw, nh); const blob = pdf.output('blob'); saveBlob(blob, fileStem(f.name)+'.pdf');
-};
+});
 
-$('#btnMultiPhotoToPdf').onclick = async () => {
+_b('#btnMultiPhotoToPdf', async () => {
   const files = getManyFiles().filter(x=>/\.(png|jpg|jpeg|webp)$/i.test(x.name)); if (!files.length) return alert('Додай фото у «Додаткові файли».');
   const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4', compress:true}); let first = true;
   for (const f of files){ const data = await blobToDataURL(f); const dims = await imageDims(data);
     const w = pdf.internal.pageSize.getWidth(); const h = pdf.internal.pageSize.getHeight(); const scale = Math.min(w/dims.w, h/dims.h);
     const nw = dims.w * scale, nh = dims.h * scale; if (!first) pdf.addPage(); pdf.addImage(data, 0, (h-nh)/2, nw, nh); first = false; }
   const blob = pdf.output('blob'); saveBlob(blob, 'photos.pdf');
-};
+});
 
-$('#btnPdfToImage').onclick = async () => {
+_b('#btnPdfToImage', async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const buf = await f.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data: buf}).promise; const zip = new JSZip();
   for (let i=1;i<=pdf.numPages;i++){ const page = await pdf.getPage(i); const vp = page.getViewport({scale:2});
@@ -512,32 +514,32 @@ $('#btnPdfToImage').onclick = async () => {
     await page.render({canvasContext: cnv.getContext('2d'), viewport: vp}).promise; const blob = await new Promise(res=>cnv.toBlob(res, 'image/png', 0.95));
     zip.file(`page-${i}.png`, blob); }
   zip.generateAsync({type:'blob'}).then(b=>saveBlob(b, fileStem(f.name)+'-pages.zip'));
-};
+});
 
-$('#btnMerge').onclick = async () => {
+_b('#btnMerge', async () => {
   const files = getManyFiles().filter(x=>/\.pdf$/i.test(x.name)); if (files.length < 2) return alert('Додай як мінімум 2 PDF у «Додаткові файли».');
   const { PDFDocument } = PDFLib; const out = await PDFDocument.create();
   for (const f of files){ const u8 = new Uint8Array(await f.arrayBuffer()); const doc = await PDFDocument.load(u8);
     const pages = await out.copyPages(doc, doc.getPageIndices()); pages.forEach(p=>out.addPage(p)); }
   const u8 = await out.save(); saveBlob(await toBlob(u8), 'merged.pdf');
-};
+});
 
-$('#btnSplit').onclick = async () => {
+_b('#btnSplit', async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const ranges = parseRanges($('#splitRange')?.value || '1'); if (!ranges.length) return alert('Вкажи сторінки/діапазони: напр. 1-3,5,8-9');
   const { PDFDocument } = PDFLib; const src = await PDFDocument.load(await f.arrayBuffer()); let idx = 1;
   for (const r of ranges){ const out = await PDFDocument.create(); const toCopy = []; for (let i=r[0]-1; i<=r[1]-1; i++) toCopy.push(i);
     const pages = await out.copyPages(src, toCopy); pages.forEach(p=>out.addPage(p)); const u8 = await out.save(); saveBlob(await toBlob(u8), `${fileStem(f.name)}-part${idx++}.pdf`); }
-};
+});
 
-$('#btnRemovePages').onclick = async () => {
+_b('#btnRemovePages', async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const nums = ($('#removePages')?.value || '').split(',').map(s=>parseInt(s.trim(),10)).filter(Boolean); if (!nums.length) return alert('Вкажи номери сторінок через кому.');
   const { PDFDocument } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer());
   nums.sort((a,b)=>b-a).forEach(n=>{ if (n>=1 && n<=pdf.getPageCount()) pdf.removePage(n-1); });
   const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-removed.pdf');
   await previewFile(new File([u8], 'temp.pdf', {type:'application/pdf'})); await buildReorderListFromPdf(new File([u8], 'temp.pdf', {type:'application/pdf'}));
-};
+});
 
 let reorderState = [];
 async function buildReorderListFromPdf(file){
@@ -549,34 +551,34 @@ function getDragAfterElement(container, y){
   return els.reduce((closest, child)=>{ const box = child.getBoundingClientRect(); const offset = y - box.top - box.height/2;
     if (offset<0 && offset>closest.offset) return {offset, element: child}; else return closest; }, {offset: Number.NEGATIVE_INFINITY}).element;
 }
-$('#btnApplyReorder').onclick = async () => {
+_b('#btnApplyReorder', async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const order = Array.from({length: currPdfPages}, (_,i)=>i);
   const { PDFDocument } = PDFLib; const src = await PDFDocument.load(await f.arrayBuffer()); const out = await PDFDocument.create();
   const pages = await out.copyPages(src, order); pages.forEach(p=>out.addPage(p)); const u8 = await out.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-reordered.pdf');
-};
+});
 
-$('#btnAddText').onclick = async () => {
+_b('#btnAddText', async () => {
   const txt = $('#signText')?.value || 'Sign'; const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const { PDFDocument, StandardFonts, rgb } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer()); const font = await pdf.embedFont(StandardFonts.Helvetica);
   const pages = pdf.getPages(); pages.forEach(p=>{ const { width, height } = p.getSize(); p.drawText(txt, {x: width-200, y: 24, size: 12, font, color: rgb(0.1,0.6,1)}); });
   const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-signed.pdf');
-};
+});
 
-$('#btnWatermark').onclick = async () => {
+_b('#btnWatermark', async () => {
   const txt = $('#wmText')?.value || 'PROOFLY'; const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const { PDFDocument, StandardFonts, rgb } = PDFLib; 
   const pdf = await PDFDocument.load(await f.arrayBuffer()); /* ← виправлено */
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   pdf.getPages().forEach(p=>{ const {width, height} = p.getSize(); p.drawText(txt, { x: width/4, y: height/2, size: 48, font, color: rgb(0.6,0.65,0.9), rotate: PDFLib.degrees(30), opacity: 0.15 }); });
   const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-wm.pdf');
-};
+});
 
-$('#btnCompress').onclick = async () => {
+_b('#btnCompress', async () => {
   const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
   const { PDFDocument } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption:true});
   const u8 = await pdf.save({useObjectStreams:true}); saveBlob(await toBlob(u8), fileStem(f.name)+'-compressed.pdf');
-};
+});
 
 /* керування з ріббону — як було */
 $('#rb-split').onclick = ()=> $('#btnSplit')?.click();
