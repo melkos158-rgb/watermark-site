@@ -317,11 +317,48 @@ function addImageAtCenter(file){
   addAction(im,'add');
 }
 
+/* === ДОДАНО: створення текстового боксу під курсором === */
+function createTextBoxAtCanvasPoint(clientX, clientY){
+  // координати кліку у пікселях canvas
+  const rect = canvas.getBoundingClientRect();
+  const cx = (clientX - rect.left) * (canvas.width / rect.width);
+  const cy = (clientY - rect.top) * (canvas.height / rect.height);
+
+  const box=document.createElement('div'); 
+  box.className='edit-box'; 
+  box.contentEditable='true'; 
+  box.textContent='Текст';
+  // позиціюємо у координатах editorStage, що дорівнюють canvas px
+  box.style.left=(Math.max(0, cx - 60))+'px';
+  box.style.top=(Math.max(0, cy - 16))+'px';
+  makeDraggable(box); 
+  editorStage.appendChild(box);
+  (pageOverlays[currPageIndex] ||= []).push(box); 
+  addAction(box,'add'); 
+  box.focus();
+}
+
+/* вже було: подвійний клік у режимі тексту */
 editorStage.addEventListener('dblclick', e=>{
   if(activeTool!=='text') return;
   const box=document.createElement('div'); box.className='edit-box'; box.contentEditable='true'; box.textContent='Текст';
   box.style.left=(e.offsetX-60)+'px'; box.style.top=(e.offsetY-16)+'px'; makeDraggable(box); editorStage.appendChild(box);
   (pageOverlays[currPageIndex] ||= []).push(box); addAction(box,'add'); box.focus();
+});
+
+/* === ДОДАНО: клік по самому PDF запускає режим тексту і ставить бокс === */
+canvas.addEventListener('pointerdown', (e)=>{
+  if(!currPdfDoc) return;
+  if(e.button !== 0) return; // лише лівий клік
+  if(!editMode){ 
+    startEditor(); 
+    setTool('text'); 
+    ensureStageSize(); 
+  }
+  if(activeTool==='text'){ 
+    createTextBoxAtCanvasPoint(e.clientX, e.clientY);
+    e.preventDefault();
+  }
 });
 
 editorStage.addEventListener('pointerdown', e=>{
