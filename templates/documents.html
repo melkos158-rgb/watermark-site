@@ -58,7 +58,10 @@
 
   .editor-layer{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:3; pointer-events:none; }
   .editor-stage{ position:relative; pointer-events:all }
-  .edit-toolbar-float{ position:absolute; top:10px; right:10px; display:flex; gap:8px; z-index:4; }
+
+  /* Плаваючу панель — прибрано */
+  .edit-toolbar-float{ display:none !important; }
+
   .chip{ padding:8px 10px; border-radius:10px; border:1px solid var(--line); background:#0f1730; cursor:pointer }
   .chip.active{ outline:2px solid var(--accent) }
 
@@ -131,16 +134,7 @@
       <div class="hint">Завантаж PDF/зображення вище. Натисни «Dodaj tekst»/«Obraz» для редагування.</div>
 
       <div class="editor-layer" id="editorLayer">
-        <div class="edit-toolbar-float">
-          <button class="chip" id="chipSelect" title="Виділення (V)">🖱️</button>
-          <button class="chip" id="chipText" title="Текст (T)">✏️</button>
-          <button class="chip" id="chipImage" title="Зображення (I)">🖼️</button>
-          <button class="chip" id="chipRect" title="Прямокутник (R)">▭</button>
-          <button class="chip" id="chipEllipse" title="Еліпс (E)">⭕</button>
-          <button class="chip" id="chipPen" title="Олівець (P)">✍️</button>
-          <button class="chip" id="chipApply" title="Застосувати">✅</button>
-          <button class="chip" id="chipCancel" title="Скасувати">✖</button>
-        </div>
+        <!-- edit-toolbar-float прибрана CSS-ом -->
         <div class="pager">
           <button class="pbtn" id="pgPrev">◀</button>
           <div id="pgInfo" class="muted">1 / 1</div>
@@ -263,6 +257,9 @@ let activeTool='select';
 let rectStart=null,tempRect=null, tempEllipse=null;
 let penPath=null, penPoints=[];
 
+/* одноразове додавання тексту */
+let singleAddMode = false;
+
 function ensureStageSize(){
   const rect = canvas.getBoundingClientRect();
   editorStage.style.width = canvas.width + 'px';
@@ -290,20 +287,7 @@ function makeDraggable(el){
 
 function setTool(t){
   activeTool=t;
-  $('#chipSelect').classList.toggle('active', t==='select');
-  $('#chipText').classList.toggle('active', t==='text');
-  $('#chipImage').classList.toggle('active', t==='image');
-  $('#chipRect').classList.toggle('active', t==='rect');
-  $('#chipEllipse').classList.toggle('active', t==='ellipse');
-  $('#chipPen').classList.toggle('active', t==='pen');
 }
-$('#chipSelect').onclick=()=>setTool('select');
-$('#chipText').onclick=()=>setTool('text');
-$('#chipImage').onclick=()=>setTool('image');
-$('#chipRect').onclick=()=>setTool('rect');
-$('#chipEllipse').onclick=()=>setTool('ellipse');
-$('#chipPen').onclick=()=>setTool('pen');
-
 const hiddenImgInput = document.createElement('input'); hiddenImgInput.type='file'; hiddenImgInput.accept='image/*';
 hiddenImgInput.onchange = e=>{ const f=e.target.files?.[0]; if(f) addImageAtCenter(f); hiddenImgInput.value=''; };
 function addImageAtCenter(file){
@@ -317,28 +301,29 @@ function addImageAtCenter(file){
   addAction(im,'add');
 }
 
-/* === ДОДАНО: створення текстового боксу під курсором === */
+/* створення текстового боксу під курсором */
 function createTextBoxAtCanvasPoint(clientX, clientY){
-  // координати кліку у пікселях canvas
   const rect = canvas.getBoundingClientRect();
   const cx = (clientX - rect.left) * (canvas.width / rect.width);
   const cy = (clientY - rect.top) * (canvas.height / rect.height);
 
-  const box=document.createElement('div'); 
-  box.className='edit-box'; 
-  box.contentEditable='true'; 
+  const box=document.createElement('div');
+  box.className='edit-box';
+  box.contentEditable='true';
   box.textContent='Текст';
-  // позиціюємо у координатах editorStage, що дорівнюють canvas px
   box.style.left=(Math.max(0, cx - 60))+'px';
   box.style.top=(Math.max(0, cy - 16))+'px';
-  makeDraggable(box); 
+  makeDraggable(box);
   editorStage.appendChild(box);
-  (pageOverlays[currPageIndex] ||= []).push(box); 
-  addAction(box,'add'); 
+  (pageOverlays[currPageIndex] ||= []).push(box);
+  addAction(box,'add');
   box.focus();
+
+  // коли блок втрачає фокус — завершуємо одноразове додавання
+  box.addEventListener('blur', ()=>{ if(singleAddMode){ singleAddMode=false; setTool('select'); } }, {once:true});
 }
 
-/* вже було: подвійний клік у режимі тексту */
+/* подвійний клік у режимі тексту (залишено) */
 editorStage.addEventListener('dblclick', e=>{
   if(activeTool!=='text') return;
   const box=document.createElement('div'); box.className='edit-box'; box.contentEditable='true'; box.textContent='Текст';
@@ -346,21 +331,32 @@ editorStage.addEventListener('dblclick', e=>{
   (pageOverlays[currPageIndex] ||= []).push(box); addAction(box,'add'); box.focus();
 });
 
-/* === ДОДАНО: клік по самому PDF запускає режим тексту і ставить бокс === */
+/* клік по PDF для розміщення тексту */
 canvas.addEventListener('pointerdown', (e)=>{
   if(!currPdfDoc) return;
-  if(e.button !== 0) return; // лише лівий клік
-  if(!editMode){ 
-    startEditor(); 
-    setTool('text'); 
-    ensureStageSize(); 
-  }
+  if(e.button !== 0) return;
+  if(!editMode){ startEditor(); ensureStageSize(); }
   if(activeTool==='text'){ 
     createTextBoxAtCanvasPoint(e.clientX, e.clientY);
     e.preventDefault();
+    // в одноразовому режимі не додаємо наступні блоки без виходу
+    if(singleAddMode){ /* очікуємо blur або клік поза полотном */ }
   }
 });
 
+/* вихід з одноразового режиму при кліку поза полотном/канвасом */
+viewer.addEventListener('pointerdown', (e)=>{
+  if(!singleAddMode) return;
+  const isOnStage = editorStage.contains(e.target);
+  const isBox = e.target.classList?.contains('edit-box');
+  const isCanvas = e.target === canvas;
+  if(!(isOnStage || isBox || isCanvas)){
+    singleAddMode=false;
+    setTool('select');
+  }
+});
+
+/* існуючі інструменти малювання */
 editorStage.addEventListener('pointerdown', e=>{
   if(activeTool==='rect'){
     rectStart={x:e.offsetX,y:e.offsetY};
@@ -402,10 +398,12 @@ editorStage.addEventListener('pointerup', ()=>{
 
 function clearStage(){ editorStage.innerHTML=''; }
 
+/* навігація сторінок */
 $('#pgPrev').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.max(0, currPageIndex-1); await renderPageForPreview(currPdfDoc, currPageIndex); pgInfo.textContent=`${currPageIndex+1} / ${currPdfPages}`; renderOverlaysForPage(currPageIndex); ensureStageSize(); highlightThumb(); };
 $('#pgNext').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.min(currPdfPages-1, currPageIndex+1); await renderPageForPreview(currPdfDoc, currPageIndex); pgInfo.textContent=`${currPageIndex+1} / ${currPdfPages}`; renderOverlaysForPage(currPageIndex); ensureStageSize(); highlightThumb(); };
 function highlightThumb(){ $$('.thumb').forEach((x,i)=> x.classList.toggle('active', i===currPageIndex)); }
 
+/* збереження в PDF / скасування — як було */
 $('#chipApply').onclick = async ()=>{
   const f = getMainFile(); if (!f) return;
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
@@ -462,22 +460,20 @@ $('#rb-thumbs').onclick = ()=>{ thumbs.style.display = (thumbs.style.display==='
 $('#rb-undo').onclick = ()=>{ const a=actionStack.pop(); if(!a) return; if(a.type==='add'){ a.node.remove(); redoStack.push(a);} };
 $('#rb-redo').onclick = ()=>{ const a=redoStack.pop(); if(!a) return; if(a.type==='add'){ editorStage.appendChild(a.node); actionStack.push(a);} };
 
-$('#rb-addtext').onclick = ()=>{ startEditor(); setTool('text'); };
-$('#rb-edit').onclick = ()=>{ startEditor(); setTool('select'); };
+/* змінено: одноразовий режим для «Dodaj tekst» */
+$('#rb-addtext').onclick = ()=>{
+  startEditor();
+  setTool('text');
+  singleAddMode = true;
+};
+$('#rb-edit').onclick = ()=>{ startEditor(); setTool('select'); singleAddMode=false; };
 $('#rb-erase').onclick = ()=>{ if(!editMode) return; const last=(pageOverlays[currPageIndex]||[]).pop(); if(last){ last.remove(); } };
-$('#rb-highlight').onclick = ()=>{ startEditor(); setTool('rect'); };
-$('#rb-pencil').onclick = ()=>{ startEditor(); setTool('pen'); };
-$('#rb-image').onclick = ()=>{ startEditor(); setTool('image'); hiddenImgInput.click(); };
-$('#rb-ellipse').onclick = ()=>{ startEditor(); setTool('ellipse'); };
-$('#rb-rect').onclick = ()=>{ startEditor(); setTool('rect'); };
-$('#rb-sign').onclick = ()=>{ startEditor(); setTool('text'); };
-
-$('#rb-split').onclick = ()=> $('#btnSplit')?.click();
-$('#rb-merge').onclick = ()=> $('#btnMerge')?.click();
-$('#rb-reorder').onclick = ()=> $('#btnApplyReorder')?.click();
-$('#rb-export').onclick = ()=> $('#btnPdfToImage')?.click();
-$('#rb-compress').onclick = ()=> $('#btnCompress')?.click();
-$('#rb-watermark').onclick = ()=> $('#btnWatermark')?.click();
+$('#rb-highlight').onclick = ()=>{ startEditor(); setTool('rect'); singleAddMode=false; };
+$('#rb-pencil').onclick = ()=>{ startEditor(); setTool('pen'); singleAddMode=false; };
+$('#rb-image').onclick = ()=>{ startEditor(); setTool('image'); singleAddMode=false; hiddenImgInput.click(); };
+$('#rb-ellipse').onclick = ()=>{ startEditor(); setTool('ellipse'); singleAddMode=false; };
+$('#rb-rect').onclick = ()=>{ startEditor(); setTool('rect'); singleAddMode=false; };
+$('#rb-sign').onclick = ()=>{ startEditor(); setTool('text'); singleAddMode=true; };
 
 /* ваші функції — без змін */
 function fileStem(name){ return name.replace(/\.[^.]+$/,''); }
@@ -569,7 +565,7 @@ $('#btnAddText').onclick = async () => {
 
 $('#btnWatermark').onclick = async () => {
   const txt = $('#wmText')?.value || 'PROOFLY'; const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
-  const { PDFDocument, StandardFonts, rgb } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer()); const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const { PDFDocument, StandardFonts, rgb } = PDFLib; const pdf = await PDFDocument.load	await f.arrayBuffer(); const font = await pdf.embedFont(StandardFonts.Helvetica);
   pdf.getPages().forEach(p=>{ const {width, height} = p.getSize(); p.drawText(txt, { x: width/4, y: height/2, size: 48, font, color: rgb(0.6,0.65,0.9), rotate: PDFLib.degrees(30), opacity: 0.15 }); });
   const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-wm.pdf');
 };
@@ -579,5 +575,13 @@ $('#btnCompress').onclick = async () => {
   const { PDFDocument } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption:true});
   const u8 = await pdf.save({useObjectStreams:true}); saveBlob(await toBlob(u8), fileStem(f.name)+'-compressed.pdf');
 };
+
+/* керування з ріббону — як було, але з урахуванням одноразового режиму */
+$('#rb-split').onclick = ()=> $('#btnSplit')?.click();
+$('#rb-merge').onclick = ()=> $('#btnMerge')?.click();
+$('#rb-reorder').onclick = ()=> $('#btnApplyReorder')?.click();
+$('#rb-export').onclick = ()=> $('#btnPdfToImage')?.click();
+$('#rb-compress').onclick = ()=> $('#btnCompress')?.click();
+$('#rb-watermark').onclick = ()=> $('#btnWatermark')?.click();
 </script>
 {% endblock %}
