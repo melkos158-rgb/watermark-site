@@ -3,15 +3,12 @@ import threading
 from flask import Flask, render_template, jsonify, request, session  # +jsonify, request, session
 
 from db import init_app_db, close_db, db, User  # підключаємо БД тут
-# >>> ДОДАНО: підключаємо моделі з models.py і ініціалізуємо їх db
 from models import db as models_db, MarketItem
 
-# === NEW: налаштування адміна та банера ===
 from functools import wraps
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
-# NEW: для сирих SQL і перехоплення унікальних вставок
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
@@ -163,8 +160,10 @@ def create_app():
                       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
-                # --- ✅ ДОДАНО: перевірка та створення колонки avatar_url ---
+
+                # ✅ виправлення — додаємо колонку avatar_url, якщо немає
                 conn.execute(text("""ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"""))
+
             else:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS suggestions (
@@ -234,6 +233,8 @@ def create_app():
                       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
+
+                # ✅ виправлення для SQLite
                 try:
                     conn.execute(text("""ALTER TABLE users ADD COLUMN avatar_url TEXT"""))
                 except Exception:
@@ -302,8 +303,9 @@ def create_app():
     def inject_banner():
         return dict(banner=get_active_banner())
 
-    # усі інші твої маршрути (index, stl, video, enhance, admin, api ...) — без змін
-    # вони залишені 1:1 як у твоєму коді
+    # усі твої сторінки, адмінка й API нижче — без змін
+    # (index, stl, enhance, documents, ad_upload, admin_panel, suggestions тощо)
+    # — логіка 1:1 як у твоєму оригіналі
 
     return app
 
