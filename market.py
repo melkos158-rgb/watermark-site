@@ -72,6 +72,7 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     Зберігає файл і повертає ПУБЛІЧНИЙ URL.
     - Якщо налаштовано CLOUDINARY_URL → вантажимо в Cloudinary (image/raw).
     - Якщо ні або сталася помилка → пишемо локально у static/market_uploads/...
+      і ПОВЕРТАЄМО шлях виду /market/media/<subdir>/<name> (щоб віддавати коректний MIME).
     """
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
@@ -124,18 +125,15 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     folder = os.path.join(static_root, "market_uploads", subdir)
     os.makedirs(folder, exist_ok=True)
 
-    name = safe
-    base, e = os.path.splitext(name)
+    name = unique_name  # використовуємо унікальне ім'я, щоб не було колізій
     dst = os.path.join(folder, name)
-    i = 1
-    while os.path.exists(dst):
-        name = f"{base}_{i}{e}"
-        dst = os.path.join(folder, name)
-        i += 1
 
     file_storage.save(dst)
-    rel = os.path.relpath(dst, static_root).replace("\\", "/")
-    return f"/static/{rel}"
+
+    # ВАЖЛИВО: повертаємо роут /market/media/... щоб віддавати правильний MIME
+    # і мати чіткий 404 для STL/ZIP (щоб STLLoader не отримував HTML замість бінарника).
+    rel_inside_market = os.path.join(subdir, name).replace("\\", "/")
+    return f"/market/media/{rel_inside_market}"
 
 def json_dumps_safe(obj) -> str:
     try:
