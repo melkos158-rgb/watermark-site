@@ -17,7 +17,10 @@ class User(db.Model):
     email      = db.Column(db.String(255), unique=True, nullable=False, index=True)
     name       = db.Column(db.String(120))
     bio        = db.Column(db.Text)
+    # лишаємо старе поле для сумісності
     avatar     = db.Column(db.Text)                                # URL або data:image
+    # додаємо нове поле, яке очікується у SQL ("u.avatar_url") в market.py
+    avatar_url = db.Column(db.Text)                                # окремий URL-стовпець (може дублювати avatar)
     pxp        = db.Column(db.Integer, default=0, nullable=False)  # баланс PXP
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -56,36 +59,7 @@ class Message(db.Model):
     def __repr__(self):
         return f"<Message {self.id} {self.sender_id}->{self.recipient_id}>"
 
-# -----------------------------
-# INIT & CLOSE
-# -----------------------------
-def init_app_db(app: Flask):
-    """
-    Підключає БД до Flask:
-    - Якщо є env DATABASE_URL (Railway Postgres) — використовує її
-      і виправляє схему postgres:// → postgresql://
-    - Інакше SQLite локально: sqlite:///database.db
-    """
-    db_url = os.environ.get("DATABASE_URL")
-    if db_url and db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-    app.config.setdefault("SQLALCHEMY_DATABASE_URI", db_url or "sqlite:///database.db")
-    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
-
-    db.init_app(app)
-    with app.app_context():
-        db.create_all()
-
-def close_db(error=None):
-    """Закриває сесію SQLAlchemy після кожного запиту (для gunicorn/teardown)."""
-    try:
-        db.session.remove()
-    except Exception:
-        pass
-
-    except Exception:
-        pass
 # -----------------------------
 # INIT & CLOSE
 # -----------------------------
