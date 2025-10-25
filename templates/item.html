@@ -31,7 +31,7 @@
       </div>
 
       <div class="muted">★ {{ item.rating if item.rating is not none else '—' }}</div>
-      <p>{{ item.desc }}</p>
+      <p>{{ (item.description if item.description is defined else item.desc) or '' }}</p>
 
       <div class="stats">
         <div>📦 Завантажень: {{ item.downloads or 0 }}</div>
@@ -43,7 +43,7 @@
       {% set zip_url = item.zip_url %}
       {% set prefer_url = zip_url
                           or item.stl_main_url
-                          or (item.stl_extra[0] if item.stl_extra else None) %}
+                          or (item.stl_files[0] if item.stl_files else None) %}
 
       {% if item.price == 0 %}
         {% if prefer_url %}
@@ -132,6 +132,25 @@
 
   const qs = (s) => document.querySelector(s);
   const qsa = (s) => Array.from(document.querySelectorAll(s));
+
+  // ---- helpers ----
+  function isImg(u){ return /\.png|\.jpe?g|\.webp$/i.test(u||''); }
+  function isModel(u){ return /\.stl|\.obj|\.glb|\.gltf|\.ply$/i.test(u||''); }
+
+  // Перенаправляємо локальні шляхи /static/market_uploads/... → /market/media/...
+  function normalizeUrl(u){
+    if (!u) return '';
+    try{
+      const url = new URL(u, location.origin);
+      if (url.origin === location.origin && url.pathname.startsWith('/static/market_uploads/')){
+        return '/market/media/' + url.pathname.replace('/static/market_uploads/','');
+      }
+      return url.href.startsWith(location.origin) ? url.pathname + url.search + url.hash : url.href;
+    }catch(e){
+      return u.startsWith('/static/market_uploads/') ? '/market/media/' + u.replace('/static/market_uploads/','') : u;
+    }
+  }
+
   function makeInlinePlaceholder(){
     const ns='http://www.w3.org/2000/svg';
     const svg=document.createElementNS(ns,'svg'); svg.setAttribute('viewBox','0 0 800 600'); svg.setAttribute('role','img');
@@ -146,31 +165,36 @@
   }
   function uniq5(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).slice(0,5); }
 
-  const cover = {{ (item.cover or item.cover_url or '') | tojson }};
+  // ---- data from backend ----
+  const cover = normalizeUrl({{ (item.cover or item.cover_url or '') | tojson }});
   const photosFromItem = {{ item.photos | tojson }};
-  const galleryUrls    = {{ (item.gallery_urls or '[]') | tojson }};
-  const stlMain        = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
-  const stlFromItem    = {{ (item.stl_files or '[]') | tojson }};
+  const galleryUrlsRaw = {{ (item.gallery_urls or '[]') | tojson }};
+  const stlMainRaw     = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
+  const stlFromItemRaw = {{ (item.stl_files or '[]') | tojson }};
 
+  // normalize lists/urls
+  const stlMain = normalizeUrl(stlMainRaw);
   let images = [];
   let stlList = [];
 
   if (Array.isArray(photosFromItem)) {
-    images = photosFromItem;
+    images = photosFromItem.map(normalizeUrl);
   } else if (photosFromItem && typeof photosFromItem === 'object') {
-    images = Array.isArray(photosFromItem.images) ? photosFromItem.images : [];
-    stlList = Array.isArray(photosFromItem.stl) ? photosFromItem.stl : [];
+    images = (Array.isArray(photosFromItem.images) ? photosFromItem.images : []).map(normalizeUrl);
+    stlList = (Array.isArray(photosFromItem.stl) ? photosFromItem.stl : []).map(normalizeUrl);
   }
 
-  if (!images?.length && Array.isArray(galleryUrls)) images = galleryUrls;
-  if (Array.isArray(stlFromItem) && stlFromItem.length) stlList = stlList.concat(stlFromItem);
+  if (!images?.length && Array.isArray(galleryUrlsRaw)) images = galleryUrlsRaw.map(normalizeUrl);
+  if (Array.isArray(stlFromItemRaw) && stlFromItemRaw.length) stlList = stlList.concat(stlFromItemRaw.map(normalizeUrl));
 
   if (cover) images = [cover, ...images];
   if (stlMain) stlList = [stlMain, ...stlList];
 
-  images  = uniq5(images);
-  stlList = uniq5(stlList);
+  // фільтруємо тільки справжні картинки/моделі
+  images  = uniq5(images).filter(isImg);
+  stlList = uniq5(stlList).filter(isModel);
 
+  // ---- gallery DOM ----
   function makeImgSlide(src){
     const s=document.createElement('div'); s.className='glr-slide';
     if (src){
@@ -279,6 +303,7 @@
     const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(2,2,2); scene.add(dir);
 
     const loader=new STLLoader();
+    // Безпечний лоад з обробкою помилок (щоб не падати DataView RangeError)
     loader.load(sl.src,(geo)=>{
       const mat=new THREE.MeshStandardMaterial({color:0x9aa7c7,roughness:.8,metalness:.1});
       const mesh=new THREE.Mesh(geo,mat);
@@ -290,6 +315,11 @@
       mesh.position.sub(center);
       camera.position.set(size.x*1.2+0.6, size.y*1.2+0.4, size.z*1.5+0.8);
       controls.update();
+    }, undefined, (err)=>{
+      // Якщо STL битий/відсутній — показуємо плейсхолдер, а не ламаємо сцену
+      container.innerHTML = '';
+      container.appendChild(makeInlinePlaceholder());
+      console.warn('STL load error:', err);
     });
 
     function resize(){
