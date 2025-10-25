@@ -5,7 +5,7 @@ import shutil
 import uuid
 from typing import Any, Dict, Optional
 
-from flask import Blueprint, render_template, jsonify, request, session, current_app
+from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
@@ -724,5 +724,41 @@ def _static_market_uploads_fallback():
     if not p.startswith("/static/market_uploads/"):
         return
     fs_path = os.path.join(current_app.root_path, p.lstrip("/"))
-    if not os.path.exists(fs_path):
+    if os.path.exists(fs_path):
+        return  # файл існує — нічого не робимо
+
+    # Якщо просили зображення — віддамо плейсхолдер.
+    lower = p.lower()
+    if lower.endswith((".jpg", ".jpeg", ".png", ".webp")):
         return current_app.send_static_file("img/placeholder_stl.jpg")
+
+    # Якщо це модель/архів — повертаємо 404, щоб фронт не намагався парсити картинку як STL.
+    if lower.endswith((".stl", ".obj", ".glb", ".gltf", ".zip", ".ply")):
+        abort(404)
+
+
+# ✅ Публічний роут для медіа (з правильними MIME; можна зберігати URL як /market/media/<...>)
+@bp.get("/media/<path:fname>")
+def market_media(fname: str):
+    # нормалізуємо шлях і захищаємося від виходу вгору по директоріях
+    safe = os.path.normpath(fname).lstrip(os.sep)
+    base_dir = os.path.join(current_app.root_path, "static", "market_uploads")
+    abs_path = os.path.join(base_dir, safe)
+    if not os.path.isfile(abs_path):
+        abort(404)
+
+    # MIME
+    mime = None
+    low = safe.lower()
+    if low.endswith(".stl"):
+        mime = "model/stl"
+    elif low.endswith(".obj"):
+        mime = "text/plain"
+    elif low.endswith(".glb"):
+        mime = "model/gltf-binary"
+    elif low.endswith(".gltf"):
+        mime = "model/gltf+json"
+    elif low.endswith(".zip"):
+        mime = "application/zip"
+
+    return send_from_directory(base_dir, safe, mimetype=mime)
