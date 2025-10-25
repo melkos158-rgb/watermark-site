@@ -147,8 +147,7 @@
 
   // розпізнавання типів
   const IMG_EXT = ['.png','.jpg','.jpeg','.webp'];
-  const STL_ONLY = ['.stl']; // ВАЖЛИВО: STLLoader працює лише з .stl
-
+  const STL_EXT = ['.stl','.obj','.glb','.gltf','.ply'];
   const hasExt = (u, arr) => {
     const s = (u||'').split('?')[0].toLowerCase();
     return arr.some(e => s.endsWith(e));
@@ -193,8 +192,7 @@
 
   // фільтрація та нормалізація
   images  = uniq5(images.map(normalizePath).filter(u => hasExt(u, IMG_EXT)));
-  // ТІЛЬКИ .stl — інакше STLLoader падає
-  stlList = uniq5(stlList.map(normalizePath).filter(u => hasExt(u, STL_ONLY)));
+  stlList = uniq5(stlList.map(normalizePath).filter(u => hasExt(u, STL_EXT)));
 
   function makeImgSlide(src){
     const s=document.createElement('div'); s.className='glr-slide';
@@ -283,23 +281,28 @@
   slideEls[0].classList.add('active');
   markActive();
 
-  // ---- перевірка, що це справді STL
+  // ------ ДОДАНО: перевірка, що URL реально STL/RAW і існує ------
   async function isRenderableStl(url){
     try{
-      const resp = await fetch(url, { method: 'GET' }); // HEAD часто блокується
+      const resp = await fetch(url, { method:'GET' });
       if (!resp.ok) return false;
       const ct = (resp.headers.get('content-type') || '').toLowerCase();
-      if (ct.includes('model/stl') || ct.includes('application/octet-stream') || url.toLowerCase().endsWith('.stl')) {
+      // типовий заголовок для STL або RAW
+      if (ct.includes('model/stl') || ct.includes('application/octet-stream') || ct.includes('application/vnd.ms-pki.stl')) {
         return true;
       }
+      // резерв: якщо заголовка нема, але розширення .stl — дозволяємо
+      if (url.toLowerCase().split('?')[0].endsWith('.stl')) return true;
       return false;
-    }catch(_){ return false; }
+    }catch(_){
+      return false;
+    }
   }
-
   function replaceWithPlaceholder(container){
     container.innerHTML='';
     container.appendChild(makeInlinePlaceholder());
   }
+  // ---------------------------------------------------------------
 
   async function initSTL(i){
     const sl=slides[i];
@@ -309,7 +312,7 @@
     const container = document.getElementById(sl.id);
     if (!container) return;
 
-    // Попередня перевірка — не годуємо STLLoader HTML-сторінкою 404
+    // Попередня перевірка перед STLLoader — інакше він пробує парсити HTML 404
     const ok = await isRenderableStl(sl.src);
     if (!ok){
       replaceWithPlaceholder(container);
@@ -344,7 +347,8 @@
         controls.update();
       },
       undefined,
-      () => { replaceWithPlaceholder(container); } // onError
+      // onError: якщо мережевий збій/невірний контент
+      ()=>{ replaceWithPlaceholder(container); }
     );
 
     function resize(){
