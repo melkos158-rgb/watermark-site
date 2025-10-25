@@ -2,12 +2,25 @@ import os
 import math
 import json
 import shutil
+import uuid
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, render_template, jsonify, request, session, current_app
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
+
+# ✅ Cloudinary (хмарне зберігання)
+# Працює, якщо в ENV є CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud_name>
+try:
+    import cloudinary
+    import cloudinary.uploader
+    _CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
+    if _CLOUDINARY_URL:
+        cloudinary.config(cloudinary_url=_CLOUDINARY_URL)
+    _CLOUDINARY_READY = bool(_CLOUDINARY_URL)
+except Exception:
+    _CLOUDINARY_READY = False
 
 # ✅ беремо db та модель з models.py
 from models import db, MarketItem
@@ -51,17 +64,62 @@ def _normalize_free(value: Optional[str]) -> str:
     return v if v in ("all", "free", "paid") else "all"
 
 def _normalize_sort(value: Optional[str]) -> str:
-    v = (value or "new").lower()
+    v = (value or "new"). lower()
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
+    """
+    Зберігає файл і повертає ПУБЛІЧНИЙ URL.
+    - Якщо налаштовано CLOUDINARY_URL → вантажимо в Cloudinary (image/raw).
+    - Якщо ні або сталася помилка → пишемо локально у static/market_uploads/...
+    """
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
+
     ext = os.path.splitext(file_storage.filename)[1].lower()
     if ext not in allowed_ext:
         return None
-    safe = secure_filename(os.path.basename(file_storage.filename)) or ("file" + ext)
 
+    # Уніфіковане безпечне ім'я
+    base_name = secure_filename(os.path.basename(file_storage.filename)) or ("file" + ext)
+    # Додамо унікальний суфікс, аби уникнути колізій
+    unique_name = f"{os.path.splitext(base_name)[0]}_{uuid.uuid4().hex}{ext}"
+
+    # -------- 1) Спробувати Cloudinary --------
+    if _CLOUDINARY_READY:
+        try:
+            # Визначаємо тип ресурсу для Cloudinary
+            if ext in ALLOWED_IMAGE_EXT:
+                resource_type = "image"
+                folder = f"proofly/market/{subdir}".replace("\\", "/")
+                res = cloudinary.uploader.upload(
+                    file_storage,
+                    folder=folder,
+                    public_id=os.path.splitext(unique_name)[0]  # без розширення
+                )
+            else:
+                # STL/OBJ/ZIP → вантажимо як RAW
+                resource_type = "raw"
+                folder = f"proofly/market/{subdir}".replace("\\", "/")
+                res = cloudinary.uploader.upload(
+                    file_storage,
+                    folder=folder,
+                    resource_type=resource_type,
+                    public_id=os.path.splitext(unique_name)[0]
+                )
+
+            url = res.get("secure_url") or res.get("url")
+            if url:
+                return url
+        except Exception as _e:
+            # Падаємо у локальний fallback
+            try:
+                current_app.logger.warning(f"Cloudinary upload failed, fallback to local: {type(_e).__name__}: {_e}")
+            except Exception:
+                pass
+
+    # -------- 2) Локальний fallback у static/market_uploads --------
+    safe = base_name
     static_root = os.path.join(current_app.root_path, "static")
     folder = os.path.join(static_root, "market_uploads", subdir)
     os.makedirs(folder, exist_ok=True)
