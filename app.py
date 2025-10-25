@@ -1,6 +1,6 @@
 import os
 import threading
-from flask import Flask, render_template, jsonify, request, session  # +jsonify, request, session
+from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort  # +send_from_directory, abort
 
 from db import init_app_db, close_db, db, User  # підключаємо БД тут
 # >>> ДОДАНО: підключаємо моделі з models.py і ініціалізуємо їх db
@@ -86,6 +86,13 @@ def row_to_dict(row):
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
+
+    # --- ДОДАНО: конфіг медіа та створення директорії ---
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    app.config.setdefault("MEDIA_ROOT", os.path.join(base_dir, "media"))
+    app.config.setdefault("MEDIA_URL", "/media/")
+    os.makedirs(app.config["MEDIA_ROOT"], exist_ok=True)
+    # -----------------------------------------------------
 
     # 1) підключаємо БД до Flask
     init_app_db(app)
@@ -467,7 +474,7 @@ def create_app():
             return redirect(url_for("admin_panel"))
 
         ext = f.filename.rsplit(".", 1)[1].lower()
-        fname = f"default_banner.{ext}"
+        fname = f"default_banner.{ext}"""
         save_rel = os.path.join("ads", fname).replace("\\", "/")
         save_abs = os.path.join("static", save_rel)
         os.makedirs(os.path.dirname(save_abs), exist_ok=True)
@@ -663,6 +670,17 @@ def create_app():
         return jsonify({"ok": True})
 
     # ======================================================================
+
+    # --- ДОДАНО: роут для віддачі медіафайлів ---
+    @app.route("/media/<path:filename>")
+    def media(filename):
+        # читаємо з MEDIA_ROOT; у БД зберігається лише відносний шлях типу "user/3/covers/file.jpg"
+        root = app.config["MEDIA_ROOT"]
+        full = os.path.join(root, filename)
+        if not os.path.isfile(full):
+            return abort(404)
+        return send_from_directory(root, filename)
+    # ---------------------------------------------
 
     return app
 
