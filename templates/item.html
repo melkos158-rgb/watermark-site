@@ -39,7 +39,7 @@
         <div>🧩 Моделей: {{ item.items_count or 0 }}</div>
       </div>
 
-      {# === ЄДИНА КНОПКА: пріоритет ZIP -> STL main -> перший extra === #}
+      {# Єдина кнопка: ZIP -> STL -> перший із extra #}
       {% set zip_url = item.zip_url %}
       {% set prefer_url = zip_url
                           or item.stl_main_url
@@ -137,18 +137,23 @@
   function isImg(u){ return /\.png|\.jpe?g|\.webp$/i.test(u||''); }
   function isModel(u){ return /\.stl|\.obj|\.glb|\.gltf|\.ply$/i.test(u||''); }
 
-  // Перенаправляємо локальні шляхи /static/market_uploads/... → /market/media/...
+  // Приводимо до коректного URL:
+  // - http/https: як є
+  // - /static/market_uploads/...: як є
+  // - bare filename або відносне: додаємо /static/market_uploads/
   function normalizeUrl(u){
     if (!u) return '';
-    try{
-      const url = new URL(u, location.origin);
-      if (url.origin === location.origin && url.pathname.startsWith('/static/market_uploads/')){
-        return '/market/media/' + url.pathname.replace('/static/market_uploads/','');
-      }
-      return url.href.startsWith(location.origin) ? url.pathname + url.search + url.hash : url.href;
-    }catch(e){
-      return u.startsWith('/static/market_uploads/') ? '/market/media/' + u.replace('/static/market_uploads/','') : u;
+    const s = String(u).trim();
+    if (!s) return '';
+
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.startsWith('/static/market_uploads/')) return s;
+
+    // Відносні/голі імена файлів
+    if (!s.startsWith('/')) {
+      return '/static/market_uploads/' + s.replace(/^\.?\//,'');
     }
+    return s; // інші абсолютні всередині сайту
   }
 
   function makeInlinePlaceholder(){
@@ -172,7 +177,6 @@
   const stlMainRaw     = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
   const stlFromItemRaw = {{ (item.stl_files or '[]') | tojson }};
 
-  // normalize lists/urls
   const stlMain = normalizeUrl(stlMainRaw);
   let images = [];
   let stlList = [];
@@ -190,7 +194,7 @@
   if (cover) images = [cover, ...images];
   if (stlMain) stlList = [stlMain, ...stlList];
 
-  // фільтруємо тільки справжні картинки/моделі
+  // тільки валідні типи
   images  = uniq5(images).filter(isImg);
   stlList = uniq5(stlList).filter(isModel);
 
@@ -303,7 +307,6 @@
     const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(2,2,2); scene.add(dir);
 
     const loader=new STLLoader();
-    // Безпечний лоад з обробкою помилок (щоб не падати DataView RangeError)
     loader.load(sl.src,(geo)=>{
       const mat=new THREE.MeshStandardMaterial({color:0x9aa7c7,roughness:.8,metalness:.1});
       const mesh=new THREE.Mesh(geo,mat);
@@ -316,7 +319,6 @@
       camera.position.set(size.x*1.2+0.6, size.y*1.2+0.4, size.z*1.5+0.8);
       controls.update();
     }, undefined, (err)=>{
-      // Якщо STL битий/відсутній — показуємо плейсхолдер, а не ламаємо сцену
       container.innerHTML = '';
       container.appendChild(makeInlinePlaceholder());
       console.warn('STL load error:', err);
