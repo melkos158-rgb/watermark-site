@@ -142,12 +142,13 @@
     if(u.startsWith('market_uploads/')) return '/static/' + u;
     if(u.startsWith('img/') || u.startsWith('ads/')) return '/static/' + u;
     // просто ім'я файлу → кидаємо в корінь market_uploads
-    return STATIC_PREFIX + u.replace(/^\/+/,'');
+    return STATIC_PREFIX + u.replace(/^\/+/, '');
   }
 
   // розпізнавання типів
   const IMG_EXT = ['.png','.jpg','.jpeg','.webp'];
-  const STL_EXT = ['.stl','.obj','.glb','.gltf','.ply'];
+  const STL_ONLY = ['.stl']; // ВАЖЛИВО: STLLoader працює лише з .stl
+
   const hasExt = (u, arr) => {
     const s = (u||'').split('?')[0].toLowerCase();
     return arr.some(e => s.endsWith(e));
@@ -192,7 +193,8 @@
 
   // фільтрація та нормалізація
   images  = uniq5(images.map(normalizePath).filter(u => hasExt(u, IMG_EXT)));
-  stlList = uniq5(stlList.map(normalizePath).filter(u => hasExt(u, STL_EXT)));
+  // ТІЛЬКИ .stl — інакше STLLoader падає
+  stlList = uniq5(stlList.map(normalizePath).filter(u => hasExt(u, STL_ONLY)));
 
   function makeImgSlide(src){
     const s=document.createElement('div'); s.className='glr-slide';
@@ -281,13 +283,38 @@
   slideEls[0].classList.add('active');
   markActive();
 
-  function initSTL(i){
+  // ---- перевірка, що це справді STL
+  async function isRenderableStl(url){
+    try{
+      const resp = await fetch(url, { method: 'GET' }); // HEAD часто блокується
+      if (!resp.ok) return false;
+      const ct = (resp.headers.get('content-type') || '').toLowerCase();
+      if (ct.includes('model/stl') || ct.includes('application/octet-stream') || url.toLowerCase().endsWith('.stl')) {
+        return true;
+      }
+      return false;
+    }catch(_){ return false; }
+  }
+
+  function replaceWithPlaceholder(container){
+    container.innerHTML='';
+    container.appendChild(makeInlinePlaceholder());
+  }
+
+  async function initSTL(i){
     const sl=slides[i];
     if (!sl || sl.type!=='stl' || stlInited.has(i)) return;
     stlInited.add(i);
 
     const container = document.getElementById(sl.id);
     if (!container) return;
+
+    // Попередня перевірка — не годуємо STLLoader HTML-сторінкою 404
+    const ok = await isRenderableStl(sl.src);
+    if (!ok){
+      replaceWithPlaceholder(container);
+      return;
+    }
 
     const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b0e14);
     const camera=new THREE.PerspectiveCamera(60,1,0.01,1000); camera.position.set(1,0.6,1.5);
@@ -302,18 +329,23 @@
     const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(2,2,2); scene.add(dir);
 
     const loader=new STLLoader();
-    loader.load(sl.src,(geo)=>{
-      const mat=new THREE.MeshStandardMaterial({color:0x9aa7c7,roughness:.8,metalness:.1});
-      const mesh=new THREE.Mesh(geo,mat);
-      if(geo.computeVertexNormals) geo.computeVertexNormals();
-      scene.add(mesh);
-      const box=new THREE.Box3().setFromObject(mesh);
-      const size=box.getSize(new THREE.Vector3());
-      const center=box.getCenter(new THREE.Vector3());
-      mesh.position.sub(center);
-      camera.position.set(size.x*1.2+0.6, size.y*1.2+0.4, size.z*1.5+0.8);
-      controls.update();
-    });
+    loader.load(
+      sl.src,
+      (geo)=>{
+        const mat=new THREE.MeshStandardMaterial({color:0x9aa7c7,roughness:.8,metalness:.1});
+        const mesh=new THREE.Mesh(geo,mat);
+        if(geo.computeVertexNormals) geo.computeVertexNormals();
+        scene.add(mesh);
+        const box=new THREE.Box3().setFromObject(mesh);
+        const size=box.getSize(new THREE.Vector3());
+        const center=box.getCenter(new THREE.Vector3());
+        mesh.position.sub(center);
+        camera.position.set(size.x*1.2+0.6, size.y*1.2+0.4, size.z*1.5+0.8);
+        controls.update();
+      },
+      undefined,
+      () => { replaceWithPlaceholder(container); } // onError
+    );
 
     function resize(){
       const w=container.clientWidth||container.offsetWidth||600;
