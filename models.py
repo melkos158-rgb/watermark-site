@@ -26,6 +26,8 @@ class _DBProxy:
 #   from models import db as models_db, MarketItem
 db = _DBProxy()
 
+__all__ = ["db", "MarketItem"]
+
 
 class MarketItem(_db.Model):
     # ВАЖЛИВО: market.py працює з таблицею "items"
