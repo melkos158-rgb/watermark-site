@@ -72,7 +72,7 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     Зберігає файл і повертає ПУБЛІЧНИЙ URL.
     - Якщо налаштовано CLOUDINARY_URL → вантажимо в Cloudinary (image/raw).
     - Якщо ні або сталася помилка → пишемо локально у static/market_uploads/...
-      і ПОВЕРТАЄМО шлях виду /market/media/<subdir>/<name> (щоб віддавати коректний MIME).
+      і ПОВЕРТАЄМО шлях виду /media/<subdir>/<name> (щоб віддавати коректний MIME).
     """
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
@@ -130,10 +130,9 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
 
     file_storage.save(dst)
 
-    # ВАЖЛИВО: повертаємо роут /market/media/... щоб віддавати правильний MIME
-    # і мати чіткий 404 для STL/ZIP (щоб STLLoader не отримував HTML замість бінарника).
+    # ВАЖЛИВО: повертаємо роут /media/... щоб збігався з @bp.get("/media/<path:fname>")
     rel_inside_market = os.path.join(subdir, name).replace("\\", "/")
-    return f"/market/media/{rel_inside_market}"
+    return f"/media/{rel_inside_market}"
 
 def json_dumps_safe(obj) -> str:
     try:
@@ -735,7 +734,7 @@ def _static_market_uploads_fallback():
         abort(404)
 
 
-# ✅ Публічний роут для медіа (з правильними MIME; можна зберігати URL як /market/media/<...>)
+# ✅ Публічний роут для медіа (з правильними MIME; можна зберігати URL як /media/<...>)
 @bp.get("/media/<path:fname>")
 def market_media(fname: str):
     # нормалізуємо шлях і захищаємося від виходу вгору по директоріях
