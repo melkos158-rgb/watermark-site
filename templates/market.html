@@ -29,6 +29,7 @@
         <option value="new">Нові</option>
         <option value="price_asc">Ціна ↑</option>
         <option value="price_desc">Ціна ↓</option>
+        <option value="downloads">Популярні</option>
       </select>
     </label>
   </div>
@@ -68,7 +69,7 @@
   .item:hover{transform:translateY(-2px);}
 
   /* Стабільний фрейм під прев’ю (не стрибає і не розтягує першу картку) */
-  .thumb-wrap{position:relative;width:100%;padding-top:66.666%; /* 3:2 */ background:#0c0f16;border-bottom:1px solid var(--line);}
+  .thumb-wrap{position:relative;width:100%;padding-top:66.666%; /* 3:2 */ background:#0c0f16;border-bottom:1px solid var(--line);cursor:pointer;}
   .thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
 
   .meta{padding:12px;display:flex;flex-direction:column;gap:6px;}
@@ -155,6 +156,7 @@
         const qs = new URLSearchParams({
           q: q.value || '',
           free: filterFree.value,
+          sort: sortSel.value,             // ⇦ ДОДАНО: передаємо параметр сортування на бекенд
           page: String(page),
           per_page: String(PER_PAGE)
         }).toString();
@@ -199,13 +201,15 @@
   }
 
   function appendItems(items){
-    // клієнтське сортування
+    // клієнтське сортування (актуально для MODE==='mine' або коли хочеш підправити порядок)
     if (sortSel.value === 'price_asc') {
       items.sort((a,b)=>(+a.price||0)-(+b.price||0));
     } else if (sortSel.value === 'price_desc') {
       items.sort((a,b)=>(+b.price||0)-(+a.price||0));
     } else if (sortSel.value === 'new') {
       items.sort((a,b)=> new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    } else if (sortSel.value === 'downloads') {
+      items.sort((a,b)=>(+b.downloads||0)-(+a.downloads||0));
     }
 
     for(const it of items){
@@ -238,7 +242,7 @@
       el.className='item';
       el.dataset.id = it.id; // привʼязуємо id до картки
       el.innerHTML = `
-        <div class="thumb-wrap">
+        <div class="thumb-wrap" data-open>
           <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb"
                loading="lazy"
                onerror="this.onerror=null;this.src='${PLACEHOLDER}';">
@@ -246,7 +250,7 @@
         <div class="meta">
           <div class="title">${escapeHtml(it.title||'Без назви')}</div>
           <div class="tags">${tagsArr.map(t=>`<span class='tag'>${escapeHtml(t)}</span>`).join('')}</div>
-          <div class="muted">★ ${it.rating ?? '—'}</div>
+          <div class="muted">★ ${it.rating ?? '—'} • ⬇️ ${it.downloads ?? 0}</div>
           <div class="price">${(+it.price||0)===0 ? 'Безкоштовно' : (Number(it.price)+' PLN')}</div>
           <div class="actions">
             <button class="btn primary" data-open>Переглянути</button>
