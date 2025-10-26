@@ -5,7 +5,7 @@ import shutil
 import uuid
 from typing import Any, Dict, Optional
 
-from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort
+from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort, redirect
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
@@ -120,14 +120,12 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
                 pass
 
     # -------- 2) Локальний fallback у static/market_uploads --------
-    safe = base_name
     static_root = os.path.join(current_app.root_path, "static")
     folder = os.path.join(static_root, "market_uploads", subdir)
     os.makedirs(folder, exist_ok=True)
 
     name = unique_name  # використовуємо унікальне ім'я, щоб не було колізій
     dst = os.path.join(folder, name)
-
     file_storage.save(dst)
 
     # ВАЖЛИВО: повертаємо роут /media/... щоб збігався з @bp.get("/media/<path:fname>")
@@ -718,8 +716,15 @@ def _static_market_uploads_fallback():
     p = request.path
     if request.method != "GET":
         return
+
+    # 🔁 СУМІСНІСТЬ: якщо випадково збережено префікс /static/market_uploads/media/...
+    if p.startswith("/static/market_uploads/media/"):
+        fname = p.split("/static/market_uploads/media/", 1)[1]
+        return redirect("/media/" + fname, code=302)
+
     if not p.startswith("/static/market_uploads/"):
         return
+
     fs_path = os.path.join(current_app.root_path, p.lstrip("/"))
     if os.path.exists(fs_path):
         return  # файл існує — нічого не робимо
@@ -736,7 +741,8 @@ def _static_market_uploads_fallback():
 
 # ✅ Публічний роут для медіа (з правильними MIME; підтримує старі URL)
 @bp.get("/media/<path:fname>")
-@bp.get("/market/media/<path:fname>")  # сумісність із записами, де збережено старий префікс
+@bp.get("/market/media/<path:fname>")                      # сумісність зі старим префіксом
+@bp.get("/static/market_uploads/media/<path:fname>")       # сумісність із «подвійним» префіксом у БД
 def market_media(fname: str):
     # нормалізуємо шлях і захищаємося від виходу вгору по директоріях
     safe = os.path.normpath(fname).lstrip(os.sep)
