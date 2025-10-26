@@ -60,7 +60,6 @@
   .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
   select{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:8px 10px;}
 
-  /* 3 в ряд на десктопі, далі 2/1 */
   .grid{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr));}
   @media(max-width:1100px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
   @media(max-width:700px){ .grid{grid-template-columns:1fr;} }
@@ -68,8 +67,7 @@
   .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s;}
   .item:hover{transform:translateY(-2px);}
 
-  /* Стабільний фрейм під прев’ю (не стрибає і не розтягує першу картку) */
-  .thumb-wrap{position:relative;width:100%;padding-top:66.666%; /* 3:2 */ background:#0c0f16;border-bottom:1px solid var(--line);cursor:pointer;}
+  .thumb-wrap{position:relative;width:100%;padding-top:66.666%; background:#0c0f16;border-bottom:1px solid var(--line);cursor:pointer;}
   .thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
 
   .meta{padding:12px;display:flex;flex-direction:column;gap:6px;}
@@ -96,7 +94,7 @@
   const notice = document.getElementById('notice');
   const sentinel = document.getElementById('sentinel');
 
-  let MODE = 'all';         // 'all' | 'mine'
+  let MODE = 'all';
   let page = 1;
   const PER_PAGE = 24;
   let hasMore = true;
@@ -129,10 +127,13 @@
   }
 
   const PLACEHOLDER = '/static/img/placeholder_stl.jpg';
+
+  // Підтримує http(s), /media/*, /market/media/*, /static/* та відносні шляхи
   function assetUrl(src){
     if (!src) return PLACEHOLDER;
     const s = String(src).trim();
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('/media/') || s.startsWith('/market/media/')) return s;
     if (s.startsWith('/static/')) return s;
     if (s.startsWith('static/'))  return '/'+s;
     return s[0] === '/' ? s : '/'+s;
@@ -156,7 +157,7 @@
         const qs = new URLSearchParams({
           q: q.value || '',
           free: filterFree.value,
-          sort: sortSel.value,             // ⇦ ДОДАНО: передаємо параметр сортування на бекенд
+          sort: sortSel.value,
           page: String(page),
           per_page: String(PER_PAGE)
         }).toString();
@@ -201,7 +202,6 @@
   }
 
   function appendItems(items){
-    // клієнтське сортування (актуально для MODE==='mine' або коли хочеш підправити порядок)
     if (sortSel.value === 'price_asc') {
       items.sort((a,b)=>(+a.price||0)-(+b.price||0));
     } else if (sortSel.value === 'price_desc') {
@@ -217,17 +217,15 @@
         ? it.tags
         : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
 
-      // ---- НОВЕ: надійний вибір обкладинки (cover -> cover_url -> photos.images[0] -> gallery_urls[0]) ----
+      // Вибір обкладинки
       let coverCandidate = it.cover || it.cover_url || null;
 
-      // якщо бекенд віддав it.photos
       if (!coverCandidate && it.photos){
         try{
           const ph = (typeof it.photos === 'string') ? JSON.parse(it.photos) : it.photos;
           if (ph && Array.isArray(ph.images) && ph.images.length) coverCandidate = ph.images[0];
         }catch(_){}
       }
-      // якщо бекенд віддав it.gallery_urls як масив або рядок JSON
       if (!coverCandidate && it.gallery_urls){
         try{
           const g = Array.isArray(it.gallery_urls) ? it.gallery_urls
@@ -236,11 +234,11 @@
         }catch(_){}
       }
 
-      const coverSrc = assetUrl(coverCandidate);
+      const coverSrc = assetUrl(coverCandidate) || PLACEHOLDER;
 
       const el = document.createElement('div');
       el.className='item';
-      el.dataset.id = it.id; // привʼязуємо id до картки
+      el.dataset.id = it.id;
       el.innerHTML = `
         <div class="thumb-wrap" data-open>
           <img src="${coverSrc}" alt="${escapeHtml(it.title||'')}" class="thumb"
@@ -262,7 +260,6 @@
     }
   }
 
-  // Показувати керування тільки в режимі "Мої оголошення"
   function ownerActions(){
     if (MODE !== 'mine') return '';
     return `
