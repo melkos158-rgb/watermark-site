@@ -87,12 +87,17 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
-    # --- ДОДАНО: конфіг медіа та створення директорії ---
+    # --- гарантія, що директорія маркету існує (для Railway/продакшн) ---
+    uploads_dir = os.path.join(app.root_path, "static", "market_uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    # ---------------------------------------------------------------------
+
+    # --- ДОДАНО: конфіг медіа (якщо окремо хочеш класти файли у /media) ---
     base_dir = os.path.abspath(os.path.dirname(__file__))
     app.config.setdefault("MEDIA_ROOT", os.path.join(base_dir, "media"))
     app.config.setdefault("MEDIA_URL", "/media/")
     os.makedirs(app.config["MEDIA_ROOT"], exist_ok=True)
-    # -----------------------------------------------------
+    # ---------------------------------------------------------------------
 
     # 1) підключаємо БД до Flask
     init_app_db(app)
@@ -474,7 +479,7 @@ def create_app():
             return redirect(url_for("admin_panel"))
 
         ext = f.filename.rsplit(".", 1)[1].lower()
-        fname = f"default_banner.{ext}"""
+        fname = f"default_banner.{ext}"   # <<< FIX синтаксису
         save_rel = os.path.join("ads", fname).replace("\\", "/")
         save_abs = os.path.join("static", save_rel)
         os.makedirs(os.path.dirname(save_abs), exist_ok=True)
@@ -671,16 +676,37 @@ def create_app():
 
     # ======================================================================
 
-    # --- ДОДАНО: роут для віддачі медіафайлів ---
+    # --- Роут для віддачі медіафайлів (підтримує і /media, і /market/media) ---
     @app.route("/media/<path:filename>")
+    @app.route("/market/media/<path:filename>")
     def media(filename):
-        # читаємо з MEDIA_ROOT; у БД зберігається лише відносний шлях типу "user/3/covers/file.jpg"
-        root = app.config["MEDIA_ROOT"]
-        full = os.path.join(root, filename)
-        if not os.path.isfile(full):
-            return abort(404)
-        return send_from_directory(root, filename)
-    # ---------------------------------------------
+        # 1) основне місце — static/market_uploads (те, що використовує market.py)
+        roots = [
+            os.path.join(app.root_path, "static", "market_uploads"),
+            app.config.get("MEDIA_ROOT", os.path.join(app.root_path, "media")),
+        ]
+        filename_safe = os.path.normpath(filename).lstrip(os.sep)
+
+        for root in roots:
+            full = os.path.join(root, filename_safe)
+            if os.path.isfile(full):
+                # визначимо коректний MIME для STL/GLTF/ZIP, інакше залишимо None
+                low = filename_safe.lower()
+                mimetype = None
+                if low.endswith(".stl"):
+                    mimetype = "model/stl"
+                elif low.endswith(".obj"):
+                    mimetype = "text/plain"
+                elif low.endswith(".glb"):
+                    mimetype = "model/gltf-binary"
+                elif low.endswith(".gltf"):
+                    mimetype = "model/gltf+json"
+                elif low.endswith(".zip"):
+                    mimetype = "application/zip"
+                return send_from_directory(root, filename_safe, mimetype=mimetype)
+
+        return abort(404)
+    # ---------------------------------------------------------------------------
 
     return app
 
