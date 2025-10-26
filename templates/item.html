@@ -132,17 +132,21 @@
   const qs  = (s) => document.querySelector(s);
   const qsa = (s) => Array.from(document.querySelectorAll(s));
 
-  // ---- нормалізація шляхів (і для фото, і для STL)
+  // ---- нормалізація шляхів (фото та STL) ----
   const STATIC_PREFIX = '/static/market_uploads/';
   function normalizePath(u){
     if(!u) return '';
     u = String(u).trim();
-    if(/^https?:\/\//i.test(u)) return u;
-    if(u.startsWith('/static/')) return u;
+    if(/^https?:\/\//i.test(u)) return u;                  // абсолютні URL (Cloudinary тощо)
+    if(u.startsWith('/media/')) return u;                  // новий медіа-роут
+    if(u.startsWith('/market/media/')) return u;           // сумісність зі старим префіксом
+    if(u.startsWith('/static/')) return u;                 // звичайні статичні
+    if(u.startsWith('static/'))  return '/'+u;
     if(u.startsWith('market_uploads/')) return '/static/' + u;
     if(u.startsWith('img/') || u.startsWith('ads/')) return '/static/' + u;
-    // просто ім'я файлу → кидаємо в корінь market_uploads
-    return STATIC_PREFIX + u.replace(/^\/+/, '');
+    // якщо просто ім'я — кладемо в корінь market_uploads
+    if(u[0] !== '/') return STATIC_PREFIX + u;
+    return u;
   }
 
   // розпізнавання типів
@@ -170,7 +174,7 @@
   // дані з бекенда
   const cover          = {{ (item.cover or item.cover_url or '') | tojson }};
   const photosFromItem = {{ item.photos | tojson }};
-  const galleryUrls    = {{ (item.gallery_urls or '[]') | tojson }};
+  const galleryRaw     = {{ (item.gallery_urls or '[]') | tojson }};
   const stlMain        = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
   const stlFromItem    = {{ (item.stl_files or '[]') | tojson }};
 
@@ -184,6 +188,14 @@
     stlList = Array.isArray(photosFromItem.stl)    ? photosFromItem.stl    : [];
   }
 
+  // gallery_urls може прийти рядком JSON — розпарсимо
+  let galleryUrls = [];
+  if (Array.isArray(galleryRaw)) {
+    galleryUrls = galleryRaw;
+  } else if (typeof galleryRaw === 'string') {
+    try { galleryUrls = JSON.parse(galleryRaw); } catch(_) { galleryUrls = []; }
+  }
+
   if (!images?.length && Array.isArray(galleryUrls)) images = galleryUrls;
   if (Array.isArray(stlFromItem) && stlFromItem.length) stlList = stlList.concat(stlFromItem);
 
@@ -194,11 +206,13 @@
   images  = uniq5(images.map(normalizePath).filter(u => hasExt(u, IMG_EXT)));
   stlList = uniq5(stlList.map(normalizePath).filter(u => hasExt(u, STL_EXT)));
 
+  const PLACEHOLDER = '/static/img/placeholder_stl.jpg';
+
   function makeImgSlide(src){
     const s=document.createElement('div'); s.className='glr-slide';
     if (src){
       const img=document.createElement('img'); img.src=src; img.alt='preview'; img.decoding='async'; img.loading='eager';
-      img.onerror=()=>{ s.innerHTML=''; s.appendChild(makeInlinePlaceholder()); };
+      img.onerror=()=>{ img.src=PLACEHOLDER; };
       s.appendChild(img);
     } else { s.appendChild(makeInlinePlaceholder()); }
     return s;
@@ -231,7 +245,7 @@
 
   slides.forEach((sl,i)=>{
     if (sl.type==='img'){
-      const img=document.createElement('img'); img.src=sl.src; img.alt='thumb';
+      const img=document.createElement('img'); img.src=sl.src; img.alt='thumb'; img.onerror=()=>{ img.src=PLACEHOLDER; };
       const btn=thumbButton(img, 'Переглянути фото');
       btn.addEventListener('click',()=>go(i));
       btn.addEventListener('keydown',(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(i);} });
@@ -281,17 +295,15 @@
   slideEls[0].classList.add('active');
   markActive();
 
-  // ------ ДОДАНО: перевірка, що URL реально STL/RAW і існує ------
+  // Перевіряємо що STL-URL дійсно віддає бінарний STL (і не 404-HTML)
   async function isRenderableStl(url){
     try{
       const resp = await fetch(url, { method:'GET' });
       if (!resp.ok) return false;
       const ct = (resp.headers.get('content-type') || '').toLowerCase();
-      // типовий заголовок для STL або RAW
       if (ct.includes('model/stl') || ct.includes('application/octet-stream') || ct.includes('application/vnd.ms-pki.stl')) {
         return true;
       }
-      // резерв: якщо заголовка нема, але розширення .stl — дозволяємо
       if (url.toLowerCase().split('?')[0].endsWith('.stl')) return true;
       return false;
     }catch(_){
@@ -299,10 +311,8 @@
     }
   }
   function replaceWithPlaceholder(container){
-    container.innerHTML='';
-    container.appendChild(makeInlinePlaceholder());
+    container.innerHTML=''; container.appendChild(makeInlinePlaceholder());
   }
-  // ---------------------------------------------------------------
 
   async function initSTL(i){
     const sl=slides[i];
@@ -312,12 +322,8 @@
     const container = document.getElementById(sl.id);
     if (!container) return;
 
-    // Попередня перевірка перед STLLoader — інакше він пробує парсити HTML 404
     const ok = await isRenderableStl(sl.src);
-    if (!ok){
-      replaceWithPlaceholder(container);
-      return;
-    }
+    if (!ok){ replaceWithPlaceholder(container); return; }
 
     const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b0e14);
     const camera=new THREE.PerspectiveCamera(60,1,0.01,1000); camera.position.set(1,0.6,1.5);
@@ -347,7 +353,6 @@
         controls.update();
       },
       undefined,
-      // onError: якщо мережевий збій/невірний контент
       ()=>{ replaceWithPlaceholder(container); }
     );
 
