@@ -734,8 +734,9 @@ def _static_market_uploads_fallback():
         abort(404)
 
 
-# ✅ Публічний роут для медіа (з правильними MIME; можна зберігати URL як /media/<...>)
+# ✅ Публічний роут для медіа (з правильними MIME; підтримує старі URL)
 @bp.get("/media/<path:fname>")
+@bp.get("/market/media/<path:fname>")  # сумісність із записами, де збережено старий префікс
 def market_media(fname: str):
     # нормалізуємо шлях і захищаємося від виходу вгору по директоріях
     safe = os.path.normpath(fname).lstrip(os.sep)
