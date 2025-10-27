@@ -40,7 +40,9 @@
       </div>
 
       {% set zip_url = item.zip_url %}
+      {# Додано: беремо file_url як головний STL, якщо є #}
       {% set prefer_url = zip_url
+                          or item.file_url
                           or item.url
                           or item.stl_main_url
                           or (item.stl_files[0] if item.stl_files else None) %}
@@ -133,7 +135,7 @@
   const qs  = (s) => document.querySelector(s);
   const qsa = (s) => Array.from(document.querySelectorAll(s));
 
-  // ---- нормалізація шляхів (фото та STL) ----
+  /* ---- Нормалізація шляхів (фото та STL) ---- */
   const STATIC_PREFIX = '/static/market_uploads/';
   function normalizePath(u){
     if(!u) return '';
@@ -150,9 +152,9 @@
       u = '/' + u.replace('market_uploads', '');
     }
 
-    if(/^https?:\/\//i.test(u)) return u;     // абсолютні URL (Cloudinary тощо)
+    if(/^https?:\/\//i.test(u)) return u;     // абсолютні URL
     if(u.startsWith('/media/')) return u;     // новий медіа-роут
-    if(u.startsWith('/market/media/')) return u; // сумісність зі старим префіксом
+    if(u.startsWith('/market/media/')) return u; // старий префікс
     if(u.startsWith('/static/')) return u;    // звичайні статичні
     if(u.startsWith('static/'))  return '/'+u;
     if(u.startsWith('market_uploads/')) return '/static/' + u;
@@ -162,7 +164,7 @@
     return u;
   }
 
-  // розпізнавання типів
+  /* Розпізнавання типів */
   const IMG_EXT = ['.png','.jpg','.jpeg','.webp'];
   const STL_EXT = ['.stl','.obj','.glb','.gltf','.ply'];
   const hasExt = (u, arr) => {
@@ -184,12 +186,13 @@
   }
   function uniq5(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).slice(0,5); }
 
-  // дані з бекенда
-  const cover          = {{ (item.cover or item.cover_url or '') | tojson }};
+  /* Дані з бекенда */
+  const cover          = {{ (item.cover or item.cover_url or item.cover_image or '') | tojson }};
   const photosFromItem = {{ item.photos | tojson }};
   const galleryRaw     = {{ (item.gallery_urls or '[]') | tojson }};
-  const stlMain        = {{ (item.url or item.stl_url or item.stl_main_url or '') | tojson }};
-  const stlFromItem    = {{ (item.stl_files or '[]') | tojson }};
+  // Додано: file_url як головне джерело STL
+  const stlMain        = {{ (item.file_url or item.url or item.stl_url or item.stl_main_url or '') | tojson }};
+  const stlFromItem    = {{ (item.stl_files or item.file_urls or '[]') | tojson }};
 
   let images = [];
   let stlList = [];
@@ -308,7 +311,7 @@
   slideEls[0].classList.add('active');
   markActive();
 
-  // Перевіряємо що STL-URL дійсно віддає бінарний STL (і не 404-HTML)
+  /* Перевіряємо що STL-URL дійсно віддає бінарний STL (і не 404-HTML) */
   async function isRenderableStl(url){
     try{
       const resp = await fetch(url, { method:'GET' });
@@ -359,8 +362,8 @@
         if(geo.computeVertexNormals) geo.computeVertexNormals();
         scene.add(mesh);
         const box=new THREE.Box3().setFromObject(mesh);
-        const size=box.getSize(new THREE.Vector3());
-        const center=box.getCenter(new THREE.Vector3());
+        const size=box.getSize(new THREE.Vector3>());
+        const center=box.getCenter(new THREE.Vector3>());
         mesh.position.sub(center);
         camera.position.set(size.x*1.2+0.6, size.y*1.2+0.4, size.z*1.5+0.8);
         controls.update();
@@ -379,7 +382,7 @@
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
   }
 
-  // ---- лічильник завантажень
+  /* Лічильник завантажень */
   const btnDownload = document.getElementById('btnDownload');
   async function trackAndGo(a){
     if (!a) return;
