@@ -138,10 +138,22 @@
   function normalizePath(u){
     if(!u) return '';
     u = String(u).trim();
-    if(/^https?:\/\//i.test(u)) return u;                  // абсолютні URL (Cloudinary тощо)
-    if(u.startsWith('/media/')) return u;                  // новий медіа-роут
-    if(u.startsWith('/market/media/')) return u;           // сумісність зі старим префіксом
-    if(u.startsWith('/static/')) return u;                 // звичайні статичні
+
+    // HOTFIX: виправляємо криві шляхи типу /static/market_uploads/media/... -> /media/...
+    if (u.startsWith('/static/market_uploads/media/')) {
+      u = u.replace('/static/market_uploads', '');
+    } else if (u.startsWith('static/market_uploads/media/')) {
+      u = ('/' + u).replace('/static/market_uploads', '');
+    } else if (u.startsWith('/market_uploads/media/')) {
+      u = u.replace('/market_uploads', '');
+    } else if (u.startsWith('market_uploads/media/')) {
+      u = '/' + u.replace('market_uploads', '');
+    }
+
+    if(/^https?:\/\//i.test(u)) return u;     // абсолютні URL (Cloudinary тощо)
+    if(u.startsWith('/media/')) return u;     // новий медіа-роут
+    if(u.startsWith('/market/media/')) return u; // сумісність зі старим префіксом
+    if(u.startsWith('/static/')) return u;    // звичайні статичні
     if(u.startsWith('static/'))  return '/'+u;
     if(u.startsWith('market_uploads/')) return '/static/' + u;
     if(u.startsWith('img/') || u.startsWith('ads/')) return '/static/' + u;
