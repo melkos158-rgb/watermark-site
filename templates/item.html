@@ -31,7 +31,7 @@
       </div>
 
       <div class="muted">★ {{ item.rating if item.rating is not none else '—' }}</div>
-      <p>{{ item.desc }}</p>
+      <p>{{ item.desc or item.description }}</p>
 
       <div class="stats">
         <div>📦 Завантажень: {{ item.downloads or 0 }}</div>
@@ -41,8 +41,9 @@
 
       {% set zip_url = item.zip_url %}
       {% set prefer_url = zip_url
+                          or item.url
                           or item.stl_main_url
-                          or (item.stl_extra[0] if item.stl_extra else None) %}
+                          or (item.stl_files[0] if item.stl_files else None) %}
 
       {% if item.price == 0 %}
         {% if prefer_url %}
