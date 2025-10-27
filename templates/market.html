@@ -128,19 +128,14 @@
 
   const PLACEHOLDER = '/static/img/placeholder_stl.jpg';
 
-  // Підтримує http(s), /media/*, /market/media/*, /static/* та відносні.
-  // HOTFIX: виправляємо шляхи виду "/static/market_uploads/media/..." -> "/media/..."
   function assetUrl(src){
     if (!src) return PLACEHOLDER;
     let s = String(src).trim();
-
-    /* ⬇️ додано 2 рядки-хотфікси */
     if (s.startsWith('/static/market_uploads/')) {
       s = s.replace('/static/market_uploads/', '/media/');
     } else if (s.startsWith('static/market_uploads/')) {
       s = ('/' + s).replace('/static/market_uploads/', '/media/');
     }
-
     if (s.startsWith('/static/market_uploads/media/')) {
       s = s.replace('/static/market_uploads', '');
     } else if (s.startsWith('static/market_uploads/media/')) {
@@ -150,7 +145,6 @@
     } else if (s.startsWith('market_uploads/media/')) {
       s = '/' + s.replace('market_uploads', '');
     }
-
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
     if (s.startsWith('/media/') || s.startsWith('/market/media/')) return s;
     if (s.startsWith('/static/')) return s;
@@ -236,8 +230,8 @@
         ? it.tags
         : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
 
-      // Вибір обкладинки
-      let coverCandidate = it.cover || it.cover_url || null;
+      // ✅ Виправлено — тепер обкладинка береться коректно
+      let coverCandidate = it.cover_url || it.cover || null;
 
       if (!coverCandidate && it.photos){
         try{
