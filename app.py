@@ -416,6 +416,8 @@ def create_app():
         roots = [
             os.path.join(app.root_path, "static", "market_uploads"),
             app.config.get("MEDIA_ROOT", os.path.join(app.root_path, "media")),
+            # ✅ додано резервний шлях до "static" — щоб не було 404, якщо файли туди збереглись
+            os.path.join(app.root_path, "static"),
         ]
         for root in roots:
             full = os.path.join(root, safe)
@@ -432,6 +434,12 @@ def create_app():
                     mimetype = "model/gltf+json"
                 elif low.endswith(".zip"):
                     mimetype = "application/zip"
+                elif low.endswith((".jpg", ".jpeg")):
+                    mimetype = "image/jpeg"
+                elif low.endswith(".png"):
+                    mimetype = "image/png"
+                elif low.endswith(".webp"):
+                    mimetype = "image/webp"
                 return send_from_directory(root, safe, mimetype=mimetype)
         return abort(404)
 
