@@ -10,7 +10,7 @@
       <button class="btn" id="btnSearch">🔍</button>
     </div>
 
-    <div class="toolbar">
+    <div class="toolbar">  
       <button class="btn" id="btnMine" title="Показати тільки мої оголошення">Мої оголошення</button>
       <a href="{{ url_for('market.page_upload') }}" class="btn primary">+ Додати модель</a>
     </div>
@@ -133,6 +133,13 @@
   function assetUrl(src){
     if (!src) return PLACEHOLDER;
     let s = String(src).trim();
+
+    /* ⬇️ додано 2 рядки-хотфікси */
+    if (s.startsWith('/static/market_uploads/')) {
+      s = s.replace('/static/market_uploads/', '/media/');
+    } else if (s.startsWith('static/market_uploads/')) {
+      s = ('/' + s).replace('/static/market_uploads/', '/media/');
+    }
 
     if (s.startsWith('/static/market_uploads/media/')) {
       s = s.replace('/static/market_uploads', '');
