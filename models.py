@@ -38,26 +38,30 @@ class MarketItem(_db.Model):
     title = _db.Column(_db.String(200))
     price = _db.Column(_db.Integer, default=0)
     tags = _db.Column(_db.Text, default="")
-    # атрибут 'desc' мапиться на колонку "description"
+    # важливо: атрибут лишається 'desc', але БД-колонка називається "description"
     desc = _db.Column("description", _db.Text, default="")
     user_id = _db.Column(_db.Integer, index=True)
 
     # ---------- медіа ----------
-    cover_url = _db.Column(_db.Text)
-    gallery_urls = _db.Column(_db.Text, default="[]")
-    stl_main_url = _db.Column(_db.Text)
-    stl_extra_urls = _db.Column(_db.Text, default="[]")
-    zip_url = _db.Column(_db.Text)
+    cover_url = _db.Column(_db.Text)                  # головне фото
+    gallery_urls = _db.Column(_db.Text, default="[]") # список фото (JSON-рядок)
 
-    # ---------- додаткове ----------
+    stl_main_url = _db.Column(_db.Text)               # основний STL
+    stl_extra_urls = _db.Column(_db.Text, default="[]")  # дод. STL (JSON-рядок)
+
+    zip_url = _db.Column(_db.Text)                    # головний ZIP (якщо є)
+
+    # ---------- для сумісності з market.py ----------
     format = _db.Column(_db.String(16), default="stl")
     rating = _db.Column(_db.Float, default=0)
     downloads = _db.Column(_db.Integer, default=0)
 
     created_at = _db.Column(_db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = _db.Column(_db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = _db.Column(
+        _db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
-    # ---------- утиліти ----------
+    # ------------- УТИЛІТИ -------------
     def _loads(self, value: str | None) -> list[str]:
         try:
             return json.loads(value) if value else []
@@ -66,14 +70,23 @@ class MarketItem(_db.Model):
 
     @property
     def gallery(self) -> list[str]:
+        """Список фото як Python-список."""
         return self._loads(self.gallery_urls)
 
     @property
     def stl_extra(self) -> list[str]:
+        """Список додаткових STL як Python-список."""
         return self._loads(self.stl_extra_urls)
 
     @property
     def preferred_download_url(self) -> str | None:
+        """
+        Головний файл для скачування:
+        1) zip_url, якщо є
+        2) stl_main_url, якщо є
+        3) перший з stl_extra
+        4) None
+        """
         if self.zip_url:
             return self.zip_url
         if self.stl_main_url:
@@ -82,6 +95,7 @@ class MarketItem(_db.Model):
         return extras[0] if extras else None
 
     def to_dict(self) -> dict:
+        """Зручно віддавати в шаблон/JSON. Не змінює існуючих полів."""
         return {
             "id": self.id,
             "title": self.title,
@@ -90,9 +104,9 @@ class MarketItem(_db.Model):
             "desc": self.desc,
             "user_id": self.user_id,
             "cover_url": self.cover_url,
-            "gallery_urls": self.gallery,      # список
+            "gallery_urls": self.gallery,      # вже як список
             "stl_main_url": self.stl_main_url,
-            "stl_extra_urls": self.stl_extra,  # список
+            "stl_extra_urls": self.stl_extra,  # вже як список
             "zip_url": self.zip_url,
             "preferred_download_url": self.preferred_download_url,
             "format": self.format,
@@ -102,28 +116,42 @@ class MarketItem(_db.Model):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
-    # ---------- аліаси для сумісності з market.py ----------
+    # ------------- АЛІАСИ ДЛЯ СУМІСНОСТІ З market.py -------------
+
+    # cover  <-> cover_url
     @property
     def cover(self) -> Optional[str]:
         return self.cover_url
+
     @cover.setter
     def cover(self, value: Optional[str]) -> None:
         self.cover_url = value
 
+    # file_url  <-> stl_main_url
     @property
     def file_url(self) -> Optional[str]:
         return self.stl_main_url
+
     @file_url.setter
     def file_url(self, value: Optional[str]) -> None:
         self.stl_main_url = value
 
+    # url — часто в SQL робили "i.file_url AS url"
     @property
     def url(self) -> Optional[str]:
         return self.stl_main_url
 
+    # photos — сумісне представлення для market.py
     @property
     def photos(self) -> str:
-        payload: Dict[str, Any] = {"images": self.gallery, "stl": self.stl_extra}
+        """
+        Повертаємо СТРОКУ JSON:
+        {"images": [...], "stl": [...]}
+        """
+        payload: Dict[str, Any] = {
+            "images": self.gallery,
+            "stl": self.stl_extra,
+        }
         try:
             return json.dumps(payload, ensure_ascii=False)
         except Exception:
@@ -131,10 +159,16 @@ class MarketItem(_db.Model):
 
     @photos.setter
     def photos(self, value: str | dict | list) -> None:
+        """
+        Приймає JSON-рядок / dict {"images":[...], "stl":[...]} / list (список зображень).
+        Записує у gallery_urls та stl_extra_urls.
+        """
         imgs: list[str] = []
         stls: list[str] = []
         try:
-            data = value if isinstance(value, (dict, list)) else json.loads(value or "{}")
+            data = value
+            if not isinstance(data, (dict, list)):
+                data = json.loads(value or "{}")
             if isinstance(data, list):
                 imgs = [s for s in data if s]
             elif isinstance(data, dict):
