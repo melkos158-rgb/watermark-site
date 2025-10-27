@@ -40,9 +40,7 @@
       </div>
 
       {% set zip_url = item.zip_url %}
-      {# Додано: беремо file_url як головний STL, якщо є #}
       {% set prefer_url = zip_url
-                          or item.file_url
                           or item.url
                           or item.stl_main_url
                           or (item.stl_files[0] if item.stl_files else None) %}
@@ -80,7 +78,6 @@
   .flex{display:flex;gap:16px;flex-wrap:wrap}
   .left{flex:1 1 520px;min-width:320px}
   .right{flex:1 1 300px;min-width:260px;display:flex;flex-direction:column;gap:10px}
-
   .glr{position:relative;border:1px solid var(--line);border-radius:12px;background:#0c0f16}
   .glr-stage{position:relative;width:100%;height:420px;overflow:hidden;border-radius:12px}
   .glr-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:0}
@@ -88,13 +85,11 @@
   .glr-slide img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0e14;display:block}
   .glr-slide svg{width:60%;max-width:560px;aspect-ratio:4/3}
   .glr-stl{width:100%;height:100%}
-
   .glr-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,25,35,.85);
     border:1px solid var(--line);color:#fff;width:38px;height:38px;border-radius:10px;display:flex;
     align-items:center;justify-content:center;cursor:pointer;user-select:none;z-index:2}
   .glr-btn:hover{background:rgba(45,55,75,.95)}
   .glr-prev{left:10px}.glr-next{right:10px}
-
   .glr-thumbs{display:flex;gap:8px;padding:10px;overflow:auto;border-top:1px solid var(--line)}
   .gthumb-btn{border:1px solid var(--line);border-radius:8px;background:#0b0e14;color:var(--text);
     width:74px;height:56px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.92;flex:0 0 auto}
@@ -102,7 +97,6 @@
   .gthumb-btn.active{outline:2px solid var(--accent);opacity:1}
   .gthumb-btn img{width:100%;height:100%;object-fit:cover;border-radius:6px}
   .gthumb-stl-label{font-size:12px;opacity:.9}
-
   .title{font-size:22px;font-weight:800}
   .price{font-weight:700;color:var(--accent)}
   .tags{display:flex;gap:6px;flex-wrap:wrap}
@@ -135,13 +129,13 @@
   const qs  = (s) => document.querySelector(s);
   const qsa = (s) => Array.from(document.querySelectorAll(s));
 
-  /* ---- Нормалізація шляхів (фото та STL) ---- */
+  // ---- нормалізація шляхів (фото та STL) ----
   const STATIC_PREFIX = '/static/market_uploads/';
   function normalizePath(u){
     if(!u) return '';
     u = String(u).trim();
 
-    // HOTFIX: виправляємо криві шляхи типу /static/market_uploads/media/... -> /media/...
+    // HOTFIX: шляхи виду /static/market_uploads/media/... -> /media/...
     if (u.startsWith('/static/market_uploads/media/')) {
       u = u.replace('/static/market_uploads', '');
     } else if (u.startsWith('static/market_uploads/media/')) {
@@ -152,19 +146,18 @@
       u = '/' + u.replace('market_uploads', '');
     }
 
-    if(/^https?:\/\//i.test(u)) return u;     // абсолютні URL
-    if(u.startsWith('/media/')) return u;     // новий медіа-роут
-    if(u.startsWith('/market/media/')) return u; // старий префікс
-    if(u.startsWith('/static/')) return u;    // звичайні статичні
+    if(/^https?:\/\//i.test(u)) return u;
+    if(u.startsWith('/media/')) return u;
+    if(u.startsWith('/market/media/')) return u;
+    if(u.startsWith('/static/')) return u;
     if(u.startsWith('static/'))  return '/'+u;
     if(u.startsWith('market_uploads/')) return '/static/' + u;
     if(u.startsWith('img/') || u.startsWith('ads/')) return '/static/' + u;
-    // якщо просто ім'я — кладемо в корінь market_uploads
     if(u[0] !== '/') return STATIC_PREFIX + u;
     return u;
   }
 
-  /* Розпізнавання типів */
+  // розпізнавання типів
   const IMG_EXT = ['.png','.jpg','.jpeg','.webp'];
   const STL_EXT = ['.stl','.obj','.glb','.gltf','.ply'];
   const hasExt = (u, arr) => {
@@ -186,13 +179,13 @@
   }
   function uniq5(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).slice(0,5); }
 
-  /* Дані з бекенда */
-  const cover          = {{ (item.cover or item.cover_url or item.cover_image or '') | tojson }};
-  const photosFromItem = {{ item.photos | tojson }};
-  const galleryRaw     = {{ (item.gallery_urls or '[]') | tojson }};
-  // Додано: file_url як головне джерело STL
-  const stlMain        = {{ (item.file_url or item.url or item.stl_url or item.stl_main_url or '') | tojson }};
-  const stlFromItem    = {{ (item.stl_files or item.file_urls or '[]') | tojson }};
+  // ---- дані з бекенда (УСІ — через default(None) -> валідний JS) ----
+  const cover          = {{ (item.cover        | default(None)) | tojson }};
+  const cover_url      = {{ (item.cover_url    | default(None)) | tojson }};
+  const photosFromItem = {{ (item.photos       | default(None)) | tojson }};
+  const galleryRaw     = {{ (item.gallery_urls | default('[]')) | tojson }};
+  const stlMain        = {{ (item.url or item.stl_url or item.stl_main_url | default(None)) | tojson }};
+  const stlFromItem    = {{ (item.stl_files    | default('[]')) | tojson }};
 
   let images = [];
   let stlList = [];
@@ -213,10 +206,14 @@
   }
 
   if (!images?.length && Array.isArray(galleryUrls)) images = galleryUrls;
-  if (Array.isArray(stlFromItem) && stlFromItem.length) stlList = stlList.concat(stlFromItem);
+  if (Array.isArray(stlFromItem) && stlFromItem.length) {
+    // якщо це був рядок "[]", він не масив — ігноруємо
+    if (Array.isArray(stlFromItem)) stlList = stlList.concat(stlFromItem);
+  }
 
-  if (cover)    images  = [cover, ...images];
-  if (stlMain)  stlList = [stlMain, ...stlList];
+  const chosenCover = cover ?? cover_url;
+  if (chosenCover) images = [chosenCover, ...images];
+  if (stlMain)     stlList = [stlMain,   ...stlList];
 
   // фільтрація та нормалізація
   images  = uniq5(images.map(normalizePath).filter(u => hasExt(u, IMG_EXT)));
@@ -311,15 +308,12 @@
   slideEls[0].classList.add('active');
   markActive();
 
-  /* Перевіряємо що STL-URL дійсно віддає бінарний STL (і не 404-HTML) */
   async function isRenderableStl(url){
     try{
       const resp = await fetch(url, { method:'GET' });
       if (!resp.ok) return false;
       const ct = (resp.headers.get('content-type') || '').toLowerCase();
-      if (ct.includes('model/stl') || ct.includes('application/octet-stream') || ct.includes('application/vnd.ms-pki.stl')) {
-        return true;
-      }
+      if (ct.includes('model/stl') || ct.includes('application/octet-stream') || ct.includes('application/vnd.ms-pki.stl')) return true;
       if (url.toLowerCase().split('?')[0].endsWith('.stl')) return true;
       return false;
     }catch(_){
@@ -362,8 +356,8 @@
         if(geo.computeVertexNormals) geo.computeVertexNormals();
         scene.add(mesh);
         const box=new THREE.Box3().setFromObject(mesh);
-        const size=box.getSize(new THREE.Vector3>());
-        const center=box.getCenter(new THREE.Vector3>());
+        const size=box.getSize(new THREE.Vector3());
+        const center=box.getCenter(new THREE.Vector3());
         mesh.position.sub(center);
         camera.position.set(size.x*1.2+0.6, size.y*1.2+0.4, size.z*1.5+0.8);
         controls.update();
@@ -382,7 +376,7 @@
     (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
   }
 
-  /* Лічильник завантажень */
+  // ---- лічильник завантажень
   const btnDownload = document.getElementById('btnDownload');
   async function trackAndGo(a){
     if (!a) return;
