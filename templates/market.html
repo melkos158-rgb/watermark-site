@@ -128,10 +128,22 @@
 
   const PLACEHOLDER = '/static/img/placeholder_stl.jpg';
 
-  // Підтримує http(s), /media/*, /market/media/*, /static/* та відносні шляхи
+  // Підтримує http(s), /media/*, /market/media/*, /static/* та відносні.
+  // HOTFIX: виправляємо шляхи виду "/static/market_uploads/media/..." -> "/media/..."
   function assetUrl(src){
     if (!src) return PLACEHOLDER;
-    const s = String(src).trim();
+    let s = String(src).trim();
+
+    if (s.startsWith('/static/market_uploads/media/')) {
+      s = s.replace('/static/market_uploads', '');
+    } else if (s.startsWith('static/market_uploads/media/')) {
+      s = ('/' + s).replace('/static/market_uploads', '');
+    } else if (s.startsWith('/market_uploads/media/')) {
+      s = s.replace('/market_uploads', '');
+    } else if (s.startsWith('market_uploads/media/')) {
+      s = '/' + s.replace('market_uploads', '');
+    }
+
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
     if (s.startsWith('/media/') || s.startsWith('/market/media/')) return s;
     if (s.startsWith('/static/')) return s;
