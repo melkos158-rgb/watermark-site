@@ -131,6 +131,12 @@
   function assetUrl(src){
     if (!src) return PLACEHOLDER;
     let s = String(src).trim();
+
+    // ✅ ГОЛОВНЕ ВИПРАВЛЕННЯ — для Railway-деплою
+    if (s.startsWith('/media/user_')) {
+      s = '/market' + s;
+    }
+
     if (s.startsWith('/static/market_uploads/')) {
       s = s.replace('/static/market_uploads/', '/media/');
     } else if (s.startsWith('static/market_uploads/')) {
@@ -230,7 +236,6 @@
         ? it.tags
         : (typeof it.tags === 'string' ? it.tags.split(',').map(s=>s.trim()).filter(Boolean) : []);
 
-      // ✅ Виправлено — тепер обкладинка береться коректно
       let coverCandidate = it.cover_url || it.cover || null;
 
       if (!coverCandidate && it.photos){
