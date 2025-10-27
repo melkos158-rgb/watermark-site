@@ -64,7 +64,7 @@ def _normalize_free(value: Optional[str]) -> str:
     return v if v in ("all", "free", "paid") else "all"
 
 def _normalize_sort(value: Optional[str]) -> str:
-    v = (value or "new"). lower()
+    v = (value or "new").lower()
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
@@ -91,7 +91,6 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
         try:
             # Визначаємо тип ресурсу для Cloudinary
             if ext in ALLOWED_IMAGE_EXT:
-                resource_type = "image"
                 folder = f"proofly/market/{subdir}".replace("\\", "/")
                 res = cloudinary.uploader.upload(
                     file_storage,
@@ -100,12 +99,11 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
                 )
             else:
                 # STL/OBJ/ZIP → вантажимо як RAW
-                resource_type = "raw"
                 folder = f"proofly/market/{subdir}".replace("\\", "/")
                 res = cloudinary.uploader.upload(
                     file_storage,
                     folder=folder,
-                    resource_type=resource_type,
+                    resource_type="raw",
                     public_id=os.path.splitext(unique_name)[0]
                 )
 
