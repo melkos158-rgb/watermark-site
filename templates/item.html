@@ -78,7 +78,6 @@
   .flex{display:flex;gap:16px;flex-wrap:wrap}
   .left{flex:1 1 520px;min-width:320px}
   .right{flex:1 1 300px;min-width:260px;display:flex;flex-direction:column;gap:10px}
-
   .glr{position:relative;border:1px solid var(--line);border-radius:12px;background:#0c0f16}
   .glr-stage{position:relative;width:100%;height:420px;overflow:hidden;border-radius:12px}
   .glr-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:0}
@@ -86,13 +85,11 @@
   .glr-slide img{max-width:100%;max-height:100%;object-fit:contain;background:#0b0e14;display:block}
   .glr-slide svg{width:60%;max-width:560px;aspect-ratio:4/3}
   .glr-stl{width:100%;height:100%}
-
   .glr-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,25,35,.85);
     border:1px solid var(--line);color:#fff;width:38px;height:38px;border-radius:10px;display:flex;
     align-items:center;justify-content:center;cursor:pointer;user-select:none;z-index:2}
   .glr-btn:hover{background:rgba(45,55,75,.95)}
   .glr-prev{left:10px}.glr-next{right:10px}
-
   .glr-thumbs{display:flex;gap:8px;padding:10px;overflow:auto;border-top:1px solid var(--line)}
   .gthumb-btn{border:1px solid var(--line);border-radius:8px;background:#0b0e14;color:var(--text);
     width:74px;height:56px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.92;flex:0 0 auto}
@@ -100,7 +97,6 @@
   .gthumb-btn.active{outline:2px solid var(--accent);opacity:1}
   .gthumb-btn img{width:100%;height:100%;object-fit:cover;border-radius:6px}
   .gthumb-stl-label{font-size:12px;opacity:.9}
-
   .title{font-size:22px;font-weight:800}
   .price{font-weight:700;color:var(--accent)}
   .tags{display:flex;gap:6px;flex-wrap:wrap}
@@ -183,12 +179,12 @@
   }
   function uniq5(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).slice(0,5); }
 
-  // ---- дані з бекенда (усі — JSON-безпечні) ----
+  // ---- дані з бекенда (обов'язково валідні значення у JS) ----
   const cover          = {{ (item.cover        | default(None)) | tojson }};
   const cover_url      = {{ (item.cover_url    | default(None)) | tojson }};
   const photosFromItem = {{ (item.photos       | default(None)) | tojson }};
   const galleryRaw     = {{ (item.gallery_urls | default([]))   | tojson }};
-  const stlMain        = {{ ((item.url or item.stl_url or item.stl_main_url) or None) | tojson }};
+  const stlMain        = {{ ((item.url or item.stl_url or item.stl_main_url) | default(None)) | tojson }};
   const stlFromItem    = {{ (item.stl_files    | default([]))   | tojson }};
 
   let images = [];
@@ -212,9 +208,9 @@
   if (!images?.length && Array.isArray(galleryUrls)) images = galleryUrls;
   if (Array.isArray(stlFromItem) && stlFromItem.length) stlList = stlList.concat(stlFromItem);
 
-  const chosenCover = cover ?? cover_url;
+  const chosenCover = (cover ?? cover_url);
   if (chosenCover) images = [chosenCover, ...images];
-  if (stlMain)     stlList = [stlMain, ...stlList];
+  if (stlMain)     stlList = [stlMain,   ...stlList];
 
   // фільтрація та нормалізація
   images  = uniq5(images.map(normalizePath).filter(u => hasExt(u, IMG_EXT)));
