@@ -135,6 +135,13 @@
     if(!u) return '';
     u = String(u).trim();
 
+    /* ⬇️ додано 2 рядки-хотфікси */
+    if (u.startsWith('/static/market_uploads/')) {
+      u = u.replace('/static/market_uploads/', '/media/');
+    } else if (u.startsWith('static/market_uploads/')) {
+      u = ('/' + u).replace('/static/market_uploads/', '/media/');
+    }
+
     // HOTFIX: шляхи виду /static/market_uploads/media/... -> /media/...
     if (u.startsWith('/static/market_uploads/media/')) {
       u = u.replace('/static/market_uploads', '');
