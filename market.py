@@ -68,20 +68,47 @@ def _normalize_sort(value: Optional[str]) -> str:
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
 def _local_media_exists(media_url: str) -> bool:
-    if not media_url or not media_url.startswith("/media/"):
+    """
+    Приймає як новий шлях (/media/...), так і старий (/static/market_uploads/...).
+    Перевіряє, чи файл є в static/market_uploads/...
+    """
+    if not media_url:
         return False
-    rel = media_url[len("/media/"):].lstrip("/")
+
+    rel = None
+    if media_url.startswith("/media/"):
+        rel = media_url[len("/media/"):].lstrip("/")
+    elif media_url.startswith("/static/market_uploads/"):
+        rel = media_url[len("/static/market_uploads/"):].lstrip("/")
+    else:
+        return False
+
     abs_path = os.path.join(current_app.root_path, "static", "market_uploads", rel)
     return os.path.isfile(abs_path)
 
 def _normalize_cover_url(url: Optional[str]) -> str:
+    """
+    Повертає валідний URL обкладинки:
+    - http(s)/data: — як є
+    - /media/... — якщо файл існує
+    - /static/market_uploads/... — переписує в /media/... (якщо файл існує)
+    - інакше — плейсхолдер
+    """
     u = (url or "").strip()
     if not u:
         return COVER_PLACEHOLDER
+
     if u.startswith(("http://", "https://", "data:")):
         return u
-    if u.startswith("/media/") and _local_media_exists(u):
+
+    # підтримка як /media/..., так і старих /static/market_uploads/...
+    if _local_media_exists(u):
+        if u.startswith("/static/market_uploads/"):
+            # переписуємо старий шлях на публічний /media/...
+            rest = u[len("/static/market_uploads/"):].lstrip("/")
+            return f"/media/{rest}"
         return u
+
     return COVER_PLACEHOLDER
 
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
