@@ -68,9 +68,6 @@ def _normalize_sort(value: Optional[str]) -> str:
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
 def _local_media_exists(media_url: str) -> bool:
-    """
-    Перевіряє, чи існує локальний файл для URL виду /media/...
-    """
     if not media_url or not media_url.startswith("/media/"):
         return False
     rel = media_url[len("/media/"):].lstrip("/")
@@ -78,31 +75,16 @@ def _local_media_exists(media_url: str) -> bool:
     return os.path.isfile(abs_path)
 
 def _normalize_cover_url(url: Optional[str]) -> str:
-    """
-    Гарантує валідний cover:
-    - Якщо Cloudinary або інший абсолютний URL → залишаємо як є
-    - Якщо локальний /media/... і файл існує → залишаємо
-    - Інакше → плейсхолдер
-    """
     u = (url or "").strip()
     if not u:
         return COVER_PLACEHOLDER
-    # абсолютні (http/https/data) пропускаємо
-    if u.startswith("http://") or u.startswith("https://") or u.startswith("data:"):
+    if u.startswith(("http://", "https://", "data:")):
         return u
-    # валідний локальний
     if u.startswith("/media/") and _local_media_exists(u):
         return u
-    # інші випадки → плейсхолдер
     return COVER_PLACEHOLDER
 
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
-    """
-    Зберігає файл і повертає ПУБЛІЧНИЙ URL.
-    - Якщо налаштовано CLOUDINARY_URL → вантажимо в Cloudinary (image/raw).
-    - Якщо ні або сталася помилка → пишемо локально у static/market_uploads/...
-      і ПОВЕРТАЄМО шлях виду /media/<subdir>/<name> (щоб віддавати коректний MIME).
-    """
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
 
@@ -110,52 +92,40 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     if ext not in allowed_ext:
         return None
 
-    # Уніфіковане безпечне ім'я
     base_name = secure_filename(os.path.basename(file_storage.filename)) or ("file" + ext)
-    # Додамо унікальний суфікс, аби уникнути колізій
     unique_name = f"{os.path.splitext(base_name)[0]}_{uuid.uuid4().hex}{ext}"
 
-    # -------- 1) Спробувати Cloudinary --------
     if _CLOUDINARY_READY:
         try:
-            # Визначаємо тип ресурсу для Cloudinary
+            folder = f"proofly/market/{subdir}".replace("\\", "/")
             if ext in ALLOWED_IMAGE_EXT:
-                folder = f"proofly/market/{subdir}".replace("\\", "/")
                 res = cloudinary.uploader.upload(
-                    file_storage,
-                    folder=folder,
-                    public_id=os.path.splitext(unique_name)[0]  # без розширення
+                    file_storage, folder=folder,
+                    public_id=os.path.splitext(unique_name)[0]
                 )
             else:
-                # STL/OBJ/ZIP → вантажимо як RAW
-                folder = f"proofly/market/{subdir}".replace("\\", "/")
                 res = cloudinary.uploader.upload(
-                    file_storage,
-                    folder=folder,
+                    file_storage, folder=folder,
                     resource_type="raw",
                     public_id=os.path.splitext(unique_name)[0]
                 )
-
             url = res.get("secure_url") or res.get("url")
             if url:
                 return url
         except Exception as _e:
-            # Падаємо у локальний fallback
             try:
                 current_app.logger.warning(f"Cloudinary upload failed, fallback to local: {type(_e).__name__}: {_e}")
             except Exception:
                 pass
 
-    # -------- 2) Локальний fallback у static/market_uploads --------
     static_root = os.path.join(current_app.root_path, "static")
     folder = os.path.join(static_root, "market_uploads", subdir)
     os.makedirs(folder, exist_ok=True)
 
-    name = unique_name  # використовуємо унікальне ім'я, щоб не було колізій
+    name = unique_name
     dst = os.path.join(folder, name)
     file_storage.save(dst)
 
-    # ВАЖЛИВО: повертаємо роут /media/... щоб збігався з @bp.get("/media/<path:fname>")
     rel_inside_market = os.path.join(subdir, name).replace("\\", "/")
     return f"/media/{rel_inside_market}"
 
@@ -231,12 +201,10 @@ def api_items():
 
     offset = (page - 1) * per_page
 
-    # COUNT завжди має пройти навіть на старій схемі
     total = db.session.execute(
         text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params
     ).scalar() or 0
 
-    # --- primary (нова схема) ---
     sql_new = f"""
         SELECT id, title, price, tags,
                COALESCE(cover_url, '') AS cover,
@@ -249,7 +217,6 @@ def api_items():
         {order_sql}
         LIMIT :limit OFFSET :offset
     """
-    # --- fallback 1 (без rating/format/downloads, але все ще нові назви полів) ---
     sql_new_min = f"""
         SELECT id, title, price, tags,
                {cover_expr} AS cover,
@@ -260,7 +227,6 @@ def api_items():
         {order_sql}
         LIMIT :limit OFFSET :offset
     """
-    # --- fallback 2 (стара схема: cover/file_url/photos/desc) ---
     sql_legacy = f"""
         SELECT id, title, price, tags,
                COALESCE(cover, '')   AS cover,
@@ -304,9 +270,11 @@ def api_items():
                 d.setdefault("downloads", 0)
                 items.append(d)
 
-    # 🔧 Пост-обробка: гарантуємо валідний cover (Cloudinary або плейсхолдер)
+    # 🔧 Пост-обробка: валідний cover і сумісність із фронтом
     for it in items:
-        it["cover"] = _normalize_cover_url(it.get("cover"))
+        c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
+        it["cover"] = c
+        it["cover_url"] = c  # 👈 фронт може читати саме це поле
 
     return jsonify({
         "items": items,
@@ -327,7 +295,6 @@ def api_my_items():
     per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
     offset = (page - 1) * per_page
 
-    # new
     sql_new = f"""
         SELECT id, title, price, tags,
                COALESCE(cover_url, '') AS cover,
@@ -340,7 +307,6 @@ def api_my_items():
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset
     """
-    # new (minimal)
     sql_new_min = f"""
         SELECT id, title, price, tags,
                COALESCE(cover_url, '') AS cover,
@@ -351,7 +317,6 @@ def api_my_items():
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset
     """
-    # legacy
     sql_legacy = f"""
         SELECT id, title, price, tags,
                COALESCE(cover, '') AS cover,
@@ -406,9 +371,10 @@ def api_my_items():
                 {"uid": uid}
             ).scalar() or 0
 
-    # 🔧 Пост-обробка: нормалізація cover
     for it in items:
-        it["cover"] = _normalize_cover_url(it.get("cover"))
+        c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
+        it["cover"] = c
+        it["cover_url"] = c  # 👈 сумісність
 
     return jsonify({
         "items": items,
@@ -497,7 +463,6 @@ def api_upload():
         except Exception:
             tags_val = raw_tags
 
-        # ------- STL / ZIP -------
         file_url = (form.get("stl_url") or (form.get("url") or "")).strip()
         zip_url  = (form.get("zip_url") or "").strip()
 
@@ -522,7 +487,6 @@ def api_upload():
                 if saved:
                     stl_urls.append(saved)
 
-        # ------- ФОТО -------
         cover = (form.get("cover_url") or "").strip()
         gallery_files = files.getlist("gallery_files") if "gallery_files" in files else []
         images = []
@@ -670,7 +634,6 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
 
-    # ---- Розпаковуємо photos/galleries ----
     images: list = []
     stl_files: list = []
     try:
@@ -704,19 +667,18 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
         except Exception:
             pass
 
-    # cover: cover_url -> legacy cover -> перше фото
     if not d.get("cover"):
         d["cover"] = d.get("cover_url") or d.get("cover") or (images[0] if images else None)
-
-    # url: новий stl_main_url -> legacy file_url -> перший з додаткових
     if not d.get("url"):
         d["url"] = d.get("stl_main_url") or d.get("file_url") or (stl_files[0] if stl_files else None)
 
     d["photos"] = images[:5]
     d["stl_files"] = stl_files[:5]
 
-    # 🔧 Нормалізуємо cover перед поверненням
-    d["cover"] = _normalize_cover_url(d.get("cover"))
+    # 🔧 Нормалізуємо cover + віддзеркалюємо у cover_url для фронта
+    c = _normalize_cover_url(d.get("cover") or d.get("cover_url"))
+    d["cover"] = c
+    d["cover_url"] = c
 
     return d
 
@@ -756,7 +718,6 @@ def _static_market_uploads_fallback():
     if request.method != "GET":
         return
 
-    # 🔁 СУМІСНІСТЬ: якщо випадково збережено префікс /static/market_uploads/media/...
     if p.startswith("/static/market_uploads/media/"):
         fname = p.split("/static/market_uploads/media/", 1)[1]
         return redirect("/media/" + fname, code=302)
@@ -766,31 +727,27 @@ def _static_market_uploads_fallback():
 
     fs_path = os.path.join(current_app.root_path, p.lstrip("/"))
     if os.path.exists(fs_path):
-        return  # файл існує — нічого не робимо
+        return
 
-    # Якщо просили зображення — віддамо плейсхолдер.
     lower = p.lower()
     if lower.endswith((".jpg", ".jpeg", ".png", ".webp")):
         return current_app.send_static_file("img/placeholder_stl.jpg")
 
-    # Якщо це модель/архів — повертаємо 404, щоб фронт не намагався парсити картинку як STL.
     if lower.endswith((".stl", ".obj", ".glb", ".gltf", ".zip", ".ply")):
         abort(404)
 
 
-# ✅ Публічний роут для медіа (з правильними MIME; підтримує старі URL)
+# ✅ Публічний роут для медіа
 @bp.get("/media/<path:fname>")
-@bp.get("/market/media/<path:fname>")                      # сумісність зі старим префіксом
-@bp.get("/static/market_uploads/media/<path:fname>")       # сумісність із «подвійним» префіксом у БД
+@bp.get("/market/media/<path:fname>")
+@bp.get("/static/market_uploads/media/<path:fname>")
 def market_media(fname: str):
-    # нормалізуємо шлях і захищаємося від виходу вгору по директоріях
     safe = os.path.normpath(fname).lstrip(os.sep)
     base_dir = os.path.join(current_app.root_path, "static", "market_uploads")
     abs_path = os.path.join(base_dir, safe)
     if not os.path.isfile(abs_path):
         abort(404)
 
-    # MIME
     mime = None
     low = safe.lower()
     if low.endswith(".stl"):
