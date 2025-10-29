@@ -416,7 +416,7 @@ def create_app():
         roots = [
             os.path.join(app.root_path, "static", "market_uploads"),
             app.config.get("MEDIA_ROOT", os.path.join(app.root_path, "media")),
-            # ✅ додано резервний шлях до "static" — щоб не було 404, якщо файли туди збереглись
+            # ✅ резервний шлях до "static" — якщо файли випадково збереглись туди
             os.path.join(app.root_path, "static"),
         ]
         for root in roots:
@@ -441,6 +441,19 @@ def create_app():
                 elif low.endswith(".webp"):
                     mimetype = "image/webp"
                 return send_from_directory(root, safe, mimetype=mimetype)
+
+        # 🔁 Якщо файл не знайдено, але це запит на зображення — віддаємо плейсхолдер,
+        # щоб картки не ламались і не показували порожні сірі блоки.
+        low = safe.lower()
+        if low.endswith((".jpg", ".jpeg", ".png", ".webp")):
+            placeholder_abs = os.path.join(app.root_path, "static", "img", "placeholder_stl.jpg")
+            if os.path.isfile(placeholder_abs):
+                return send_from_directory(
+                    os.path.join(app.root_path, "static", "img"),
+                    "placeholder_stl.jpg",
+                    mimetype="image/jpeg"
+                )
+
         return abort(404)
 
     return app
