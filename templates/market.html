@@ -132,11 +132,12 @@
     if (!src) return PLACEHOLDER;
     let s = String(src).trim();
 
-    // ✅ ГОЛОВНЕ ВИПРАВЛЕННЯ — для Railway-деплою
-    if (s.startsWith('/media/user_')) {
-      s = '/market' + s;
-    }
+    // ✅ ВАЖЛИВО: не додаємо ніяких префіксів типу "/market".
+    // Якщо бек дав /media/... — використовуємо як є.
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('/media/') || s.startsWith('/market/media/')) return s;
 
+    // Сумісність зі старими збереженими шляхами у static/...
     if (s.startsWith('/static/market_uploads/')) {
       s = s.replace('/static/market_uploads/', '/media/');
     } else if (s.startsWith('static/market_uploads/')) {
@@ -151,8 +152,7 @@
     } else if (s.startsWith('market_uploads/media/')) {
       s = '/' + s.replace('market_uploads', '');
     }
-    if (s.startsWith('http://') || s.startsWith('https://')) return s;
-    if (s.startsWith('/media/') || s.startsWith('/market/media/')) return s;
+
     if (s.startsWith('/static/')) return s;
     if (s.startsWith('static/'))  return '/'+s;
     return s[0] === '/' ? s : '/'+s;
