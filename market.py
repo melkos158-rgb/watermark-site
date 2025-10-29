@@ -745,19 +745,13 @@ def market_media(fname: str):
     safe = os.path.normpath(fname).lstrip(os.sep)
     base_dir = os.path.join(current_app.root_path, "static", "market_uploads")
     abs_path = os.path.join(base_dir, safe)
-
-    # Якщо файлу нема — якщо це зображення, віддаємо плейсхолдер, інакше 404
     if not os.path.isfile(abs_path):
+        # якщо просили зображення — віддаємо плейсхолдер замість 404
         low = safe.lower()
         if low.endswith((".jpg", ".jpeg", ".png", ".webp")):
-            img_dir = os.path.join(current_app.root_path, "static", "img")
-            ph_name = "placeholder_stl.jpg"
-            ph_abs = os.path.join(img_dir, ph_name)
-            if os.path.isfile(ph_abs):
-                return send_from_directory(img_dir, ph_name, mimetype="image/jpeg")
+            return current_app.send_static_file("img/placeholder_stl.jpg")
         abort(404)
 
-    # MIME
     mime = None
     low = safe.lower()
     if low.endswith(".stl"):
@@ -770,11 +764,5 @@ def market_media(fname: str):
         mime = "model/gltf+json"
     elif low.endswith(".zip"):
         mime = "application/zip"
-    elif low.endswith((".jpg", ".jpeg")):
-        mime = "image/jpeg"
-    elif low.endswith(".png"):
-        mime = "image/png"
-    elif low.endswith(".webp"):
-        mime = "image/webp"
 
     return send_from_directory(base_dir, safe, mimetype=mime)
