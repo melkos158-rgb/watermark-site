@@ -67,6 +67,35 @@ def _normalize_sort(value: Optional[str]) -> str:
     v = (value or "new").lower()
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
 
+def _local_media_exists(media_url: str) -> bool:
+    """
+    Перевіряє, чи існує локальний файл для URL виду /media/...
+    """
+    if not media_url or not media_url.startswith("/media/"):
+        return False
+    rel = media_url[len("/media/"):].lstrip("/")
+    abs_path = os.path.join(current_app.root_path, "static", "market_uploads", rel)
+    return os.path.isfile(abs_path)
+
+def _normalize_cover_url(url: Optional[str]) -> str:
+    """
+    Гарантує валідний cover:
+    - Якщо Cloudinary або інший абсолютний URL → залишаємо як є
+    - Якщо локальний /media/... і файл існує → залишаємо
+    - Інакше → плейсхолдер
+    """
+    u = (url or "").strip()
+    if not u:
+        return COVER_PLACEHOLDER
+    # абсолютні (http/https/data) пропускаємо
+    if u.startswith("http://") or u.startswith("https://") or u.startswith("data:"):
+        return u
+    # валідний локальний
+    if u.startswith("/media/") and _local_media_exists(u):
+        return u
+    # інші випадки → плейсхолдер
+    return COVER_PLACEHOLDER
+
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     """
     Зберігає файл і повертає ПУБЛІЧНИЙ URL.
@@ -275,6 +304,10 @@ def api_items():
                 d.setdefault("downloads", 0)
                 items.append(d)
 
+    # 🔧 Пост-обробка: гарантуємо валідний cover (Cloudinary або плейсхолдер)
+    for it in items:
+        it["cover"] = _normalize_cover_url(it.get("cover"))
+
     return jsonify({
         "items": items,
         "page": page,
@@ -372,6 +405,10 @@ def api_my_items():
                 text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
                 {"uid": uid}
             ).scalar() or 0
+
+    # 🔧 Пост-обробка: нормалізація cover
+    for it in items:
+        it["cover"] = _normalize_cover_url(it.get("cover"))
 
     return jsonify({
         "items": items,
@@ -677,6 +714,10 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
 
     d["photos"] = images[:5]
     d["stl_files"] = stl_files[:5]
+
+    # 🔧 Нормалізуємо cover перед поверненням
+    d["cover"] = _normalize_cover_url(d.get("cover"))
+
     return d
 
 
