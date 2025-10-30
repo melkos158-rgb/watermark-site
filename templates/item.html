@@ -63,7 +63,11 @@
   </div>
 
   <div class="author">
-    <img src="{{ item.author_avatar or '/static/img/user.jpg' }}" alt="Автор">
+    <img
+      class="avatar"
+      src="{{ url_for('static', filename='avatars/' ~ (item.author_id or item.user_id or item.author or '0')|string ~ '.jpg') }}"
+      onerror="this.onerror=null; this.src='{{ item.author_avatar or url_for('static', filename='img/user.jpg') }}';"
+      alt="Автор">
     <div>
       <div><strong>{{ item.author_name or 'Автор' }}</strong></div>
       <div class="muted">{{ item.author_bio or '3D-дизайнер' }}</div>
