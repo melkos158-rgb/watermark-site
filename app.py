@@ -411,6 +411,7 @@ def create_app():
     # === Media route ===
     @app.route("/media/<path:filename>")
     @app.route("/market/media/<path:filename>")
+    @app.route("/static/market_uploads/media/<path:filename>")  # ⬅️ додано для сумісності зі старими URL
     def media(filename):
         safe = os.path.normpath(filename).lstrip(os.sep)
         roots = [
