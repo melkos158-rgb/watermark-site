@@ -132,30 +132,38 @@
     if (!src) return PLACEHOLDER;
     let s = String(src).trim();
 
-    // ✅ ВАЖЛИВО: не додаємо ніяких префіксів типу "/market".
-    // Якщо бек дав /media/... — використовуємо як є.
-    if (s.startsWith('http://') || s.startsWith('https://')) return s;
-    if (s.startsWith('/media/') || s.startsWith('/market/media/')) return s;
+    // абсолютні адреси
+    if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:')) return s;
 
-    // Сумісність зі старими збереженими шляхами у static/...
+    // головний публічний роут — використовуємо як є
+    if (s.startsWith('/media/')) return s;
+    if (s.startsWith('media/')) return '/' + s;
+
+    // старі локальні шляхи -> переводимо на /media/...
     if (s.startsWith('/static/market_uploads/')) {
-      s = s.replace('/static/market_uploads/', '/media/');
-    } else if (s.startsWith('static/market_uploads/')) {
-      s = ('/' + s).replace('/static/market_uploads/', '/media/');
+      return s.replace('/static/market_uploads/', '/media/');
+    }
+    if (s.startsWith('static/market_uploads/')) {
+      return ('/' + s).replace('/static/market_uploads/', '/media/');
     }
     if (s.startsWith('/static/market_uploads/media/')) {
-      s = s.replace('/static/market_uploads', '');
-    } else if (s.startsWith('static/market_uploads/media/')) {
-      s = ('/' + s).replace('/static/market_uploads', '');
-    } else if (s.startsWith('/market_uploads/media/')) {
-      s = s.replace('/market_uploads', '');
-    } else if (s.startsWith('market_uploads/media/')) {
-      s = '/' + s.replace('market_uploads', '');
+      return s.replace('/static/market_uploads', '');
+    }
+    if (s.startsWith('static/market_uploads/media/')) {
+      return ('/' + s).replace('/static/market_uploads', '');
+    }
+    if (s.startsWith('/market_uploads/media/')) {
+      return s.replace('/market_uploads', '');
+    }
+    if (s.startsWith('market_uploads/media/')) {
+      return '/' + s.replace('market_uploads', '');
     }
 
+    // загальні випадки: гарантуємо початковий слеш
     if (s.startsWith('/static/')) return s;
-    if (s.startsWith('static/'))  return '/'+s;
-    return s[0] === '/' ? s : '/'+s;
+    if (s.startsWith('static/'))  return '/' + s;
+
+    return s.startsWith('/') ? s : '/' + s;
   }
 
   async function loadNextPage(){
