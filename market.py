@@ -90,8 +90,8 @@ def _normalize_cover_url(url: Optional[str]) -> str:
     """
     Повертає валідний URL обкладинки:
     - http(s)/data: — як є
-    - /media/... — якщо файл існує
-    - /static/market_uploads/... — переписує в /media/... (якщо файл існує)
+    - /media/... — ДОВІРЯЄМО (без перевірок)
+    - /static/market_uploads/... — одразу переписуємо в /media/... (без перевірок)
     - інакше — плейсхолдер
     """
     u = (url or "").strip()
@@ -101,13 +101,14 @@ def _normalize_cover_url(url: Optional[str]) -> str:
     if u.startswith(("http://", "https://", "data:")):
         return u
 
-    # підтримка як /media/..., так і старих /static/market_uploads/...
-    if _local_media_exists(u):
-        if u.startswith("/static/market_uploads/"):
-            # переписуємо старий шлях на публічний /media/...
-            rest = u[len("/static/market_uploads/"):].lstrip("/")
-            return f"/media/{rest}"
+    # ✅ довіряємо опублікованим локальним медіашляхам
+    if u.startswith("/media/"):
         return u
+
+    # ✅ старі шляхи відразу транслюємо у /media/ без перевірки існування
+    if u.startswith("/static/market_uploads/"):
+        rest = u[len("/static/market_uploads/"):].lstrip("/")
+        return f"/media/{rest}"
 
     return COVER_PLACEHOLDER
 
@@ -553,7 +554,7 @@ def api_upload():
         cover = COVER_PLACEHOLDER
 
     if isinstance(tags_val, list):
-        tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
+        tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip() ])
     else:
         tags_str = str(tags_val or "")
 
