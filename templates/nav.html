@@ -45,6 +45,18 @@
         <option value="minecraft">Minecraft</option>
       </select>
 
+      <!-- === Language Switcher in NAV (added) === -->
+      <div class="nav-lang" id="langSwitcher" data-current="{{ current_lang or 'en' }}">
+        <button class="lang-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language">
+          <span id="langFlag"></span><span class="lang-code" id="langCode"></span><span class="chev">▾</span>
+        </button>
+        <div class="lang-panel">
+          <input id="langSearch" placeholder="Search language..." class="lang-search" />
+          <ul class="lang-menu" id="langMenu" role="listbox" tabindex="-1"></ul>
+        </div>
+      </div>
+      <!-- === /Language Switcher === -->
+
       {% set has_user =
            (g is defined and g.user) or
            (session and session.get('user_id')) or
@@ -276,6 +288,126 @@
       });
     });
   })();
+
+  /* === Language Switcher JS (added; не чіпає існуючі функції) === */
+  (function(){
+    var root = document.getElementById('langSwitcher');
+    if(!root) return;
+    var btn    = document.getElementById('langBtn');
+    var menu   = document.getElementById('langMenu');
+    var search = document.getElementById('langSearch');
+    var flagEl = document.getElementById('langFlag');
+    var codeEl = document.getElementById('langCode');
+
+    // Повний перелік популярних ISO-639-1 (можна розширити)
+    var LANGS = {
+      af:"🇿🇦 Afrikaans", sq:"🇦🇱 Albanian", am:"🇪🇹 Amharic", ar:"🇸🇦 Arabic", hy:"🇦🇲 Armenian",
+      az:"🇦🇿 Azerbaijani", eu:"🇪🇸 Basque", be:"🇧🇾 Belarusian", bn:"🇧🇩 Bengali", bs:"🇧🇦 Bosnian",
+      bg:"🇧🇬 Bulgarian", my:"🇲🇲 Burmese", ca:"🇪🇸 Catalan", zh:"🇨🇳 Chinese", hr:"🇭🇷 Croatian",
+      cs:"🇨🇿 Czech", da:"🇩🇰 Danish", nl:"🇳🇱 Dutch", en:"🇬🇧 English", et:"🇪🇪 Estonian",
+      fi:"🇫🇮 Finnish", fr:"🇫🇷 French", ka:"🇬🇪 Georgian", de:"🇩🇪 German", el:"🇬🇷 Greek",
+      he:"🇮🇱 Hebrew", hi:"🇮🇳 Hindi", hu:"🇭🇺 Hungarian", is:"🇮🇸 Icelandic", id:"🇮🇩 Indonesian",
+      ga:"🇮🇪 Irish", it:"🇮🇹 Italian", ja:"🇯🇵 Japanese", jv:"🇮🇩 Javanese", kn:"🇮🇳 Kannada",
+      kk:"🇰🇿 Kazakh", km:"🇰🇭 Khmer", ko:"🇰🇷 Korean", ky:"🇰🇬 Kyrgyz", lo:"🇱🇦 Lao",
+      lv:"🇱🇻 Latvian", lt:"🇱🇹 Lithuanian", mk:"🇲🇰 Macedonian", ms:"🇲🇾 Malay", ml:"🇮🇳 Malayalam",
+      mt:"🇲🇹 Maltese", mi:"🇳🇿 Maori", mr:"🇮🇳 Marathi", mn:"🇲🇳 Mongolian", ne:"🇳🇵 Nepali",
+      no:"🇳🇴 Norwegian", fa:"🇮🇷 Persian", pl:"🇵🇱 Polish", pt:"🇵🇹 Portuguese", pa:"🇮🇳 Punjabi",
+      ro:"🇷🇴 Romanian", ru:"🇷🇺 Russian", sr:"🇷🇸 Serbian", si:"🇱🇰 Sinhala", sk:"🇸🇰 Slovak",
+      sl:"🇸🇮 Slovenian", so:"🇸🇴 Somali", es:"🇪🇸 Spanish", su:"🇮🇩 Sundanese", sw:"🇰🇪 Swahili",
+      sv:"🇸🇪 Swedish", tl:"🇵🇭 Tagalog", tg:"🇹🇯 Tajik", ta:"🇮🇳 Tamil", te:"🇮🇳 Telugu",
+      th:"🇹🇭 Thai", tr:"🇹🇷 Turkish", uk:"🇺🇦 Ukrainian", ur:"🇵🇰 Urdu", uz:"🇺🇿 Uzbek",
+      vi:"🇻🇳 Vietnamese", cy:"🏴 Welsh", xh:"🇿🇦 Xhosa", yi:"🇮🇱 Yiddish", zu:"🇿🇦 Zulu"
+    };
+
+    var current = ((root.dataset.current||'en') || localStorage.getItem('lng') || 'en').toLowerCase();
+    if(!LANGS[current]) current = 'en';
+
+    function renderBtn(){
+      var label = LANGS[current] || '🌐 Language';
+      var flag  = label.split(' ')[0] || '🌐';
+      flagEl.textContent = flag;
+      codeEl.textContent = ' ' + current.toUpperCase();
+    }
+
+    function openMenu(){ root.classList.add('open'); menu.classList.add('open'); }
+    function closeMenu(){ root.classList.remove('open'); menu.classList.remove('open'); }
+    function toggleMenu(){ menu.classList.toggle('open'); root.classList.toggle('open'); }
+
+    // Побудова списку мов
+    function buildList(){
+      menu.innerHTML = '';
+      Object.keys(LANGS).forEach(function(code){
+        var li = document.createElement('li');
+        li.setAttribute('data-lang', code);
+        li.textContent = LANGS[code];
+        menu.appendChild(li);
+      });
+    }
+
+    // Пошук
+    function bindSearch(){
+      if(!search) return;
+      search.addEventListener('input', function(e){
+        var q = e.target.value.toLowerCase();
+        Array.prototype.forEach.call(menu.children, function(li){
+          var ok = (li.textContent.toLowerCase().indexOf(q) !== -1);
+          li.style.display = ok ? 'flex' : 'none';
+        });
+      });
+    }
+
+    // Вибір мови
+    function onPick(code){
+      current = code;
+      localStorage.setItem('lng', code);
+      renderBtn();
+      closeMenu();
+
+      // бекенд (не обов'язково, якщо ще не зроблений)
+      fetch('/api/lang/set', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ lang: code })
+      }).catch(function(){});
+
+      if(window.i18next){
+        i18next.changeLanguage(code).then(function(){
+          document.querySelectorAll('[data-i18n]').forEach(function(el){
+            el.textContent = i18next.t(el.getAttribute('data-i18n'));
+          });
+        });
+      }
+    }
+
+    // Події
+    btn && btn.addEventListener('click', function(e){ e.stopPropagation(); toggleMenu(); });
+    document.addEventListener('click', function(e){
+      if(!root.contains(e.target)) closeMenu();
+    });
+    menu.addEventListener('click', function(e){
+      var li = e.target.closest('li[data-lang]');
+      if(!li) return;
+      onPick(li.getAttribute('data-lang'));
+    });
+
+    // ініт
+    buildList(); bindSearch(); renderBtn();
+
+    // Якщо є бекенд, підхопимо його значення
+    fetch('/api/lang/me').then(function(r){ return r.json(); }).then(function(js){
+      if(js && js.lang && LANGS[js.lang]){
+        current = js.lang;
+        localStorage.setItem('lng', current);
+        renderBtn();
+        if(window.i18next){
+          i18next.changeLanguage(current).then(function(){
+            document.querySelectorAll('[data-i18n]').forEach(function(el){
+              el.textContent = i18next.t(el.getAttribute('data-i18n'));
+            });
+          });
+        }
+      }
+    }).catch(function(){});
+  })();
 </script>
 
 {% if request.endpoint not in ["auth.login", "auth.register", "auth.logout"] %}
@@ -362,6 +494,38 @@
 .dd-menu, .dd-menu *{ pointer-events:auto; } /* гарантія для кліків */
 .dd-item{ display:block; padding:10px 12px; border-radius:8px; color:var(--text, #e8eaed); text-decoration:none; white-space:nowrap; }
 .dd-item:hover{ background:var(--chip, #182034); }
+
+/* === Language Switcher (додано) === */
+.nav-lang{ position:relative; }
+.nav-lang .lang-btn{
+  display:flex; align-items:center; gap:6px;
+  background:#151a24; color:#e6e9ef; border:1px solid #262e42;
+  padding:6px 10px; border-radius:10px; cursor:pointer;
+  font-size:14px; transition:.15s;
+}
+.nav-lang .lang-btn:hover{ background:#1d2330; border-color:#3a4560; }
+.nav-lang .chev{ opacity:.8; margin-left:4px; }
+.nav-lang .lang-panel{
+  position:absolute; top:100%; right:0; margin-top:6px;
+  background:#101522; border:1px solid #262e42; border-radius:12px;
+  min-width:240px; max-height:320px; overflow:hidden; display:none; z-index:1000;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+.nav-lang.open .lang-panel{ display:block; }
+.lang-search{
+  width:100%; padding:8px 10px; border:1px solid #2a3248; outline:none;
+  background:#141a28; color:#e6e9ef; border-radius:10px; margin:8px;
+  font-size:14px;
+}
+.lang-menu{
+  margin:0; padding:6px; list-style:none; max-height:260px; overflow:auto;
+}
+.lang-menu li{
+  padding:8px 10px; border-radius:8px; cursor:pointer;
+  color:#dbe1f1; font-size:14px; display:flex; align-items:center; gap:8px;
+}
+.lang-menu li:hover{ background:#161b28; }
+.lang-code{ font-weight:600; letter-spacing:.3px; }
 
 /* При малій ширині — моб. варіант */
 @media (max-width: 1360px){
