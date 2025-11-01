@@ -299,7 +299,6 @@
     var flagEl = document.getElementById('langFlag');
     var codeEl = document.getElementById('langCode');
 
-    // Повний перелік популярних ISO-639-1 (можна розширити)
     var LANGS = {
       af:"🇿🇦 Afrikaans", sq:"🇦🇱 Albanian", am:"🇪🇹 Amharic", ar:"🇸🇦 Arabic", hy:"🇦🇲 Armenian",
       az:"🇦🇿 Azerbaijani", eu:"🇪🇸 Basque", be:"🇧🇾 Belarusian", bn:"🇧🇩 Bengali", bs:"🇧🇦 Bosnian",
@@ -333,7 +332,6 @@
     function closeMenu(){ root.classList.remove('open'); menu.classList.remove('open'); }
     function toggleMenu(){ menu.classList.toggle('open'); root.classList.toggle('open'); }
 
-    // Побудова списку мов
     function buildList(){
       menu.innerHTML = '';
       Object.keys(LANGS).forEach(function(code){
@@ -344,7 +342,6 @@
       });
     }
 
-    // Пошук
     function bindSearch(){
       if(!search) return;
       search.addEventListener('input', function(e){
@@ -356,19 +353,15 @@
       });
     }
 
-    // Вибір мови
     function onPick(code){
       current = code;
       localStorage.setItem('lng', code);
       renderBtn();
       closeMenu();
-
-      // бекенд (не обов'язково, якщо ще не зроблений)
       fetch('/api/lang/set', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ lang: code })
       }).catch(function(){});
-
       if(window.i18next){
         i18next.changeLanguage(code).then(function(){
           document.querySelectorAll('[data-i18n]').forEach(function(el){
@@ -378,7 +371,6 @@
       }
     }
 
-    // Події
     btn && btn.addEventListener('click', function(e){ e.stopPropagation(); toggleMenu(); });
     document.addEventListener('click', function(e){
       if(!root.contains(e.target)) closeMenu();
@@ -389,10 +381,8 @@
       onPick(li.getAttribute('data-lang'));
     });
 
-    // ініт
     buildList(); bindSearch(); renderBtn();
 
-    // Якщо є бекенд, підхопимо його значення
     fetch('/api/lang/me').then(function(r){ return r.json(); }).then(function(js){
       if(js && js.lang && LANGS[js.lang]){
         current = js.lang;
@@ -526,6 +516,12 @@
 }
 .lang-menu li:hover{ background:#161b28; }
 .lang-code{ font-weight:600; letter-spacing:.3px; }
+
+/* FIX: Language dropdown on top */
+.nav-lang{ z-index:2147483600; }
+.nav-lang .lang-panel{ z-index:2147483647; }
+.navbar{ overflow:visible; }
+.nav-wrap{ overflow-y:visible; overflow-x:auto; }
 
 /* При малій ширині — моб. варіант */
 @media (max-width: 1360px){
