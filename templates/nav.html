@@ -260,7 +260,6 @@
       toggle();
     });
 
-    // Клік поза — закрити
     document.addEventListener('click', function(e){
       if(!inPortal) return;
       if(menu && !menu.contains(e.target) && btn && !btn.contains(e.target)){
@@ -268,12 +267,6 @@
       }
     });
 
-    // Escape — закрити
-    document.addEventListener('keydown', function(e){
-      if(e.key === 'Escape') restoreMenu();
-    });
-
-    // Перерахунок позиції
     ['scroll','resize'].forEach(ev=>{
       window.addEventListener(ev, function(){
         if(!inPortal) return;
@@ -281,15 +274,14 @@
       }, { passive:true });
     });
 
-    // Гарантовано дозволяємо переходи по лінках і просто закриваємо меню
     menu.querySelectorAll('a.dd-item').forEach(function(a){
       a.addEventListener('click', function(){
-        setTimeout(restoreMenu, 0); // не блокуємо навігацію
+        setTimeout(restoreMenu, 0);
       });
     });
   })();
 
-  /* === Language Switcher JS (added; не чіпає існуючі функції) === */
+  /* === Language Switcher JS (твій код, БЕЗ змін функцій) === */
   (function(){
     var root = document.getElementById('langSwitcher');
     if(!root) return;
@@ -398,6 +390,56 @@
       }
     }).catch(function(){});
   })();
+
+  /* === Language panel → portal (observer) — НЕ змінює твої функції === */
+  (function(){
+    var root = document.getElementById('langSwitcher');
+    if(!root) return;
+    var panel  = root.querySelector('.lang-panel');
+    var btn    = document.getElementById('langBtn');
+    var portal = document.getElementById('nav-portal');
+    var inPortal = false;
+
+    function place(){
+      if(!panel || !btn || !portal) return;
+      var r = btn.getBoundingClientRect();
+      panel.style.position = 'fixed';
+      panel.style.left = r.left + 'px';
+      panel.style.top  = (r.bottom + 6) + 'px';
+      panel.style.display = 'block';
+      panel.style.zIndex  = '2147483647';
+      portal.appendChild(panel);
+      inPortal = true;
+    }
+    function restore(){
+      if(inPortal){
+        panel.removeAttribute('style');
+        root.appendChild(panel);
+        inPortal = false;
+      }
+    }
+
+    // спостерігач за класом .open на .nav-lang
+    var mo = new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        if(m.attributeName === 'class'){
+          if(root.classList.contains('open')) place();
+          else restore();
+        }
+      });
+    });
+    mo.observe(root, { attributes:true });
+
+    // підлаштовуємо позицію при скролі/ресайзі
+    ['scroll','resize'].forEach(function(ev){
+      window.addEventListener(ev, function(){ if(inPortal) place(); }, {passive:true});
+    });
+
+    // клік поза — закриє існуючими функціями; ми лише повернемо панель
+    document.addEventListener('click', function(e){
+      if(inPortal && !panel.contains(e.target) && !btn.contains(e.target)) restore();
+    });
+  })();
 </script>
 
 {% if request.endpoint not in ["auth.login", "auth.register", "auth.logout"] %}
@@ -481,11 +523,11 @@
   display:none;
   pointer-events:auto;
 }
-.dd-menu, .dd-menu *{ pointer-events:auto; } /* гарантія для кліків */
+.dd-menu, .dd-menu *{ pointer-events:auto; }
 .dd-item{ display:block; padding:10px 12px; border-radius:8px; color:var(--text, #e8eaed); text-decoration:none; white-space:nowrap; }
 .dd-item:hover{ background:var(--chip, #182034); }
 
-/* === Language Switcher (додано) === */
+/* === Language Switcher === */
 .nav-lang{ position:relative; }
 .nav-lang .lang-btn{
   display:flex; align-items:center; gap:6px;
@@ -498,18 +540,18 @@
 .nav-lang .lang-panel{
   position:absolute; top:100%; right:0; margin-top:6px;
   background:#101522; border:1px solid #262e42; border-radius:12px;
-  min-width:240px; max-height:320px; overflow:hidden; display:none; z-index:1000;
+  min-width:240px; max-height:320px; overflow:hidden; display:none;
   box-shadow:0 10px 30px rgba(0,0,0,.35);
 }
-.nav-lang.open .lang-panel{ display:block; }
+/* Коли переносимо в портал — задаємо inline: position:fixed; left/top; z-index */
+
+/* пошук і список */
 .lang-search{
   width:100%; padding:8px 10px; border:1px solid #2a3248; outline:none;
   background:#141a28; color:#e6e9ef; border-radius:10px; margin:8px;
   font-size:14px;
 }
-.lang-menu{
-  margin:0; padding:6px; list-style:none; max-height:260px; overflow:auto;
-}
+.lang-menu{ margin:0; padding:6px; list-style:none; max-height:260px; overflow:auto; }
 .lang-menu li{
   padding:8px 10px; border-radius:8px; cursor:pointer;
   color:#dbe1f1; font-size:14px; display:flex; align-items:center; gap:8px;
@@ -517,9 +559,7 @@
 .lang-menu li:hover{ background:#161b28; }
 .lang-code{ font-weight:600; letter-spacing:.3px; }
 
-/* FIX: Language dropdown on top */
-.nav-lang{ z-index:2147483600; }
-.nav-lang .lang-panel{ z-index:2147483647; }
+/* Нічого не обрізаємо */
 .navbar{ overflow:visible; }
 .nav-wrap{ overflow-y:visible; overflow-x:auto; }
 
