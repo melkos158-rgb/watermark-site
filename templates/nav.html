@@ -361,6 +361,8 @@
           });
         });
       }
+      /* ⬇️ ДОДАНО: тригернути глобальний автопереклад DOM без reload */
+      if (window.__i18nSetLang) { window.__i18nSetLang(code); }
     }
 
     btn && btn.addEventListener('click', function(e){ e.stopPropagation(); toggleMenu(); });
@@ -387,6 +389,8 @@
             });
           });
         }
+        /* ⬇️ ДОДАНО: одноразово застосувати переклад при ініціалізації */
+        if (window.__i18nSetLang) { window.__i18nSetLang(current); }
       }
     }).catch(function(){});
   })();
@@ -578,7 +582,7 @@
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
   .brand img{height:38px}
   .wordmark{font-size:20px}
-  .nav-wrap{ min-height:64px; padding-left:8px; }
+  .nav-wrap{ min_height:64px; padding-left:8px; }
 }
 @media (min-width: 769px){
   .drawer, .drawer-overlay{ display:none !important; }
