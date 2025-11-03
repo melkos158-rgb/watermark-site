@@ -81,5 +81,81 @@
      Він уже підключається в nav.html як {% include "chat.html" %} з умовою:
      not in ["auth.login","auth.register","auth.logout"] #}
 
+  <!-- === i18n ядро: автопереклад усього DOM + підтримка 60+ мов === -->
+  <script src="https://unpkg.com/i18next@23.11.5/dist/umd/i18next.min.js"></script>
+  <script>
+  (function(){
+    const I18N_DIR = "/static/i18n/";
+    const MISSING = new Set();
+    const SKIP_TAGS = new Set(["SCRIPT","STYLE","TEXTAREA","CODE","PRE"]);
+    const ATTRS = ["placeholder","title","aria-label","alt"];
+    const RTL = new Set(["ar","fa","he","ur"]);
+    const norm = s => (s||"").replace(/\s+/g," ").trim();
+
+    function translateNode(node){
+      if (node.nodeType === Node.TEXT_NODE){
+        const raw = norm(node.nodeValue);
+        if (!raw) return;
+        if (i18next.exists(raw)) node.nodeValue = i18next.t(raw);
+        else MISSING.add(raw);
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE || SKIP_TAGS.has(node.tagName)) return;
+
+      for (const a of ATTRS){
+        if (node.hasAttribute(a)){
+          const val = norm(node.getAttribute(a));
+          if (val){
+            if (i18next.exists(val)) node.setAttribute(a, i18next.t(val));
+            else MISSING.add(val);
+          }
+        }
+      }
+      for (const child of Array.from(node.childNodes)) translateNode(child);
+    }
+
+    const applyAll = (root=document.body) => translateNode(root);
+
+    const obs = new MutationObserver(muts=>{
+      for (const m of muts){
+        m.addedNodes?.forEach(n => { if (n.nodeType===1 || n.nodeType===3) applyAll(n); });
+        if (m.type==="attributes" && ATTRS.includes(m.attributeName||"")) applyAll(m.target);
+      }
+    });
+
+    async function loadDict(code){
+      const dict = await fetch(`${I18N_DIR}${code}.json`, {cache:"no-store"})
+        .then(r=>r.ok?r.json():{}).catch(()=>({}));
+      if (!i18next.isInitialized){
+        await i18next.init({
+          lng: code,
+          resources: { [code]: { translation: dict } },
+          keySeparator:false, nsSeparator:false
+        });
+      } else {
+        i18next.services.resourceStore.data = {};
+        i18next.addResources(code,"translation",dict);
+        await i18next.changeLanguage(code);
+      }
+      document.documentElement.setAttribute("lang", code);
+      document.documentElement.setAttribute("dir", RTL.has(code) ? "rtl" : "ltr");
+    }
+
+    (async function start(){
+      let lang = "uk";
+      try{
+        const js = await fetch("/api/lang/me",{cache:"no-store"}).then(r=>r.json());
+        if (js && js.lang) lang = js.lang;
+      }catch(e){}
+      await loadDict(lang);
+      applyAll(document.body);
+      obs.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:ATTRS});
+
+      // Глобальні хуки для свічера у nav.html:
+      window.__i18nSetLang = async code => { await loadDict(code); applyAll(document.body); };
+      window.__i18nMissing = () => Array.from(MISSING.values());
+    })();
+  })();
+  </script>
 </body>
 </html>
