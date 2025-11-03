@@ -1,7 +1,7 @@
 import os
 import threading
 from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort, g
-from flask_babel import Babel  # ← додано
+from flask_babel import Babel  # ✅
 
 from db import init_app_db, close_db, db, User
 from models import db as models_db, MarketItem
@@ -82,14 +82,12 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
-    # ==== Babel (локаль) — додано ====
-    babel = Babel(app)
+    # ==== Babel (локаль) — FIX для Babel 3.x ====
+    babel = Babel()  # створюємо інстанс без додекоратора
 
-    @babel.localeselector
     def _get_locale():
         """Визначення поточної мови: user.lang → session['lang'] → 'uk'."""
         lang = None
-        # якщо є залогінений користувач і в нього є атрибут lang — використовуємо
         if session.get("user_id"):
             try:
                 u = User.query.get(session["user_id"])
@@ -99,8 +97,10 @@ def create_app():
                 pass
         if not lang:
             lang = (session.get("lang") or "uk").lower()
-        # обмежимо довжину, щоб не зламати заголовки
         return (lang[:8] or "uk")
+
+    # реєструємо селектор через init_app (нова API)
+    babel.init_app(app, locale_selector=_get_locale)
 
     # зробимо доступною мову у шаблонах
     @app.context_processor
@@ -205,7 +205,6 @@ def create_app():
                     );
                 """))
                 conn.execute(text("""ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"""))
-                # навмисно НЕ торкаємось users.lang тут, щоб не змінювати існуючу логіку
             else:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS suggestions (
@@ -350,7 +349,7 @@ def create_app():
     def documents():
         return render_template("documents.html")
 
-    # === Language API (додано, не чіпає існуючі функції) ===
+    # === Language API (нове, не чіпає існуючі) ===
     @app.post("/api/lang/set")
     def api_lang_set():
         data = request.get_json(silent=True) or {}
@@ -358,9 +357,8 @@ def create_app():
         if not lang:
             return jsonify({"ok": False, "error": "no lang"}), 400
 
-        session["lang"] = lang  # для гостей — у сесії
+        session["lang"] = lang
 
-        # якщо у моделі є поле lang — збережемо для юзера
         uid = session.get("user_id")
         if uid:
             try:
@@ -370,7 +368,6 @@ def create_app():
                     db.session.add(u)
                     db.session.commit()
             except Exception:
-                # без шуму (на випадок, якщо колонки немає)
                 db.session.rollback()
 
         return jsonify({"ok": True, "lang": lang})
@@ -482,13 +479,12 @@ def create_app():
     # === Media route ===
     @app.route("/media/<path:filename>")
     @app.route("/market/media/<path:filename>")
-    @app.route("/static/market_uploads/media/<path:filename>")  # ⬅️ додано для сумісності зі старими URL
+    @app.route("/static/market_uploads/media/<path:filename>")  # ⬅️ сумісність зі старими URL
     def media(filename):
         safe = os.path.normpath(filename).lstrip(os.sep)
         roots = [
             os.path.join(app.root_path, "static", "market_uploads"),
             app.config.get("MEDIA_ROOT", os.path.join(app.root_path, "media")),
-            # ✅ резервний шлях до "static" — якщо файли випадково збереглись туди
             os.path.join(app.root_path, "static"),
         ]
         for root in roots:
@@ -514,8 +510,6 @@ def create_app():
                     mimetype = "image/webp"
                 return send_from_directory(root, safe, mimetype=mimetype)
 
-        # 🔁 Якщо файл не знайдено, але це запит на зображення — віддаємо плейсхолдер,
-        # щоб картки не ламались і не показували порожні сірі блоки.
         low = safe.lower()
         if low.endswith((".jpg", ".jpeg", ".png", ".webp")):
             placeholder_abs = os.path.join(app.root_path, "static", "img", "placeholder_stl.jpg")
