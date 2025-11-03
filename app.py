@@ -1,6 +1,7 @@
 import os
 import threading
-from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort
+from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort, g
+from flask_babel import Babel  # ← додано
 
 from db import init_app_db, close_db, db, User
 from models import db as models_db, MarketItem
@@ -80,6 +81,35 @@ def row_to_dict(row):
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
+
+    # ==== Babel (локаль) — додано ====
+    babel = Babel(app)
+
+    @babel.localeselector
+    def _get_locale():
+        """Визначення поточної мови: user.lang → session['lang'] → 'uk'."""
+        lang = None
+        # якщо є залогінений користувач і в нього є атрибут lang — використовуємо
+        if session.get("user_id"):
+            try:
+                u = User.query.get(session["user_id"])
+                if u and hasattr(u, "lang") and u.lang:
+                    lang = (u.lang or "").lower()
+            except Exception:
+                pass
+        if not lang:
+            lang = (session.get("lang") or "uk").lower()
+        # обмежимо довжину, щоб не зламати заголовки
+        return (lang[:8] or "uk")
+
+    # зробимо доступною мову у шаблонах
+    @app.context_processor
+    def _inject_current_lang():
+        try:
+            cur = _get_locale()
+        except Exception:
+            cur = (session.get("lang") or "uk")
+        return dict(current_lang=cur)
 
     uploads_dir = os.path.join(app.root_path, "static", "market_uploads")
     os.makedirs(uploads_dir, exist_ok=True)
@@ -175,6 +205,7 @@ def create_app():
                     );
                 """))
                 conn.execute(text("""ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"""))
+                # навмисно НЕ торкаємось users.lang тут, щоб не змінювати існуючу логіку
             else:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS suggestions (
@@ -318,6 +349,46 @@ def create_app():
     @app.route("/documents.html")
     def documents():
         return render_template("documents.html")
+
+    # === Language API (додано, не чіпає існуючі функції) ===
+    @app.post("/api/lang/set")
+    def api_lang_set():
+        data = request.get_json(silent=True) or {}
+        lang = (data.get("lang") or "").lower()[:8]
+        if not lang:
+            return jsonify({"ok": False, "error": "no lang"}), 400
+
+        session["lang"] = lang  # для гостей — у сесії
+
+        # якщо у моделі є поле lang — збережемо для юзера
+        uid = session.get("user_id")
+        if uid:
+            try:
+                u = User.query.get(uid)
+                if u is not None and hasattr(u, "lang"):
+                    setattr(u, "lang", lang)
+                    db.session.add(u)
+                    db.session.commit()
+            except Exception:
+                # без шуму (на випадок, якщо колонки немає)
+                db.session.rollback()
+
+        return jsonify({"ok": True, "lang": lang})
+
+    @app.get("/api/lang/me")
+    def api_lang_me():
+        lang = None
+        uid = session.get("user_id")
+        if uid:
+            try:
+                u = User.query.get(uid)
+                if u is not None and hasattr(u, "lang") and getattr(u, "lang"):
+                    lang = (u.lang or "").lower()
+            except Exception:
+                pass
+        if not lang:
+            lang = (session.get("lang") or "uk").lower()
+        return jsonify({"lang": (lang[:8] or "uk")})
 
     # === Banner management ===
     @app.route("/ad/click")
@@ -464,4 +535,3 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-
