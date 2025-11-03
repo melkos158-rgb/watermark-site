@@ -133,8 +133,9 @@
           keySeparator:false, nsSeparator:false
         });
       } else {
-        i18next.services.resourceStore.data = {};
-        i18next.addResources(code,"translation",dict);
+        // повністю оновлюємо бандл для мови
+        i18next.removeResourceBundle(code, "translation");
+        i18next.addResourceBundle(code, "translation", dict, true, true);
         await i18next.changeLanguage(code);
       }
       document.documentElement.setAttribute("lang", code);
