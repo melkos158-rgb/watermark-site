@@ -281,7 +281,7 @@
     });
   })();
 
-  /* === Language Switcher JS (твій код, БЕЗ змін функцій) === */
+  /* === Language Switcher JS (твій код, БЕЗ зміни логіки) === */
   (function(){
     var root = document.getElementById('langSwitcher');
     if(!root) return;
@@ -327,9 +327,16 @@
     function buildList(){
       menu.innerHTML = '';
       Object.keys(LANGS).forEach(function(code){
+        var label = LANGS[code];               // "🇬🇧 English"
+        var flag  = (label.split(' ')[0]||'🌐');
+        var name  = label.substring(flag.length).trim();
+
         var li = document.createElement('li');
         li.setAttribute('data-lang', code);
-        li.textContent = LANGS[code];
+        li.innerHTML =
+          '<span class="flag" aria-hidden="true">'+flag+'</span>' +
+          '<span class="name">'+name+'</span>' +
+          '<span class="short">('+code.toUpperCase()+')</span>';
         menu.appendChild(li);
       });
     }
@@ -339,8 +346,8 @@
       search.addEventListener('input', function(e){
         var q = e.target.value.toLowerCase();
         Array.prototype.forEach.call(menu.children, function(li){
-          var ok = (li.textContent.toLowerCase().indexOf(q) !== -1);
-          li.style.display = ok ? 'flex' : 'none';
+          var txt = li.textContent.toLowerCase();
+          li.style.display = (txt.indexOf(q) !== -1) ? '' : 'none';
         });
       });
     }
@@ -361,7 +368,7 @@
           });
         });
       }
-      /* ⬇️ ДОДАНО: тригернути глобальний автопереклад DOM без reload */
+      /* тригер глобального автоперекладу DOM */
       if (window.__i18nSetLang) { window.__i18nSetLang(code); }
     }
 
@@ -389,7 +396,6 @@
             });
           });
         }
-        /* ⬇️ ДОДАНО: одноразово застосувати переклад при ініціалізації */
         if (window.__i18nSetLang) { window.__i18nSetLang(current); }
       }
     }).catch(function(){});
@@ -544,24 +550,27 @@
 .nav-lang .lang-panel{
   position:absolute; top:100%; right:0; margin-top:6px;
   background:#101522; border:1px solid #262e42; border-radius:12px;
-  min-width:240px; max-height:320px; overflow:hidden; display:none;
+  min-width:280px; max-height:360px; overflow:hidden; display:none;
   box-shadow:0 10px 30px rgba(0,0,0,.35);
 }
-/* Коли переносимо в портал — задаємо inline: position:fixed; left/top; z-index */
 
 /* пошук і список */
 .lang-search{
-  width:100%; padding:8px 10px; border:1px solid #2a3248; outline:none;
+  width:calc(100% - 16px); padding:8px 10px; border:1px solid #2a3248; outline:none;
   background:#141a28; color:#e6e9ef; border-radius:10px; margin:8px;
   font-size:14px;
 }
-.lang-menu{ margin:0; padding:6px; list-style:none; max-height:260px; overflow:auto; }
+.lang-menu{ margin:0; padding:6px 8px 10px; list-style:none; max-height:280px; overflow:auto;
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:minmax(36px,auto); gap:6px 8px; }
 .lang-menu li{
-  padding:8px 10px; border-radius:8px; cursor:pointer;
-  color:#dbe1f1; font-size:14px; display:flex; align-items:center; gap:8px;
+  padding:8px 10px; border-radius:10px; cursor:pointer;
+  color:#dbe1f1; font-size:14px; display:flex; align-items:center; gap:10px;
+  border:1px solid transparent;
 }
-.lang-menu li:hover{ background:#161b28; }
-.lang-code{ font-weight:600; letter-spacing:.3px; }
+.lang-menu li:hover{ background:#161b28; border-color:#28324a; }
+.lang-menu .flag{ font-size:18px; line-height:1; }
+.lang-menu .name{ flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lang-menu .short{ opacity:.7; font-size:12px; }
 
 /* Нічого не обрізаємо */
 .navbar{ overflow:visible; }
@@ -582,7 +591,7 @@
   .burger{ display:inline-flex; align-items:center; justify-content:center; }
   .brand img{height:38px}
   .wordmark{font-size:20px}
-  .nav-wrap{ min_height:64px; padding-left:8px; }
+  .nav-wrap{ min-height:64px; padding-left:8px; } /* <-- виправлено min-height */
 }
 @media (min-width: 769px){
   .drawer, .drawer-overlay{ display:none !important; }
