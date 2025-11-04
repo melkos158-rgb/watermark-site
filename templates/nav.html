@@ -48,7 +48,7 @@
       <!-- === Language Switcher in NAV (added) === -->
       <div class="nav-lang" id="langSwitcher" data-current="{{ current_lang or 'en' }}">
         <button class="lang-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language">
-          <span id="langFlag"></span><span class="lang-code" id="langCode"></span><span class="chev">▾</span>
+          <span id="langFlag" class="flag-badge"></span><span class="lang-code" id="langCode"></span><span class="chev">▾</span>
         </button>
         <div class="lang-panel">
           <input id="langSearch" placeholder="Search language..." class="lang-search" />
@@ -440,12 +440,10 @@
     });
     mo.observe(root, { attributes:true });
 
-    // підлаштовуємо позицію при скролі/ресайзі
     ['scroll','resize'].forEach(function(ev){
       window.addEventListener(ev, function(){ if(inPortal) place(); }, {passive:true});
     });
 
-    // клік поза — закриє існуючими функціями; ми лише повернемо панель
     document.addEventListener('click', function(e){
       if(inPortal && !panel.contains(e.target) && !btn.contains(e.target)) restore();
     });
@@ -540,13 +538,17 @@
 /* === Language Switcher === */
 .nav-lang{ position:relative; }
 .nav-lang .lang-btn{
-  display:flex; align-items:center; gap:6px;
+  display:flex; align-items:center; gap:8px;
   background:#151a24; color:#e6e9ef; border:1px solid #262e42;
   padding:6px 10px; border-radius:10px; cursor:pointer;
   font-size:14px; transition:.15s;
 }
 .nav-lang .lang-btn:hover{ background:#1d2330; border-color:#3a4560; }
 .nav-lang .chev{ opacity:.8; margin-left:4px; }
+
+/* ГОЛОВНЕ: показ панелі при відкритті */
+.nav-lang.open .lang-panel{ display:block; }
+
 .nav-lang .lang-panel{
   position:absolute; top:100%; right:0; margin-top:6px;
   background:#101522; border:1px solid #262e42; border-radius:12px;
@@ -571,6 +573,9 @@
 .lang-menu .flag{ font-size:18px; line-height:1; }
 .lang-menu .name{ flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lang-menu .short{ opacity:.7; font-size:12px; }
+
+/* значок у кнопці */
+.flag-badge{ font-size:18px; line-height:1; }
 
 /* ====== МОБІЛЬНИЙ DRAWER (додано) ====== */
 .drawer-overlay{
