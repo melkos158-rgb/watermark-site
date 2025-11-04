@@ -45,7 +45,7 @@
         <option value="minecraft">Minecraft</option>
       </select>
 
-      <!-- === Language Switcher in NAV (added) === -->
+      <!-- === Language Switcher in NAV === -->
       <div class="nav-lang" id="langSwitcher" data-current="{{ current_lang or 'en' }}">
         <button class="lang-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language">
           <span id="langFlag" class="flag-badge"></span><span class="lang-code" id="langCode"></span><span class="chev">▾</span>
@@ -281,7 +281,7 @@
     });
   })();
 
-  /* === Language Switcher JS (твій код, БЕЗ зміни логіки) === */
+  /* === Language Switcher JS (без змін логіки) === */
   (function(){
     var root = document.getElementById('langSwitcher');
     if(!root) return;
@@ -368,7 +368,6 @@
           });
         });
       }
-      /* тригер глобального автоперекладу DOM */
       if (window.__i18nSetLang) { window.__i18nSetLang(code); }
     }
 
@@ -401,7 +400,7 @@
     }).catch(function(){});
   })();
 
-  /* === Language panel → portal (observer) — НЕ змінює твої функції === */
+  /* === Language panel → portal (observer) — без змін функцій === */
   (function(){
     var root = document.getElementById('langSwitcher');
     if(!root) return;
@@ -429,7 +428,6 @@
       }
     }
 
-    // спостерігач за класом .open на .nav-lang
     var mo = new MutationObserver(function(muts){
       muts.forEach(function(m){
         if(m.attributeName === 'class'){
@@ -543,6 +541,9 @@
   padding:6px 10px; border-radius:10px; cursor:pointer;
   font-size:14px; transition:.15s;
 }
+/* показуємо тільки прапорець у кнопці */
+.nav-lang .lang-code{ display:none; }
+
 .nav-lang .lang-btn:hover{ background:#1d2330; border-color:#3a4560; }
 .nav-lang .chev{ opacity:.8; margin-left:4px; }
 
@@ -562,26 +563,30 @@
   background:#141a28; color:#e6e9ef; border-radius:10px; margin:8px;
   font-size:14px;
 }
-.lang-menu{ margin:0; padding:6px 8px 10px; list-style:none; max-height:280px; overflow:auto;
-  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:minmax(36px,auto); gap:6px 8px; }
+.lang-menu{
+  margin:0; padding:6px 8px 10px; list-style:none; max-height:280px; overflow:auto;
+  display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); /* Більше колонок з одних прапорців */
+  grid-auto-rows:minmax(36px,auto); gap:6px 8px;
+}
 .lang-menu li{
-  padding:8px 10px; border-radius:10px; cursor:pointer;
-  color:#dbe1f1; font-size:14px; display:flex; align-items:center; gap:10px;
+  padding:10px; border-radius:10px; cursor:pointer;
+  color:#dbe1f1; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;
   border:1px solid transparent;
 }
 .lang-menu li:hover{ background:#161b28; border-color:#28324a; }
-.lang-menu .flag{ font-size:18px; line-height:1; }
-.lang-menu .name{ flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.lang-menu .short{ opacity:.7; font-size:12px; }
+
+/* показуємо тільки прапорець у пунктах меню */
+.lang-menu .name, .lang-menu .short{ display:none; }
+.lang-menu .flag{ font-size:20px; line-height:1; }
 
 /* значок у кнопці */
 .flag-badge{ font-size:18px; line-height:1; }
 
-/* ====== МОБІЛЬНИЙ DRAWER (додано) ====== */
+/* ====== МОБІЛЬНИЙ DRAWER ====== */
 .drawer-overlay{
   position:fixed; inset:0;
   background:rgba(0,0,0,.55);
-  z-index:2147483646;           /* під шухлядою, але над контентом */
+  z-index:2147483646;
 }
 .drawer{
   position:fixed; top:0; right:0;
@@ -591,7 +596,7 @@
   box-shadow:-12px 0 30px rgba(0,0,0,.5);
   transform:translateX(110%);
   transition:transform .28s cubic-bezier(.2,.9,.2,1);
-  z-index:2147483647;           /* над navbar */
+  z-index:2147483647;
   display:flex; flex-direction:column;
 }
 .drawer.open{ transform:translateX(0); }
