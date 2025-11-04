@@ -565,19 +565,100 @@
 }
 .lang-menu{
   margin:0; padding:6px 8px 10px; list-style:none; max-height:280px; overflow:auto;
-  display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); /* Більше колонок з одних прапорців */
+  display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); /* решітка з одних прапорців */
   grid-auto-rows:minmax(36px,auto); gap:6px 8px;
 }
 .lang-menu li{
   padding:10px; border-radius:10px; cursor:pointer;
   color:#dbe1f1; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;
   border:1px solid transparent;
+  position:relative;
 }
 .lang-menu li:hover{ background:#161b28; border-color:#28324a; }
 
-/* показуємо тільки прапорець у пунктах меню */
-.lang-menu .name, .lang-menu .short{ display:none; }
-.lang-menu .flag{ font-size:20px; line-height:1; }
+/* ховаємо текст і показуємо SVG прапор */
+.lang-menu .name, .lang-menu .short, .lang-menu .flag{ display:none; }
+.lang-menu li::before{
+  content:"";
+  width:26px; height:18px; border-radius:3px;
+  background:#222 center/cover no-repeat;
+  display:block;
+}
+
+/* === Маппінг прапорів (SVG у static/flags/4x3/) === */
+.lang-menu li[data-lang="en"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/gb.svg') }}'); }
+.lang-menu li[data-lang="uk"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ua.svg') }}'); }
+.lang-menu li[data-lang="ru"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ru.svg') }}'); }
+.lang-menu li[data-lang="pl"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/pl.svg') }}'); }
+.lang-menu li[data-lang="de"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/de.svg') }}'); }
+.lang-menu li[data-lang="fr"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/fr.svg') }}'); }
+.lang-menu li[data-lang="es"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/es.svg') }}'); }
+.lang-menu li[data-lang="it"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/it.svg') }}'); }
+.lang-menu li[data-lang="pt"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/pt.svg') }}'); }
+.lang-menu li[data-lang="pt-BR"]::before, .lang-menu li[data-lang="pt_br"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/br.svg') }}'); }
+.lang-menu li[data-lang="nl"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/nl.svg') }}'); }
+.lang-menu li[data-lang="da"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/dk.svg') }}'); }
+.lang-menu li[data-lang="sv"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/se.svg') }}'); }
+.lang-menu li[data-lang="no"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/no.svg') }}'); }
+.lang-menu li[data-lang="fi"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/fi.svg') }}'); }
+.lang-menu li[data-lang="cs"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/cz.svg') }}'); }
+.lang-menu li[data-lang="sk"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/sk.svg') }}'); }
+.lang-menu li[data-lang="sl"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/si.svg') }}'); }
+.lang-menu li[data-lang="hr"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/hr.svg') }}'); }
+.lang-menu li[data-lang="hu"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/hu.svg') }}'); }
+.lang-menu li[data-lang="ro"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ro.svg') }}'); }
+.lang-menu li[data-lang="bg"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/bg.svg') }}'); }
+.lang-menu li[data-lang="sr"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/rs.svg') }}'); }
+.lang-menu li[data-lang="mk"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/mk.svg') }}'); }
+.lang-menu li[data-lang="el"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/gr.svg') }}'); }
+.lang-menu li[data-lang="tr"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/tr.svg') }}'); }
+.lang-menu li[data-lang="ar"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/sa.svg') }}'); }
+.lang-menu li[data-lang="he"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/il.svg') }}'); }
+.lang-menu li[data-lang="fa"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ir.svg') }}'); }
+.lang-menu li[data-lang="hi"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="bn"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/bd.svg') }}'); }
+.lang-menu li[data-lang="pa"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="ta"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="te"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="kn"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="ml"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="mr"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="gu"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="ur"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/pk.svg') }}'); }
+.lang-menu li[data-lang="ne"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/np.svg') }}'); }
+.lang-menu li[data-lang="si"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/lk.svg') }}'); }
+.lang-menu li[data-lang="th"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/th.svg') }}'); }
+.lang-menu li[data-lang="vi"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/vn.svg') }}'); }
+.lang-menu li[data-lang="id"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/id.svg') }}'); }
+.lang-menu li[data-lang="ms"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/my.svg') }}'); }
+.lang-menu li[data-lang="jv"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/id.svg') }}'); }
+.lang-menu li[data-lang="ko"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/kr.svg') }}'); }
+.lang-menu li[data-lang="ja"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/jp.svg') }}'); }
+.lang-menu li[data-lang="zh"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/cn.svg') }}'); }
+.lang-menu li[data-lang="ta"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/in.svg') }}'); }
+.lang-menu li[data-lang="kk"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/kz.svg') }}'); }
+.lang-menu li[data-lang="ky"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/kg.svg') }}'); }
+.lang-menu li[data-lang="uz"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/uz.svg') }}'); }
+.lang-menu li[data-lang="az"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/az.svg') }}'); }
+.lang-menu li[data-lang="ka"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ge.svg') }}'); }
+.lang-menu li[data-lang="am"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/am.svg') }}'); }
+.lang-menu li[data-lang="hy"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/am.svg') }}'); } /* якщо код hy — теж AM */
+.lang-menu li[data-lang="et"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ee.svg') }}'); }
+.lang-menu li[data-lang="lv"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/lv.svg') }}'); }
+.lang-menu li[data-lang="lt"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/lt.svg') }}'); }
+.lang-menu li[data-lang="is"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/is.svg') }}'); }
+.lang-menu li[data-lang="ga"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ie.svg') }}'); }
+.lang-menu li[data-lang="mi"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/nz.svg') }}'); }
+.lang-menu li[data-lang="mt"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/mt.svg') }}'); }
+.lang-menu li[data-lang="so"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/so.svg') }}'); }
+.lang-menu li[data-lang="sw"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ke.svg') }}'); }
+.lang-menu li[data-lang="tl"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ph.svg') }}'); }
+.lang-menu li[data-lang="tg"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/tj.svg') }}'); }
+.lang-menu li[data-lang="ro"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ro.svg') }}'); }
+.lang-menu li[data-lang="be"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/by.svg') }}'); }
+.lang-menu li[data-lang="bs"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ba.svg') }}'); }
+.lang-menu li[data-lang="mk"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/mk.svg') }}'); }
+.lang-menu li[data-lang="uk"]::before{ background-image:url('{{ url_for('static', filename='flags/4x3/ua.svg') }}'); }
 
 /* значок у кнопці */
 .flag-badge{ font-size:18px; line-height:1; }
