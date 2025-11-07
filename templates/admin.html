@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
+{# SAFE defaults: якщо admin_metrics відсутній у контексті #}
+{% set am = admin_metrics if admin_metrics is defined else {
+  'total_users': 0, 'online_now': 0, 'monthly_visitors': 0
+} %}
+
 <style>
   .admin-wrap{max-width:900px;margin:28px auto;padding:20px;background:#171922;border-radius:14px}
   .admin-h1{margin:0 0 16px 0}
@@ -86,22 +91,22 @@
       <tbody>
         <tr>
           <td>Зареєстровано користувачів</td>
-          <td>{{ admin_metrics.total_users }}</td>
+          <td>{{ am.total_users }}</td>
         </tr>
         <tr>
           <td>Онлайн зараз (за 5 хв)</td>
-          <td>{{ admin_metrics.online_now }}</td>
+          <td>{{ am.online_now }}</td>
         </tr>
         <tr>
           <td>Унікальні відвідувачі за місяць</td>
-          <td>{{ admin_metrics.monthly_visitors }}</td>
+          <td>{{ am.monthly_visitors }}</td>
         </tr>
       </tbody>
     </table>
     <div class="hint">Ці дані оновлюються при перезавантаженні сторінки.</div>
   </div>
 
-  <!-- Рейтинг за місяць (неактивно без бекенда) -->
+  <!-- Рейтинг за місяць (поки без бекенду) -->
   <div class="card">
     <h2>Рейтинг за місяць</h2>
     <p class="hint">Скидання <code>pxp_month</code> потребує серверного ендпойнта. Зараз кнопка лише повідомляє.</p>
@@ -113,7 +118,7 @@
     </div>
   </div>
 
-  <!-- Нарахування PXP за email (неактивно без бекенда) -->
+  <!-- Нарахування PXP за email (поки без бекенду) -->
   <div class="card">
     <h2>Нарахувати PXP за email</h2>
     <p class="hint">Для нарахування потрібен ендпойнт на бекенді. Форма поки що не відправляється.</p>
