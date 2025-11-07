@@ -15,12 +15,16 @@
   .btn-danger{background:#b91c1c;color:#fff}
   .btn-warn{background:#a16207;color:#fff}
   .btn-ghost{background:#1f2430;color:#dbe3ff;border:1px solid #2b3244}
-  /* було */
   input[type="file"], input[type="url"]{width:100%;padding:10px;border-radius:10px;background:#0d111a;border:1px solid #2a2e3d;color:#e6ecff}
-  /* NEW: щоб форма PXP виглядала так само */
   input[type="email"], input[type="number"]{width:100%;padding:10px;border-radius:10px;background:#0d111a;border:1px solid #2a2e3d;color:#e6ecff}
   label{display:block;margin:8px 0 6px}
   .checkline{display:flex;gap:14px;align-items:center;margin-top:10px}
+
+  /* таблиця метрик */
+  .table{width:100%;border-collapse:collapse;margin-top:8px}
+  .table th,.table td{padding:10px;border-bottom:1px solid #242735}
+  .table th{text-align:left;color:#9fb3ff}
+  .table td:last-child{text-align:right}
 </style>
 
 <div class="admin-wrap">
@@ -69,21 +73,51 @@
     </form>
   </div>
 
-  <!-- Скидання місяця -->
+  <!-- Статистика сайту -->
   <div class="card">
-    <h2>Рейтинг за місяць</h2>
-    <p class="hint">Скидає <code>pxp_month</code> у всіх користувачів та вимикає всі банери TOP-1.</p>
-    <form action="{{ url_for('admin_reset_month') }}" method="post"
-          onsubmit="return confirm('Підтвердити скидання місячного рейтингу?');">
-      <button class="btn btn-warn" type="submit">Скинути місячний рейтинг</button>
-    </form>
+    <h2>Статистика сайту</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Метрика</th>
+          <th>Значення</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Зареєстровано користувачів</td>
+          <td>{{ admin_metrics.total_users }}</td>
+        </tr>
+        <tr>
+          <td>Онлайн зараз (за 5 хв)</td>
+          <td>{{ admin_metrics.online_now }}</td>
+        </tr>
+        <tr>
+          <td>Унікальні відвідувачі за місяць</td>
+          <td>{{ admin_metrics.monthly_visitors }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="hint">Ці дані оновлюються при перезавантаженні сторінки.</div>
   </div>
 
-  <!-- NEW: Нарахування PXP за email -->
+  <!-- Рейтинг за місяць (неактивно без бекенда) -->
+  <div class="card">
+    <h2>Рейтинг за місяць</h2>
+    <p class="hint">Скидання <code>pxp_month</code> потребує серверного ендпойнта. Зараз кнопка лише повідомляє.</p>
+    <div class="actions">
+      <button class="btn btn-warn" type="button"
+              onclick="alert('Дія недоступна: відсутній серверний ендпойнт admin_reset_month');">
+        Скинути місячний рейтинг
+      </button>
+    </div>
+  </div>
+
+  <!-- Нарахування PXP за email (неактивно без бекенда) -->
   <div class="card">
     <h2>Нарахувати PXP за email</h2>
-    <p class="hint">Вкажи Gmail користувача та скільки PXP додати. Можна додати в загальний баланс і/або у поточний місяць.</p>
-    <form action="{{ url_for('admin_pxp_add') }}" method="post" style="margin-top:10px">
+    <p class="hint">Для нарахування потрібен ендпойнт на бекенді. Форма поки що не відправляється.</p>
+    <form onsubmit="alert('Дія недоступна: відсутній серверний ендпойнт admin_pxp_add'); return false;" style="margin-top:10px">
       <label>Email користувача (Gmail)</label>
       <input type="email" name="email" placeholder="user@gmail.com" required>
 
