@@ -314,6 +314,49 @@ def create_app():
     def inject_banner():
         return dict(banner=get_active_banner())
 
+    # === ⬇️ NEW: Admin metrics injected into templates (без зміни існ. функцій)
+    @app.context_processor
+    def _inject_admin_metrics():
+        try:
+            total_users = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {USERS_TBL}")
+            ).scalar() or 0
+
+            # Визначаємо діалект для сумісності
+            dialect = getattr(getattr(db, "engine", None), "dialect", None)
+            dialect_name = getattr(dialect, "name", "postgresql")
+
+            if dialect_name == "sqlite":
+                online_now = db.session.execute(text("""
+                    SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
+                    FROM visits
+                    WHERE datetime(created_at) >= datetime('now','-5 minutes')
+                """)).scalar() or 0
+                monthly_visitors = db.session.execute(text("""
+                    SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
+                    FROM visits
+                    WHERE date(created_at) >= date(strftime('%Y-%m-01','now'))
+                """)).scalar() or 0
+            else:
+                online_now = db.session.execute(text("""
+                    SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
+                    FROM visits
+                    WHERE created_at >= NOW() - INTERVAL '5 minutes'
+                """)).scalar() or 0
+                monthly_visitors = db.session.execute(text("""
+                    SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
+                    FROM visits
+                    WHERE created_at >= date_trunc('month', NOW())
+                """)).scalar() or 0
+
+            return dict(admin_metrics={
+                "total_users": int(total_users),
+                "online_now": int(online_now),
+                "monthly_visitors": int(monthly_visitors),
+            })
+        except Exception:
+            return dict(admin_metrics={"total_users": 0, "online_now": 0, "monthly_visitors": 0})
+
     # === Pages ===
     @app.route("/", endpoint="index")
     def index():
@@ -481,6 +524,33 @@ def create_app():
 
         flash("Дефолтний банер оновлено.")
         return redirect(url_for("admin_panel"))
+
+    # === ⬇️ NEW: lightweight visits tracker (раз на 60с на сесію)
+    from time import time as _now
+
+    @app.before_request
+    def _track_visit():
+        try:
+            sid = session.get("sid")
+            if not sid:
+                sid = os.urandom(16).hex()
+                session["sid"] = sid
+
+            last_ts = session.get("_last_visit_ts") or 0
+            if _now() - float(last_ts) < 60:
+                return
+            session["_last_visit_ts"] = _now()
+
+            uid = session.get("user_id")
+            pth = (request.path or "/")[:255]
+
+            db.session.execute(
+                text("INSERT INTO visits (session_id, user_id, path) VALUES (:sid, :uid, :pth)"),
+                {"sid": sid, "uid": uid, "pth": pth}
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     # === Healthcheck ===
     @app.route("/healthz")
