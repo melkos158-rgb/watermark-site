@@ -436,11 +436,14 @@ def create_app():
     def admin_panel():
         return render_template("admin.html")
 
-    # --- 🔧 СУМІСНІСТЬ ДЛЯ admin.html: створюємо ендпойнт, який запитує шаблон ---
-    # Не змінюємо жодної існуючої функції: просто додаємо URL-правило,
-    # щоб url_for('admin_reset_month') існував (POST поверне ту ж адмін-сторінку).
+    # --- 🔧 ДОДАНІ URL-ПРАВИЛА ДЛЯ ШАБЛОНУ admin.html (без змін існуючих функцій) ---
     app.add_url_rule("/admin/reset-month",
                      endpoint="admin_reset_month",
+                     view_func=admin_panel,
+                     methods=["POST"])
+
+    app.add_url_rule("/admin/pxp-add",
+                     endpoint="admin_pxp_add",
                      view_func=admin_panel,
                      methods=["POST"])
 
