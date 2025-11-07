@@ -436,6 +436,14 @@ def create_app():
     def admin_panel():
         return render_template("admin.html")
 
+    # --- 🔧 СУМІСНІСТЬ ДЛЯ admin.html: створюємо ендпойнт, який запитує шаблон ---
+    # Не змінюємо жодної існуючої функції: просто додаємо URL-правило,
+    # щоб url_for('admin_reset_month') існував (POST поверне ту ж адмін-сторінку).
+    app.add_url_rule("/admin/reset-month",
+                     endpoint="admin_reset_month",
+                     view_func=admin_panel,
+                     methods=["POST"])
+
     @app.route("/admin/disable-top-banner", methods=["POST"])
     @admin_required
     def admin_disable_top_banner():
