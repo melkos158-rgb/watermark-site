@@ -314,7 +314,7 @@ def create_app():
     def inject_banner():
         return dict(banner=get_active_banner())
 
-    # === ⬇️ NEW: Admin metrics injected into templates (без зміни існ. функцій)
+    # === ⬇️ Admin metrics injected into templates
     @app.context_processor
     def _inject_admin_metrics():
         try:
@@ -330,7 +330,7 @@ def create_app():
                 online_now = db.session.execute(text("""
                     SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
                     FROM visits
-                    WHERE datetime(created_at) >= datetime('now','-5 minutes')
+                    WHERE datetime(created_at) >= datetime('now','-10 minutes')
                 """)).scalar() or 0
                 monthly_visitors = db.session.execute(text("""
                     SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
@@ -341,7 +341,7 @@ def create_app():
                 online_now = db.session.execute(text("""
                     SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
                     FROM visits
-                    WHERE created_at >= NOW() - INTERVAL '5 minutes'
+                    WHERE created_at >= NOW() - INTERVAL '10 minutes'
                 """)).scalar() or 0
                 monthly_visitors = db.session.execute(text("""
                     SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS TEXT), session_id))
@@ -525,7 +525,7 @@ def create_app():
         flash("Дефолтний банер оновлено.")
         return redirect(url_for("admin_panel"))
 
-    # === ⬇️ NEW: lightweight visits tracker (раз на 60с на сесію)
+    # === ⬇️ lightweight visits tracker
     from time import time as _now
 
     @app.before_request
@@ -544,8 +544,9 @@ def create_app():
             uid = session.get("user_id")
             pth = (request.path or "/")[:255]
 
+            # явний created_at = NOW() для коректного підрахунку "онлайн"
             db.session.execute(
-                text("INSERT INTO visits (session_id, user_id, path) VALUES (:sid, :uid, :pth)"),
+                text("INSERT INTO visits (session_id, user_id, path, created_at) VALUES (:sid, :uid, :pth, NOW())"),
                 {"sid": sid, "uid": uid, "pth": pth}
             )
             db.session.commit()
