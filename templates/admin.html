@@ -31,6 +31,36 @@
   .stat-value{font-size:56px;font-weight:800;color:#fff;line-height:1.1}
   .stat-label{font-size:16px;opacity:.85;margin-top:6px}
   @media (max-width:560px){.stat-value{font-size:42px}}
+
+  /* ======= ІНТЕРАКТИВНИЙ РЕДАКТОР БАНЕРА (тільки фронтенд) ======= */
+  .editor-wrap{margin-top:12px}
+  .editor-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .editor-toolbar .btn{padding:6px 10px;border-radius:8px}
+  .banner-editor{
+    position:relative;
+    border:1px dashed #3b4257;
+    background:#0b0f17;
+    border-radius:12px;
+    overflow:hidden;
+    width:100%;
+    min-width:260px;
+    height:220px;                 /* стартова висота під 5:1 (умовно 1100×220) */
+    resize:both;                  /* дозволяє тягнути за краї */
+    cursor:grab;                  /* курсор як для перетягування */
+    outline:none;
+  }
+  .banner-editor:active{cursor:grabbing}
+  .banner-editor img{
+    position:absolute;            /* вільне позиціювання всередині контейнера */
+    top:50%; left:50%;
+    transform:translate(-50%,-50%) scale(1);
+    transform-origin:center center;
+    max-width:none;               /* важливо для масштабування */
+    will-change:transform;
+    user-select:none;
+    -webkit-user-drag:none;
+    pointer-events:none;          /* щоб не ловити події на <img>, а на контейнері */
+  }
 </style>
 
 <div class="admin-wrap">
@@ -59,8 +89,23 @@
     <p class="hint">Цей банер показується, якщо TOP-1 ще не поставив свій або його перегнали.</p>
     <form action="{{ url_for('admin_banner_default') }}" method="post" enctype="multipart/form-data" style="margin-top:10px">
       <label>Зображення (.png/.jpg/.jpeg/.webp), бажано ~5:1 (напр., 1100×220)</label>
-      <input type="file" name="image" accept=".png,.jpg,.jpeg,.webp" required>
-      <label>Опційне посилання (URL) при кліку</label>
+      <input id="fileBanner" type="file" name="image" accept=".png,.jpg,.jpeg,.webp" required>
+
+      <!-- Інтерактивний прев’ю-редактор (тільки фронтенд; файл на бек відправиться як є) -->
+      <div id="editorWrap" class="editor-wrap" style="display:none">
+        <div class="editor-toolbar">
+          <button class="btn btn-ghost" type="button" id="btnZoomOut">–</button>
+          <button class="btn btn-ghost" type="button" id="btnZoomIn">+</button>
+          <button class="btn btn-ghost" type="button" id="btnCenter">Центр</button>
+          <button class="btn btn-ghost" type="button" id="btnReset">Reset</button>
+        </div>
+        <div id="bannerEditor" class="banner-editor" tabindex="0" aria-label="Редактор банера (колесиком масштаб, перетягни мишкою, тягни за краї для зміни розміру)">
+          <img id="bannerImage" alt="Banner preview">
+        </div>
+        <div class="hint">Колесико — масштаб; затисни та перетягни мишкою — позиція; тягни за край/кут — змінюєш розмір області.</div>
+      </div>
+
+      <label style="margin-top:12px">Опційне посилання (URL) при кліку</label>
       <input type="url" name="link_url" placeholder="https://...">
       <div class="actions" style="margin-top:12px">
         <button class="btn btn-primary" type="submit">Оновити дефолтний банер</button>
@@ -133,4 +178,97 @@
     </form>
   </div>
 </div>
+
+<!-- ======= JS для інтерактивного прев'ю банера ======= -->
+<script>
+(function(){
+  const fileInput   = document.getElementById('fileBanner');
+  const wrap        = document.getElementById('editorWrap');
+  const editor      = document.getElementById('bannerEditor');
+  const img         = document.getElementById('bannerImage');
+  const btnIn       = document.getElementById('btnZoomIn');
+  const btnOut      = document.getElementById('btnZoomOut');
+  const btnCenter   = document.getElementById('btnCenter');
+  const btnReset    = document.getElementById('btnReset');
+
+  if(!fileInput || !editor || !img) return;
+
+  let scale = 1;
+  let dx = 0, dy = 0;     // зсув у px відносно центру
+  let dragging = false;
+  let startX = 0, startY = 0;
+
+  function applyTransform(){
+    img.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${scale})`;
+  }
+
+  function centerImage(){
+    dx = 0; dy = 0;
+    applyTransform();
+  }
+
+  function resetAll(){
+    scale = 1; dx = 0; dy = 0;
+    applyTransform();
+  }
+
+  // Показати прев’ю після вибору файлу
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      img.src = ev.target.result;
+      wrap.style.display = 'block';
+      resetAll();
+      // Автоматично адаптуємо початковий масштаб під контейнер
+      img.onload = () => {
+        // нічого не міняємо у файлі — лише прев’ю
+        resetAll();
+      };
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Колесико — масштаб
+  editor.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const step = 0.08;
+    if (e.deltaY < 0) scale += step;
+    else scale -= step;
+    scale = Math.min(Math.max(scale, 0.2), 5);
+    applyTransform();
+  }, { passive:false });
+
+  // Перетягування з затиснутою кнопкою миші
+  editor.addEventListener('mousedown', (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+  window.addEventListener('mouseup', () => dragging = false);
+  window.addEventListener('mousemove', (e) => {
+    if(!dragging) return;
+    const k = 1; // чутливість
+    dx += (e.clientX - startX) / k;
+    dy += (e.clientY - startY) / k;
+    startX = e.clientX;
+    startY = e.clientY;
+    applyTransform();
+  });
+
+  // Кнопки керування
+  btnIn && btnIn.addEventListener('click', () => { scale = Math.min(scale + 0.1, 5); applyTransform(); });
+  btnOut && btnOut.addEventListener('click', () => { scale = Math.max(scale - 0.1, 0.2); applyTransform(); });
+  btnCenter && btnCenter.addEventListener('click', centerImage);
+  btnReset && btnReset.addEventListener('click', resetAll);
+
+  // Клавіатура: +/- для масштабу, пробіл — центр
+  editor.addEventListener('keydown', (e) => {
+    if(e.key === '+' || e.key === '='){ scale = Math.min(scale + 0.1, 5); applyTransform(); }
+    if(e.key === '-' || e.key === '_'){ scale = Math.max(scale - 0.1, 0.2); applyTransform(); }
+    if(e.key === ' '){ e.preventDefault(); centerImage(); }
+  });
+})();
+</script>
 {% endblock %}
