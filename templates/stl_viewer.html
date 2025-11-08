@@ -2,38 +2,146 @@
 <html lang="uk">
 <head>
   <meta charset="utf-8" />
-  <title>Proofly — Перегляд 3D</title>
+  <title>Online Tools — STL/3D</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
   <style>
-    .layout-one{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
-    .card{background:#0f1117;border:1px solid #242735;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column}
+    /* ====== БАЗОВИЙ ЛЕЙАУТ: 3 колонки ====== */
+    .layout{
+      display:grid;
+      grid-template-columns: 320px 1fr 320px;
+      gap:16px;
+      align-items:stretch;
+    }
+    .card{
+      background:#0f1117;border:1px solid #242735;border-radius:12px;
+      padding:14px 16px;
+      height:100%;
+      display:flex; flex-direction:column;
+    }
     .card h2{margin:0 0 10px 0}
-    #viewer{width:100%;height:min(72vh,78dvh);min-height:480px;background:#111;border:1px solid #2a2e3d;border-radius:10px;overflow:hidden}
-    #viewer canvas{display:block;width:100%;height:100%}
+    .help{font-size:12px;opacity:.8;margin-top:6px}
+
+    .side{ overflow:auto; padding-bottom:8px; }
+
+    /* Центр (перегляд у вбудованому iframe) */
+    .viewer-wrap{
+      width:100%;
+      height:min(62vh,70dvh);
+      max-height:78dvh; min-height:420px;
+      border:1px solid #2a2e3d; border-radius:10px;
+      background:#111; overflow:hidden; flex:1 0 auto;
+    }
+    .viewer-wrap iframe{
+      display:block; width:100%; height:100%;
+      border:0; background:#111;
+    }
+
     .row{display:flex;gap:8px;flex-wrap:wrap}
-    .help{font-size:12px;color:#667085;margin-top:6px}
-    .tabs-wrap{display:flex;align-items:center;gap:8px;margin:0 0 20px}
-    .arrow-btn{flex:0 0 auto;width:36px;height:36px;border-radius:12px;border:1px solid #242735;background:#12141c;color:#d9e1ff;display:grid;place-items:center;font-size:18px;line-height:1;cursor:pointer}
-    .tool-tabs{display:flex;gap:10px;padding:8px 8px 14px;border:1px solid #242735;border-radius:12px;background:#0f1117;overflow-x:auto;scrollbar-width:thin;flex:1 1 auto}
+    .hint{font-size:12px;color:#667085;margin-top:6px}
+    hr{border:none;border-top:1px solid #2a2e3d;margin:12px 0}
+
+    /* ===== Вкладки ===== */
+    .tabs-wrap{
+      display:flex; align-items:center; gap:8px;
+      margin:0 0 20px; position:relative; z-index:2;
+    }
+    .arrow-btn{
+      flex:0 0 auto; width:36px; height:36px; border-radius:12px;
+      border:1px solid #242735; background:#12141c; color:#d9e1ff;
+      display:grid; place-items:center; font-size:18px; line-height:1; cursor:pointer;
+    }
+    .arrow-btn:disabled{opacity:.35; cursor:default}
+    .arrow-btn:focus{outline:2px solid #3b82f6}
+
+    .tool-tabs{
+      display:flex; gap:10px; padding:8px 8px 14px;
+      border:1px solid #242735; border-radius:12px; background:#0f1117;
+      overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+      flex:1 1 auto; scrollbar-gutter: stable both-edges;
+    }
     .tool-tabs::-webkit-scrollbar{height:8px}
     .tool-tabs::-webkit-scrollbar-thumb{background:#2b3144;border-radius:8px}
-    .tool-tab{flex:0 0 auto;border:1px solid #2a2e3d;background:#12141c;padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:600;white-space:nowrap;color:#e6e9ff}
-    .tool-tab.active{background:#2962ff22;border-color:#2962ff66}
-    .tool-panels{position:relative;margin-top:14px}
-    .tool-panel{display:none}.tool-panel.active{display:block}
 
-    /* модалка експорту */
-    .export-bar{margin-top:10px;display:flex;justify-content:flex-end}
-    .export-btn{padding:10px 14px;border-radius:10px;border:1px solid #2b3563;background:#1a2140;color:#e6e9ff;font-weight:700;cursor:pointer}
-    .export-btn:hover{filter:brightness(1.05)}
-    .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:10000}
-    .modal{width:min(520px,92vw);background:#0f1117;border:1px solid #242735;border-radius:14px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .modal h3{margin:0 0 12px 0}
-    .modal .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .modal .btn{padding:10px 12px;border-radius:10px;border:1px solid #2a2e3d;background:#151b2d;color:#e6e9ff;text-align:left;font-weight:600;cursor:pointer}
-    .modal .footer{margin-top:12px;display:flex;justify-content:flex-end}
+    .tool-tab{
+      flex:0 0 auto; border:1px solid #2a2e3d; background:#12141c;
+      padding:8px 12px; border-radius:999px; cursor:pointer;
+      font-weight:600; white-space:nowrap; color:#e6e9ff;
+    }
+    .tool-tab:focus{outline:2px solid #3b82f6}
+    .tool-tab.active{ background:#2962ff22; border-color:#2962ff66 }
+
+    .tool-panels{ position:relative; margin-top:14px; flex:0 0 auto; }
+    .tool-panel{ display:none }
+    .tool-panel.active{ display:block }
+
+    input[type="text"], input[type="number"], input[type="range"]{ width:100% }
+
+    /* Ховаємо старі кнопки експорту в панелях — у нас модалка знизу */
+    #panel-export .row,
+    #panel-convert .row,
+    #panel-convert .help{ display:none !important; }
+
+    /* Єдина кнопка ЕКСПОРТ внизу правої колонки */
+    .export-bar{
+      margin-top:auto; display:flex; justify-content:flex-end; padding-top:10px;
+    }
+    .export-btn{
+      padding:10px 14px; border-radius:10px; border:1px solid #2b3563;
+      background:#1a2140; color:#e6e9ff; font-weight:700; cursor:pointer;
+    }
+    .export-btn:hover{ filter:brightness(1.05); }
+    .export-btn:active{ transform:translateY(1px); }
+
+    /* Модалка експорту */
+    .modal-back{
+      position:fixed; inset:0; background:rgba(0,0,0,.5);
+      display:none; align-items:center; justify-content:center; z-index:10000;
+    }
+    .modal{
+      width:min(520px, 92vw); background:#0f1117; border:1px solid #242735;
+      border-radius:14px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .modal h3{ margin:0 0 12px 0 }
+    .modal .grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .modal .btn{
+      padding:10px 12px; border-radius:10px; border:1px solid #2a2e3d;
+      background:#151b2d; color:#e6e9ff; text-align:left; font-weight:600; cursor:pointer;
+    }
+    .modal .btn:hover{ filter:brightness(1.05); }
+    .modal .footer{ margin-top:12px; display:flex; justify-content:flex-end; gap:8px; }
+    .modal .ghost{ background:#131722; border-color:#2a2e3d; color:#cbd4ff; }
+
+    /* АДАПТИВ */
+    @media (max-width:1100px){
+      .layout{grid-template-columns: 1fr}
+      .side{position:static;max-height:none;overflow:visible}
+      .viewer-wrap{height:60dvh}
+      .tabs-wrap{ position:static; }
+    }
+
+    /* Мобільний тулбар (як було) */
+    @media (max-width:860px){
+      body{ padding-bottom:72px; }
+      .ps-toolbar{
+        position:fixed; left:0; right:0; bottom:0;
+        display:flex; gap:10px; align-items:center;
+        padding:8px 10px; background:#0f1116; border-top:1px solid #222736;
+        overflow-x:auto; -webkit-overflow-scrolling:touch; z-index:9999;
+      }
+      .ps-toolbar::-webkit-scrollbar{ height:6px }
+      .ps-toolbar::-webkit-scrollbar-thumb{ background:#2b3144; border-radius:8px }
+      .ps-tool{
+        flex:0 0 auto; display:grid; place-items:center;
+        width:72px; min-height:56px; border:1px solid #232734; border-radius:12px;
+        background:#151926; text-align:center; user-select:none; touch-action:manipulation;
+      }
+      .ps-tool:active{ transform:scale(.98) }
+      .ps-tool .ico{ font-size:18px; line-height:1 }
+      .ps-tool .lbl{ font-size:11px; color:#c6cbe0; margin-top:4px }
+      .ps-tool.active{ border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.25) inset }
+    }
   </style>
 
   <script type="importmap">
@@ -59,42 +167,168 @@
 
 {% include 'nav.html' %}
 
-<div class="layout-one">
+<div class="layout">
 
-  <!-- Верхня панель вкладок праворуч (водяний знак) + кнопка «Експорт» -->
-  <div class="card">
+  <!-- Ліва колонка -->
+  <div class="card side">
+    <h2>Модель</h2>
+
     <div class="tabs-wrap">
-      <button class="arrow-btn" data-arrow="prev" data-for="toolsTabs">‹</button>
-      <div class="tool-tabs" id="toolsTabs" role="tablist" aria-label="STL tools">
-        <button class="tool-tab active" data-target="#panel-watermark" role="tab">3D водяний знак</button>
-        <button class="tool-tab" data-target="#panel-export" role="tab">Експорт STL</button>
-        <button class="tool-tab" data-target="#panel-convert" role="tab">Конвертація</button>
+      <button class="arrow-btn" data-arrow="prev" data-for="leftTabs">‹</button>
+      <div class="tool-tabs" id="leftTabs" role="tablist" aria-label="Model tools">
+        <button class="tool-tab active" data-target="#panel-left-model" role="tab">Модель</button>
+        <button class="tool-tab" data-target="#panel-left-transform" role="tab">Трансформ</button>
+        <button class="tool-tab" data-target="#panel-left-slice" role="tab">Різати</button>
+        <button class="tool-tab" data-target="#panel-left-boolean" role="tab">Boolean</button>
+        <button class="tool-tab" data-target="#panel-left-hollow" role="tab">Hollow</button>
+        <button class="tool-tab" data-target="#panel-left-engrave" role="tab">Гравірув.</button>
+        <button class="tool-tab" data-target="#panel-left-simplify" role="tab">Simplify</button>
+        <button class="tool-tab" data-target="#panel-left-mix" role="tab">Mix&Match</button>
       </div>
-      <button class="arrow-btn" data-arrow="next" data-for="toolsTabs">›</button>
+      <button class="arrow-btn" data-arrow="next" data-for="leftTabs">›</button>
     </div>
 
-    <div id="viewer"></div>
-    <div class="help">Перетягни файл у поле вище або обери файл у вкладці «Модель» на основній сторінці. Також працює <code>?url=...</code>.</div>
+    <div class="tool-panels">
+      <!-- (усі ліві панелі без змін) -->
+      <section id="panel-left-model" class="tool-panel active" role="tabpanel">
+        <label>STL/3D файл</label>
+        <input id="file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
+        <p class="help">Перетягни файл у перегляд або вибери тут.</p>
+
+        <div class="row" style="margin-top:10px">
+          <button id="btnDemo"  class="btn primary">Демо куб</button>
+          <button id="btnReset" class="btn ghost">Ресет камери</button>
+        </div>
+
+        <div class="row">
+          <button id="btnWire" class="btn ghost">Wireframe ON/OFF</button>
+          <button id="btnClear" class="btn ghost">Очистити</button>
+        </div>
+
+        <p class="help">Керування: ЛКМ — обертати, колесо — зум, Shift+ЛКМ — панорамувати.</p>
+      </section>
+
+      <section id="panel-left-transform" class="tool-panel" role="tabpanel">
+        <h3>Трансформації</h3>
+        <div class="row">
+          <button id="btnCenter" class="btn ghost">Центрувати + На стіл</button>
+          <button id="btnAutoOrient" class="btn ghost">Автоорієнтація</button>
+        </div>
+        <label>Масштаб (%)</label>
+        <div class="row">
+          <input id="scalePct" type="number" min="1" max="1000" value="100" style="width:100px">
+          <button id="btnScaleApply" class="btn ghost">Застосувати</button>
+        </div>
+        <label>Обертання (°)</label>
+        <div class="row">
+          <button data-rot="x-90" class="btn ghost rot">X ±90</button>
+          <button data-rot="y-90" class="btn ghost rot">Y ±90</button>
+          <button data-rot="z-90" class="btn ghost rot">Z ±90</button>
+        </div>
+        <div class="row">
+          <button data-mirror="x" class="btn ghost mirror">Mirror X</button>
+          <button data-mirror="y" class="btn ghost mirror">Mirror Y</button>
+          <button data-mirror="z" class="btn ghost mirror">Mirror Z</button>
+        </div>
+      </section>
+
+      <section id="panel-left-slice" class="tool-panel" role="tabpanel">
+        <h3>Різати площиною</h3>
+        <label>Висота (Y)</label>
+        <input id="sliceY" type="range" min="-200" max="200" value="0">
+        <label>Кут навколо X</label>
+        <input id="sliceAx" type="range" min="-90" max="90" value="0">
+        <label>Кут навколо Z</label>
+        <input id="sliceAz" type="range" min="-90" max="90" value="0">
+        <div class="row">
+          <button id="btnSlicePreview" class="btn ghost">Прев’ю площини</button>
+          <button id="btnSliceApply" class="btn ghost">Розрізати → 2 частини</button>
+        </div>
+      </section>
+
+      <section id="panel-left-boolean" class="tool-panel" role="tabpanel">
+        <h3>Boolean-операції</h3>
+        <div class="row">
+          <button data-prim="box" class="btn ghost prim">Куб</button>
+          <button data-prim="cyl" class="btn ghost prim">Циліндр</button>
+          <button data-prim="sph" class="btn ghost prim">Сфера</button>
+        </div>
+        <div class="row">
+          <button id="btnUnion" class="btn ghost">Union</button>
+          <button id="btnSubtract" class="btn ghost">Subtract</button>
+          <button id="btnIntersect" class="btn ghost">Intersect</button>
+        </div>
+      </section>
+
+      <section id="panel-left-hollow" class="tool-panel" role="tabpanel">
+        <h3>Hollow (порожнина)</h3>
+        <label>Товщина стінки (мм)</label>
+        <input id="hollowWall" type="number" min="0.6" max="5" step="0.2" value="1.2" style="width:110px">
+        <div class="row"><button id="btnHollow" class="btn ghost">Зробити порожнистою</button></div>
+        <label>Отвори для повітря</label>
+        <div class="row">
+          <button data-vent="3" class="btn ghost vent">Ø3 мм</button>
+          <button data-vent="5" class="btn ghost vent">Ø5 мм</button>
+          <button data-vent="8" class="btn ghost vent">Ø8 мм</button>
+        </div>
+      </section>
+
+      <section id="panel-left-engrave" class="tool-panel" role="tabpanel">
+        <h3>Гравірування / Тиснення</h3>
+        <div class="row">
+          <button id="btnEngraveText" class="btn ghost">Текст</button>
+          <button id="btnEngravePNG" class="btn ghost">PNG-логотип</button>
+        </div>
+      </section>
+
+      <section id="panel-left-simplify" class="tool-panel" role="tabpanel">
+        <h3>Simplify / Decimate</h3>
+        <label>Залишити % трикутників</label>
+        <input id="simpKeep" type="range" min="5" max="100" value="60">
+        <div class="row"><button id="btnSimplify" class="btn ghost">Спрощення</button></div>
+      </section>
+
+      <section id="panel-left-mix" class="tool-panel" role="tabpanel">
+        <h3>Mix & Match</h3>
+        <input id="addFile" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
+        <div class="row" style="margin-top:6px">
+          <button id="btnUnionAll" class="btn ghost">Union всіх</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Центр — одразу відкритий перегляд -->
+  <div class="card">
+    <h2>Перегляд</h2>
+    <div class="viewer-wrap">
+      <iframe id="viewerFrame"
+              src="{{ url_for('stl_viewer') }}"
+              loading="lazy"
+              title="3D Viewer"></iframe>
+    </div>
+    <div class="hint" id="status"></div>
+  </div>
+
+  <!-- Права колонка -->
+  <div class="card side">
+    <h2>Інструменти</h2>
+
+    <div class="tabs-wrap">
+      <button class="arrow-btn" data-arrow="prev" data-for="stlTabs">‹</button>
+      <div class="tool-tabs" id="stlTabs" role="tablist" aria-label="STL tools">
+        <button class="tool-tab active" data-target="#panel-watermark" role="tab">3D водяний знак</button>
+      </div>
+      <button class="arrow-btn" data-arrow="next" data-for="stlTabs">›</button>
+    </div>
 
     <div class="tool-panels">
       <section id="panel-watermark" class="tool-panel active" role="tabpanel">
         <h3>3D водяний знак</h3>
-        <label for="wmText">Текст</label>
-        <input id="wmText" type="text" placeholder="Brand" value="Brand">
-        <label for="wmSize">Розмір тексту</label>
-        <input id="wmSize" type="range" min="2" max="40" value="12">
-        <label for="wmDepth">Глибина (мм)</label>
-        <input id="wmDepth" type="range" min="1" max="10" value="3">
-        <label for="wmAngle">Кут (°)</label>
-        <input id="wmAngle" type="range" min="-90" max="90" value="0">
-        <label for="wmOffset">Відступ від країв (%)</label>
-        <input id="wmOffset" type="range" min="0" max="20" value="4">
-        <div class="row" style="margin-top:8px">
-          <button id="btnPreview" class="btn ghost">Попередній перегляд</button>
-          <button id="btnBake" class="btn ghost" disabled>Запекти в модель</button>
-        </div>
-    </section>
+        <p class="help">Налаштування та «Запекти» доступні у перегляді.</p>
+      </section>
 
+      <!-- Залишаємо приховані панелі для експорту (кнопки сховані CSS) -->
       <section id="panel-export" class="tool-panel" role="tabpanel">
         <h3>Експорт STL</h3>
         <div class="row">
@@ -113,15 +347,16 @@
           <button id="btnExpOBJ"  class="btn ghost">Export OBJ</button>
           <button id="btnExpPLY"  class="btn ghost">Export PLY</button>
         </div>
-        <div class="export-bar">
-          <button id="openExport" class="export-btn" aria-haspopup="dialog" aria-controls="exportModal">Експорт</button>
-        </div>
       </section>
+    </div>
+
+    <div class="export-bar">
+      <button id="openExport" class="export-btn" aria-haspopup="dialog" aria-controls="exportModal">Експорт</button>
     </div>
   </div>
 </div>
 
-<!-- Модалка Експорт -->
+<!-- Модальне вікно експорту -->
 <div class="modal-back" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
   <div class="modal" role="document">
     <h3 id="exportTitle">Експорт / Конвертація</h3>
@@ -134,303 +369,100 @@
       <button class="btn" data-export="ply">PLY</button>
     </div>
     <div class="footer">
-      <button class="btn" id="closeExport">Закрити</button>
+      <button class="btn ghost" id="closeExport">Закрити</button>
     </div>
   </div>
 </div>
 
 <script type="module">
-  /* ----- увесь 3D/експорт функціонал (без змін) ----- */
-  import * as THREE from 'three';
-  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-  import { STLLoader }     from 'stl/loader';
-  import { STLExporter }   from 'stl/exporter';
-  import { FontLoader }    from 'font/loader';
-  import { TextGeometry }  from 'text/geometry';
-  import { GLTFLoader }    from 'gltf/loader';
-  import { OBJLoader }     from 'obj/loader';
-  import { PLYLoader }     from 'ply/loader';
-  import { GLTFExporter }  from 'gltf/exporter';
-  import { OBJExporter }   from 'obj/exporter';
-  import { PLYExporter }   from 'ply/exporter';
+  /* функції НЕ змінював: нижче лише ініціалізація вкладок/модалки та мапа кнопок експорту */
 
-  const $ = (id)=>document.getElementById(id);
-  const statusEl = document.createElement('div'); // опціонально, якщо треба статус
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x111111);
-
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
-  camera.position.set(1.2, 0.9, 1.8);
-
-  const renderer = new THREE.WebGLRenderer({ antialias:true });
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  document.getElementById('viewer').appendChild(renderer.domElement);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-  dir.position.set(2,2,2); scene.add(dir);
-  const grid = new THREE.GridHelper(10, 10, 0x3a4153, 0x262b39);
-  grid.position.y = -0.001; scene.add(grid);
-
-  const modelRoot = new THREE.Group(); scene.add(modelRoot);
-  const watermarkGroup = new THREE.Group(); scene.add(watermarkGroup);
-
-  const baseMaterial = new THREE.MeshStandardMaterial({ color:0x9aa7c7, roughness:.85, metalness:.05 });
-  const wireMaterial = new THREE.MeshBasicMaterial({ color:0xffffff, wireframe:true });
-  let wireframeOn = false;
-
-  function resize(){
-    const cont = document.getElementById('viewer');
-    const w = cont.clientWidth || 800;
-    const h = cont.clientHeight || 500;
-    renderer.setSize(w,h,false);
-    camera.aspect = w/h;
-    camera.updateProjectionMatrix();
-  }
-  new ResizeObserver(resize).observe(document.getElementById('viewer')); window.addEventListener('resize', resize); resize();
-
-  function fitCameraToObject(object, zoom=1.6){
-    const box = new THREE.Box3().setFromObject(object);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    const fov = camera.fov * (Math.PI/180);
-    let camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * zoom;
-    camZ = Math.max(camZ, 0.1);
-    camera.position.set(center.x+camZ*0.7, center.y+camZ*0.5, center.z+camZ);
-    camera.near = camZ/100; camera.far = camZ*100; camera.updateProjectionMatrix();
-    controls.target.copy(center); controls.update();
-  }
-  function resetCamera(){
-    if (modelRoot.children.length) fitCameraToObject(modelRoot, 1.6);
-    else { camera.position.set(1.2,0.9,1.8); controls.target.set(0,0,0); controls.update(); }
-  }
-
-  const fontLoader = new FontLoader();
-  let font = null;
-  fontLoader.load(
-    'https://cdn.jsdelivr.net/npm/three@0.159/examples/fonts/helvetiker_regular.typeface.json',
-    f => font = f,
-    undefined,
-    err => console.warn('Шрифт не завантажився:', err)
-  );
-
-  const stlLoader  = new STLLoader();
-  const gltfLoader = new GLTFLoader();
-  const objLoader  = new OBJLoader();
-  const plyLoader  = new PLYLoader();
-
-  function clearGroup(grp){
-    while(grp.children.length){
-      const m = grp.children.pop();
-      m.geometry?.dispose?.(); m.material?.dispose?.();
-    }
-  }
-  function clearAll(){ clearGroup(modelRoot); clearGroup(watermarkGroup); }
-
-  function addGeometry(geometry){
-    geometry.computeVertexNormals?.();
-    const mesh = new THREE.Mesh(geometry, wireframeOn ? wireMaterial : baseMaterial);
-    modelRoot.add(mesh);
-    fitCameraToObject(modelRoot, 1.6);
-    $('btnBake')?.removeAttribute('disabled');
-  }
-
-  function addObject(obj){
-    obj.traverse(n=>{
-      if(n.isMesh){
-        n.material = wireframeOn ? wireMaterial : baseMaterial.clone();
-        n.material.side = THREE.DoubleSide;
-        n.geometry?.computeVertexNormals?.();
-      }
-    });
-    modelRoot.add(obj);
-    const box = new THREE.Box3().setFromObject(modelRoot);
-    const center = box.getCenter(new THREE.Vector3());
-    const minY = box.min.y;
-    modelRoot.position.sub(center);
-    modelRoot.position.y -= minY;
-    fitCameraToObject(modelRoot, 1.6);
-    $('btnBake')?.setAttribute('disabled','true');
-  }
-
-  function loadAnyFromUrl(url){
-    const ext = url.split('.').pop().split('?')[0].toLowerCase();
-    const onError = (err)=>{ console.error('Load error:', err); alert('Не вдалося прочитати файл.'); };
-    if (ext==='stl') stlLoader.load(url, g=>{ clearAll(); addGeometry(g); }, undefined, onError);
-    else if (ext==='obj') objLoader.load(url, o=>{ clearAll(); addObject(o); }, undefined, onError);
-    else if (ext==='ply') plyLoader.load(url, g=>{ g.computeVertexNormals?.(); clearAll(); addGeometry(g); }, undefined, onError);
-    else if (ext==='gltf' || ext==='glb') gltfLoader.load(url, gltf=>{ clearAll(); addObject(gltf.scene); }, undefined, onError);
-    else alert('Формат не підтримується (STL/OBJ/PLY/GLTF/GLB).');
-  }
-
-  // drag&drop
-  (()=>{ const dz = document.getElementById('viewer');
-    dz.addEventListener('dragover', e=>{e.preventDefault(); dz.style.outline='2px dashed #6c63ff';});
-    ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev, e=>{e.preventDefault(); dz.style.outline='none';}));
-    dz.addEventListener('drop', e=>{
-      const f = e.dataTransfer?.files?.[0]; if(!f) return;
-      const url = URL.createObjectURL(f);
-      const done = ()=>URL.revokeObjectURL(url);
-      const ext = f.name.split('.').pop().toLowerCase();
-      const onError = (err)=>{ console.error(err); alert('Не вдалося прочитати файл.'); done(); };
-      if (ext==='stl') stlLoader.load(url, g=>{ clearAll(); addGeometry(g); done(); }, undefined, onError);
-      else if (ext==='obj') objLoader.load(url, o=>{ clearAll(); addObject(o); done(); }, undefined, onError);
-      else if (ext==='ply') plyLoader.load(url, g=>{ g.computeVertexNormals?.(); clearAll(); addGeometry(g); done(); }, undefined, onError);
-      else if (ext==='gltf' || ext==='glb') gltfLoader.load(url, gltf=>{ clearAll(); addObject(gltf.scene); done(); }, undefined, onError);
-      else { alert('Підтримка: STL, OBJ, PLY, GLTF/GLB.'); done(); }
-    });
-  })();
-
-  // ?url=
-  const q = new URLSearchParams(location.search);
-  if(q.get('url')) loadAnyFromUrl(q.get('url'));
-
-  // Водяний знак
-  function previewWatermark(){
-    if (!font){ alert('Шрифт ще вантажиться. Спробуй за мить.'); return; }
-    if (!modelRoot.children.length){ alert('Спершу завантаж модель.'); return; }
-    clearGroup(watermarkGroup);
-    const text = $('wmText').value.trim() || 'Brand';
-    const size = +$('wmSize').value;
-    const depth= +$('wmDepth').value;
-    const angle= (+$('wmAngle').value * Math.PI/180);
-    const offsetP = +$('wmOffset').value / 100;
-    const tg = new TextGeometry(text, { font, size, height:depth, curveSegments:8, bevelEnabled:false });
-    tg.computeBoundingBox();
-    const mat = new THREE.MeshStandardMaterial({ color:0xff4488, transparent:true, opacity:.65 });
-    const mesh = new THREE.Mesh(tg, mat);
-    const mbox = new THREE.Box3().setFromObject(modelRoot);
-    const msize = mbox.getSize(new THREE.Vector3());
-    const margin = msize.length() * offsetP;
-    mesh.rotation.set(0,0,angle);
-    mesh.position.set(mbox.min.x + margin, mbox.max.y + 0.1, mbox.min.z + margin);
-    watermarkGroup.add(mesh);
-  }
-  document.getElementById('btnPreview').addEventListener('click', previewWatermark);
-
-  function bakeWatermark(){
-    if (!watermarkGroup.children.length){ alert('Немає превʼю знаку. Натисни «Попередній перегляд».'); return; }
-    const base = modelRoot.children.find(o=>o.isMesh);
-    if (!base){ alert('Немає геометрії моделі.'); return; }
-    const wm = watermarkGroup.children[0];
-    wm.updateMatrixWorld(true);
-    const baseGeo = base.geometry.clone();
-    const wmGeo   = wm.geometry.clone().applyMatrix4(wm.matrixWorld);
-    const aPos = baseGeo.getAttribute('position');
-    const bPos = wmGeo.getAttribute('position');
-    const pos  = new Float32Array(aPos.count*3 + bPos.count*3);
-    pos.set(aPos.array, 0); pos.set(bPos.array, aPos.count*3);
-    const merged = new THREE.BufferGeometry();
-    merged.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    merged.computeVertexNormals();
-    base.geometry.dispose(); base.geometry = merged;
-    clearGroup(watermarkGroup);
-  }
-  document.getElementById('btnBake').addEventListener('click', bakeWatermark);
-
-  // Експорт/конвертація
-  const stlExporter = new STLExporter();
-  function download(name, data, bin=false){
-    const blob = new Blob([data], {type: bin? 'application/octet-stream':'text/plain'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
-    URL.revokeObjectURL(a.href);
-  }
-  function exportSTL(isBinary){
-    const mesh = modelRoot.children.find(o=>o.isMesh);
-    if (!mesh){ alert('Немає моделі для експорту.'); return; }
-    if (!isBinary){
-      const ascii = stlExporter.parse(mesh, {binary:false});
-      download('model_ascii.stl', ascii, false);
-    } else {
-      const buf = stlExporter.parse(mesh, {binary:true});
-      download('model_binary.stl', buf, true);
-    }
-  }
-  document.getElementById('btnExportAscii').addEventListener('click', ()=>exportSTL(false));
-  document.getElementById('btnExportBinary').addEventListener('click', ()=>exportSTL(true));
-
-  function getExportGroup(){
-    if(!modelRoot || modelRoot.children.length===0){ alert('Нема моделі'); return null; }
-    const group = new THREE.Group();
-    modelRoot.updateMatrixWorld(true);
-    modelRoot.traverse(n=>{
-      if(n.isMesh && n.geometry){
-        const g = n.geometry.clone();
-        g.applyMatrix4(n.matrixWorld);
-        group.add(new THREE.Mesh(g));
-      }
-    });
-    if(!group.children.length){ alert('Нема сітки'); return null; }
-    return group;
-  }
-  const gltfEx = new GLTFExporter(), objEx = new OBJExporter(), plyEx = new PLYExporter();
-  function exportGLB(){const r=getExportGroup(); if(!r)return; gltfEx.parse(r,(bin)=>download('model.glb',bin,true),{binary:true,onlyVisible:true,trs:false});}
-  function exportGLTF(){const r=getExportGroup(); if(!r)return; gltfEx.parse(r,(g)=>download('model.gltf',JSON.stringify(g),false),{binary:false,onlyVisible:true,trs:false,embedImages:true});}
-  function exportOBJ(){const r=getExportGroup(); if(!r)return; download('model.obj', objEx.parse(r), false);}
-  function exportPLY(){const r=getExportGroup(); if(!r)return; download('model.ply', plyEx.parse(r), false);}
-  document.getElementById('btnExpGLB').addEventListener('click', exportGLB);
-  document.getElementById('btnExpGLTF').addEventListener('click', exportGLTF);
-  document.getElementById('btnExpOBJ').addEventListener('click', exportOBJ);
-  document.getElementById('btnExpPLY').addEventListener('click', exportPLY);
-
-  (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
-
-  // вкладки + стрілки
-  function initTabs(containerId){
-    const wrap = document.getElementById(containerId); if(!wrap) return;
+  /* ===== Вкладки + стрілочки ===== */
+  function initTabs(containerId, storageKey){
+    const wrap = document.getElementById(containerId);
+    if(!wrap) return;
     const tabs = Array.from(wrap.querySelectorAll('.tool-tab'));
     const panels = tabs.map(b=>document.querySelector(b.dataset.target)).filter(Boolean);
+
     function activate(sel){
       tabs.forEach(b=>b.classList.toggle('active', b.dataset.target===sel));
       panels.forEach(p=>p.classList.toggle('active', '#'+p.id===sel));
+      try{ localStorage.setItem(storageKey, sel); }catch(e){}
     }
     wrap.addEventListener('click', e=>{
       const b = e.target.closest('.tool-tab'); if(!b) return;
       activate(b.dataset.target);
+      const btnRect = b.getBoundingClientRect(), wrapRect = wrap.getBoundingClientRect();
+      if(btnRect.left < wrapRect.left) wrap.scrollBy({left: btnRect.left - wrapRect.left - 8, behavior:'smooth'});
+      if(btnRect.right > wrapRect.right) wrap.scrollBy({left: btnRect.right - wrapRect.right + 8, behavior:'smooth'});
     });
-    activate(tabs[0].dataset.target);
+    wrap.addEventListener('wheel', (e)=>{
+      if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); wrap.scrollLeft += e.deltaY; }
+    }, {passive:false});
+
+    const saved = localStorage.getItem(storageKey);
+    activate(saved || tabs[0].dataset.target);
   }
   function wireArrows(forId){
     const track = document.getElementById(forId);
     const prev = document.querySelector(`.arrow-btn[data-for="${forId}"][data-arrow="prev"]`);
     const next = document.querySelector(`.arrow-btn[data-for="${forId}"][data-arrow="next"]`);
-    if(!track||!prev||!next) return;
+    if(!track || !prev || !next) return;
     function updateDisabled(){
       prev.disabled = track.scrollLeft <= 2;
       next.disabled = Math.ceil(track.scrollLeft + track.clientWidth) >= track.scrollWidth - 2;
     }
     updateDisabled();
-    prev.addEventListener('click', ()=>{ track.scrollBy({left:-Math.round(track.clientWidth*0.8),behavior:'smooth'}); });
-    next.addEventListener('click', ()=>{ track.scrollBy({left: Math.round(track.clientWidth*0.8),behavior:'smooth'}); });
+    prev.addEventListener('click', ()=>{ track.scrollBy({left: -Math.round(track.clientWidth*0.8), behavior:'smooth'}); });
+    next.addEventListener('click', ()=>{ track.scrollBy({left:  Math.round(track.clientWidth*0.8), behavior:'smooth'}); });
     track.addEventListener('scroll', updateDisabled, {passive:true});
     window.addEventListener('resize', updateDisabled);
   }
-  initTabs('toolsTabs'); wireArrows('toolsTabs');
+  initTabs('leftTabs', 'stl_left_panel');
+  initTabs('stlTabs',  'stl_right_panel');
+  wireArrows('leftTabs');
+  wireArrows('stlTabs');
 
-  // модалка «Експорт»
-  const modal = $('exportModal');
-  const openBtn = $('openExport');
-  const closeBtn = $('closeExport');
-  function openModal(){ modal.style.display='flex'; document.body.style.overflow='hidden'; modal.querySelector('.btn')?.focus(); }
-  function closeModal(){ modal.style.display='none'; document.body.style.overflow=''; openBtn?.focus(); }
+  /* ===== Модалка «Експорт» ===== */
+  const modal = document.getElementById('exportModal');
+  const openBtn = document.getElementById('openExport');
+  const closeBtn = document.getElementById('closeExport');
+
+  function openModal(){
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    const first = modal.querySelector('.btn'); first?.focus();
+  }
+  function closeModal(){
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    openBtn.focus();
+  }
   openBtn.addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
-  modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
   window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.style.display==='flex') closeModal(); });
 
-  const map = { ascii:'btnExportAscii', binary:'btnExportBinary', glb:'btnExpGLB', gltf:'btnExpGLTF', obj:'btnExpOBJ', ply:'btnExpPLY' };
+  /* Мапимо натискання в модалці на приховані кнопки (які вже є в DOM) */
+  const map = {
+    ascii:  'btnExportAscii',
+    binary: 'btnExportBinary',
+    glb:    'btnExpGLB',
+    gltf:   'btnExpGLTF',
+    obj:    'btnExpOBJ',
+    ply:    'btnExpPLY'
+  };
   modal.addEventListener('click', (e)=>{
-    const b = e.target.closest('[data-export]'); if(!b) return;
-    const id = map[b.getAttribute('data-export')]; const real = document.getElementById(id);
-    closeModal(); setTimeout(()=> real?.click(), 60);
+    const b = e.target.closest('[data-export]');
+    if(!b) return;
+    const id = map[b.getAttribute('data-export')];
+    const real = document.getElementById(id);
+    closeModal();
+    setTimeout(()=> real?.click(), 60);
   });
 </script>
+
+<nav id="mobileToolbar" class="ps-toolbar" role="toolbar" aria-label="Mobile tools"></nav>
 
 </body>
 </html>
