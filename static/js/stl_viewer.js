@@ -10,6 +10,97 @@ import { GLTFLoader }    from "gltf/loader";
 import { OBJLoader }     from "obj/loader";
 import { PLYLoader }     from "ply/loader";
 
+/* ===========================
+   Infinite, Blender-style grid
+   ===========================
+   Без видимих країв; лінії малюються шейдером, fade у даль.
+   Ім'я об'єкта — як у тебе: grid (підміна GridHelper), щоб не ламати існуючі функції.
+*/
+class InfiniteGrid extends THREE.Mesh {
+  constructor({
+    size1 = 10.0,      // крок дрібної сітки (напр. 10 мм)
+    size2 = 100.0,     // товста лінія кожні 100 мм
+    color1 = new THREE.Color(0x262b39),
+    color2 = new THREE.Color(0x3a4153),
+    fadeDistance = 2500.0, // доки видно сітку
+    thickness1 = 1.0,      // товщина дрібних ліній (в пікселях)
+    thickness2 = 1.6       // товщина товстих ліній
+  } = {}) {
+    const uniforms = {
+      uCamPos: { value: new THREE.Vector3() },
+      uSize1:  { value: size1 },
+      uSize2:  { value: size2 },
+      uColor1: { value: new THREE.Color(color1) },
+      uColor2: { value: new THREE.Color(color2) },
+      uFade:   { value: fadeDistance },
+      uTh1:    { value: thickness1 },
+      uTh2:    { value: thickness2 },
+    };
+
+    const vert = /* glsl */`
+      varying vec3 vWorld;
+      void main(){
+        vec4 wp = modelMatrix * vec4(position,1.0);
+        vWorld = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `;
+
+    const frag = /* glsl */`
+      precision highp float;
+      varying vec3 vWorld;
+      uniform vec3 uCamPos;
+      uniform float uSize1; uniform float uSize2;
+      uniform vec3 uColor1; uniform vec3 uColor2;
+      uniform float uFade;
+      uniform float uTh1; uniform float uTh2;
+
+      // відстань до найближчої лінії періодичної решітки з кроком s
+      float gridDist(vec2 p, float s){
+        vec2 g = abs(fract(p / s - 0.5) - 0.5) * s;
+        return min(g.x, g.y);
+      }
+
+      void main(){
+        // щоб сітка була "під ногами", підставляємо позицію камери
+        vec2 p = (vWorld.xz + uCamPos.xz);
+
+        float d1 = gridDist(p, uSize1);
+        float d2 = gridDist(p, uSize2);
+
+        float line1 = smoothstep(0.0, uTh1, uTh1 - d1);
+        float line2 = smoothstep(0.0, uTh2, uTh2 - d2);
+
+        vec3 col = mix(uColor1, uColor2, line2);
+        col = mix(vec3(0.0), col, max(line1, line2));
+
+        float dist = length(vWorld.xz - uCamPos.xz);
+        float fade = 1.0 - smoothstep(uFade*0.7, uFade, dist);
+        col *= fade;
+
+        float alpha = max(line1, line2) * fade;
+        if(alpha < 0.01) discard;
+
+        gl_FragColor = vec4(col, alpha);
+      }
+    `;
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms, vertexShader: vert, fragmentShader: frag,
+      transparent: true, depthWrite: false
+    });
+
+    // геометрія велика, але шейдер робить її візуально нескінченною
+    const geo = new THREE.PlaneGeometry(10000, 10000, 1, 1);
+    super(geo, mat);
+    this.rotation.x = -Math.PI / 2;
+
+    this.onBeforeRender = (_r, _s, camera) => {
+      mat.uniforms.uCamPos.value.copy(camera.position);
+    };
+  }
+}
+
 export async function initViewer({ containerId = "viewer", statusId = "status" } = {}) {
   const $ = (id) => document.getElementById(id);
   const container = $(containerId);
@@ -25,7 +116,11 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   camera.position.set(1.2, 0.9, 1.8);
 
   // ── РЕНДЕР
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    logarithmicDepthBuffer: true
+  });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   container.appendChild(renderer.domElement);
@@ -49,11 +144,16 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   dir.position.set(2, 2, 2);
   scene.add(dir);
 
-  const grid = new THREE.GridHelper(10, 10, 0x3a4153, 0x262b39);
-  grid.position.y = 0; // сітка точно на 0
+  // ▸ ПІДМІНА GridHelper на нескінченну сітку (ім’я: grid — як раніше)
+  const grid = new InfiniteGrid({
+    size1: 10.0,     // дрібна клітинка 10 мм
+    size2: 100.0,    // товста лінія 100 мм
+    fadeDistance: 2500.0
+  });
+  grid.position.y = 0;
   scene.add(grid);
 
-  // [+] авто-масштаб стола під модель
+  // [+] авто-масштаб стола під модель (залишаємо як є — не ламає, просто scale буде майже непомітний)
   const GRID_BASE_SIZE = 10; // як у GridHelper(10, 10)
   function resizeGridToModel(margin = 1.3) {
     if (!modelRoot.children.length) {
@@ -424,7 +524,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     centerObject,
     dropToFloor,
     centerAndDropToFloor,
-    setViewerMode,        // головне: перемикач "stl" ↔ "wm"
+    setViewerMode,        // головне: перемикач "стл" ↔ "wm"
     resizeGridToModel,    // доступно ззовні при потребі
     get viewerMode() { return viewerMode; },
 
