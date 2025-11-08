@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <title>Proofly — Перегляд 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Підключаємо той самий базовий стиль -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <style>
+    /* Макет: одна центральна карта на всю ширину (вигляд як у середньої колонки) */
+    .layout-one {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .card{background:#0f1117;border:1px solid #242735;border-radius:12px;padding:14px 16px}
+    .card h2{margin:0 0 10px 0}
+
+    #viewer{
+      width:100%;
+      height:min(72vh,78dvh);
+      min-height:480px;
+      background:#111;
+      border:1px solid #2a2e3d;
+      border-radius:10px;
+      overflow:hidden;
+    }
+    #viewer canvas{display:block;width:100%;height:100%}
+
+    .topbar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .file{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border:1px solid #2a2e3d; border-radius:10px;
+      background:#151b2d; color:#e6e9ff; font-size:14px;
+    }
+    .file input{ all:unset }
+    .hint{font-size:12px;color:#667085;margin-top:6px}
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.159/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/",
+      "stl/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/STLLoader.js",
+      "obj/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/OBJLoader.js",
+      "gltf/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/GLTFLoader.js",
+      "ply/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/PLYLoader.js"
+    }
+  }
+  </script>
+</head>
+<body>
+
+{% include 'nav.html' %}
+
+<div class="layout-one">
+  <div class="card">
+    <div class="topbar">
+      <h2 style="margin-right:auto">Перегляд</h2>
+      <label class="file">
+        <span>Вибрати файл</span>
+        <input id="file" type="file" accept=".stl,.obj,.gltf,.glb,.ply">
+      </label>
+    </div>
+
+    <div id="viewer"></div>
+    <div class="hint">Drag&drop у поле вище або обери файл. Підтримка: STL, OBJ, PLY, glTF/GLB.
+      Також працює <code>?url=...</code> для автозавантаження.</div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'stl/loader';
+import { OBJLoader } from 'obj/loader';
+import { GLTFLoader } from 'gltf/loader';
+import { PLYLoader } from 'ply/loader';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111111);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
+camera.position.set(1.2, 0.9, 1.8);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+document.getElementById('viewer').appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const dir = new THREE.DirectionalLight(0xffffff, 1);
+dir.position.set(2,2,2); scene.add(dir);
+const grid = new THREE.GridHelper(10, 10, 0x3a4153, 0x262b39);
+grid.position.y = -0.001; scene.add(grid);
+
+const root = new THREE.Group(); scene.add(root);
+const mat = new THREE.MeshStandardMaterial({ color:0x9aa7c7, roughness:.85, metalness:.05 });
+
+function resize(){
+  const cont = document.getElementById('viewer');
+  const w = cont.clientWidth || 800;
+  const h = cont.clientHeight || 500;
+  renderer.setSize(w,h,false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(document.getElementById('viewer'));
+window.addEventListener('resize', resize); resize();
+
+function clear(){
+  while(root.children.length){
+    const m=root.children.pop();
+    m.geometry?.dispose?.(); m.material?.dispose?.();
+  }
+}
+
+function fit(obj, zoom=1.6){
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  const fov = camera.fov * (Math.PI/180);
+  let camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * zoom;
+  camZ = Math.max(camZ, 0.1);
+  camera.position.set(center.x+camZ*0.7, center.y+camZ*0.5, center.z+camZ);
+  camera.near = camZ/100; camera.far = camZ*100; camera.updateProjectionMatrix();
+  controls.target.copy(center); controls.update();
+}
+
+const loaders = {
+  stl: new STLLoader(),
+  obj: new OBJLoader(),
+  gltf: new GLTFLoader(),
+  ply: new PLYLoader()
+};
+
+function addGeometry(geometry){
+  geometry.computeVertexNormals?.();
+  root.add(new THREE.Mesh(geometry, mat));
+  fit(root);
+}
+function addObject(obj){
+  obj.traverse(n=>{
+    if(n.isMesh){
+      n.material = mat.clone();
+      n.material.side = THREE.DoubleSide;
+      n.geometry?.computeVertexNormals?.();
+    }
+  });
+  root.add(obj);
+  fit(root);
+}
+
+async function loadFromUrl(url){
+  const ext = url.split('.').pop().split('?')[0].toLowerCase();
+  const onErr = (e)=>{ console.error(e); alert('Не вдалося завантажити модель.'); };
+  if(ext==='stl') loaders.stl.load(url, g=>{ clear(); addGeometry(g); }, undefined, onErr);
+  else if(ext==='obj') loaders.obj.load(url, o=>{ clear(); addObject(o); }, undefined, onErr);
+  else if(ext==='gltf' || ext==='glb') loaders.gltf.load(url, g=>{ clear(); addObject(g.scene); }, undefined, onErr);
+  else if(ext==='ply') loaders.ply.load(url, g=>{ clear(); addGeometry(g); }, undefined, onErr);
+  else alert('Формат не підтримується.');
+}
+
+function loadFromFile(file){
+  const ext = file.name.split('.').pop().toLowerCase();
+  const url = URL.createObjectURL(file);
+  const done = ()=>URL.revokeObjectURL(url);
+  const onErr = (e)=>{ console.error(e); alert('Не вдалося прочитати файл.'); done(); };
+
+  if(ext==='stl') loaders.stl.load(url, g=>{ clear(); addGeometry(g); done(); }, undefined, onErr);
+  else if(ext==='obj') loaders.obj.load(url, o=>{ clear(); addObject(o); done(); }, undefined, onErr);
+  else if(ext==='gltf' || ext==='glb') loaders.gltf.load(url, g=>{ clear(); addObject(g.scene); done(); }, undefined, onErr);
+  else if(ext==='ply') loaders.ply.load(url, g=>{ clear(); addGeometry(g); done(); }, undefined, onErr);
+  else { alert('Формат не підтримується.'); done(); }
+}
+
+document.getElementById('file').addEventListener('change', e=>{
+  const f = e.target.files?.[0]; if(f) loadFromFile(f);
+});
+
+// drag&drop у картку
+(()=> {
+  const box = document.getElementById('viewer').parentElement;
+  box.addEventListener('dragover', e=>{ e.preventDefault(); box.style.outline='2px dashed #6c63ff'; });
+  ['dragleave','drop'].forEach(ev=>box.addEventListener(ev, e=>{ e.preventDefault(); box.style.outline='none'; }));
+  box.addEventListener('drop', e=>{
+    const f = e.dataTransfer?.files?.[0]; if(!f) return;
+    if (/\.(stl|obj|ply|gltf|glb)$/i.test(f.name)) loadFromFile(f);
+    else alert('Підтримка: STL, OBJ, PLY, glTF/GLB.');
+  });
+})();
+
+// ?url=...
+const params = new URLSearchParams(location.search);
+const url = params.get('url');
+if(url) loadFromUrl(url);
+
+(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+</script>
+
+</body>
+</html>
