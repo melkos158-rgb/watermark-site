@@ -4,6 +4,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js"; // [ДОДАНО]
 import { STLLoader }     from "stl/loader";
 import { GLTFLoader }    from "gltf/loader";
 import { OBJLoader }     from "obj/loader";
@@ -32,6 +33,15 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   // ── КОНТРОЛИ
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
+
+  // [ДОДАНО] TransformControls (ґізмо як у Blender)
+  const tctrl = new TransformControls(camera, renderer.domElement);
+  scene.add(tctrl);
+  // під час перетягування блокуємо OrbitControls
+  tctrl.addEventListener("dragging-changed", (e) => { controls.enabled = !e.value; });
+  // внутрішній стан вибраного об’єкта та налаштувань
+  let selectedObj = null;
+  let currentSnap = null; // мм для move, градуси для rotate (див. setSnap нижче)
 
   // ── СВІТЛО/СІТКА
   scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -139,6 +149,9 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     watermarkGroup.scale.set(1, 1, 1);
     if (statusEl) statusEl.textContent = "";
     resizeGridToModel(1.3);
+
+    // [ДОДАНО] також відчепимо ґізмо і скинемо вибір
+    detachTransform();
   }
 
   // автоорієнтація: приводить модель до Y-up (враховує Z-up і X-up)
@@ -324,6 +337,52 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     renderer.render(scene, camera);
   })();
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ▼▼▼ ДОДАНО: API для ґізмо/трансформацій (як у Blender) ▼▼▼
+
+  function attachTransform(obj3d) {
+    if (!obj3d) return;
+    selectedObj = obj3d;
+    tctrl.attach(obj3d);
+  }
+  function detachTransform() {
+    selectedObj = null;
+    tctrl.detach();
+  }
+  function setMode(mode /* 'translate'|'rotate'|'scale' */) {
+    const m = (mode === "rotate" || mode === "scale") ? mode : "translate";
+    tctrl.setMode(m);
+  }
+  function setSpace(space /* 'world'|'local' */) {
+    tctrl.setSpace(space === "local" ? "local" : "world");
+  }
+  function setGizmoSize(size = 1) {
+    const s = Math.max(0.1, Math.min(5, Number(size) || 1));
+    tctrl.setSize(s);
+  }
+  // step для move — у одиницях сцени (мм), для rotate — у градусах
+  function setSnap(step /* number|null */) {
+    currentSnap = (Number(step) && step > 0) ? Number(step) : null;
+    if (currentSnap == null) {
+      tctrl.setTranslationSnap(null);
+      tctrl.setRotationSnap(null);
+      tctrl.setScaleSnap(null);
+      return;
+    }
+    tctrl.setTranslationSnap(currentSnap);
+    tctrl.setRotationSnap(THREE.MathUtils.degToRad(currentSnap));
+    tctrl.setScaleSnap(0); // масштаб без snap за замовчуванням
+  }
+
+  // зручно фокуситись на вибраному
+  function focusSelection() {
+    if (selectedObj) fitCameraToObject(selectedObj, 1.6);
+    else if (modelRoot.children.length) fitCameraToObject(modelRoot, 1.6);
+  }
+
+  // ▲▲▲ КІНЕЦЬ ДОДАНОГО API ▲▲▲
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // ── ПОВЕРТАЄМО КОНТЕКСТ ДЛЯ ІНШИХ МОДУЛІВ
   const ctx = {
     // DOM
@@ -368,6 +427,19 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     setViewerMode,        // головне: перемикач "stl" ↔ "wm"
     resizeGridToModel,    // доступно ззовні при потребі
     get viewerMode() { return viewerMode; },
+
+    // ▼▼ API ґізмо
+    transform: {
+      controls: tctrl,
+      get selected() { return selectedObj; },
+      attach: attachTransform,
+      detach: detachTransform,
+      setMode,
+      setSpace,
+      setSize: setGizmoSize,
+      setSnap,
+      focus: focusSelection,
+    },
   };
 
   return ctx;
