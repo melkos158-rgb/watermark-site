@@ -78,7 +78,8 @@
     .tool-tab:focus{outline:2px solid #3b82f6}
     .tool-tab.active{ background:#2962ff22; border-color:#2962ff66 }
 
-    .tool-panels{ position:relative }
+    /* ВІДСТУП між вкладками й панелями, щоб не зʼєднувались */
+    .tool-panels{ position:relative; margin-top:10px; }
     .tool-panel{ display:none }
     .tool-panel.active{ display:block }
 
@@ -498,7 +499,7 @@
       objLoader.load(url, (obj)=>{ clearAll(); addObject(obj); done(); }, undefined, onError);
     } else if (ext === 'ply'){
       plyLoader.load(url, (geom)=>{ geom.computeVertexNormals(); clearAll(); addGeometry(geom); done(); }, undefined, onError);
-    } else if (ext === 'gltf' || ext === 'glb'){
+    } else if (ext === 'gltf' || 'glb'){
       gltfLoader.load(url, (gltf)=>{ clearAll(); addObject(gltf.scene); done(); }, undefined, onError);
     } else {
       alert('Формат не підтримується (доступні: STL, OBJ, PLY, glTF/GLB).');
@@ -644,7 +645,6 @@
       if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); wrap.scrollLeft += e.deltaY; }
     }, {passive:false});
 
-    // Відновлення
     const saved = localStorage.getItem(storageKey);
     activate(saved || tabs[0].dataset.target);
   }
