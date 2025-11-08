@@ -141,16 +141,28 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     resizeGridToModel(1.3);
   }
 
-  // автоорієнтація: якщо STL у Z-up — поставити у Y-up
+  // автоорієнтація: приводить модель до Y-up (враховує Z-up і X-up)
   function autoOrientUpright(object) {
     object.updateWorldMatrix(true, true);
-    const box = new THREE.Box3().setFromObject(object);
+    const box  = new THREE.Box3().setFromObject(object);
     const size = box.getSize(new THREE.Vector3());
-    // просте правило: якщо по Z модель істотно "вища", ніж по Y — вважаємо Z-up
-    if (size.z > size.y * 1.2) {
-      object.rotation.x = -Math.PI / 2; // покласти Z у Y
-      object.updateWorldMatrix(true, true);
+
+    // Вісь з найбільшим розміром трактуємо як "висоту" моделі
+    const axes = [
+      { axis: "x", v: size.x },
+      { axis: "y", v: size.y },
+      { axis: "z", v: size.z },
+    ].sort((a, b) => b.v - a.v);
+    const up = axes[0].axis; // 'x' | 'y' | 'z'
+
+    if (up === "z") {
+      // Z-up → покласти Z у Y
+      object.rotation.x += -Math.PI / 2;
+    } else if (up === "x") {
+      // X-up → повернути X у Y
+      object.rotation.z +=  Math.PI / 2;
     }
+    object.updateWorldMatrix(true, true);
   }
 
   function addGeometry(geometry) {
