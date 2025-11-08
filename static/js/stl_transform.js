@@ -9,21 +9,41 @@ export function initTransform(ctx, { autoBindButtons = true } = {}) {
   const $ = (id) => document.getElementById(id);
   const { modelRoot, controls, fitCameraToObject, statusEl } = ctx;
 
+  function _resizeGridSafe() {
+    try { ctx.resizeGridToModel?.(1.3); } catch (_) {}
+  }
+  function _doubleSideMaterials(root) {
+    try {
+      root.traverse((n) => {
+        if (n.isMesh && n.material && n.material.side !== THREE.DoubleSide) {
+          n.material.side = THREE.DoubleSide;
+        }
+      });
+    } catch (_) {}
+  }
+
   function centerAndFloor() {
     if (!modelRoot.children.length) return alert("Нема моделі");
-    const box = new THREE.Box3().setFromObject(modelRoot);
-    const center = box.getCenter(new THREE.Vector3());
-    const minY = box.min.y;
-    modelRoot.position.sub(center);
-    modelRoot.position.y -= minY;
+    // Якщо є утиліта з viewer — використовуємо її (точніше працює)
+    if (ctx.centerAndDropToFloor) {
+      ctx.centerAndDropToFloor(modelRoot);
+    } else {
+      const box = new THREE.Box3().setFromObject(modelRoot);
+      const center = box.getCenter(new THREE.Vector3());
+      const minY = box.min.y;
+      modelRoot.position.sub(center);
+      modelRoot.position.y -= minY;
+    }
+    modelRoot.updateMatrixWorld(true);
     fitCameraToObject(modelRoot, 1.6);
+    _resizeGridSafe();
     if (statusEl) statusEl.textContent = "Модель відцентровано і опущено на стіл.";
   }
 
   function autoOrient() {
     if (!modelRoot.children.length) return alert("Нема моделі");
     modelRoot.rotation.set(0, 0, 0);
-    modelRoot.updateMatrixWorld();
+    modelRoot.updateMatrixWorld(true);
     centerAndFloor();
     if (statusEl) statusEl.textContent = "Автоматична орієнтація застосована.";
   }
@@ -35,6 +55,7 @@ export function initTransform(ctx, { autoBindButtons = true } = {}) {
     modelRoot.scale.set(scale, scale, scale);
     modelRoot.updateMatrixWorld(true);
     fitCameraToObject(modelRoot, 1.6);
+    _resizeGridSafe();
     if (statusEl) statusEl.textContent = `Модель масштабовано ×${scale.toFixed(2)}`;
   }
 
@@ -42,7 +63,8 @@ export function initTransform(ctx, { autoBindButtons = true } = {}) {
     if (!modelRoot.children.length) return alert("Нема моделі");
     const rad = (deg * Math.PI) / 180;
     modelRoot.rotation[axis] += rad;
-    modelRoot.updateMatrixWorld();
+    modelRoot.updateMatrixWorld(true);
+    _resizeGridSafe();
     if (statusEl) statusEl.textContent = `Обертання: ${axis.toUpperCase()} ${deg > 0 ? "+" : ""}${deg}°`;
   }
 
@@ -51,7 +73,10 @@ export function initTransform(ctx, { autoBindButtons = true } = {}) {
     const scale = modelRoot.scale.clone();
     scale[axis] *= -1;
     modelRoot.scale.copy(scale);
-    modelRoot.updateMatrixWorld();
+    // Щоб не зникали грані при негативному масштабі — увімкнемо DoubleSide
+    _doubleSideMaterials(modelRoot);
+    modelRoot.updateMatrixWorld(true);
+    _resizeGridSafe();
     if (statusEl) statusEl.textContent = `Віддзеркалено по осі ${axis.toUpperCase()}`;
   }
 
@@ -62,13 +87,16 @@ export function initTransform(ctx, { autoBindButtons = true } = {}) {
     $("#btnScaleApply")?.addEventListener("click", applyScale);
 
     document.querySelectorAll(".rot")?.forEach((b) => {
-      const [axis, val] = b.dataset.rot.split("-");
+      const ds = b.dataset.rot || "";
+      const [axis, val] = ds.split("-");
       const deg = parseFloat(val);
+      if (!axis || !Number.isFinite(deg)) return;
       b.addEventListener("click", () => rotate(axis, deg));
     });
 
     document.querySelectorAll(".mirror")?.forEach((b) => {
       const axis = b.dataset.mirror;
+      if (!axis) return;
       b.addEventListener("click", () => mirror(axis));
     });
   }
