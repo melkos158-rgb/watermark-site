@@ -43,13 +43,28 @@
     .hint{font-size:12px;color:#667085;margin-top:6px}
     hr{border:none;border-top:1px solid #2a2e3d;margin:12px 0}
 
-    /* ===== ГОРИЗОНТАЛЬНІ ВКЛАДКИ ДЛЯ ОБОХ КОЛОНОК ===== */
+    /* ===== Горизонтальні вкладки з СТРІЛКАМИ ===== */
+    .tabs-wrap{
+      display:flex; align-items:center; gap:8px;
+      margin:0 0 12px;
+      position:sticky; top:72px; z-index:2;
+    }
+    .arrow-btn{
+      flex:0 0 auto;
+      width:36px; height:36px; border-radius:12px;
+      border:1px solid #242735; background:#12141c; color:#d9e1ff;
+      display:grid; place-items:center; font-size:18px; line-height:1;
+      cursor:pointer; user-select:none;
+    }
+    .arrow-btn:disabled{opacity:.35; cursor:default}
+    .arrow-btn:focus{outline:2px solid #3b82f6}
+
     .tool-tabs{
-      display:flex; gap:10px; padding:8px; margin:0 0 12px;
+      display:flex; gap:10px; padding:8px;
       border:1px solid #242735; border-radius:12px; background:#0f1117;
       overflow-x:auto; -webkit-overflow-scrolling:touch;
       scrollbar-width:thin;
-      position:sticky; top:72px; z-index:2;   /* завжди під рукою */
+      flex:1 1 auto;
     }
     .tool-tabs::-webkit-scrollbar{height:6px}
     .tool-tabs::-webkit-scrollbar-thumb{background:#2b3144;border-radius:8px}
@@ -58,7 +73,7 @@
       flex:0 0 auto;
       border:1px solid #2a2e3d; background:#12141c;
       padding:8px 12px; border-radius:999px; cursor:pointer;
-      font-weight:600; white-space:nowrap;
+      font-weight:600; white-space:nowrap; color:#e6e9ff;
     }
     .tool-tab:focus{outline:2px solid #3b82f6}
     .tool-tab.active{ background:#2962ff22; border-color:#2962ff66 }
@@ -78,7 +93,7 @@
       .layout{grid-template-columns: 1fr}
       .side{position:static;max-height:none;overflow:visible}
       #viewer{height:60dvh}
-      .tool-tabs{ position:static; top:auto }
+      .tabs-wrap{ position:static; top:auto }
     }
 
     /* ===== Photoshop-like mobile toolbar (лише мобілка) ===== */
@@ -139,16 +154,20 @@
   <div class="card side">
     <h2>Модель</h2>
 
-    <!-- Вкладки лівої колонки -->
-    <div class="tool-tabs" id="leftTabs" role="tablist" aria-label="Model tools">
-      <button class="tool-tab active" data-target="#panel-left-model" role="tab">Модель</button>
-      <button class="tool-tab" data-target="#panel-left-transform" role="tab">Трансформ</button>
-      <button class="tool-tab" data-target="#panel-left-slice" role="tab">Різати</button>
-      <button class="tool-tab" data-target="#panel-left-boolean" role="tab">Boolean</button>
-      <button class="tool-tab" data-target="#panel-left-hollow" role="tab">Hollow</button>
-      <button class="tool-tab" data-target="#panel-left-engrave" role="tab">Гравірув.</button>
-      <button class="tool-tab" data-target="#panel-left-simplify" role="tab">Simplify</button>
-      <button class="tool-tab" data-target="#panel-left-mix" role="tab">Mix&Match</button>
+    <!-- Вкладки лівої колонки з СТРІЛКАМИ -->
+    <div class="tabs-wrap">
+      <button class="arrow-btn" data-arrow="prev" data-for="leftTabs">‹</button>
+      <div class="tool-tabs" id="leftTabs" role="tablist" aria-label="Model tools">
+        <button class="tool-tab active" data-target="#panel-left-model" role="tab">Модель</button>
+        <button class="tool-tab" data-target="#panel-left-transform" role="tab">Трансформ</button>
+        <button class="tool-tab" data-target="#panel-left-slice" role="tab">Різати</button>
+        <button class="tool-tab" data-target="#panel-left-boolean" role="tab">Boolean</button>
+        <button class="tool-tab" data-target="#panel-left-hollow" role="tab">Hollow</button>
+        <button class="tool-tab" data-target="#panel-left-engrave" role="tab">Гравірув.</button>
+        <button class="tool-tab" data-target="#panel-left-simplify" role="tab">Simplify</button>
+        <button class="tool-tab" data-target="#panel-left-mix" role="tab">Mix&Match</button>
+      </div>
+      <button class="arrow-btn" data-arrow="next" data-for="leftTabs">›</button>
     </div>
 
     <div class="tool-panels">
@@ -279,11 +298,15 @@
   <div class="card side">
     <h2>Інструменти</h2>
 
-    <div class="tool-tabs" id="stlTabs" role="tablist" aria-label="STL tools">
-      <button class="tool-tab active" data-target="#panel-authorship" role="tab">Авторство</button>
-      <button class="tool-tab" data-target="#panel-watermark" role="tab">3D водяний знак</button>
-      <button class="tool-tab" data-target="#panel-export" role="tab">Експорт STL</button>
-      <button class="tool-tab" data-target="#panel-convert" role="tab">Конвертація</button>
+    <div class="tabs-wrap">
+      <button class="arrow-btn" data-arrow="prev" data-for="stlTabs">‹</button>
+      <div class="tool-tabs" id="stlTabs" role="tablist" aria-label="STL tools">
+        <button class="tool-tab active" data-target="#panel-authorship" role="tab">Авторство</button>
+        <button class="tool-tab" data-target="#panel-watermark" role="tab">3D водяний знак</button>
+        <button class="tool-tab" data-target="#panel-export" role="tab">Експорт STL</button>
+        <button class="tool-tab" data-target="#panel-convert" role="tab">Конвертація</button>
+      </div>
+      <button class="arrow-btn" data-arrow="next" data-for="stlTabs">›</button>
     </div>
 
     <div class="tool-panels">
@@ -358,7 +381,7 @@
   const $ = (id)=>document.getElementById(id);
   const statusEl = $('status');
 
-  /* ==== 3D-функції — без змін ==== */
+  /* ==== 3D-функції — БЕЗ ЗМІН ==== */
 
   // ---- Сцена
   const scene = new THREE.Scene();
@@ -596,39 +619,61 @@
 
   (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
 
-  /* ===== Уніфікатор вкладок для обох колонок ===== */
-  function initTabs(containerId, storageKey, hashPrefix){
+  /* ===== Вкладки + стрілочки для обох колонок ===== */
+  function initTabs(containerId, storageKey){
     const wrap = document.getElementById(containerId);
     if(!wrap) return;
     const tabs = Array.from(wrap.querySelectorAll('.tool-tab'));
     const panels = tabs.map(b=>document.querySelector(b.dataset.target)).filter(Boolean);
 
-    function activate(sel, push=true){
+    function activate(sel){
       tabs.forEach(b=>b.classList.toggle('active', b.dataset.target===sel));
       panels.forEach(p=>p.classList.toggle('active', '#'+p.id===sel));
       try{ localStorage.setItem(storageKey, sel); }catch(e){}
-      if(push && hashPrefix){ history.replaceState(null,'', '#'+(sel.replace('#'+hashPrefix,'').replace('panel-',''))); }
     }
-
     wrap.addEventListener('click', e=>{
       const b = e.target.closest('.tool-tab'); if(!b) return;
       activate(b.dataset.target);
+      // Прокрутка, щоб активна була видима
+      const btnRect = b.getBoundingClientRect(), wrapRect = wrap.getBoundingClientRect();
+      if(btnRect.left < wrapRect.left) wrap.scrollBy({left: btnRect.left - wrapRect.left - 8, behavior:'smooth'});
+      if(btnRect.right > wrapRect.right) wrap.scrollBy({left: btnRect.right - wrapRect.right + 8, behavior:'smooth'});
     });
-
+    // коліщатко — горизонтально
     wrap.addEventListener('wheel', (e)=>{
       if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); wrap.scrollLeft += e.deltaY; }
     }, {passive:false});
 
+    // Відновлення
     const saved = localStorage.getItem(storageKey);
-    activate(saved || tabs[0].dataset.target, false);
+    activate(saved || tabs[0].dataset.target);
+  }
+
+  function wireArrows(forId){
+    const track = document.getElementById(forId);
+    const prev = document.querySelector(`.arrow-btn[data-for="${forId}"][data-arrow="prev"]`);
+    const next = document.querySelector(`.arrow-btn[data-for="${forId}"][data-arrow="next"]`);
+    if(!track || !prev || !next) return;
+
+    function updateDisabled(){
+      prev.disabled = track.scrollLeft <= 2;
+      next.disabled = Math.ceil(track.scrollLeft + track.clientWidth) >= track.scrollWidth - 2;
+    }
+    updateDisabled();
+
+    prev.addEventListener('click', ()=>{ track.scrollBy({left: -Math.round(track.clientWidth*0.8), behavior:'smooth'}); });
+    next.addEventListener('click', ()=>{ track.scrollBy({left:  Math.round(track.clientWidth*0.8), behavior:'smooth'}); });
+    track.addEventListener('scroll', updateDisabled, {passive:true});
+    window.addEventListener('resize', updateDisabled);
   }
 
   // Ініціалізація
-  initTabs('leftTabs', 'stl_left_panel', null);
-  initTabs('stlTabs',  'stl_right_panel', 'panel-');
+  initTabs('leftTabs', 'stl_left_panel');
+  initTabs('stlTabs',  'stl_right_panel');
+  wireArrows('leftTabs');
+  wireArrows('stlTabs');
 
-  /* ===== Мобільний тулбар (твій код можна додати нижче без змін) ===== */
-  // function makeTool(...) { /* твоя реалізація */ }
+  /* ===== (Опційно) мобільний тулбар — твій існуючий код можна додати нижче без змін ===== */
 </script>
 
 <!-- Фіксований мобільний тулбар -->
