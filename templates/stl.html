@@ -12,18 +12,22 @@
       display:grid;
       grid-template-columns: 320px 1fr 320px; /* Права = ліва */
       gap:16px;
-      align-items:start;
+      align-items:stretch;           /* ⬅️ всі три колонки однакової висоти */
     }
-    .card{background:#0f1117;border:1px solid #242735;border-radius:12px;padding:14px 16px}
+    .card{
+      background:#0f1117;border:1px solid #242735;border-radius:12px;
+      padding:14px 16px;
+      height:100%;                   /* ⬅️ розтяг по висоті комірки */
+      display:flex;                  /* ⬅️ всередині колонки – колонки */
+      flex-direction:column;
+    }
     .card h2{margin:0 0 10px 0}
     .help{font-size:12px;opacity:.8;margin-top:6px}
 
-    /* Бокові колонки — зручний власний скрол */
+    /* Бокові колонки — без sticky на десктопі, щоб не ламати рівну висоту */
     .side{
-      position:sticky;
-      top:72px;
-      max-height:calc(100dvh - 90px);
-      overflow:auto;
+      overflow:auto;                 /* ⬅️ якщо контенту багато — скролиться всередині */
+      padding-bottom:8px;            /* ⬅️ невеликий нижній відступ */
     }
 
     /* Центр (перегляд) */
@@ -36,6 +40,7 @@
       border:1px solid #2a2e3d;
       border-radius:10px;
       overflow:hidden;
+      flex:1 0 auto;                 /* ⬅️ займає місце, формує висоту колонки */
     }
     #viewer canvas{display:block;width:100%;height:100%}
 
@@ -46,8 +51,9 @@
     /* ===== Горизонтальні вкладки з СТРІЛКАМИ ===== */
     .tabs-wrap{
       display:flex; align-items:center; gap:8px;
-      margin:0 0 20px;              /* 🔧 більше місця під вкладками */
-      position:sticky; top:72px; z-index:2;
+      margin:0 0 20px;
+      position:relative;             /* ⬅️ не sticky, щоб колонки рівнялись по низу */
+      z-index:2;
     }
     .arrow-btn{
       flex:0 0 auto;
@@ -61,14 +67,14 @@
 
     .tool-tabs{
       display:flex; gap:10px;
-      padding:8px 8px 14px;         /* 🔧 нижній внутрішній відступ, щоб скролбар не прилипав до низу */
+      padding:8px 8px 14px;
       border:1px solid #242735; border-radius:12px; background:#0f1117;
       overflow-x:auto; -webkit-overflow-scrolling:touch;
       scrollbar-width:thin;
       flex:1 1 auto;
-      scrollbar-gutter: stable both-edges; /* 🔧 резерв місця для скролу (де підтримується) */
+      scrollbar-gutter: stable both-edges;
     }
-    .tool-tabs::-webkit-scrollbar{height:8px}  /* 🔧 трішки товстіше та нижче в середині */
+    .tool-tabs::-webkit-scrollbar{height:8px}
     .tool-tabs::-webkit-scrollbar-thumb{background:#2b3144;border-radius:8px}
 
     .tool-tab{
@@ -80,10 +86,11 @@
     .tool-tab:focus{outline:2px solid #3b82f6}
     .tool-tab.active{ background:#2962ff22; border-color:#2962ff66 }
 
-    /* ВІДСТУП між вкладками й панелями, щоб не зʼєднувались */
+    /* ВІДСТУП між вкладками й панелями */
     .tool-panels{
       position:relative;
-      margin-top:14px;              /* 🔧 панелі ще на 14px нижче */
+      margin-top:14px;
+      flex:0 0 auto;
     }
     .tool-panel{ display:none }
     .tool-panel.active{ display:block }
@@ -91,15 +98,14 @@
     /* Поля вводу на всю ширину в панелях */
     input[type="text"], input[type="number"], input[type="range"]{ width:100% }
 
-    /* АДАПТИВ */
-    @media (max-width:1300px){
-      .layout{grid-template-columns: 280px 1fr 280px}
-    }
+    /* АДАПТИВ: на вузьких екранах повертаємо sticky для зручності */
     @media (max-width:1100px){
       .layout{grid-template-columns: 1fr}
-      .side{position:static;max-height:none;overflow:visible}
+      .side{
+        position:static;max-height:none;overflow:visible;
+      }
       #viewer{height:60dvh}
-      .tabs-wrap{ position:static; top:auto }
+      .tabs-wrap{ position:static; }
     }
 
     /* ===== Photoshop-like mobile toolbar (лише мобілка) ===== */
@@ -160,7 +166,6 @@
   <div class="card side">
     <h2>Модель</h2>
 
-    <!-- Вкладки лівої колонки з СТРІЛКАМИ -->
     <div class="tabs-wrap">
       <button class="arrow-btn" data-arrow="prev" data-for="leftTabs">‹</button>
       <div class="tool-tabs" id="leftTabs" role="tablist" aria-label="Model tools">
@@ -640,12 +645,10 @@
     wrap.addEventListener('click', e=>{
       const b = e.target.closest('.tool-tab'); if(!b) return;
       activate(b.dataset.target);
-      // Прокрутка, щоб активна була видима
       const btnRect = b.getBoundingClientRect(), wrapRect = wrap.getBoundingClientRect();
       if(btnRect.left < wrapRect.left) wrap.scrollBy({left: btnRect.left - wrapRect.left - 8, behavior:'smooth'});
       if(btnRect.right > wrapRect.right) wrap.scrollBy({left: btnRect.right - wrapRect.right + 8, behavior:'smooth'});
     });
-    // коліщатко — горизонтально
     wrap.addEventListener('wheel', (e)=>{
       if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); wrap.scrollLeft += e.deltaY; }
     }, {passive:false});
@@ -672,16 +675,12 @@
     window.addEventListener('resize', updateDisabled);
   }
 
-  // Ініціалізація
   initTabs('leftTabs', 'stl_left_panel');
   initTabs('stlTabs',  'stl_right_panel');
   wireArrows('leftTabs');
   wireArrows('stlTabs');
-
-  /* ===== (Опційно) мобільний тулбар — твій існуючий код можна додати нижче без змін ===== */
 </script>
 
-<!-- Фіксований мобільний тулбар -->
 <nav id="mobileToolbar" class="ps-toolbar" role="toolbar" aria-label="Mobile tools"></nav>
 
 </body>
