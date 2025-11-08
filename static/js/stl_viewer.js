@@ -218,9 +218,64 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     });
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ▼▼▼ ДОДАНО: режими перегляду "stl" (зі столом) і "wm" (без стола + 360°) ▼▼▼
+
+  // внутрішній стан режиму та годинник для плавної анімації
+  let viewerMode = "stl";              // 'stl' | 'wm'
+  const clock = new THREE.Clock();
+  let spinFlag = false;                // додаткове обертання групи водяного знака
+  controls.autoRotate = false;         // початково вимкнено
+  controls.autoRotateSpeed = 1.2;
+
+  /** Центрує об’єкт у (0,0,0) без "посадки" на підлогу */
+  function centerObject(object) {
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.getCenter(new THREE.Vector3());
+    object.position.sub(center);
+  }
+
+  /** Опускає об’єкт, щоб мінімальний Y = 0 (поставити "на стіл") */
+  function dropToFloor(object) {
+    const box = new THREE.Box3().setFromObject(object);
+    object.position.y -= box.min.y;
+  }
+
+  /** Зручна утиліта: і центр, і посадка на підлогу */
+  function centerAndDropToFloor(object) {
+    centerObject(object);
+    dropToFloor(object);
+  }
+
+  /** Публічний перемикач режимів перегляду */
+  function setViewerMode(mode /* 'stl' | 'wm' */) {
+    viewerMode = mode === "wm" ? "wm" : "stl";
+
+    if (viewerMode === "stl") {
+      grid.visible = true;             // показуємо "стіл"
+      controls.autoRotate = false;     // ручне керування
+      spinFlag = false;                // не крутимо watermarkGroup
+    } else {
+      grid.visible = false;            // прибираємо "стіл"
+      controls.autoRotate = true;      // камера повільно крутиться
+      controls.autoRotateSpeed = 1.2;
+      spinFlag = true;                 // і ще трохи крутимо watermarkGroup
+      // переконаймося, що watermark по центру (без посадки на підлогу)
+      centerObject(watermarkGroup);
+      fitCameraToObject(watermarkGroup, 1.4);
+    }
+  }
+
+  // ▲▲▲ КІНЕЦЬ БЛОКУ ДОДАВАННЯ РЕЖИМІВ ▲▲▲
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // ── РЕНДЕР-ЛУП
   (function loop() {
     requestAnimationFrame(loop);
+    // додано плавний спін для 'wm'
+    const delta = clock.getDelta();
+    if (spinFlag) watermarkGroup.rotation.y += delta * 0.6;
+
     controls.update();
     renderer.render(scene, camera);
   })();
@@ -261,6 +316,13 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     addObject,
     loadAnyFromFile,
     setWireframe,
+
+    // ▼ нові утиліти / API для інших модулів
+    centerObject,
+    dropToFloor,
+    centerAndDropToFloor,
+    setViewerMode,        // головне: перемикач "stl" ↔ "wm"
+    get viewerMode() { return viewerMode; },
   };
 
   return ctx;
