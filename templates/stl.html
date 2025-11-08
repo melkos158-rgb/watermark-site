@@ -46,7 +46,7 @@
     /* ===== Горизонтальні вкладки з СТРІЛКАМИ ===== */
     .tabs-wrap{
       display:flex; align-items:center; gap:8px;
-      margin:0 0 16px;              /* 🔧 більше місця під вкладками */
+      margin:0 0 20px;              /* 🔧 більше місця під вкладками */
       position:sticky; top:72px; z-index:2;
     }
     .arrow-btn{
@@ -61,13 +61,14 @@
 
     .tool-tabs{
       display:flex; gap:10px;
-      padding:8px 8px 12px;         /* 🔧 опустили внутрішній скрол нижче */
+      padding:8px 8px 14px;         /* 🔧 нижній внутрішній відступ, щоб скролбар не прилипав до низу */
       border:1px solid #242735; border-radius:12px; background:#0f1117;
       overflow-x:auto; -webkit-overflow-scrolling:touch;
       scrollbar-width:thin;
       flex:1 1 auto;
+      scrollbar-gutter: stable both-edges; /* 🔧 резерв місця для скролу (де підтримується) */
     }
-    .tool-tabs::-webkit-scrollbar{height:8px}  /* 🔧 нижчий/товстіший для кращого відступу */
+    .tool-tabs::-webkit-scrollbar{height:8px}  /* 🔧 трішки товстіше та нижче в середині */
     .tool-tabs::-webkit-scrollbar-thumb{background:#2b3144;border-radius:8px}
 
     .tool-tab{
@@ -82,7 +83,7 @@
     /* ВІДСТУП між вкладками й панелями, щоб не зʼєднувались */
     .tool-panels{
       position:relative;
-      margin-top:12px;              /* 🔧 панелі ще на 12px нижче */
+      margin-top:14px;              /* 🔧 панелі ще на 14px нижче */
     }
     .tool-panel{ display:none }
     .tool-panel.active{ display:block }
