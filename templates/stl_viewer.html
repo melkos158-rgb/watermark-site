@@ -4,41 +4,36 @@
   <meta charset="utf-8" />
   <title>Proofly — Перегляд 3D</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Підключаємо той самий базовий стиль -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
   <style>
-    /* Макет: одна центральна карта на всю ширину (вигляд як у середньої колонки) */
-    .layout-one {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      align-items: start;
-    }
-    .card{background:#0f1117;border:1px solid #242735;border-radius:12px;padding:14px 16px}
+    .layout-one{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+    .card{background:#0f1117;border:1px solid #242735;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column}
     .card h2{margin:0 0 10px 0}
-
-    #viewer{
-      width:100%;
-      height:min(72vh,78dvh);
-      min-height:480px;
-      background:#111;
-      border:1px solid #2a2e3d;
-      border-radius:10px;
-      overflow:hidden;
-    }
+    #viewer{width:100%;height:min(72vh,78dvh);min-height:480px;background:#111;border:1px solid #2a2e3d;border-radius:10px;overflow:hidden}
     #viewer canvas{display:block;width:100%;height:100%}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .help{font-size:12px;color:#667085;margin-top:6px}
+    .tabs-wrap{display:flex;align-items:center;gap:8px;margin:0 0 20px}
+    .arrow-btn{flex:0 0 auto;width:36px;height:36px;border-radius:12px;border:1px solid #242735;background:#12141c;color:#d9e1ff;display:grid;place-items:center;font-size:18px;line-height:1;cursor:pointer}
+    .tool-tabs{display:flex;gap:10px;padding:8px 8px 14px;border:1px solid #242735;border-radius:12px;background:#0f1117;overflow-x:auto;scrollbar-width:thin;flex:1 1 auto}
+    .tool-tabs::-webkit-scrollbar{height:8px}
+    .tool-tabs::-webkit-scrollbar-thumb{background:#2b3144;border-radius:8px}
+    .tool-tab{flex:0 0 auto;border:1px solid #2a2e3d;background:#12141c;padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:600;white-space:nowrap;color:#e6e9ff}
+    .tool-tab.active{background:#2962ff22;border-color:#2962ff66}
+    .tool-panels{position:relative;margin-top:14px}
+    .tool-panel{display:none}.tool-panel.active{display:block}
 
-    .topbar{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-    }
-    .file{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:8px 10px; border:1px solid #2a2e3d; border-radius:10px;
-      background:#151b2d; color:#e6e9ff; font-size:14px;
-    }
-    .file input{ all:unset }
-    .hint{font-size:12px;color:#667085;margin-top:6px}
+    /* модалка експорту */
+    .export-bar{margin-top:10px;display:flex;justify-content:flex-end}
+    .export-btn{padding:10px 14px;border-radius:10px;border:1px solid #2b3563;background:#1a2140;color:#e6e9ff;font-weight:700;cursor:pointer}
+    .export-btn:hover{filter:brightness(1.05)}
+    .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:10000}
+    .modal{width:min(520px,92vw);background:#0f1117;border:1px solid #242735;border-radius:14px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal h3{margin:0 0 12px 0}
+    .modal .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .modal .btn{padding:10px 12px;border-radius:10px;border:1px solid #2a2e3d;background:#151b2d;color:#e6e9ff;text-align:left;font-weight:600;cursor:pointer}
+    .modal .footer{margin-top:12px;display:flex;justify-content:flex-end}
   </style>
 
   <script type="importmap">
@@ -47,9 +42,15 @@
       "three": "https://cdn.jsdelivr.net/npm/three@0.159/build/three.module.js",
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/",
       "stl/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/STLLoader.js",
-      "obj/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/OBJLoader.js",
+      "stl/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/STLExporter.js",
+      "font/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/FontLoader.js",
+      "text/geometry": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/geometries/TextGeometry.js",
       "gltf/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/GLTFLoader.js",
-      "ply/loader": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/PLYLoader.js"
+      "obj/loader":  "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/OBJLoader.js",
+      "ply/loader":  "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/loaders/PLYLoader.js",
+      "gltf/exporter":"https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/GLTFExporter.js",
+      "obj/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/OBJExporter.js",
+      "ply/exporter": "https://cdn.jsdelivr.net/npm/three@0.159/examples/jsm/exporters/PLYExporter.js"
     }
   }
   </script>
@@ -59,152 +60,376 @@
 {% include 'nav.html' %}
 
 <div class="layout-one">
+
+  <!-- Верхня панель вкладок праворуч (водяний знак) + кнопка «Експорт» -->
   <div class="card">
-    <div class="topbar">
-      <h2 style="margin-right:auto">Перегляд</h2>
-      <label class="file">
-        <span>Вибрати файл</span>
-        <input id="file" type="file" accept=".stl,.obj,.gltf,.glb,.ply">
-      </label>
+    <div class="tabs-wrap">
+      <button class="arrow-btn" data-arrow="prev" data-for="toolsTabs">‹</button>
+      <div class="tool-tabs" id="toolsTabs" role="tablist" aria-label="STL tools">
+        <button class="tool-tab active" data-target="#panel-watermark" role="tab">3D водяний знак</button>
+        <button class="tool-tab" data-target="#panel-export" role="tab">Експорт STL</button>
+        <button class="tool-tab" data-target="#panel-convert" role="tab">Конвертація</button>
+      </div>
+      <button class="arrow-btn" data-arrow="next" data-for="toolsTabs">›</button>
     </div>
 
     <div id="viewer"></div>
-    <div class="hint">Drag&drop у поле вище або обери файл. Підтримка: STL, OBJ, PLY, glTF/GLB.
-      Також працює <code>?url=...</code> для автозавантаження.</div>
+    <div class="help">Перетягни файл у поле вище або обери файл у вкладці «Модель» на основній сторінці. Також працює <code>?url=...</code>.</div>
+
+    <div class="tool-panels">
+      <section id="panel-watermark" class="tool-panel active" role="tabpanel">
+        <h3>3D водяний знак</h3>
+        <label for="wmText">Текст</label>
+        <input id="wmText" type="text" placeholder="Brand" value="Brand">
+        <label for="wmSize">Розмір тексту</label>
+        <input id="wmSize" type="range" min="2" max="40" value="12">
+        <label for="wmDepth">Глибина (мм)</label>
+        <input id="wmDepth" type="range" min="1" max="10" value="3">
+        <label for="wmAngle">Кут (°)</label>
+        <input id="wmAngle" type="range" min="-90" max="90" value="0">
+        <label for="wmOffset">Відступ від країв (%)</label>
+        <input id="wmOffset" type="range" min="0" max="20" value="4">
+        <div class="row" style="margin-top:8px">
+          <button id="btnPreview" class="btn ghost">Попередній перегляд</button>
+          <button id="btnBake" class="btn ghost" disabled>Запекти в модель</button>
+        </div>
+    </section>
+
+      <section id="panel-export" class="tool-panel" role="tabpanel">
+        <h3>Експорт STL</h3>
+        <div class="row">
+          <button id="btnExportAscii" class="btn primary">Експорт STL (ASCII)</button>
+          <button id="btnExportBinary" class="btn ghost">Експорт STL (Binary)</button>
+        </div>
+      </section>
+
+      <section id="panel-convert" class="tool-panel" role="tabpanel">
+        <h3>Конвертація / Експорт</h3>
+        <div class="row">
+          <button id="btnExpGLB"  class="btn ghost">Export GLB</button>
+          <button id="btnExpGLTF" class="btn ghost">Export GLTF</button>
+        </div>
+        <div class="row">
+          <button id="btnExpOBJ"  class="btn ghost">Export OBJ</button>
+          <button id="btnExpPLY"  class="btn ghost">Export PLY</button>
+        </div>
+        <div class="export-bar">
+          <button id="openExport" class="export-btn" aria-haspopup="dialog" aria-controls="exportModal">Експорт</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка Експорт -->
+<div class="modal-back" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+  <div class="modal" role="document">
+    <h3 id="exportTitle">Експорт / Конвертація</h3>
+    <div class="grid">
+      <button class="btn" data-export="ascii">STL (ASCII)</button>
+      <button class="btn" data-export="binary">STL (Binary)</button>
+      <button class="btn" data-export="glb">GLB</button>
+      <button class="btn" data-export="gltf">GLTF</button>
+      <button class="btn" data-export="obj">OBJ</button>
+      <button class="btn" data-export="ply">PLY</button>
+    </div>
+    <div class="footer">
+      <button class="btn" id="closeExport">Закрити</button>
+    </div>
   </div>
 </div>
 
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { STLLoader } from 'stl/loader';
-import { OBJLoader } from 'obj/loader';
-import { GLTFLoader } from 'gltf/loader';
-import { PLYLoader } from 'ply/loader';
+  /* ----- увесь 3D/експорт функціонал (без змін) ----- */
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { STLLoader }     from 'stl/loader';
+  import { STLExporter }   from 'stl/exporter';
+  import { FontLoader }    from 'font/loader';
+  import { TextGeometry }  from 'text/geometry';
+  import { GLTFLoader }    from 'gltf/loader';
+  import { OBJLoader }     from 'obj/loader';
+  import { PLYLoader }     from 'ply/loader';
+  import { GLTFExporter }  from 'gltf/exporter';
+  import { OBJExporter }   from 'obj/exporter';
+  import { PLYExporter }   from 'ply/exporter';
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x111111);
+  const $ = (id)=>document.getElementById(id);
+  const statusEl = document.createElement('div'); // опціонально, якщо треба статус
 
-const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
-camera.position.set(1.2, 0.9, 1.8);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111111);
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-document.getElementById('viewer').appendChild(renderer.domElement);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
+  camera.position.set(1.2, 0.9, 1.8);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
+  const renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  document.getElementById('viewer').appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-const dir = new THREE.DirectionalLight(0xffffff, 1);
-dir.position.set(2,2,2); scene.add(dir);
-const grid = new THREE.GridHelper(10, 10, 0x3a4153, 0x262b39);
-grid.position.y = -0.001; scene.add(grid);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
 
-const root = new THREE.Group(); scene.add(root);
-const mat = new THREE.MeshStandardMaterial({ color:0x9aa7c7, roughness:.85, metalness:.05 });
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(2,2,2); scene.add(dir);
+  const grid = new THREE.GridHelper(10, 10, 0x3a4153, 0x262b39);
+  grid.position.y = -0.001; scene.add(grid);
 
-function resize(){
-  const cont = document.getElementById('viewer');
-  const w = cont.clientWidth || 800;
-  const h = cont.clientHeight || 500;
-  renderer.setSize(w,h,false);
-  camera.aspect = w/h;
-  camera.updateProjectionMatrix();
-}
-new ResizeObserver(resize).observe(document.getElementById('viewer'));
-window.addEventListener('resize', resize); resize();
+  const modelRoot = new THREE.Group(); scene.add(modelRoot);
+  const watermarkGroup = new THREE.Group(); scene.add(watermarkGroup);
 
-function clear(){
-  while(root.children.length){
-    const m=root.children.pop();
-    m.geometry?.dispose?.(); m.material?.dispose?.();
+  const baseMaterial = new THREE.MeshStandardMaterial({ color:0x9aa7c7, roughness:.85, metalness:.05 });
+  const wireMaterial = new THREE.MeshBasicMaterial({ color:0xffffff, wireframe:true });
+  let wireframeOn = false;
+
+  function resize(){
+    const cont = document.getElementById('viewer');
+    const w = cont.clientWidth || 800;
+    const h = cont.clientHeight || 500;
+    renderer.setSize(w,h,false);
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
   }
-}
+  new ResizeObserver(resize).observe(document.getElementById('viewer')); window.addEventListener('resize', resize); resize();
 
-function fit(obj, zoom=1.6){
-  const box = new THREE.Box3().setFromObject(obj);
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  const fov = camera.fov * (Math.PI/180);
-  let camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * zoom;
-  camZ = Math.max(camZ, 0.1);
-  camera.position.set(center.x+camZ*0.7, center.y+camZ*0.5, center.z+camZ);
-  camera.near = camZ/100; camera.far = camZ*100; camera.updateProjectionMatrix();
-  controls.target.copy(center); controls.update();
-}
+  function fitCameraToObject(object, zoom=1.6){
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const fov = camera.fov * (Math.PI/180);
+    let camZ = Math.abs(maxDim / (2*Math.tan(fov/2))) * zoom;
+    camZ = Math.max(camZ, 0.1);
+    camera.position.set(center.x+camZ*0.7, center.y+camZ*0.5, center.z+camZ);
+    camera.near = camZ/100; camera.far = camZ*100; camera.updateProjectionMatrix();
+    controls.target.copy(center); controls.update();
+  }
+  function resetCamera(){
+    if (modelRoot.children.length) fitCameraToObject(modelRoot, 1.6);
+    else { camera.position.set(1.2,0.9,1.8); controls.target.set(0,0,0); controls.update(); }
+  }
 
-const loaders = {
-  stl: new STLLoader(),
-  obj: new OBJLoader(),
-  gltf: new GLTFLoader(),
-  ply: new PLYLoader()
-};
+  const fontLoader = new FontLoader();
+  let font = null;
+  fontLoader.load(
+    'https://cdn.jsdelivr.net/npm/three@0.159/examples/fonts/helvetiker_regular.typeface.json',
+    f => font = f,
+    undefined,
+    err => console.warn('Шрифт не завантажився:', err)
+  );
 
-function addGeometry(geometry){
-  geometry.computeVertexNormals?.();
-  root.add(new THREE.Mesh(geometry, mat));
-  fit(root);
-}
-function addObject(obj){
-  obj.traverse(n=>{
-    if(n.isMesh){
-      n.material = mat.clone();
-      n.material.side = THREE.DoubleSide;
-      n.geometry?.computeVertexNormals?.();
+  const stlLoader  = new STLLoader();
+  const gltfLoader = new GLTFLoader();
+  const objLoader  = new OBJLoader();
+  const plyLoader  = new PLYLoader();
+
+  function clearGroup(grp){
+    while(grp.children.length){
+      const m = grp.children.pop();
+      m.geometry?.dispose?.(); m.material?.dispose?.();
     }
+  }
+  function clearAll(){ clearGroup(modelRoot); clearGroup(watermarkGroup); }
+
+  function addGeometry(geometry){
+    geometry.computeVertexNormals?.();
+    const mesh = new THREE.Mesh(geometry, wireframeOn ? wireMaterial : baseMaterial);
+    modelRoot.add(mesh);
+    fitCameraToObject(modelRoot, 1.6);
+    $('btnBake')?.removeAttribute('disabled');
+  }
+
+  function addObject(obj){
+    obj.traverse(n=>{
+      if(n.isMesh){
+        n.material = wireframeOn ? wireMaterial : baseMaterial.clone();
+        n.material.side = THREE.DoubleSide;
+        n.geometry?.computeVertexNormals?.();
+      }
+    });
+    modelRoot.add(obj);
+    const box = new THREE.Box3().setFromObject(modelRoot);
+    const center = box.getCenter(new THREE.Vector3());
+    const minY = box.min.y;
+    modelRoot.position.sub(center);
+    modelRoot.position.y -= minY;
+    fitCameraToObject(modelRoot, 1.6);
+    $('btnBake')?.setAttribute('disabled','true');
+  }
+
+  function loadAnyFromUrl(url){
+    const ext = url.split('.').pop().split('?')[0].toLowerCase();
+    const onError = (err)=>{ console.error('Load error:', err); alert('Не вдалося прочитати файл.'); };
+    if (ext==='stl') stlLoader.load(url, g=>{ clearAll(); addGeometry(g); }, undefined, onError);
+    else if (ext==='obj') objLoader.load(url, o=>{ clearAll(); addObject(o); }, undefined, onError);
+    else if (ext==='ply') plyLoader.load(url, g=>{ g.computeVertexNormals?.(); clearAll(); addGeometry(g); }, undefined, onError);
+    else if (ext==='gltf' || ext==='glb') gltfLoader.load(url, gltf=>{ clearAll(); addObject(gltf.scene); }, undefined, onError);
+    else alert('Формат не підтримується (STL/OBJ/PLY/GLTF/GLB).');
+  }
+
+  // drag&drop
+  (()=>{ const dz = document.getElementById('viewer');
+    dz.addEventListener('dragover', e=>{e.preventDefault(); dz.style.outline='2px dashed #6c63ff';});
+    ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev, e=>{e.preventDefault(); dz.style.outline='none';}));
+    dz.addEventListener('drop', e=>{
+      const f = e.dataTransfer?.files?.[0]; if(!f) return;
+      const url = URL.createObjectURL(f);
+      const done = ()=>URL.revokeObjectURL(url);
+      const ext = f.name.split('.').pop().toLowerCase();
+      const onError = (err)=>{ console.error(err); alert('Не вдалося прочитати файл.'); done(); };
+      if (ext==='stl') stlLoader.load(url, g=>{ clearAll(); addGeometry(g); done(); }, undefined, onError);
+      else if (ext==='obj') objLoader.load(url, o=>{ clearAll(); addObject(o); done(); }, undefined, onError);
+      else if (ext==='ply') plyLoader.load(url, g=>{ g.computeVertexNormals?.(); clearAll(); addGeometry(g); done(); }, undefined, onError);
+      else if (ext==='gltf' || ext==='glb') gltfLoader.load(url, gltf=>{ clearAll(); addObject(gltf.scene); done(); }, undefined, onError);
+      else { alert('Підтримка: STL, OBJ, PLY, GLTF/GLB.'); done(); }
+    });
+  })();
+
+  // ?url=
+  const q = new URLSearchParams(location.search);
+  if(q.get('url')) loadAnyFromUrl(q.get('url'));
+
+  // Водяний знак
+  function previewWatermark(){
+    if (!font){ alert('Шрифт ще вантажиться. Спробуй за мить.'); return; }
+    if (!modelRoot.children.length){ alert('Спершу завантаж модель.'); return; }
+    clearGroup(watermarkGroup);
+    const text = $('wmText').value.trim() || 'Brand';
+    const size = +$('wmSize').value;
+    const depth= +$('wmDepth').value;
+    const angle= (+$('wmAngle').value * Math.PI/180);
+    const offsetP = +$('wmOffset').value / 100;
+    const tg = new TextGeometry(text, { font, size, height:depth, curveSegments:8, bevelEnabled:false });
+    tg.computeBoundingBox();
+    const mat = new THREE.MeshStandardMaterial({ color:0xff4488, transparent:true, opacity:.65 });
+    const mesh = new THREE.Mesh(tg, mat);
+    const mbox = new THREE.Box3().setFromObject(modelRoot);
+    const msize = mbox.getSize(new THREE.Vector3());
+    const margin = msize.length() * offsetP;
+    mesh.rotation.set(0,0,angle);
+    mesh.position.set(mbox.min.x + margin, mbox.max.y + 0.1, mbox.min.z + margin);
+    watermarkGroup.add(mesh);
+  }
+  document.getElementById('btnPreview').addEventListener('click', previewWatermark);
+
+  function bakeWatermark(){
+    if (!watermarkGroup.children.length){ alert('Немає превʼю знаку. Натисни «Попередній перегляд».'); return; }
+    const base = modelRoot.children.find(o=>o.isMesh);
+    if (!base){ alert('Немає геометрії моделі.'); return; }
+    const wm = watermarkGroup.children[0];
+    wm.updateMatrixWorld(true);
+    const baseGeo = base.geometry.clone();
+    const wmGeo   = wm.geometry.clone().applyMatrix4(wm.matrixWorld);
+    const aPos = baseGeo.getAttribute('position');
+    const bPos = wmGeo.getAttribute('position');
+    const pos  = new Float32Array(aPos.count*3 + bPos.count*3);
+    pos.set(aPos.array, 0); pos.set(bPos.array, aPos.count*3);
+    const merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    merged.computeVertexNormals();
+    base.geometry.dispose(); base.geometry = merged;
+    clearGroup(watermarkGroup);
+  }
+  document.getElementById('btnBake').addEventListener('click', bakeWatermark);
+
+  // Експорт/конвертація
+  const stlExporter = new STLExporter();
+  function download(name, data, bin=false){
+    const blob = new Blob([data], {type: bin? 'application/octet-stream':'text/plain'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function exportSTL(isBinary){
+    const mesh = modelRoot.children.find(o=>o.isMesh);
+    if (!mesh){ alert('Немає моделі для експорту.'); return; }
+    if (!isBinary){
+      const ascii = stlExporter.parse(mesh, {binary:false});
+      download('model_ascii.stl', ascii, false);
+    } else {
+      const buf = stlExporter.parse(mesh, {binary:true});
+      download('model_binary.stl', buf, true);
+    }
+  }
+  document.getElementById('btnExportAscii').addEventListener('click', ()=>exportSTL(false));
+  document.getElementById('btnExportBinary').addEventListener('click', ()=>exportSTL(true));
+
+  function getExportGroup(){
+    if(!modelRoot || modelRoot.children.length===0){ alert('Нема моделі'); return null; }
+    const group = new THREE.Group();
+    modelRoot.updateMatrixWorld(true);
+    modelRoot.traverse(n=>{
+      if(n.isMesh && n.geometry){
+        const g = n.geometry.clone();
+        g.applyMatrix4(n.matrixWorld);
+        group.add(new THREE.Mesh(g));
+      }
+    });
+    if(!group.children.length){ alert('Нема сітки'); return null; }
+    return group;
+  }
+  const gltfEx = new GLTFExporter(), objEx = new OBJExporter(), plyEx = new PLYExporter();
+  function exportGLB(){const r=getExportGroup(); if(!r)return; gltfEx.parse(r,(bin)=>download('model.glb',bin,true),{binary:true,onlyVisible:true,trs:false});}
+  function exportGLTF(){const r=getExportGroup(); if(!r)return; gltfEx.parse(r,(g)=>download('model.gltf',JSON.stringify(g),false),{binary:false,onlyVisible:true,trs:false,embedImages:true});}
+  function exportOBJ(){const r=getExportGroup(); if(!r)return; download('model.obj', objEx.parse(r), false);}
+  function exportPLY(){const r=getExportGroup(); if(!r)return; download('model.ply', plyEx.parse(r), false);}
+  document.getElementById('btnExpGLB').addEventListener('click', exportGLB);
+  document.getElementById('btnExpGLTF').addEventListener('click', exportGLTF);
+  document.getElementById('btnExpOBJ').addEventListener('click', exportOBJ);
+  document.getElementById('btnExpPLY').addEventListener('click', exportPLY);
+
+  (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+
+  // вкладки + стрілки
+  function initTabs(containerId){
+    const wrap = document.getElementById(containerId); if(!wrap) return;
+    const tabs = Array.from(wrap.querySelectorAll('.tool-tab'));
+    const panels = tabs.map(b=>document.querySelector(b.dataset.target)).filter(Boolean);
+    function activate(sel){
+      tabs.forEach(b=>b.classList.toggle('active', b.dataset.target===sel));
+      panels.forEach(p=>p.classList.toggle('active', '#'+p.id===sel));
+    }
+    wrap.addEventListener('click', e=>{
+      const b = e.target.closest('.tool-tab'); if(!b) return;
+      activate(b.dataset.target);
+    });
+    activate(tabs[0].dataset.target);
+  }
+  function wireArrows(forId){
+    const track = document.getElementById(forId);
+    const prev = document.querySelector(`.arrow-btn[data-for="${forId}"][data-arrow="prev"]`);
+    const next = document.querySelector(`.arrow-btn[data-for="${forId}"][data-arrow="next"]`);
+    if(!track||!prev||!next) return;
+    function updateDisabled(){
+      prev.disabled = track.scrollLeft <= 2;
+      next.disabled = Math.ceil(track.scrollLeft + track.clientWidth) >= track.scrollWidth - 2;
+    }
+    updateDisabled();
+    prev.addEventListener('click', ()=>{ track.scrollBy({left:-Math.round(track.clientWidth*0.8),behavior:'smooth'}); });
+    next.addEventListener('click', ()=>{ track.scrollBy({left: Math.round(track.clientWidth*0.8),behavior:'smooth'}); });
+    track.addEventListener('scroll', updateDisabled, {passive:true});
+    window.addEventListener('resize', updateDisabled);
+  }
+  initTabs('toolsTabs'); wireArrows('toolsTabs');
+
+  // модалка «Експорт»
+  const modal = $('exportModal');
+  const openBtn = $('openExport');
+  const closeBtn = $('closeExport');
+  function openModal(){ modal.style.display='flex'; document.body.style.overflow='hidden'; modal.querySelector('.btn')?.focus(); }
+  function closeModal(){ modal.style.display='none'; document.body.style.overflow=''; openBtn?.focus(); }
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.style.display==='flex') closeModal(); });
+
+  const map = { ascii:'btnExportAscii', binary:'btnExportBinary', glb:'btnExpGLB', gltf:'btnExpGLTF', obj:'btnExpOBJ', ply:'btnExpPLY' };
+  modal.addEventListener('click', (e)=>{
+    const b = e.target.closest('[data-export]'); if(!b) return;
+    const id = map[b.getAttribute('data-export')]; const real = document.getElementById(id);
+    closeModal(); setTimeout(()=> real?.click(), 60);
   });
-  root.add(obj);
-  fit(root);
-}
-
-async function loadFromUrl(url){
-  const ext = url.split('.').pop().split('?')[0].toLowerCase();
-  const onErr = (e)=>{ console.error(e); alert('Не вдалося завантажити модель.'); };
-  if(ext==='stl') loaders.stl.load(url, g=>{ clear(); addGeometry(g); }, undefined, onErr);
-  else if(ext==='obj') loaders.obj.load(url, o=>{ clear(); addObject(o); }, undefined, onErr);
-  else if(ext==='gltf' || ext==='glb') loaders.gltf.load(url, g=>{ clear(); addObject(g.scene); }, undefined, onErr);
-  else if(ext==='ply') loaders.ply.load(url, g=>{ clear(); addGeometry(g); }, undefined, onErr);
-  else alert('Формат не підтримується.');
-}
-
-function loadFromFile(file){
-  const ext = file.name.split('.').pop().toLowerCase();
-  const url = URL.createObjectURL(file);
-  const done = ()=>URL.revokeObjectURL(url);
-  const onErr = (e)=>{ console.error(e); alert('Не вдалося прочитати файл.'); done(); };
-
-  if(ext==='stl') loaders.stl.load(url, g=>{ clear(); addGeometry(g); done(); }, undefined, onErr);
-  else if(ext==='obj') loaders.obj.load(url, o=>{ clear(); addObject(o); done(); }, undefined, onErr);
-  else if(ext==='gltf' || ext==='glb') loaders.gltf.load(url, g=>{ clear(); addObject(g.scene); done(); }, undefined, onErr);
-  else if(ext==='ply') loaders.ply.load(url, g=>{ clear(); addGeometry(g); done(); }, undefined, onErr);
-  else { alert('Формат не підтримується.'); done(); }
-}
-
-document.getElementById('file').addEventListener('change', e=>{
-  const f = e.target.files?.[0]; if(f) loadFromFile(f);
-});
-
-// drag&drop у картку
-(()=> {
-  const box = document.getElementById('viewer').parentElement;
-  box.addEventListener('dragover', e=>{ e.preventDefault(); box.style.outline='2px dashed #6c63ff'; });
-  ['dragleave','drop'].forEach(ev=>box.addEventListener(ev, e=>{ e.preventDefault(); box.style.outline='none'; }));
-  box.addEventListener('drop', e=>{
-    const f = e.dataTransfer?.files?.[0]; if(!f) return;
-    if (/\.(stl|obj|ply|gltf|glb)$/i.test(f.name)) loadFromFile(f);
-    else alert('Підтримка: STL, OBJ, PLY, glTF/GLB.');
-  });
-})();
-
-// ?url=...
-const params = new URLSearchParams(location.search);
-const url = params.get('url');
-if(url) loadFromUrl(url);
-
-(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
 </script>
 
 </body>
