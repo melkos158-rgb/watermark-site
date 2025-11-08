@@ -30,8 +30,12 @@
       max-height:78dvh; min-height:420px;
       background:#111; border:1px solid #2a2e3d; border-radius:10px;
       overflow:hidden; flex:1 0 auto;
+      position:relative;               /* ДОДАНО: щоб тулбар позиціонувався всередині */
     }
     #viewer canvas{display:block;width:100%;height:100%}
+
+    /* Підсвітка зони при drag&drop */
+    #viewer.drag-hover{ outline:2px dashed #4b8bff; outline-offset:-6px }
 
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .hint{font-size:12px;color:#667085;margin-top:6px}
@@ -100,6 +104,27 @@
     .modal .btn:hover{ filter:brightness(1.05); }
     .modal .footer{ margin-top:12px; display:flex; justify-content:flex-end; gap:8px; }
     .modal .ghost{ background:#131722; border-color:#2a2e3d; color:#cbd4ff; }
+
+    /* ====== ВЕРТИКАЛЬНИЙ ТУЛБАР ЯК У BLENDER ====== */
+    .toolbox-vert{
+      position:absolute; left:12px; top:56px;
+      display:flex; flex-direction:column; gap:8px;
+      padding:8px; z-index:10;
+      background: rgba(15,17,23,.92);
+      border:1px solid #242735; border-radius:10px;
+      pointer-events:none; /* сцена клікабельна, кнопкам включимо нижче */
+    }
+    .toolbox-vert .tb-btn{
+      pointer-events:auto;
+      width:44px; height:44px; display:grid; place-items:center;
+      border:1px solid #2a2e3d; border-radius:10px; background:#151826;
+      cursor:pointer; transition:transform .08s ease, border-color .15s;
+    }
+    .toolbox-vert .tb-btn:hover{ transform: translateY(-1px); border-color:#3a4060; }
+    .toolbox-vert .tb-btn.active{ outline:2px solid #4b8bff; }
+    .toolbox-vert .tb-btn svg{ width:22px; height:22px; fill:#c7cfdd }
+    .toolbox-vert .tb-snap{ pointer-events:auto; display:grid; gap:4px; margin-top:2px; font-size:12px; color:#97a0b3 }
+    #tb-snap-input{ width:44px; height:32px; padding:0 6px; background:#0f1117; border:1px solid #2a2e3d; border-radius:8px; color:#d7dff0; text-align:center }
 
     /* Адаптив */
     @media (max-width:1100px){
@@ -266,7 +291,29 @@
   <!-- Центр — ВБУДОВАНИЙ ПЕРЕГЛЯД -->
   <div class="card">
     <h2>Перегляд</h2>
-    <div id="viewer"></div>
+    <div id="viewer">
+      <!-- ДОДАНО: вертикальний тулбар інструментів -->
+      <div class="toolbox-vert" aria-label="3D tools">
+        <button id="tool-move"   class="tb-btn active" title="Move (G)"   aria-pressed="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2l3 3h-2v6h-2V5H9l3-3zm0 20l-3-3h2v-6h2v6h2l-3 3zM2 12l3-3v2h6v2H5v2l-3-3zm20 0l-3 3v-2h-6v-2h6V9l3 3z"/></svg>
+        </button>
+        <button id="tool-rotate" class="tb-btn"        title="Rotate (R)" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><path d="M12 6V2l-4 4 4 4V6c3.31 0 6 2.69 6 6a6 6 0 01-9.33 4.98l-1.16 1.64A8 8 0 1020 12c0-4.42-3.58-8-8-8z"/></svg>
+        </button>
+        <button id="tool-scale"  class="tb-btn"        title="Scale (S)"  aria-pressed="false">
+          <svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
+        </button>
+        <button id="tool-fit"    class="tb-btn"        title="Focus/Reset (F)" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><path d="M7 7h3V5H5v5h2V7zm7 0h3v3h2V5h-5v2zm3 10h-3v2h5v-5h-2v3zM7 14H5v5h5v-2H7v-3z"/></svg>
+        </button>
+
+        <div class="tb-snap">
+          <label for="tb-snap-input">Snap</label>
+          <input id="tb-snap-input" type="number" step="0.1" min="0" placeholder="0">
+        </div>
+      </div>
+      <!-- Canvas three.js з’явиться тут -->
+    </div>
     <div class="hint" id="status"></div>
   </div>
 
