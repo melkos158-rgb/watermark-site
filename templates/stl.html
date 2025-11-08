@@ -10,37 +10,28 @@
     /* ====== БАЗОВИЙ ЛЕЙАУТ: 3 колонки ====== */
     .layout{
       display:grid;
-      grid-template-columns: 320px 1fr 320px; /* Права = ліва */
+      grid-template-columns: 320px 1fr 320px;
       gap:16px;
-      align-items:stretch;           /* ⬅️ всі три колонки однакової висоти */
+      align-items:stretch;                   /* усі колонки однакової висоти */
     }
     .card{
       background:#0f1117;border:1px solid #242735;border-radius:12px;
       padding:14px 16px;
-      height:100%;                   /* ⬅️ розтяг по висоті комірки */
-      display:flex;                  /* ⬅️ всередині колонки – колонки */
-      flex-direction:column;
+      height:100%;
+      display:flex; flex-direction:column;
     }
     .card h2{margin:0 0 10px 0}
     .help{font-size:12px;opacity:.8;margin-top:6px}
 
-    /* Бокові колонки — без sticky на десктопі, щоб не ламати рівну висоту */
-    .side{
-      overflow:auto;                 /* ⬅️ якщо контенту багато — скролиться всередині */
-      padding-bottom:8px;            /* ⬅️ невеликий нижній відступ */
-    }
+    .side{ overflow:auto; padding-bottom:8px; }
 
     /* Центр (перегляд) */
     #viewer{
       width:100%;
       height:min(62vh,70dvh);
-      max-height:78dvh;
-      min-height:420px;
-      background:#111;
-      border:1px solid #2a2e3d;
-      border-radius:10px;
-      overflow:hidden;
-      flex:1 0 auto;                 /* ⬅️ займає місце, формує висоту колонки */
+      max-height:78dvh; min-height:420px;
+      background:#111; border:1px solid #2a2e3d; border-radius:10px;
+      overflow:hidden; flex:1 0 auto;
     }
     #viewer canvas{display:block;width:100%;height:100%}
 
@@ -48,67 +39,96 @@
     .hint{font-size:12px;color:#667085;margin-top:6px}
     hr{border:none;border-top:1px solid #2a2e3d;margin:12px 0}
 
-    /* ===== Горизонтальні вкладки з СТРІЛКАМИ ===== */
+    /* ===== Вкладки ===== */
     .tabs-wrap{
       display:flex; align-items:center; gap:8px;
-      margin:0 0 20px;
-      position:relative;             /* ⬅️ не sticky, щоб колонки рівнялись по низу */
-      z-index:2;
+      margin:0 0 20px; position:relative; z-index:2;
     }
     .arrow-btn{
-      flex:0 0 auto;
-      width:36px; height:36px; border-radius:12px;
+      flex:0 0 auto; width:36px; height:36px; border-radius:12px;
       border:1px solid #242735; background:#12141c; color:#d9e1ff;
-      display:grid; place-items:center; font-size:18px; line-height:1;
-      cursor:pointer; user-select:none;
+      display:grid; place-items:center; font-size:18px; line-height:1; cursor:pointer;
     }
     .arrow-btn:disabled{opacity:.35; cursor:default}
     .arrow-btn:focus{outline:2px solid #3b82f6}
 
     .tool-tabs{
-      display:flex; gap:10px;
-      padding:8px 8px 14px;
+      display:flex; gap:10px; padding:8px 8px 14px;
       border:1px solid #242735; border-radius:12px; background:#0f1117;
-      overflow-x:auto; -webkit-overflow-scrolling:touch;
-      scrollbar-width:thin;
-      flex:1 1 auto;
-      scrollbar-gutter: stable both-edges;
+      overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+      flex:1 1 auto; scrollbar-gutter: stable both-edges;
     }
     .tool-tabs::-webkit-scrollbar{height:8px}
     .tool-tabs::-webkit-scrollbar-thumb{background:#2b3144;border-radius:8px}
 
     .tool-tab{
-      flex:0 0 auto;
-      border:1px solid #2a2e3d; background:#12141c;
+      flex:0 0 auto; border:1px solid #2a2e3d; background:#12141c;
       padding:8px 12px; border-radius:999px; cursor:pointer;
       font-weight:600; white-space:nowrap; color:#e6e9ff;
     }
     .tool-tab:focus{outline:2px solid #3b82f6}
     .tool-tab.active{ background:#2962ff22; border-color:#2962ff66 }
 
-    /* ВІДСТУП між вкладками й панелями */
-    .tool-panels{
-      position:relative;
-      margin-top:14px;
-      flex:0 0 auto;
-    }
+    .tool-panels{ position:relative; margin-top:14px; flex:0 0 auto; }
     .tool-panel{ display:none }
     .tool-panel.active{ display:block }
 
-    /* Поля вводу на всю ширину в панелях */
     input[type="text"], input[type="number"], input[type="range"]{ width:100% }
 
-    /* АДАПТИВ: на вузьких екранах повертаємо sticky для зручності */
+    /* ===== Ховаємо старі кнопки експорту в панелях ===== */
+    #panel-export .row,
+    #panel-convert .row,
+    #panel-convert .help{ display:none !important; }
+
+    /* ===== Єдина кнопка ЕКСПОРТ внизу правої колонки ===== */
+    .export-bar{
+      margin-top:auto;                 /* приклеїти до низу карти */
+      display:flex; justify-content:flex-end;
+      padding-top:10px;
+    }
+    .export-btn{
+      padding:10px 14px; border-radius:10px; border:1px solid #2b3563;
+      background:#1a2140; color:#e6e9ff; font-weight:700; cursor:pointer;
+    }
+    .export-btn:hover{ filter:brightness(1.05); }
+    .export-btn:active{ transform:translateY(1px); }
+
+    /* ===== Модалка експорту ===== */
+    .modal-back{
+      position:fixed; inset:0; background:rgba(0,0,0,.5);
+      display:none; align-items:center; justify-content:center;
+      z-index:10000;
+    }
+    .modal{
+      width:min(520px, 92vw); background:#0f1117; border:1px solid #242735;
+      border-radius:14px; padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .modal h3{ margin:0 0 12px 0 }
+    .modal .grid{
+      display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    }
+    .modal .btn{
+      padding:10px 12px; border-radius:10px; border:1px solid #2a2e3d;
+      background:#151b2d; color:#e6e9ff; text-align:left; font-weight:600; cursor:pointer;
+    }
+    .modal .btn:hover{ filter:brightness(1.05); }
+    .modal .footer{
+      margin-top:12px; display:flex; justify-content:flex-end; gap:8px;
+    }
+    .modal .ghost{
+      background:#131722; border-color:#2a2e3d; color:#cbd4ff;
+    }
+
+    /* АДАПТИВ */
     @media (max-width:1100px){
       .layout{grid-template-columns: 1fr}
-      .side{
-        position:static;max-height:none;overflow:visible;
-      }
+      .side{position:static;max-height:none;overflow:visible}
       #viewer{height:60dvh}
       .tabs-wrap{ position:static; }
     }
 
-    /* ===== Photoshop-like mobile toolbar (лише мобілка) ===== */
+    /* Мобільний тулбар (як було) */
     @media (max-width:860px){
       body{ padding-bottom:72px; }
       .ps-toolbar{
@@ -122,13 +142,9 @@
       .ps-toolbar::-webkit-scrollbar{ height:6px }
       .ps-toolbar::-webkit-scrollbar-thumb{ background:#2b3144; border-radius:8px }
       .ps-tool{
-        flex:0 0 auto;
-        display:grid; place-items:center;
-        width:72px; min-height:56px;
-        border:1px solid #232734; border-radius:12px;
-        background:#151926;
-        text-align:center;
-        user-select:none; touch-action:manipulation;
+        flex:0 0 auto; display:grid; place-items:center;
+        width:72px; min-height:56px; border:1px solid #232734; border-radius:12px;
+        background:#151926; text-align:center; user-select:none; touch-action:manipulation;
       }
       .ps-tool:active{ transform:scale(.98) }
       .ps-tool .ico{ font-size:18px; line-height:1 }
@@ -162,7 +178,7 @@
 
 <div class="layout">
 
-  <!-- Ліва колонка з вкладками -->
+  <!-- Ліва колонка -->
   <div class="card side">
     <h2>Модель</h2>
 
@@ -182,7 +198,6 @@
     </div>
 
     <div class="tool-panels">
-      <!-- Панель: МОДЕЛЬ -->
       <section id="panel-left-model" class="tool-panel active" role="tabpanel">
         <label>STL/3D файл</label>
         <input id="file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
@@ -201,7 +216,6 @@
         <p class="help">Керування: ЛКМ — обертати, колесо — зум, Shift+ЛКМ — панорамувати.</p>
       </section>
 
-      <!-- Панель: ТРАНСФОРМАЦІЇ -->
       <section id="panel-left-transform" class="tool-panel" role="tabpanel">
         <h3>Трансформації</h3>
         <div class="row">
@@ -226,7 +240,6 @@
         </div>
       </section>
 
-      <!-- Панель: РІЗАТИ ПЛОЩИНОЮ -->
       <section id="panel-left-slice" class="tool-panel" role="tabpanel">
         <h3>Різати площиною</h3>
         <label>Висота (Y)</label>
@@ -241,7 +254,6 @@
         </div>
       </section>
 
-      <!-- Панель: BOOLEAN -->
       <section id="panel-left-boolean" class="tool-panel" role="tabpanel">
         <h3>Boolean-операції</h3>
         <div class="row">
@@ -256,7 +268,6 @@
         </div>
       </section>
 
-      <!-- Панель: HOLLOW -->
       <section id="panel-left-hollow" class="tool-panel" role="tabpanel">
         <h3>Hollow (порожнина)</h3>
         <label>Товщина стінки (мм)</label>
@@ -270,7 +281,6 @@
         </div>
       </section>
 
-      <!-- Панель: ГРАВІРУВАННЯ -->
       <section id="panel-left-engrave" class="tool-panel" role="tabpanel">
         <h3>Гравірування / Тиснення</h3>
         <div class="row">
@@ -279,7 +289,6 @@
         </div>
       </section>
 
-      <!-- Панель: SIMPLIFY -->
       <section id="panel-left-simplify" class="tool-panel" role="tabpanel">
         <h3>Simplify / Decimate</h3>
         <label>Залишити % трикутників</label>
@@ -287,7 +296,6 @@
         <div class="row"><button id="btnSimplify" class="btn ghost">Спрощення</button></div>
       </section>
 
-      <!-- Панель: MIX & MATCH -->
       <section id="panel-left-mix" class="tool-panel" role="tabpanel">
         <h3>Mix & Match</h3>
         <input id="addFile" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
@@ -305,15 +313,14 @@
     <div class="hint" id="status"></div>
   </div>
 
-  <!-- Права колонка з вкладками -->
+  <!-- Права колонка -->
   <div class="card side">
     <h2>Інструменти</h2>
 
     <div class="tabs-wrap">
       <button class="arrow-btn" data-arrow="prev" data-for="stlTabs">‹</button>
       <div class="tool-tabs" id="stlTabs" role="tablist" aria-label="STL tools">
-        <button class="tool-tab active" data-target="#panel-authorship" role="tab">Авторство</button>
-        <button class="tool-tab" data-target="#panel-watermark" role="tab">3D водяний знак</button>
+        <button class="tool-tab active" data-target="#panel-watermark" role="tab">3D водяний знак</button>
         <button class="tool-tab" data-target="#panel-export" role="tab">Експорт STL</button>
         <button class="tool-tab" data-target="#panel-convert" role="tab">Конвертація</button>
       </div>
@@ -321,17 +328,7 @@
     </div>
 
     <div class="tool-panels">
-      <section id="panel-authorship" class="tool-panel active" role="tabpanel">
-        <h3>Авторство</h3>
-        <label for="author">Автор (для ASCII STL)</label>
-        <input id="author" type="text" placeholder="© My Brand" value="© My Brand">
-        <label style="margin-top:8px">
-          <input id="metaToggle" type="checkbox" checked>
-          Додавати «змінне» авторство у назву <code>solid</code> (ASCII STL)
-        </label>
-      </section>
-
-      <section id="panel-watermark" class="tool-panel" role="tabpanel">
+      <section id="panel-watermark" class="tool-panel active" role="tabpanel">
         <h3>3D водяний знак</h3>
         <label for="wmText">Текст</label>
         <input id="wmText" type="text" placeholder="Brand" value="Brand">
@@ -351,6 +348,7 @@
 
       <section id="panel-export" class="tool-panel" role="tabpanel">
         <h3>Експорт STL</h3>
+        <!-- старі кнопки приховані CSS -->
         <div class="row">
           <button id="btnExportAscii" class="btn primary">Експорт STL (ASCII)</button>
           <button id="btnExportBinary" class="btn ghost">Експорт STL (Binary)</button>
@@ -369,6 +367,29 @@
         </div>
         <p class="help">Файли обробляються локально в браузері. Підтримка імпорту: STL, OBJ, PLY, glTF/GLB.</p>
       </section>
+    </div>
+
+    <!-- Єдина кнопка ЕКСПОРТ внизу правої колонки -->
+    <div class="export-bar">
+      <button id="openExport" class="export-btn" aria-haspopup="dialog" aria-controls="exportModal">Експорт</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== МОДАЛЬНЕ ВІКНО ЕКСПОРТУ ===== -->
+<div class="modal-back" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+  <div class="modal" role="document">
+    <h3 id="exportTitle">Експорт / Конвертація</h3>
+    <div class="grid">
+      <button class="btn" data-export="ascii">STL (ASCII)</button>
+      <button class="btn" data-export="binary">STL (Binary)</button>
+      <button class="btn" data-export="glb">GLB</button>
+      <button class="btn" data-export="gltf">GLTF</button>
+      <button class="btn" data-export="obj">OBJ</button>
+      <button class="btn" data-export="ply">PLY</button>
+    </div>
+    <div class="footer">
+      <button class="btn ghost" id="closeExport">Закрити</button>
     </div>
   </div>
 </div>
@@ -393,8 +414,6 @@
   const statusEl = $('status');
 
   /* ==== 3D-функції — БЕЗ ЗМІН ==== */
-
-  // ---- Сцена
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x111111);
 
@@ -589,8 +608,8 @@
     const mesh = modelRoot.children.find(o=>o.isMesh);
     if (!mesh){ alert('Немає моделі для експорту.'); return; }
     if (!isBinary){
-      const addMeta = $('metaToggle').checked;
-      const author = ($('author').value||'').replace(/\s+/g,' ').trim();
+      const addMeta = $('metaToggle')?.checked;
+      const author = ($('author')?.value||'').replace(/\s+/g,' ').trim();
       const prev = mesh.name;
       mesh.name = addMeta && author ? `author=${author}` : (prev || 'model');
       const ascii = stlExporter.parse(mesh, {binary:false});
@@ -601,8 +620,8 @@
       download('model_binary.stl', buf, true);
     }
   }
-  $('btnExportAscii').addEventListener('click', ()=>exportSTL(false));
-  $('btnExportBinary').addEventListener('click', ()=>exportSTL(true));
+  document.getElementById('btnExportAscii').addEventListener('click', ()=>exportSTL(false));
+  document.getElementById('btnExportBinary').addEventListener('click', ()=>exportSTL(true));
 
   function getExportGroup(){
     if(!modelRoot || modelRoot.children.length===0){ alert('Нема моделі'); return null; }
@@ -630,7 +649,7 @@
 
   (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
 
-  /* ===== Вкладки + стрілочки для обох колонок ===== */
+  /* ===== Вкладки + стрілочки ===== */
   function initTabs(containerId, storageKey){
     const wrap = document.getElementById(containerId);
     if(!wrap) return;
@@ -679,6 +698,45 @@
   initTabs('stlTabs',  'stl_right_panel');
   wireArrows('leftTabs');
   wireArrows('stlTabs');
+
+  /* ===== Модалка «Експорт» ===== */
+  const modal = $('exportModal');
+  const openBtn = $('openExport');
+  const closeBtn = $('closeExport');
+
+  function openModal(){
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    // фокус на першу кнопку
+    const first = modal.querySelector('.btn'); first?.focus();
+  }
+  function closeModal(){
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    openBtn.focus();
+  }
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.style.display==='flex') closeModal(); });
+
+  // Мапимо натискання в модалці на існуючі приховані кнопки
+  const map = {
+    ascii:  'btnExportAscii',
+    binary: 'btnExportBinary',
+    glb:    'btnExpGLB',
+    gltf:   'btnExpGLTF',
+    obj:    'btnExpOBJ',
+    ply:    'btnExpPLY'
+  };
+  modal.addEventListener('click', (e)=>{
+    const b = e.target.closest('[data-export]');
+    if(!b) return;
+    const id = map[b.getAttribute('data-export')];
+    const real = document.getElementById(id);
+    closeModal();
+    setTimeout(()=> real?.click(), 60); // дати модалці сховатись
+  });
 </script>
 
 <nav id="mobileToolbar" class="ps-toolbar" role="toolbar" aria-label="Mobile tools"></nav>
