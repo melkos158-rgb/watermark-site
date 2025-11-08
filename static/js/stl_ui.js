@@ -118,3 +118,111 @@ function initExportModal() {
     setTimeout(() => real?.click(), 60); // дати модалці сховатись перед дією
   });
 }
+
+/* ========================================================================== */
+/*  ▼▼▼ ДОДАНО: прив’язка file input + drag&drop до viewerCtx (без зміни API) */
+/* ========================================================================== */
+
+(function bindFileLoadingAutonomously() {
+  // Підключаємось, коли з'явиться window.viewerCtx і контейнер #viewer.
+  function tryBind() {
+    const ctx = window.viewerCtx;
+    const viewer = document.getElementById('viewer');
+    if (!ctx || !viewer) return false;
+
+    // ---- FILE INPUT ----
+    const fileEl =
+      document.querySelector('#stlFile, #file3d, input[type="file"][data-3d], input[type="file"].stl-file') ||
+      document.querySelector('input[type="file"]');
+
+    if (fileEl && !fileEl.__prooflyBound) {
+      fileEl.__prooflyBound = true;
+      fileEl.addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f || !ctx.loadAnyFromFile) return;
+
+        try { ctx.loadAnyFromFile(f); } catch (err) {
+          console.error('loadAnyFromFile failed:', err);
+          return;
+        }
+
+        // М'яко підлаштувати сцену після того, як лоадер додасть модель.
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (ctx.modelRoot?.children?.length) {
+              // Центруємо та садимо на стіл (стандарт для STL-режиму)
+              if (typeof ctx.centerAndDropToFloor === 'function') {
+                // якщо всередині один об'єкт — центруємо його
+                if (ctx.modelRoot.children.length === 1) {
+                  ctx.centerAndDropToFloor(ctx.modelRoot.children[0]);
+                } else {
+                  ctx.centerAndDropToFloor(ctx.modelRoot);
+                }
+              }
+              if (typeof ctx.fitCameraToObject === 'function') {
+                ctx.fitCameraToObject(ctx.modelRoot, 1.6);
+              }
+              if (typeof ctx.setViewerMode === 'function') {
+                ctx.setViewerMode('stl'); // показує стіл, вимикає авто-спін
+              }
+            }
+          }, 60);
+        });
+      });
+    }
+
+    // ---- DRAG & DROP на #viewer ----
+    if (!viewer.__prooflyDnd) {
+      viewer.__prooflyDnd = true;
+
+      const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+      ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+        viewer.addEventListener(ev, stop, false);
+      });
+
+      viewer.addEventListener('dragover', () => viewer.classList.add('drag-hover'));
+      viewer.addEventListener('dragleave', () => viewer.classList.remove('drag-hover'));
+      viewer.addEventListener('drop', (e) => {
+        viewer.classList.remove('drag-hover');
+        const f = e.dataTransfer?.files && e.dataTransfer.files[0];
+        if (!f || !ctx.loadAnyFromFile) return;
+
+        try { ctx.loadAnyFromFile(f); } catch (err) {
+          console.error('loadAnyFromFile failed:', err);
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (ctx.modelRoot?.children?.length) {
+              if (typeof ctx.centerAndDropToFloor === 'function') {
+                if (ctx.modelRoot.children.length === 1) {
+                  ctx.centerAndDropToFloor(ctx.modelRoot.children[0]);
+                } else {
+                  ctx.centerAndDropToFloor(ctx.modelRoot);
+                }
+              }
+              if (typeof ctx.fitCameraToObject === 'function') {
+                ctx.fitCameraToObject(ctx.modelRoot, 1.6);
+              }
+              if (typeof ctx.setViewerMode === 'function') {
+                ctx.setViewerMode('stl');
+              }
+            }
+          }, 60);
+        });
+      });
+    }
+
+    return true;
+  }
+
+  // Пробуємо одразу, потім ще кілька разів із інтервалом (на випадок, якщо ctx ще не готовий)
+  if (!tryBind()) {
+    document.addEventListener('DOMContentLoaded', tryBind, { once: false });
+    let attempts = 0;
+    const t = setInterval(() => {
+      if (tryBind() || ++attempts > 50) clearInterval(t);
+    }, 200);
+  }
+})();
