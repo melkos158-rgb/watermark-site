@@ -43,6 +43,22 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   grid.position.y = 0; // FIX: сітка рівно на 0
   scene.add(grid);
 
+  // [+] авто-масштаб стола під модель
+  const GRID_BASE_SIZE = 10; // як у GridHelper(10, 10)
+  function resizeGridToModel(margin = 1.3) {
+    if (!modelRoot.children.length) {
+      grid.scale.set(1, 1, 1);
+      grid.position.set(0, 0, 0);
+      return;
+    }
+    const box = new THREE.Box3().setFromObject(modelRoot);
+    const size = box.getSize(new THREE.Vector3());
+    const span = Math.max(size.x, size.z) * margin || GRID_BASE_SIZE;
+    const scale = span / GRID_BASE_SIZE;
+    grid.scale.set(scale, 1, scale);
+    grid.position.set(0, 0, 0);
+  }
+
   // ── ГРУПИ ДЛЯ МОДЕЛІ ТА ВОДЯНОГО ЗНАКУ
   const modelRoot = new THREE.Group();
   const watermarkGroup = new THREE.Group();
@@ -121,6 +137,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     geometry.computeVertexNormals?.();
     const mesh = new THREE.Mesh(geometry, wireframeOn ? wireMaterial : baseMaterial);
     modelRoot.add(mesh);
+    resizeGridToModel(1.3);                // [+] підганяємо стіл
     fitCameraToObject(modelRoot, 1.6);
     return mesh;
   }
@@ -142,6 +159,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     modelRoot.position.sub(center);
     modelRoot.position.y -= minY;
 
+    resizeGridToModel(1.3);                // [+] підганяємо стіл
     fitCameraToObject(modelRoot, 1.6);
   }
 
@@ -260,6 +278,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
 
     if (viewerMode === "stl") {
       grid.visible = true;             // показуємо "стіл"
+      resizeGridToModel(1.3);          // [+] підганяємо стіл при поверненні
       controls.autoRotate = false;     // ручне керування
       spinFlag = false;                // не крутимо watermarkGroup
     } else {
@@ -329,6 +348,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     dropToFloor,
     centerAndDropToFloor,
     setViewerMode,        // головне: перемикач "stl" ↔ "wm"
+    resizeGridToModel,    // [+] доступно ззовні при потребі
     get viewerMode() { return viewerMode; },
   };
 
