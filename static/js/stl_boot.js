@@ -13,11 +13,13 @@
     wmMod,
     expMod,
     uiMod,
+    transMod,           // ДОДАНО: трансформації (center/floor/scale/rotate/mirror + прив'язки кнопок)
   ] = await Promise.all([
     import("./stl_viewer.js"),       // сцена, камера, лоадери
     import("./stl_watermark.js"),    // водяний знак + "запекти"
     import("./stl_exporters.js"),    // експорт STL/OBJ/GLTF/PLY
     import("./stl_ui.js"),           // вкладки, кнопки, модалка, хендлери
+    import("./stl_transform.js"),    // ДОДАНО: обгортка трансформів/центр/масштаб/обертання/дзеркало
   ]);
 
   // 1) Ініціалізуємо 3D-контекст (scene, camera, renderer, groups, helpers)
@@ -34,12 +36,20 @@
   // 2) Підключаємо функціональні модулі, передаючи їм спільний контекст
   wmMod.initWatermark(ctx);
   expMod.initExporters(ctx);
-  uiMod.initUI(ctx);
+  // Примітка: initUI в твоєму файлі без аргументів — зайвий аргумент не завадить
+  uiMod.initUI?.(ctx);
+
+  // 2.1) ДОДАНО: ініт трансформ-панелі (центрування/масштаб/обертання/дзеркало)
+  // autoBindButtons=true підчепить кнопки з id/класами з лівої панелі
+  if (typeof transMod.initTransform === "function") {
+    transMod.initTransform(ctx, { autoBindButtons: true });
+  }
 
   // [+] Експонуємо в window зручні гачки — без зміни інших модулів
   //     - window.viewerCtx: доступ до контексту з консолі / іншим скриптам
   //     - window.viewerSetMode('stl'|'wm'): швидкий перемикач режимів
   window.viewerCtx = ctx;
+  window.__STL_CTX = ctx; // сумісність з автоприв’язками у stl_ui.js
   window.viewerSetMode = (mode) => {
     if (typeof ctx.setViewerMode === "function") ctx.setViewerMode(mode);
   };
@@ -78,5 +88,45 @@
     obs.observe(wmPanel, { attributes: true, attributeFilter: ["class", "style"] });
   }
 
+  // 3) ДОДАНО: прив’язка вертикального тулбара у #viewer (Move/Rotate/Scale/Fit + Snap)
+  bindGizmoToolbar(ctx);
+
   // Готово: інтерфейс працює на одній сторінці, модулі розділені.
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // ВНУТРІШНІ ХЕЛПЕРИ (без зміни публічного API)
+  function bindGizmoToolbar(ctx) {
+    const $ = (id) => document.getElementById(id);
+    const btnMove   = $("tool-move");
+    const btnRotate = $("tool-rotate");
+    const btnScale  = $("tool-scale");
+    const btnFit    = $("tool-fit");
+    const snapInput = $("tb-snap-input");
+
+    function setActive(btn){
+      [btnMove, btnRotate, btnScale].forEach(b => b?.classList.remove("active"));
+      btn?.classList.add("active");
+    }
+
+    btnMove  ?.addEventListener("click", () => { ctx.transform.setMode?.("translate"); setActive(btnMove);   });
+    btnRotate?.addEventListener("click", () => { ctx.transform.setMode?.("rotate");    setActive(btnRotate); });
+    btnScale ?.addEventListener("click", () => { ctx.transform.setMode?.("scale");     setActive(btnScale);  });
+    btnFit   ?.addEventListener("click", () => { ctx.transform.focus?.(); });
+
+    snapInput?.addEventListener("change", (e) => {
+      const v = parseFloat(e.target.value);
+      if (Number.isFinite(v) && v > 0) ctx.transform.setSnap?.(v);
+      else ctx.transform.setSnap?.(null);
+    });
+
+    // Гарячі клавіші як у Blender
+    window.addEventListener("keydown", (ev) => {
+      if (ev.repeat) return;
+      const k = ev.key.toLowerCase();
+      if (k === "g") { ctx.transform.setMode?.("translate"); setActive(btnMove); }
+      if (k === "r") { ctx.transform.setMode?.("rotate");    setActive(btnRotate); }
+      if (k === "s") { ctx.transform.setMode?.("scale");     setActive(btnScale);  }
+      if (k === "f") { ctx.transform.focus?.(); }
+    });
+  }
 })();
