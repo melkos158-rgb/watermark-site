@@ -7,25 +7,76 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
   <style>
+    /* ====== БАЗОВИЙ ЛЕЙАУТ: 3 колонки ====== */
+    .layout{
+      display:grid;
+      grid-template-columns: 320px 1fr 460px;
+      gap:16px;
+      align-items:start;
+    }
+    .card{background:#0f1117;border:1px solid #242735;border-radius:12px;padding:14px 16px}
+    .card h2{margin:0 0 10px 0}
+    .help{font-size:12px;opacity:.8;margin-top:6px}
+
+    /* Ліва/права колонки фіксуються зверху — зручно користуватись */
+    .side{
+      position:sticky;
+      top:72px;
+      max-height:calc(100dvh - 90px);
+      overflow:auto;
+    }
+
+    /* Центр (перегляд) */
     #viewer{
       width:100%;
-      height:min(62vh,70dvh); /* краще на мобілці */
+      height:min(62vh,70dvh);
       max-height:78dvh;
       min-height:420px;
       background:#111;
-      border:1px solid #e1e5ee;
+      border:1px solid #2a2e3d;
       border-radius:10px;
       overflow:hidden;
     }
-    #viewer canvas{display:block;width:100%;height:100%;}
+    #viewer canvas{display:block;width:100%;height:100%}
+
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .hint{font-size:12px;color:#667085;margin-top:6px}
-    hr{border:none;border-top:1px solid #e9ecf2;margin:10px 0}
+    hr{border:none;border-top:1px solid #2a2e3d;margin:12px 0}
+
+    /* ====== ПРАВА ПАНЕЛЬ: Дві колонки інструментів ====== */
+    .tools-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    .tool-box{
+      border:1px solid #242735;
+      border-radius:12px;
+      padding:12px;
+      background:#0f1117;
+    }
+    .tool-box h3{margin:0 0 10px 0;font-size:16px}
+    .tool-box label{display:block;margin:6px 0 4px}
+    .tool-box .row{margin-top:6px}
+
+    /* Щоб кнопки/інпути не «стриба́ли» */
+    input[type="text"], input[type="number"], input[type="range"]{
+      width:100%;
+    }
+
+    /* АДАПТИВ */
+    @media (max-width:1300px){
+      .layout{grid-template-columns: 280px 1fr 420px}
+    }
+    @media (max-width:1100px){
+      .layout{grid-template-columns: 1fr}
+      .side{position:static;max-height:none;overflow:visible}
+      #viewer{height:60dvh}
+    }
 
     /* ===== Photoshop-like mobile toolbar (лише мобілка) ===== */
     @media (max-width:860px){
-      body{ padding-bottom:72px; } /* щоб контент не ховався під тулбаром */
-
+      body{ padding-bottom:72px; }
       .ps-toolbar{
         position:fixed; left:0; right:0; bottom:0;
         display:flex; gap:10px; align-items:center;
@@ -36,7 +87,6 @@
       }
       .ps-toolbar::-webkit-scrollbar{ height:6px }
       .ps-toolbar::-webkit-scrollbar-thumb{ background:#2b3144; border-radius:8px }
-
       .ps-tool{
         flex:0 0 auto;
         display:grid; place-items:center;
@@ -198,60 +248,70 @@
     <div class="hint" id="status"></div>
   </div>
 
-  <!-- Права колонка -->
+  <!-- Права колонка — тепер З УДОБНОЮ 2-КОЛОНОЧНОЮ СІТКОЮ -->
   <div class="card side">
-    <h2>Авторство</h2>
+    <h2>Інструменти</h2>
 
-    <label for="author">Автор (для ASCII STL)</label>
-    <input id="author" type="text" placeholder="© My Brand" value="© My Brand">
+    <div class="tools-grid">
+      <!-- Авторство -->
+      <section class="tool-box">
+        <h3>Авторство</h3>
+        <label for="author">Автор (для ASCII STL)</label>
+        <input id="author" type="text" placeholder="© My Brand" value="© My Brand">
 
-    <label style="margin-top:8px">
-      <input id="metaToggle" type="checkbox" checked>
-      Додавати «змінне» авторство у назву <code>solid</code> (ASCII STL)
-    </label>
+        <label style="margin-top:8px">
+          <input id="metaToggle" type="checkbox" checked>
+          Додавати «змінне» авторство у назву <code>solid</code> (ASCII STL)
+        </label>
+      </section>
 
-    <hr>
+      <!-- 3D водяний знак -->
+      <section class="tool-box">
+        <h3>3D водяний знак</h3>
+        <label for="wmText">Текст</label>
+        <input id="wmText" type="text" placeholder="Brand" value="Brand">
 
-    <h2 style="margin-top:0">3D водяний знак</h2>
+        <label for="wmSize">Розмір тексту</label>
+        <input id="wmSize" type="range" min="2" max="40" value="12">
 
-    <label for="wmText">Текст</label>
-    <input id="wmText" type="text" placeholder="Brand" value="Brand">
+        <label for="wmDepth">Глибина (мм)</label>
+        <input id="wmDepth" type="range" min="1" max="10" value="3">
 
-    <label for="wmSize">Розмір тексту</label>
-    <input id="wmSize" type="range" min="2" max="40" value="12">
+        <label for="wmAngle">Кут (°)</label>
+        <input id="wmAngle" type="range" min="-90" max="90" value="0">
 
-    <label for="wmDepth">Глибина (мм)</label>
-    <input id="wmDepth" type="range" min="1" max="10" value="3">
+        <label for="wmOffset">Відступ від країв (%)</label>
+        <input id="wmOffset" type="range" min="0" max="20" value="4">
 
-    <label for="wmAngle">Кут (°)</label>
-    <input id="wmAngle" type="range" min="-90" max="90" value="0">
+        <div class="row" style="margin-top:8px">
+          <button id="btnPreview" class="btn ghost">Попередній перегляд</button>
+          <button id="btnBake" class="btn ghost" disabled>Запекти в модель</button>
+        </div>
+      </section>
 
-    <label for="wmOffset">Відступ від країв (%)</label>
-    <input id="wmOffset" type="range" min="0" max="20" value="4">
+      <!-- Експорт STL -->
+      <section class="tool-box">
+        <h3>Експорт STL</h3>
+        <div class="row">
+          <button id="btnExportAscii" class="btn primary">Експорт STL (ASCII)</button>
+          <button id="btnExportBinary" class="btn ghost">Експорт STL (Binary)</button>
+        </div>
+      </section>
 
-    <div class="row" style="margin-top:8px">
-      <button id="btnPreview" class="btn ghost">Попередній перегляд</button>
-      <button id="btnBake" class="btn ghost" disabled>Запекти в модель</button>
+      <!-- Конвертація -->
+      <section class="tool-box">
+        <h3>Конвертація / Експорт</h3>
+        <div class="row">
+          <button id="btnExpGLB"  class="btn ghost">Export GLB</button>
+          <button id="btnExpGLTF" class="btn ghost">Export GLTF</button>
+        </div>
+        <div class="row">
+          <button id="btnExpOBJ"  class="btn ghost">Export OBJ</button>
+          <button id="btnExpPLY"  class="btn ghost">Export PLY</button>
+        </div>
+        <p class="help">Файли обробляються локально в браузері. Підтримка імпорту: STL, OBJ, PLY, glTF/GLB.</p>
+      </section>
     </div>
-
-    <hr>
-
-    <div class="row">
-      <button id="btnExportAscii" class="btn primary">Експорт STL (ASCII)</button>
-      <button id="btnExportBinary" class="btn ghost">Експорт STL (Binary)</button>
-    </div>
-
-    <h3 style="margin-top:12px">Конвертація / Експорт</h3>
-    <div class="row">
-      <button id="btnExpGLB"  class="btn ghost">Export GLB</button>
-      <button id="btnExpGLTF" class="btn ghost">Export GLTF</button>
-    </div>
-    <div class="row">
-      <button id="btnExpOBJ"  class="btn ghost">Export OBJ</button>
-      <button id="btnExpPLY"  class="btn ghost">Export PLY</button>
-    </div>
-
-    <p class="help">Файли обробляються локально в браузері. Підтримка імпорту: STL, OBJ, PLY, glTF/GLB.</p>
   </div>
 </div>
 
@@ -524,7 +584,7 @@
       const addMeta = $('metaToggle').checked;
       const author = ($('author').value||'').replace(/\s+/g,' ').trim();
       const prev = mesh.name;
-      mesh.name = addMeta && author ? `author=${author}` : (prev || 'model'); /* ЄДИНА ПРАВКА — шаблонний літерал */
+      mesh.name = addMeta && author ? `author=${author}` : (prev || 'model');
       const ascii = stlExporter.parse(mesh, {binary:false});
       mesh.name = prev;
       download((author?author.replaceAll(' ','_')+'_':'')+'model_ascii.stl', ascii, false);
@@ -605,23 +665,19 @@
       if(toggle) t.classList.toggle('active');
     });
 
-    // синхронізація стану для wireframe
     if(targetBtnId==='btnWire'){
       const sync = ()=> t.classList.toggle('active', !!wireframeOn);
       setInterval(sync, 400);
     }
-
     return t;
   }
 
   function initMobileToolbar(){
     const bar = document.getElementById('mobileToolbar');
     if(!bar) return;
-    // показувати лише на мобілці
     bar.style.display = (window.innerWidth<=860) ? 'flex' : 'none';
     if(window.innerWidth>860) return;
 
-    // Плитки для тих кнопок, що вже мають робочі обробники:
     const items = [
       makeTool('⟲', 'Ресет',  'btnReset',        {title:'Ресет камери'}),
       makeTool('▦', 'Wire',   'btnWire',         {toggle:true, title:'Wireframe ON/OFF'}),
@@ -635,7 +691,6 @@
       makeTool('◼','Демо',    'btnDemo',         {title:'Демо куб'})
     ].filter(Boolean);
 
-    // Очистити старе і додати нове
     bar.innerHTML = '';
     items.forEach(el=>bar.appendChild(el));
   }
@@ -643,7 +698,6 @@
   initMobileToolbar();
   window.addEventListener('resize', initMobileToolbar);
 
-  // Опційно: краще реагувати на реальну висоту вікна браузера мобільних
   if (window.visualViewport){
     visualViewport.addEventListener('resize', ()=>{
       const el = document.getElementById('viewer');
