@@ -366,6 +366,11 @@ def create_app():
     def stl():
         return render_template("stl.html")
 
+    # === STL viewer (окреме вікно) ===
+    @app.route("/stl/viewer", endpoint="stl_viewer")
+    def stl_viewer():
+        return render_template("stl_viewer.html")
+
     @app.route("/video")
     def video():
         return render_template("video.html")
