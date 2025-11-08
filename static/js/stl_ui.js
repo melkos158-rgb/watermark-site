@@ -20,6 +20,7 @@ function initTabs(containerId, storageKey) {
     .filter(Boolean);
 
   function activate(sel) {
+    if (!sel) return;
     tabs.forEach((b) => b.classList.toggle('active', b.dataset.target === sel));
     panels.forEach((p) => p.classList.toggle('active', `#${p.id}` === sel));
     try { localStorage.setItem(storageKey, sel); } catch(e) {}
@@ -27,7 +28,7 @@ function initTabs(containerId, storageKey) {
 
   wrap.addEventListener('click', (e) => {
     const b = e.target.closest('.tool-tab');
-    if (!b) return;
+    if (!b || !b.dataset?.target) return;
     activate(b.dataset.target);
 
     // Автопрокрутка, щоб активна вкладка була видима
@@ -42,14 +43,18 @@ function initTabs(containerId, storageKey) {
 
   // Коліщатко миші — горизонтальний скрол
   wrap.addEventListener('wheel', (e) => {
+    // якщо користувач крутить вертикально — перекидаємо у горизонт траку
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       e.preventDefault();
       wrap.scrollLeft += e.deltaY;
     }
   }, { passive: false });
 
-  const saved = localStorage.getItem(storageKey);
-  activate(saved || (tabs[0] && tabs[0].dataset.target));
+  // Відновлення активної вкладки
+  let saved = null;
+  try { saved = localStorage.getItem(storageKey); } catch (e) {}
+  const hasSaved = saved && panels.some(p => `#${p.id}` === saved);
+  activate(hasSaved ? saved : (tabs[0] && tabs[0].dataset.target));
 }
 
 /* ========== Arrow buttons for horizontal tracks ========== */
@@ -86,12 +91,13 @@ function initExportModal() {
   function openModal() {
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    modal.querySelector('.btn')?.focus();
+    // фокус на першій доступній кнопці експорту
+    (modal.querySelector('[data-export]') || modal.querySelector('.btn'))?.focus?.();
   }
   function closeModal() {
     modal.style.display = 'none';
     document.body.style.overflow = '';
-    openBtn.focus();
+    openBtn?.focus?.();
   }
 
   openBtn.addEventListener('click', openModal);
@@ -113,9 +119,11 @@ function initExportModal() {
     const b = e.target.closest('[data-export]');
     if (!b) return;
     const id = map[b.getAttribute('data-export')];
-    const real = document.getElementById(id);
+    const real = id && document.getElementById(id);
     closeModal();
-    setTimeout(() => real?.click(), 60); // дати модалці сховатись перед дією
+    if (!real) return;
+    // дати модалці сховатись перед дією
+    setTimeout(() => real.click(), 60);
   });
 }
 
@@ -124,9 +132,49 @@ function initExportModal() {
 /* ========================================================================== */
 
 (function bindFileLoadingAutonomously() {
-  // Підключаємось, коли з'явиться window.viewerCtx і контейнер #viewer.
+  // Підключаємось, коли з'явиться window.viewerCtx або window.__STL_CTX, і контейнер #viewer.
+  function getCtx() {
+    // підтримка обох варіантів збереження контексту
+    return (window.viewerCtx || window.__STL_CTX || null);
+  }
+
+  function attachFirstMeshIfAny(ctx) {
+    if (!ctx || !ctx.modelRoot) return;
+    let first = null;
+    ctx.modelRoot.traverse((n) => { if (!first && n.isMesh) first = n; });
+    if (first && ctx.transform?.attach) {
+      ctx.transform.attach(first);
+      ctx.transform.setMode?.("translate");
+      ctx.transform.setSpace?.("world");
+      ctx.transform.setSize?.(1);
+    }
+  }
+
+  function postLoadAdjust(ctx) {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (!ctx?.modelRoot?.children?.length) return;
+        // Центр/підлога
+        if (typeof ctx.centerAndDropToFloor === 'function') {
+          if (ctx.modelRoot.children.length === 1) {
+            ctx.centerAndDropToFloor(ctx.modelRoot.children[0]);
+          } else {
+            ctx.centerAndDropToFloor(ctx.modelRoot);
+          }
+        }
+        // Підігнати стіл/камеру
+        ctx.resizeGridToModel?.(1.3);
+        ctx.fitCameraToObject?.(ctx.modelRoot, 1.6);
+        // Режим перегляду під STL
+        ctx.setViewerMode?.('stl');
+        // Чіпляємо ґізмо до першої меші
+        attachFirstMeshIfAny(ctx);
+      }, 60);
+    });
+  }
+
   function tryBind() {
-    const ctx = window.viewerCtx;
+    const ctx = getCtx();
     const viewer = document.getElementById('viewer');
     if (!ctx || !viewer) return false;
 
@@ -135,45 +183,23 @@ function initExportModal() {
       document.querySelector('#stlFile, #file3d, input[type="file"][data-3d], input[type="file"].stl-file') ||
       document.querySelector('input[type="file"]');
 
-    if (fileEl && !fileEl.__prooflyBound) {
-      fileEl.__prooflyBound = true;
+    if (fileEl && !fileEl.dataset.prooflyBound) {
+      fileEl.dataset.prooflyBound = "1";
       fileEl.addEventListener('change', (e) => {
         const f = e.target.files && e.target.files[0];
         if (!f || !ctx.loadAnyFromFile) return;
-
-        try { ctx.loadAnyFromFile(f); } catch (err) {
+        try {
+          ctx.loadAnyFromFile(f);
+          postLoadAdjust(ctx);
+        } catch (err) {
           console.error('loadAnyFromFile failed:', err);
-          return;
         }
-
-        // М'яко підлаштувати сцену після того, як лоадер додасть модель.
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            if (ctx.modelRoot?.children?.length) {
-              // Центруємо та садимо на стіл (стандарт для STL-режиму)
-              if (typeof ctx.centerAndDropToFloor === 'function') {
-                // якщо всередині один об'єкт — центруємо його
-                if (ctx.modelRoot.children.length === 1) {
-                  ctx.centerAndDropToFloor(ctx.modelRoot.children[0]);
-                } else {
-                  ctx.centerAndDropToFloor(ctx.modelRoot);
-                }
-              }
-              if (typeof ctx.fitCameraToObject === 'function') {
-                ctx.fitCameraToObject(ctx.modelRoot, 1.6);
-              }
-              if (typeof ctx.setViewerMode === 'function') {
-                ctx.setViewerMode('stl'); // показує стіл, вимикає авто-спін
-              }
-            }
-          }, 60);
-        });
       });
     }
 
     // ---- DRAG & DROP на #viewer ----
-    if (!viewer.__prooflyDnd) {
-      viewer.__prooflyDnd = true;
+    if (!viewer.dataset.prooflyDnd) {
+      viewer.dataset.prooflyDnd = "1";
 
       const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
       ['dragenter','dragover','dragleave','drop'].forEach(ev => {
@@ -187,37 +213,19 @@ function initExportModal() {
         const f = e.dataTransfer?.files && e.dataTransfer.files[0];
         if (!f || !ctx.loadAnyFromFile) return;
 
-        try { ctx.loadAnyFromFile(f); } catch (err) {
+        try {
+          ctx.loadAnyFromFile(f);
+          postLoadAdjust(ctx);
+        } catch (err) {
           console.error('loadAnyFromFile failed:', err);
-          return;
         }
-
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            if (ctx.modelRoot?.children?.length) {
-              if (typeof ctx.centerAndDropToFloor === 'function') {
-                if (ctx.modelRoot.children.length === 1) {
-                  ctx.centerAndDropToFloor(ctx.modelRoot.children[0]);
-                } else {
-                  ctx.centerAndDropToFloor(ctx.modelRoot);
-                }
-              }
-              if (typeof ctx.fitCameraToObject === 'function') {
-                ctx.fitCameraToObject(ctx.modelRoot, 1.6);
-              }
-              if (typeof ctx.setViewerMode === 'function') {
-                ctx.setViewerMode('stl');
-              }
-            }
-          }, 60);
-        });
       });
     }
 
     return true;
   }
 
-  // Пробуємо одразу, потім ще кілька разів із інтервалом (на випадок, якщо ctx ще не готовий)
+  // Одразу і з повторними спробами (якщо ctx з'явиться пізніше)
   if (!tryBind()) {
     document.addEventListener('DOMContentLoaded', tryBind, { once: false });
     let attempts = 0;
