@@ -40,7 +40,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   scene.add(dir);
 
   const grid = new THREE.GridHelper(10, 10, 0x3a4153, 0x262b39);
-  grid.position.y = 0; // FIX: сітка рівно на 0
+  grid.position.y = 0; // сітка точно на 0
   scene.add(grid);
 
   // [+] авто-масштаб стола під модель
@@ -130,14 +130,37 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   function clearAll() {
     clearGroup(modelRoot);
     clearGroup(watermarkGroup);
+    // важливо: скинути трансформи, щоб нова модель не успадковувала старі зсуви
+    modelRoot.position.set(0, 0, 0);
+    modelRoot.rotation.set(0, 0, 0);
+    modelRoot.scale.set(1, 1, 1);
+    watermarkGroup.position.set(0, 0, 0);
+    watermarkGroup.rotation.set(0, 0, 0);
+    watermarkGroup.scale.set(1, 1, 1);
     if (statusEl) statusEl.textContent = "";
+    resizeGridToModel(1.3);
+  }
+
+  // автоорієнтація: якщо STL у Z-up — поставити у Y-up
+  function autoOrientUpright(object) {
+    object.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    // просте правило: якщо по Z модель істотно "вища", ніж по Y — вважаємо Z-up
+    if (size.z > size.y * 1.2) {
+      object.rotation.x = -Math.PI / 2; // покласти Z у Y
+      object.updateWorldMatrix(true, true);
+    }
   }
 
   function addGeometry(geometry) {
     geometry.computeVertexNormals?.();
+    clearAll(); // щоб не тягнути старі трансформи
     const mesh = new THREE.Mesh(geometry, wireframeOn ? wireMaterial : baseMaterial);
     modelRoot.add(mesh);
-    resizeGridToModel(1.3);                // [+] підганяємо стіл
+    autoOrientUpright(modelRoot);
+    centerAndDropToFloor(modelRoot);
+    resizeGridToModel(1.3);
     fitCameraToObject(modelRoot, 1.6);
     return mesh;
   }
@@ -150,16 +173,12 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
         n.geometry?.computeVertexNormals?.();
       }
     });
+    clearAll(); // скинути трансформи перед новою моделлю
     modelRoot.add(obj);
 
-    // Вирівняти по центру та "на стіл"
-    const box = new THREE.Box3().setFromObject(modelRoot);
-    const center = box.getCenter(new THREE.Vector3());
-    const minY = box.min.y;
-    modelRoot.position.sub(center);
-    modelRoot.position.y -= minY;
-
-    resizeGridToModel(1.3);                // [+] підганяємо стіл
+    autoOrientUpright(modelRoot);
+    centerAndDropToFloor(modelRoot);
+    resizeGridToModel(1.3);
     fitCameraToObject(modelRoot, 1.6);
   }
 
@@ -178,22 +197,14 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
       if (ext === "stl") {
         stlLoader.load(
           url,
-          (geom) => {
-            clearAll();
-            addGeometry(geom);
-            done();
-          },
+          (geom) => { addGeometry(geom); done(); },
           undefined,
           onError
         );
       } else if (ext === "obj") {
         objLoader.load(
           url,
-          (obj) => {
-            clearAll();
-            addObject(obj);
-            done();
-          },
+          (obj) => { addObject(obj); done(); },
           undefined,
           onError
         );
@@ -202,7 +213,6 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
           url,
           (geom) => {
             geom.computeVertexNormals();
-            clearAll();
             addGeometry(geom);
             done();
           },
@@ -212,11 +222,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
       } else if (ext === "gltf" || ext === "glb") {
         gltfLoader.load(
           url,
-          (gltf) => {
-            clearAll();
-            addObject(gltf.scene);
-            done();
-          },
+          (gltf) => { addObject(gltf.scene); done(); },
           undefined,
           onError
         );
@@ -248,7 +254,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
 
   /** Центрує об’єкт у (0,0,0) по XZ без посадки на підлогу */
   function centerObject(object) {
-    object.updateWorldMatrix(true, true);                     // FIX: актуальні матриці
+    object.updateWorldMatrix(true, true);
     const box = new THREE.Box3().setFromObject(object);
     const center = box.getCenter(new THREE.Vector3());
     // Центруємо лише X та Z, Y не чіпаємо
@@ -258,11 +264,11 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
 
   /** Опускає об’єкт, щоб мінімальний Y = 0 (поставити "на стіл") */
   function dropToFloor(object) {
-    object.updateWorldMatrix(true, true);                     // FIX: актуальні матриці
+    object.updateWorldMatrix(true, true);
     const box = new THREE.Box3().setFromObject(object);
     const dy = box.min.y - 0;
     if (Math.abs(dy) > 0.0005) {
-      object.position.y -= dy;                                // підняти/опустити щоб minY == 0
+      object.position.y -= dy; // підняти/опустити щоб minY == 0
     }
   }
 
@@ -278,7 +284,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
 
     if (viewerMode === "stl") {
       grid.visible = true;             // показуємо "стіл"
-      resizeGridToModel(1.3);          // [+] підганяємо стіл при поверненні
+      resizeGridToModel(1.3);          // підганяємо стіл при поверненні
       controls.autoRotate = false;     // ручне керування
       spinFlag = false;                // не крутимо watermarkGroup
     } else {
@@ -298,7 +304,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   // ── РЕНДЕР-ЛУП
   (function loop() {
     requestAnimationFrame(loop);
-    // додано плавний спін для 'wm'
+    // плавний спін для 'wm'
     const delta = clock.getDelta();
     if (spinFlag) watermarkGroup.rotation.y += delta * 0.6;
 
@@ -348,7 +354,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     dropToFloor,
     centerAndDropToFloor,
     setViewerMode,        // головне: перемикач "stl" ↔ "wm"
-    resizeGridToModel,    // [+] доступно ззовні при потребі
+    resizeGridToModel,    // доступно ззовні при потребі
     get viewerMode() { return viewerMode; },
   };
 
