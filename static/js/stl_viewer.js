@@ -40,7 +40,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   scene.add(dir);
 
   const grid = new THREE.GridHelper(10, 10, 0x3a4153, 0x262b39);
-  grid.position.y = -0.001;
+  grid.position.y = 0; // FIX: сітка рівно на 0
   scene.add(grid);
 
   // ── ГРУПИ ДЛЯ МОДЕЛІ ТА ВОДЯНОГО ЗНАКУ
@@ -228,17 +228,24 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   controls.autoRotate = false;         // початково вимкнено
   controls.autoRotateSpeed = 1.2;
 
-  /** Центрує об’єкт у (0,0,0) без "посадки" на підлогу */
+  /** Центрує об’єкт у (0,0,0) по XZ без посадки на підлогу */
   function centerObject(object) {
+    object.updateWorldMatrix(true, true);                     // FIX: актуальні матриці
     const box = new THREE.Box3().setFromObject(object);
     const center = box.getCenter(new THREE.Vector3());
-    object.position.sub(center);
+    // Центруємо лише X та Z, Y не чіпаємо
+    object.position.x -= center.x;
+    object.position.z -= center.z;
   }
 
   /** Опускає об’єкт, щоб мінімальний Y = 0 (поставити "на стіл") */
   function dropToFloor(object) {
+    object.updateWorldMatrix(true, true);                     // FIX: актуальні матриці
     const box = new THREE.Box3().setFromObject(object);
-    object.position.y -= box.min.y;
+    const dy = box.min.y - 0;
+    if (Math.abs(dy) > 0.0005) {
+      object.position.y -= dy;                                // підняти/опустити щоб minY == 0
+    }
   }
 
   /** Зручна утиліта: і центр, і посадка на підлогу */
