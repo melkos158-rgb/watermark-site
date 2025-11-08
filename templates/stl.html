@@ -320,9 +320,8 @@
     <div class="tabs-wrap">
       <button class="arrow-btn" data-arrow="prev" data-for="stlTabs">‹</button>
       <div class="tool-tabs" id="stlTabs" role="tablist" aria-label="STL tools">
+        <!-- ЗАЛИШИЛИ ТІЛЬКИ ОДНУ ВКЛАДКУ -->
         <button class="tool-tab active" data-target="#panel-watermark" role="tab">3D водяний знак</button>
-        <button class="tool-tab" data-target="#panel-export" role="tab">Експорт STL</button>
-        <button class="tool-tab" data-target="#panel-convert" role="tab">Конвертація</button>
       </div>
       <button class="arrow-btn" data-arrow="next" data-for="stlTabs">›</button>
     </div>
@@ -346,9 +345,9 @@
         </div>
       </section>
 
+      <!-- Панелі Експорт/Конвертація залишилися (кнопки приховані CSS) -->
       <section id="panel-export" class="tool-panel" role="tabpanel">
         <h3>Експорт STL</h3>
-        <!-- старі кнопки приховані CSS -->
         <div class="row">
           <button id="btnExportAscii" class="btn primary">Експорт STL (ASCII)</button>
           <button id="btnExportBinary" class="btn ghost">Експорт STL (Binary)</button>
@@ -707,7 +706,6 @@
   function openModal(){
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    // фокус на першу кнопку
     const first = modal.querySelector('.btn'); first?.focus();
   }
   function closeModal(){
@@ -720,7 +718,7 @@
   modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
   window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.style.display==='flex') closeModal(); });
 
-  // Мапимо натискання в модалці на існуючі приховані кнопки
+  // Мапимо натискання в модалці на існуючі (приховані) кнопки
   const map = {
     ascii:  'btnExportAscii',
     binary: 'btnExportBinary',
@@ -735,7 +733,7 @@
     const id = map[b.getAttribute('data-export')];
     const real = document.getElementById(id);
     closeModal();
-    setTimeout(()=> real?.click(), 60); // дати модалці сховатись
+    setTimeout(()=> real?.click(), 60);
   });
 </script>
 
