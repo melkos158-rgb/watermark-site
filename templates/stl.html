@@ -10,7 +10,7 @@
     /* ====== БАЗОВИЙ ЛЕЙАУТ: 3 колонки ====== */
     .layout{
       display:grid;
-      grid-template-columns: 320px 1fr 460px;
+      grid-template-columns: 320px 1fr 320px; /* Права = ліва */
       gap:16px;
       align-items:start;
     }
@@ -18,7 +18,7 @@
     .card h2{margin:0 0 10px 0}
     .help{font-size:12px;opacity:.8;margin-top:6px}
 
-    /* Ліва/права колонки — зручний скрол */
+    /* Бокові колонки — зручний власний скрол */
     .side{
       position:sticky;
       top:72px;
@@ -43,7 +43,7 @@
     .hint{font-size:12px;color:#667085;margin-top:6px}
     hr{border:none;border-top:1px solid #2a2e3d;margin:12px 0}
 
-    /* ===== ГОРИЗОНТАЛЬНІ ТАБИ (як на фото) ===== */
+    /* ===== ГОРИЗОНТАЛЬНІ ВКЛАДКИ ДЛЯ ОБОХ КОЛОНОК ===== */
     .tool-tabs{
       display:flex; gap:10px; padding:8px; margin:0 0 12px;
       border:1px solid #242735; border-radius:12px; background:#0f1117;
@@ -67,9 +67,12 @@
     .tool-panel{ display:none }
     .tool-panel.active{ display:block }
 
+    /* Поля вводу на всю ширину в панелях */
+    input[type="text"], input[type="number"], input[type="range"]{ width:100% }
+
     /* АДАПТИВ */
     @media (max-width:1300px){
-      .layout{grid-template-columns: 280px 1fr 420px}
+      .layout{grid-template-columns: 280px 1fr 280px}
     }
     @media (max-width:1100px){
       .layout{grid-template-columns: 1fr}
@@ -132,116 +135,136 @@
 
 <div class="layout">
 
-  <!-- Ліва колонка -->
+  <!-- Ліва колонка з вкладками -->
   <div class="card side">
     <h2>Модель</h2>
 
-    <label>STL/3D файл</label>
-    <input id="file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
-    <p class="help">Перетягни файл у перегляд або вибери тут.</p>
-
-    <div class="row" style="margin-top:10px">
-      <button id="btnDemo"  class="btn primary">Демо куб</button>
-      <button id="btnReset" class="btn ghost">Ресет камери</button>
+    <!-- Вкладки лівої колонки -->
+    <div class="tool-tabs" id="leftTabs" role="tablist" aria-label="Model tools">
+      <button class="tool-tab active" data-target="#panel-left-model" role="tab">Модель</button>
+      <button class="tool-tab" data-target="#panel-left-transform" role="tab">Трансформ</button>
+      <button class="tool-tab" data-target="#panel-left-slice" role="tab">Різати</button>
+      <button class="tool-tab" data-target="#panel-left-boolean" role="tab">Boolean</button>
+      <button class="tool-tab" data-target="#panel-left-hollow" role="tab">Hollow</button>
+      <button class="tool-tab" data-target="#panel-left-engrave" role="tab">Гравірув.</button>
+      <button class="tool-tab" data-target="#panel-left-simplify" role="tab">Simplify</button>
+      <button class="tool-tab" data-target="#panel-left-mix" role="tab">Mix&Match</button>
     </div>
 
-    <div class="row">
-      <button id="btnWire" class="btn ghost">Wireframe ON/OFF</button>
-      <button id="btnClear" class="btn ghost">Очистити</button>
-    </div>
+    <div class="tool-panels">
+      <!-- Панель: МОДЕЛЬ -->
+      <section id="panel-left-model" class="tool-panel active" role="tabpanel">
+        <label>STL/3D файл</label>
+        <input id="file" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
+        <p class="help">Перетягни файл у перегляд або вибери тут.</p>
 
-    <p class="help">Керування: ЛКМ — обертати, колесо — зум, Shift+ЛКМ — панорамувати.</p>
+        <div class="row" style="margin-top:10px">
+          <button id="btnDemo"  class="btn primary">Демо куб</button>
+          <button id="btnReset" class="btn ghost">Ресет камери</button>
+        </div>
 
-    <hr>
+        <div class="row">
+          <button id="btnWire" class="btn ghost">Wireframe ON/OFF</button>
+          <button id="btnClear" class="btn ghost">Очистити</button>
+        </div>
 
-    <h3>Трансформації</h3>
-    <div class="row">
-      <button id="btnCenter" class="btn ghost">Центрувати + На стіл</button>
-      <button id="btnAutoOrient" class="btn ghost">Автоорієнтація</button>
-    </div>
-    <label>Масштаб (%)</label>
-    <div class="row">
-      <input id="scalePct" type="number" min="1" max="1000" value="100" style="width:100px">
-      <button id="btnScaleApply" class="btn ghost">Застосувати</button>
-    </div>
-    <label>Обертання (°)</label>
-    <div class="row">
-      <button data-rot="x-90" class="btn ghost rot">X ±90</button>
-      <button data-rot="y-90" class="btn ghost rot">Y ±90</button>
-      <button data-rot="z-90" class="btn ghost rot">Z ±90</button>
-    </div>
-    <div class="row">
-      <button data-mirror="x" class="btn ghost mirror">Mirror X</button>
-      <button data-mirror="y" class="btn ghost mirror">Mirror Y</button>
-      <button data-mirror="z" class="btn ghost mirror">Mirror Z</button>
-    </div>
+        <p class="help">Керування: ЛКМ — обертати, колесо — зум, Shift+ЛКМ — панорамувати.</p>
+      </section>
 
-    <hr>
+      <!-- Панель: ТРАНСФОРМАЦІЇ -->
+      <section id="panel-left-transform" class="tool-panel" role="tabpanel">
+        <h3>Трансформації</h3>
+        <div class="row">
+          <button id="btnCenter" class="btn ghost">Центрувати + На стіл</button>
+          <button id="btnAutoOrient" class="btn ghost">Автоорієнтація</button>
+        </div>
+        <label>Масштаб (%)</label>
+        <div class="row">
+          <input id="scalePct" type="number" min="1" max="1000" value="100" style="width:100px">
+          <button id="btnScaleApply" class="btn ghost">Застосувати</button>
+        </div>
+        <label>Обертання (°)</label>
+        <div class="row">
+          <button data-rot="x-90" class="btn ghost rot">X ±90</button>
+          <button data-rot="y-90" class="btn ghost rot">Y ±90</button>
+          <button data-rot="z-90" class="btn ghost rot">Z ±90</button>
+        </div>
+        <div class="row">
+          <button data-mirror="x" class="btn ghost mirror">Mirror X</button>
+          <button data-mirror="y" class="btn ghost mirror">Mirror Y</button>
+          <button data-mirror="z" class="btn ghost mirror">Mirror Z</button>
+        </div>
+      </section>
 
-    <h3>Різати площиною</h3>
-    <label>Висота (Y)</label>
-    <input id="sliceY" type="range" min="-200" max="200" value="0">
-    <label>Кут навколо X</label>
-    <input id="sliceAx" type="range" min="-90" max="90" value="0">
-    <label>Кут навколо Z</label>
-    <input id="sliceAz" type="range" min="-90" max="90" value="0">
-    <div class="row">
-      <button id="btnSlicePreview" class="btn ghost">Прев’ю площини</button>
-      <button id="btnSliceApply" class="btn ghost">Розрізати → 2 частини</button>
-    </div>
+      <!-- Панель: РІЗАТИ ПЛОЩИНОЮ -->
+      <section id="panel-left-slice" class="tool-panel" role="tabpanel">
+        <h3>Різати площиною</h3>
+        <label>Висота (Y)</label>
+        <input id="sliceY" type="range" min="-200" max="200" value="0">
+        <label>Кут навколо X</label>
+        <input id="sliceAx" type="range" min="-90" max="90" value="0">
+        <label>Кут навколо Z</label>
+        <input id="sliceAz" type="range" min="-90" max="90" value="0">
+        <div class="row">
+          <button id="btnSlicePreview" class="btn ghost">Прев’ю площини</button>
+          <button id="btnSliceApply" class="btn ghost">Розрізати → 2 частини</button>
+        </div>
+      </section>
 
-    <hr>
+      <!-- Панель: BOOLEAN -->
+      <section id="panel-left-boolean" class="tool-panel" role="tabpanel">
+        <h3>Boolean-операції</h3>
+        <div class="row">
+          <button data-prim="box" class="btn ghost prim">Куб</button>
+          <button data-prim="cyl" class="btn ghost prim">Циліндр</button>
+          <button data-prim="sph" class="btn ghost prim">Сфера</button>
+        </div>
+        <div class="row">
+          <button id="btnUnion" class="btn ghost">Union</button>
+          <button id="btnSubtract" class="btn ghost">Subtract</button>
+          <button id="btnIntersect" class="btn ghost">Intersect</button>
+        </div>
+      </section>
 
-    <h3>Boolean-операції</h3>
-    <div class="row">
-      <button data-prim="box" class="btn ghost prim">Куб</button>
-      <button data-prim="cyl" class="btn ghost prim">Циліндр</button>
-      <button data-prim="sph" class="btn ghost prim">Сфера</button>
-    </div>
-    <div class="row">
-      <button id="btnUnion" class="btn ghost">Union</button>
-      <button id="btnSubtract" class="btn ghost">Subtract</button>
-      <button id="btnIntersect" class="btn ghost">Intersect</button>
-    </div>
+      <!-- Панель: HOLLOW -->
+      <section id="panel-left-hollow" class="tool-panel" role="tabpanel">
+        <h3>Hollow (порожнина)</h3>
+        <label>Товщина стінки (мм)</label>
+        <input id="hollowWall" type="number" min="0.6" max="5" step="0.2" value="1.2" style="width:110px">
+        <div class="row"><button id="btnHollow" class="btn ghost">Зробити порожнистою</button></div>
+        <label>Отвори для повітря</label>
+        <div class="row">
+          <button data-vent="3" class="btn ghost vent">Ø3 мм</button>
+          <button data-vent="5" class="btn ghost vent">Ø5 мм</button>
+          <button data-vent="8" class="btn ghost vent">Ø8 мм</button>
+        </div>
+      </section>
 
-    <hr>
+      <!-- Панель: ГРАВІРУВАННЯ -->
+      <section id="panel-left-engrave" class="tool-panel" role="tabpanel">
+        <h3>Гравірування / Тиснення</h3>
+        <div class="row">
+          <button id="btnEngraveText" class="btn ghost">Текст</button>
+          <button id="btnEngravePNG" class="btn ghost">PNG-логотип</button>
+        </div>
+      </section>
 
-    <h3>Hollow (порожнина)</h3>
-    <label>Товщина стінки (мм)</label>
-    <input id="hollowWall" type="number" min="0.6" max="5" step="0.2" value="1.2" style="width:110px">
-    <div class="row">
-      <button id="btnHollow" class="btn ghost">Зробити порожнистою</button>
-    </div>
-    <label>Отвори для повітря</label>
-    <div class="row">
-      <button data-vent="3" class="btn ghost vent">Ø3 мм</button>
-      <button data-vent="5" class="btn ghost vent">Ø5 мм</button>
-      <button data-vent="8" class="btn ghost vent">Ø8 мм</button>
-    </div>
+      <!-- Панель: SIMPLIFY -->
+      <section id="panel-left-simplify" class="tool-panel" role="tabpanel">
+        <h3>Simplify / Decimate</h3>
+        <label>Залишити % трикутників</label>
+        <input id="simpKeep" type="range" min="5" max="100" value="60">
+        <div class="row"><button id="btnSimplify" class="btn ghost">Спрощення</button></div>
+      </section>
 
-    <hr>
-
-    <h3>Гравірування / Тиснення</h3>
-    <div class="row">
-      <button id="btnEngraveText" class="btn ghost">Текст</button>
-      <button id="btnEngravePNG" class="btn ghost">PNG-логотип</button>
-    </div>
-
-    <hr>
-
-    <h3>Simplify / Decimate</h3>
-    <label>Залишити % трикутників</label>
-    <input id="simpKeep" type="range" min="5" max="100" value="60">
-    <div class="row">
-      <button id="btnSimplify" class="btn ghost">Спрощення</button>
-    </div>
-
-    <hr>
-
-    <h3>Mix & Match</h3>
-    <input id="addFile" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
-    <div class="row" style="margin-top:6px">
-      <button id="btnUnionAll" class="btn ghost">Union всіх</button>
+      <!-- Панель: MIX & MATCH -->
+      <section id="panel-left-mix" class="tool-panel" role="tabpanel">
+        <h3>Mix & Match</h3>
+        <input id="addFile" type="file" accept=".stl,.obj,.ply,.gltf,.glb">
+        <div class="row" style="margin-top:6px">
+          <button id="btnUnionAll" class="btn ghost">Union всіх</button>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -252,11 +275,10 @@
     <div class="hint" id="status"></div>
   </div>
 
-  <!-- Права колонка: ГОРИЗОНТАЛЬНИЙ ВИБІР + ПАНЕЛІ ПІД НИМ -->
+  <!-- Права колонка з вкладками -->
   <div class="card side">
     <h2>Інструменти</h2>
 
-    <!-- Горизонтальні таби -->
     <div class="tool-tabs" id="stlTabs" role="tablist" aria-label="STL tools">
       <button class="tool-tab active" data-target="#panel-authorship" role="tab">Авторство</button>
       <button class="tool-tab" data-target="#panel-watermark" role="tab">3D водяний знак</button>
@@ -264,7 +286,6 @@
       <button class="tool-tab" data-target="#panel-convert" role="tab">Конвертація</button>
     </div>
 
-    <!-- Панелі -->
     <div class="tool-panels">
       <section id="panel-authorship" class="tool-panel active" role="tabpanel">
         <h3>Авторство</h3>
@@ -337,7 +358,7 @@
   const $ = (id)=>document.getElementById(id);
   const statusEl = $('status');
 
-  /* ==== ВЕСЬ ТВОЙ 3D-КОД БЕЗ ЗМІН (опущено тут для стислості, але він лишився той самий) ==== */
+  /* ==== 3D-функції — без змін ==== */
 
   // ---- Сцена
   const scene = new THREE.Scene();
@@ -575,40 +596,39 @@
 
   (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
 
-  /* ===== Горизонтальні таби: логіка (не чіпає 3D-функції) ===== */
-  (function(){
-    const tabsWrap = document.getElementById('stlTabs');
-    const tabs = Array.from(tabsWrap.querySelectorAll('.tool-tab'));
-    const panels = Array.from(document.querySelectorAll('.tool-panel'));
-    const LS_KEY = 'stl_active_panel';
+  /* ===== Уніфікатор вкладок для обох колонок ===== */
+  function initTabs(containerId, storageKey, hashPrefix){
+    const wrap = document.getElementById(containerId);
+    if(!wrap) return;
+    const tabs = Array.from(wrap.querySelectorAll('.tool-tab'));
+    const panels = tabs.map(b=>document.querySelector(b.dataset.target)).filter(Boolean);
 
     function activate(sel, push=true){
-      const target = document.querySelector(sel); if(!target) return;
       tabs.forEach(b=>b.classList.toggle('active', b.dataset.target===sel));
-      panels.forEach(p=>p.classList.toggle('active', p===target));
-      try{ localStorage.setItem(LS_KEY, sel); }catch(e){}
-      if(push){ history.replaceState(null,'', '#'+sel.replace('#panel-','')); }
+      panels.forEach(p=>p.classList.toggle('active', '#'+p.id===sel));
+      try{ localStorage.setItem(storageKey, sel); }catch(e){}
+      if(push && hashPrefix){ history.replaceState(null,'', '#'+(sel.replace('#'+hashPrefix,'').replace('panel-',''))); }
     }
 
-    tabsWrap.addEventListener('click', e=>{
+    wrap.addEventListener('click', e=>{
       const b = e.target.closest('.tool-tab'); if(!b) return;
       activate(b.dataset.target);
     });
 
-    // коліщатко — горизонтально
-    tabsWrap.addEventListener('wheel', (e)=>{
-      if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); tabsWrap.scrollLeft += e.deltaY; }
+    wrap.addEventListener('wheel', (e)=>{
+      if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); wrap.scrollLeft += e.deltaY; }
     }, {passive:false});
 
-    // відновлення
-    const fromHash = location.hash ? '#panel-' + location.hash.substring(1) : null;
-    const saved = localStorage.getItem(LS_KEY);
-    activate(fromHash || saved || tabs[0].dataset.target, !!fromHash);
-  })();
+    const saved = localStorage.getItem(storageKey);
+    activate(saved || tabs[0].dataset.target, false);
+  }
 
-  /* ===== Мобільний тулбар (без змін) ===== */
-  function makeTool(icon, label, targetBtnId, {toggle=false, title=''}={}){/* ... як у тебе вище ... */}
-  // (щоб не засмічувати — залишив твою реалізацію з оригіналу)
+  // Ініціалізація
+  initTabs('leftTabs', 'stl_left_panel', null);
+  initTabs('stlTabs',  'stl_right_panel', 'panel-');
+
+  /* ===== Мобільний тулбар (твій код можна додати нижче без змін) ===== */
+  // function makeTool(...) { /* твоя реалізація */ }
 </script>
 
 <!-- Фіксований мобільний тулбар -->
