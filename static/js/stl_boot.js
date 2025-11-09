@@ -28,6 +28,10 @@
     statusId: "status",
   });
 
+  // ---- ВАЖЛИВО: дати доступ UI/автоприв'язкам одразу після створення ctx
+  window.viewerCtx = ctx;
+  window.__STL_CTX = ctx; // сумісність з автоприв’язками у stl_ui.js
+
   // [+] зробимо початковий режим "stl" (зі столом)
   if (typeof ctx.setViewerMode === "function") {
     ctx.setViewerMode("stl");
@@ -35,7 +39,10 @@
 
   // 2) Підключаємо функціональні модулі, передаючи їм спільний контекст
   wmMod.initWatermark(ctx);
-  expMod.initExporters(ctx);
+
+  // ЯВНО: авто-підв’язка кнопок експорту (приховані ID типу #btnExpGLB тощо)
+  expMod.initExporters(ctx, { autoBindButtons: true });
+
   // Примітка: initUI в твоєму файлі без аргументів — зайвий аргумент не завадить
   uiMod.initUI?.(ctx);
 
@@ -45,11 +52,8 @@
     transMod.initTransform(ctx, { autoBindButtons: true });
   }
 
-  // [+] Експонуємо в window зручні гачки — без зміни інших модулів
-  //     - window.viewerCtx: доступ до контексту з консолі / іншим скриптам
+  // [+] Експонуємо зручні гачки — без зміни інших модулів
   //     - window.viewerSetMode('stl'|'wm'): швидкий перемикач режимів
-  window.viewerCtx = ctx;
-  window.__STL_CTX = ctx; // сумісність з автоприв’язками у stl_ui.js
   window.viewerSetMode = (mode) => {
     if (typeof ctx.setViewerMode === "function") ctx.setViewerMode(mode);
   };
