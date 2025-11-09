@@ -531,5 +531,8 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     },
   };
 
+  // [ДОДАНО] потрібно для експортерів (new ctx.THREE.Group() тощо)
+  ctx.THREE = THREE;
+
   return ctx;
 }
