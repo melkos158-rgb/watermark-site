@@ -14,14 +14,27 @@ export function initExporters(ctx, { autoBindButtons = true } = {}) {
 
   // ---------- Допоміжна функція
   function download(name, data, bin = false) {
+    // Деякі браузери блокують миттєвий revoke та посилання поза DOM.
+    // Тому додаємо <a> у тіло документа і відкладаємо revoke.
     const blob = new Blob([data], {
-      type: bin ? "application/octet-stream" : "text/plain",
+      // Коректні MIME: STL -> application/sla, інше -> application/octet-stream
+      type: bin ? "application/octet-stream" : "application/sla",
     });
+
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.style.display = "none";
+    a.href = url;
     a.download = name;
+
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+
+    // Даємо браузеру час почати завантаження перед відкликанням URL
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      if (a.parentNode) a.parentNode.removeChild(a);
+    }, 2000);
   }
 
   // ---------- Отримати єдину групу для експорту
