@@ -120,10 +120,18 @@ function initExportModal() {
     if (!b) return;
     const id = map[b.getAttribute('data-export')];
     const real = id && document.getElementById(id);
+
+    // важливо: не дати кнопці поводитись як submit у формі
+    e.preventDefault();
+
     closeModal();
     if (!real) return;
+
     // дати модалці сховатись перед дією
-    setTimeout(() => real.click(), 60);
+    setTimeout(() => {
+      // клік більш “натуральний”, ніж .click() у деяких браузерах
+      real.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    }, 60);
   });
 }
 
