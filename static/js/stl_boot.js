@@ -41,7 +41,10 @@
   wmMod.initWatermark(ctx);
 
   // ЯВНО: авто-підв’язка кнопок експорту (приховані ID типу #btnExpGLB тощо)
-  expMod.initExporters(ctx, { autoBindButtons: true });
+  const exporters = expMod.initExporters(ctx, { autoBindButtons: true });
+
+  // Експонуємо API експорту глобально — щоб модалка могла викликати напряму
+  window.__EXPORTERS = exporters;
 
   // Примітка: initUI в твоєму файлі без аргументів — зайвий аргумент не завадить
   uiMod.initUI?.(ctx);
@@ -95,6 +98,9 @@
   // 3) ДОДАНО: прив’язка вертикального тулбара у #viewer (Move/Rotate/Scale/Fit + Snap)
   bindGizmoToolbar(ctx);
 
+  // 4) ДОДАНО: пряма прив’язка кнопок модалки експорту до API експортерів (fallback)
+  bindExportModalDirect();
+
   // Готово: інтерфейс працює на одній сторінці, модулі розділені.
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -132,5 +138,35 @@
       if (k === "s") { ctx.transform.setMode?.("scale");     setActive(btnScale);  }
       if (k === "f") { ctx.transform.focus?.(); }
     });
+  }
+
+  // Пряме керування експортом із модалки (напряму, без прихованих кнопок)
+  function bindExportModalDirect() {
+    const modal = document.getElementById("exportModal");
+    if (!modal) return;
+
+    const call = (kind) => {
+      const ex = window.__EXPORTERS;
+      if (!ex) return;
+      try {
+        if (kind === "ascii")  return ex.exportSTL(false);
+        if (kind === "binary") return ex.exportSTL(true);
+        if (kind === "glb")    return ex.exportGLB();
+        if (kind === "gltf")   return ex.exportGLTF();
+        if (kind === "obj")    return ex.exportOBJ();
+        if (kind === "ply")    return ex.exportPLY();
+      } catch (err) {
+        console.error("Export failed:", err);
+      }
+    };
+
+    modal.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-export]");
+      if (!b) return;
+      e.preventDefault();
+      const kind = b.getAttribute("data-export");
+      // даємо модалці сховатися, потім викликаємо експорт
+      setTimeout(() => call(kind), 40);
+    }, { passive: false });
   }
 })();
