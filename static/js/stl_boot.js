@@ -118,6 +118,21 @@
       btn?.classList.add("active");
     }
 
+    // ▼▼ ДОДАНО: автоскидання інструмента при кліку ПОЗА 3D-вікном ▼▼
+    const canvas = ctx.renderer?.domElement;
+    const toolbarEl = document.querySelector('.toolbox-vert'); // контейнер тулбара в #viewer
+    document.addEventListener('pointerdown', (e) => {
+      if (!canvas) return;
+      const t = e.target;
+      const inCanvas  = t === canvas || canvas.contains(t);
+      const inToolbar = !!(toolbarEl && (t === toolbarEl || toolbarEl.contains(t)));
+      if (!inCanvas && !inToolbar) {
+        setActive(null);
+        ctx.transform.detach?.();
+      }
+    });
+    // ▲▲ КІНЕЦЬ ДОДАНОГО БЛОКУ ▲▲
+
     btnMove  ?.addEventListener("click", () => { ctx.transform.setMode?.("translate"); setActive(btnMove);   });
     btnRotate?.addEventListener("click", () => { ctx.transform.setMode?.("rotate");    setActive(btnRotate); });
     btnScale ?.addEventListener("click", () => { ctx.transform.setMode?.("scale");     setActive(btnScale);  });
