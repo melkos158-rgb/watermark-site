@@ -54,11 +54,16 @@
     .tool-tabs{
       display:flex; gap:10px; padding:8px 8px 14px;
       border:1px solid #242735; border-radius:12px; background:#0f1117;
-      overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+      overflow-x:auto; -webkit-overflow-scrolling:touch;
       flex:1 1 auto; scrollbar-gutter: stable both-edges;
+
+      /* ✨ Ховаємо системний повзунок, лишаємо прокрутку та стрілки */
+      scrollbar-width: none;          /* Firefox */
+      -ms-overflow-style: none;       /* IE/старі Edge */
     }
-    .tool-tabs::-webkit-scrollbar{height:8px}
-    .tool-tabs::-webkit-scrollbar-thumb{background:#2b3144;border-radius:8px}
+    /* Приховати скролбар у WebKit-браузерах */
+    .tool-tabs::-webkit-scrollbar{ display:none; }
+
     .tool-tab{
       flex:0 0 auto; border:1px solid #2a2e3d; background:#12141c;
       padding:8px 12px; border-radius:999px; cursor:pointer;
