@@ -133,9 +133,39 @@
     });
     // ▲▲ КІНЕЦЬ ДОДАНОГО БЛОКУ ▲▲
 
-    btnMove  ?.addEventListener("click", () => { ctx.transform.setMode?.("translate"); setActive(btnMove);   });
-    btnRotate?.addEventListener("click", () => { ctx.transform.setMode?.("rotate");    setActive(btnRotate); });
-    btnScale ?.addEventListener("click", () => { ctx.transform.setMode?.("scale");     setActive(btnScale);  });
+    // ▼▼ ДОДАНО: гарантія, що є до чого прикріпити ґізмо при повторному виборі ▼▼
+    function findFirstMesh() {
+      let first = null;
+      ctx.modelRoot?.traverse?.((n) => { if (!first && n.isMesh) first = n; });
+      return first;
+    }
+    function ensureAttached() {
+      const hasObj = !!ctx.transform?.controls?.object;
+      if (hasObj) return true;
+      const m = findFirstMesh();
+      if (m && ctx.transform?.attach) {
+        ctx.transform.attach(m);
+        return true;
+      }
+      return false;
+    }
+    // ▲▲ КІНЕЦЬ ДОДАНОГО БЛОКУ ▲▲
+
+    btnMove  ?.addEventListener("click", () => {
+      ensureAttached();                             // ← важливо
+      ctx.transform.setMode?.("translate");
+      setActive(btnMove);
+    });
+    btnRotate?.addEventListener("click", () => {
+      ensureAttached();
+      ctx.transform.setMode?.("rotate");
+      setActive(btnRotate);
+    });
+    btnScale ?.addEventListener("click", () => {
+      ensureAttached();
+      ctx.transform.setMode?.("scale");
+      setActive(btnScale);
+    });
     btnFit   ?.addEventListener("click", () => { ctx.transform.focus?.(); });
 
     snapInput?.addEventListener("change", (e) => {
@@ -148,10 +178,11 @@
     window.addEventListener("keydown", (ev) => {
       if (ev.repeat) return;
       const k = ev.key.toLowerCase();
-      if (k === "g") { ctx.transform.setMode?.("translate"); setActive(btnMove); }
-      if (k === "r") { ctx.transform.setMode?.("rotate");    setActive(btnRotate); }
-      if (k === "s") { ctx.transform.setMode?.("scale");     setActive(btnScale);  }
+      if (k === "g") { ensureAttached(); ctx.transform.setMode?.("translate"); setActive(btnMove); }
+      if (k === "r") { ensureAttached(); ctx.transform.setMode?.("rotate");    setActive(btnRotate); }
+      if (k === "s") { ensureAttached(); ctx.transform.setMode?.("scale");     setActive(btnScale);  }
       if (k === "f") { ctx.transform.focus?.(); }
+      if (k === "escape") { setActive(null); ctx.transform.detach?.(); }
     });
   }
 
