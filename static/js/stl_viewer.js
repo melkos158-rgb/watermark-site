@@ -11,28 +11,24 @@ import { OBJLoader }     from "obj/loader";
 import { PLYLoader }     from "ply/loader";
 
 /* =========================================================
-   TiledGrid — "блендерний" стіл без краю
-   Розмножує звичайний GridHelper плитками NxN навколо (0,0,0).
-   Кольори та вигляд — як у твоєму GridHelper.
+   TiledGrid — "блендерний" стіл без краю:
+   розмножує стандартний GridHelper плитками навколо (0,0,0)
+   у світових координатах (нічого не “пливе”).
    ========================================================= */
 class TiledGrid extends THREE.Group {
   constructor({
-    tileSize     = 10,     // розмір однієї плитки (як перший арг GridHelper)
-    divisions    = 10,     // кількість клітинок в плитці (другий арг GridHelper)
-    tilesRadius  = 6,      // радіус у плитках від центру (покриває (2R+1)^2 плиток)
+    tileSize     = 10,     // перший аргумент GridHelper (реальний розмір плитки)
+    divisions    = 10,     // другий аргумент GridHelper (к-сть клітинок у плитці)
+    tilesRadius  = 8,      // радіус у плитках (покриє (2R+1)^2 плиток)
     colorCenter  = 0x3a4153,
     colorGrid    = 0x262b39,
-    y            = 0,      // висота столу
+    y            = 0
   } = {}) {
     super();
-    this.matrixAutoUpdate = true;
-
-    // створюємо (2R+1)^2 плиток навколо нуля
     for (let ix = -tilesRadius; ix <= tilesRadius; ix++) {
       for (let iz = -tilesRadius; iz <= tilesRadius; iz++) {
         const gh = new THREE.GridHelper(tileSize, divisions, colorCenter, colorGrid);
         gh.position.set(ix * tileSize, y, iz * tileSize);
-        // GridHelper за замовчуванням у XZ (Y вгору) — нічого крутити не треба
         this.add(gh);
       }
     }
@@ -76,23 +72,22 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   dir.position.set(2, 2, 2);
   scene.add(dir);
 
-  // ▸ Замість одного GridHelper робимо велику "плиткову" сітку без країв
+  // ▸ Плиткова сітка без країв (вигляд як у твоєму GridHelper)
   const grid = new TiledGrid({
-    tileSize:    10,        // як у тебе: GridHelper(10, 10, 0x3a4153, 0x262b39)
+    tileSize:    10,
     divisions:   10,
-    tilesRadius: 8,         // збільш/зменш при бажанні (радіус у плитках)
+    tilesRadius: 8,
     colorCenter: 0x3a4153,
     colorGrid:   0x262b39,
     y: 0
   });
-  // Позначка: не масштабувати під модель (див. resizeGridToModel)
-  grid.userData.lockScale = true;
+  grid.userData.lockScale = true; // ← блокувати будь-яке масштабування "столу"
   scene.add(grid);
 
-  // [+] авто-масштаб стола під модель
+  // [+] авто-масштаб стола під модель (тепер ігнорується, якщо lockScale=true)
   const GRID_BASE_SIZE = 10; // як у GridHelper(10, 10)
   function resizeGridToModel(margin = 1.3) {
-    // НЕ масштабуємо плиткову сітку — просто тримаємо її як є
+    // Головне: не чіпати scale плиткової сітки — інакше дублювання зникне
     if (grid.userData?.lockScale) {
       grid.scale.set(1, 1, 1);
       grid.position.set(0, 0, 0);
@@ -351,7 +346,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
 
     if (viewerMode === "stl") {
       grid.visible = true;             // показуємо "стіл"
-      resizeGridToModel(1.3);          // підганяємо стіл при поверненні (у нас він фіксований)
+      resizeGridToModel(1.3);          // (нічого не зробить через lockScale)
       controls.autoRotate = false;     // ручне керування
       spinFlag = false;                // не крутимо watermarkGroup
     } else {
