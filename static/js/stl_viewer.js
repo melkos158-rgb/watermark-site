@@ -76,7 +76,8 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   const grid = new TiledGrid({
     tileSize:    10,
     divisions:   10,
-    tilesRadius: 8,
+    // ▼ було 8 — зробив у 3 рази ширше покриття
+    tilesRadius: 24,
     colorCenter: 0x3a4153,
     colorGrid:   0x262b39,
     y: 0
@@ -124,7 +125,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   function fitCameraToObject(object, zoom = 1.6) {
     const box = new THREE.Box3().setFromObject(object);
     const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
+    aconst center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
     const fov = camera.fov * (Math.PI / 180);
     let camZ = Math.abs(maxDim / (2 * Math.tan(fov / 2))) * zoom;
@@ -192,7 +193,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     ].sort((a, b) => b.v - a.v);
     const up = axes[0].axis; // 'x' | 'y' | 'z'
 
-    if (up === "з" || up === "z") {
+    if (up === "z") {
       // Z-up → покласти Z у Y
       object.rotation.x += -Math.PI / 2;
     } else if (up === "x") {
