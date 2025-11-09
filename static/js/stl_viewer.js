@@ -84,25 +84,12 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   grid.userData.lockScale = true; // ← блокувати будь-яке масштабування "столу"
   scene.add(grid);
 
-  // [+] авто-масштаб стола під модель (тепер ігнорується, якщо lockScale=true)
-  const GRID_BASE_SIZE = 10; // як у GridHelper(10, 10)
-  function resizeGridToModel(margin = 1.3) {
-    // Головне: не чіпати scale плиткової сітки — інакше дублювання зникне
-    if (grid.userData?.lockScale) {
-      grid.scale.set(1, 1, 1);
-      grid.position.set(0, 0, 0);
-      return;
-    }
-    if (!modelRoot.children.length) {
-      grid.scale.set(1, 1, 1);
-      grid.position.set(0, 0, 0);
-      return;
-    }
-    const box = new THREE.Box3().setFromObject(modelRoot);
-    const size = box.getSize(new THREE.Vector3());
-    const span = Math.max(size.x, size.z) * margin || GRID_BASE_SIZE;
-    const scale = span / GRID_BASE_SIZE;
-    grid.scale.set(scale, 1, scale);
+  // [+] авто-масштаб стола під модель — ВИМКНЕНО (no-op)
+  const GRID_BASE_SIZE = 10; // лишив константу, щоб не ламати імпорти/пошук
+  function resizeGridToModel(/* margin = 1.3 */) {
+    if (!grid) return;
+    // Фіксуємо стіл у стандартному стані
+    grid.scale.set(1, 1, 1);
     grid.position.set(0, 0, 0);
   }
 
@@ -205,7 +192,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     ].sort((a, b) => b.v - a.v);
     const up = axes[0].axis; // 'x' | 'y' | 'z'
 
-    if (up === "z") {
+    if (up === "з" || up === "z") {
       // Z-up → покласти Z у Y
       object.rotation.x += -Math.PI / 2;
     } else if (up === "x") {
@@ -346,7 +333,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
 
     if (viewerMode === "stl") {
       grid.visible = true;             // показуємо "стіл"
-      resizeGridToModel(1.3);          // (нічого не зробить через lockScale)
+      resizeGridToModel(1.3);          // no-op — стіл фіксований
       controls.autoRotate = false;     // ручне керування
       spinFlag = false;                // не крутимо watermarkGroup
     } else {
@@ -462,7 +449,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     dropToFloor,
     centerAndDropToFloor,
     setViewerMode,        // головне: перемикач "stl" ↔ "wm"
-    resizeGridToModel,    // доступно ззовні при потребі
+    resizeGridToModel,    // тепер no-op, щоб стіл не змінювався
     get viewerMode() { return viewerMode; },
 
     // ▼▼ API ґізмо
