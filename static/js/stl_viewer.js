@@ -184,21 +184,23 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     const box  = new THREE.Box3().setFromObject(object);
     const size = box.getSize(new THREE.Vector3());
 
-    // Вісь з найбільшим розміром трактуємо як "висоту" моделі
+    // Беремо вісь з НАЙМЕНШИМ розміром як "товщину" і кладемо її у Y
     const axes = [
       { axis: "x", v: size.x },
       { axis: "y", v: size.y },
       { axis: "z", v: size.z },
-    ].sort((a, b) => b.v - a.v);
-    const up = axes[0].axis; // 'x' | 'y' | 'z'
+    ].sort((a, b) => a.v - b.v); // мінімальна перша
+    const thin = axes[0].axis; // 'x' | 'y' | 'z'
 
-    if (up === "з" || up === "z") {
-      // Z-up → покласти Z у Y
+    if (thin === "x") {
+      // X → Y
+      object.rotation.z += Math.PI / 2;
+    } else if (thin === "z") {
+      // Z → Y
       object.rotation.x += -Math.PI / 2;
-    } else if (up === "x") {
-      // X-up → повернути X у Y
-      object.rotation.z +=  Math.PI / 2;
     }
+    // якщо thin === 'y' — нічого не робимо (вже лежить)
+
     object.updateWorldMatrix(true, true);
   }
 
