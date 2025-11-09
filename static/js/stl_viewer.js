@@ -178,29 +178,92 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     detachTransform();
   }
 
-  // автоорієнтація: приводить модель до Y-up (враховує Z-up і X-up)
+  // ─────────────────────────────────────────────────────────────
+  // АВТООРІЄНТАЦІЯ: шукаємо стабільну позу (найбільша площа контакту)
+  // ─────────────────────────────────────────────────────────────
   function autoOrientUpright(object) {
-    object.updateWorldMatrix(true, true);
-    const box  = new THREE.Box3().setFromObject(object);
-    const size = box.getSize(new THREE.Vector3());
+    // Кандидати поворотів (рад): 0, ±90° навколо X/Z, 180°, та комбінації
+    const deg = (a) => THREE.MathUtils.degToRad(a);
+    const candidates = [
+      new THREE.Euler(0, 0, 0),
+      new THREE.Euler(deg(90), 0, 0),
+      new THREE.Euler(deg(-90), 0, 0),
+      new THREE.Euler(deg(180), 0, 0),
+      new THREE.Euler(0, 0, deg(90)),
+      new THREE.Euler(0, 0, deg(-90)),
+      new THREE.Euler(0, 0, deg(180)),
+      new THREE.Euler(deg(90), 0, deg(90)),
+      new THREE.Euler(deg(-90), 0, deg(90)),
+      new THREE.Euler(deg(90), 0, deg(-90)),
+      new THREE.Euler(deg(-90), 0, deg(-90)),
+    ];
 
-    // Беремо вісь з НАЙМЕНШИМ розміром як "товщину" і кладемо її у Y
-    const axes = [
-      { axis: "x", v: size.x },
-      { axis: "y", v: size.y },
-      { axis: "z", v: size.z },
-    ].sort((a, b) => a.v - b.v); // мінімальна перша
-    const thin = axes[0].axis; // 'x' | 'y' | 'z'
+    // Підрахунок «скору опори» для поточного стану об’єкта
+    const tmpV = new THREE.Vector3();
+    const meshes = [];
+    object.traverse((n) => { if (n.isMesh && n.geometry?.attributes?.position) meshes.push(n); });
 
-    if (thin === "x") {
-      // X → Y
-      object.rotation.z += Math.PI / 2;
-    } else if (thin === "z") {
-      // Z → Y
-      object.rotation.x += -Math.PI / 2;
+    function supportScore() {
+      let minY = Infinity, maxY = -Infinity;
+      // 1) знайдемо minY/maxY
+      for (const m of meshes) {
+        const pos = m.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          tmpV.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+          if (tmpV.y < minY) minY = tmpV.y;
+          if (tmpV.y > maxY) maxY = tmpV.y;
+        }
+      }
+      const height = Math.max(1e-6, maxY - minY);
+      const tol = Math.max(0.0005, height * 0.01); // 1% висоти або 0.0005
+
+      // 2) рахуємо вершини, що торкаються «підлоги», та їх розкид по XZ
+      let count = 0;
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+
+      for (const m of meshes) {
+        const pos = m.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          tmpV.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+          if (tmpV.y <= minY + tol) {
+            count++;
+            if (tmpV.x < minX) minX = tmpV.x;
+            if (tmpV.x > maxX) maxX = tmpV.x;
+            if (tmpV.z < minZ) minZ = tmpV.z;
+            if (tmpV.z > maxZ) maxZ = tmpV.z;
+          }
+        }
+      }
+
+      const spreadX = isFinite(minX) ? (maxX - minX) : 0;
+      const spreadZ = isFinite(minZ) ? (maxZ - minZ) : 0;
+      const areaRect = spreadX * spreadZ;
+
+      // Переважуємо ширину опори, але враховуємо й кількість.
+      // Коефіцієнт 100 робить пріоритет площі над просто кількістю вершин.
+      return areaRect * 100 + count;
     }
-    // якщо thin === 'y' — нічого не робимо (вже лежить)
 
+    // Збережемо стан
+    const savedRot = object.rotation.clone();
+
+    // Перебір
+    let bestEuler = savedRot.clone();
+    object.updateWorldMatrix(true, true);
+    let bestScore = supportScore();
+
+    for (const e of candidates) {
+      object.rotation.copy(e);
+      object.updateWorldMatrix(true, true);
+      const s = supportScore();
+      if (s > bestScore) {
+        bestScore = s;
+        bestEuler = e.clone();
+      }
+    }
+
+    // Застосовуємо кращий варіант
+    object.rotation.copy(bestEuler);
     object.updateWorldMatrix(true, true);
   }
 
