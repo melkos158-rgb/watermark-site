@@ -32,35 +32,7 @@
   .stat-label{font-size:16px;opacity:.85;margin-top:6px}
   @media (max-width:560px){.stat-value{font-size:42px}}
 
-  /* ===== ІНТЕРАКТИВНИЙ РЕДАКТОР БАНЕРА (фронтенд) ===== */
-  .editor-wrap{margin-top:12px}
-  .editor-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-  .editor-toolbar .btn{padding:6px 10px;border-radius:8px}
-  .banner-editor{
-    position:relative;
-    border:1px dashed #3b4257;
-    background:#0b0f17;
-    border-radius:12px;
-    overflow:hidden;
-    width:100%;
-    min-width:260px;
-    height:220px;                 /* стартова висота під 5:1 (умовно 1100×220) */
-    resize:both;                  /* зміна розміру контейнера */
-    cursor:grab;
-    outline:none;
-  }
-  .banner-editor:active{cursor:grabbing}
-  .banner-editor img{
-    position:absolute;
-    top:50%; left:50%;
-    transform:translate(-50%,-50%) scale(1);
-    transform-origin:center center;
-    max-width:none;
-    will-change:transform;
-    user-select:none;
-    -webkit-user-drag:none;
-    pointer-events:none;
-  }
+  .stat-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 </style>
 
 <div class="admin-wrap">
@@ -150,6 +122,15 @@
         <div class="stat-label">унікальних за місяць</div>
       </div>
     </div>
+
+    <!-- 🔘 Кнопка скидання відвідувачів -->
+    <div class="stat-actions">
+      <form action="{{ url_for('admin_reset_visits') }}" method="post"
+            onsubmit="return confirm('Видалити всі записи відвідувань? Це необоротно.');">
+        <button class="btn btn-warn" type="submit">Скинути відвідувачів</button>
+      </form>
+    </div>
+
     <div class="hint">Ці дані оновлюються при перезавантаженні сторінки.</div>
   </div>
 
