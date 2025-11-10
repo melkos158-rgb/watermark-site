@@ -18,10 +18,10 @@ class User(db.Model):
     name       = db.Column(db.String(120))
     bio        = db.Column(db.Text)
     # лишаємо старе поле для сумісності
-    avatar     = db.Column(db.Text)                                # URL або data:image
+    avatar     = db.Column(db.Text)                                 # URL або data:image
     # додаємо нове поле, яке очікується у SQL ("u.avatar_url") в market.py
-    avatar_url = db.Column(db.Text)                                # окремий URL-стовпець (може дублювати avatar)
-    pxp        = db.Column(db.Integer, default=0, nullable=False)  # баланс PXP
+    avatar_url = db.Column(db.Text)                                 # окремий URL-стовпець (може дублювати avatar)
+    pxp        = db.Column(db.Integer, default=0, nullable=False)   # баланс PXP
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
@@ -33,7 +33,7 @@ class Transaction(db.Model):
 
     id         = db.Column(db.Integer, primary_key=True)
     user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    amount     = db.Column(db.Integer, nullable=False)             # +donate / -spend
+    amount     = db.Column(db.Integer, nullable=False)              # +donate / -spend
     kind       = db.Column(db.String(20), nullable=False, default="manual")  # donate|spend|manual
     note       = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -61,6 +61,36 @@ class Message(db.Model):
 
 
 # -----------------------------
+# НОВА ТАБЛИЦЯ ДЛЯ ВІЗИТІВ / ОНЛАЙН
+# -----------------------------
+class Visit(db.Model):
+    """
+    Зберігає легкий лог відвідувань (1 запис/хв/сесія).
+    Використовується запитами в admin_metrics для:
+      - онлайн за останні 10 хв
+      - унікальні за місяць (DISTINCT COALESCE(user_id, session_id))
+    """
+    __tablename__ = "visits"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(64), nullable=False, index=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    path       = db.Column(db.String(255))
+    # server_default -> працює і в Postgres, і в SQLite (як CURRENT_TIMESTAMP)
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False, index=True)
+
+    user = db.relationship("User", backref=db.backref("visits", lazy=True))
+
+    __table_args__ = (
+        db.Index("ix_visits_created", "created_at"),
+        db.Index("ix_visits_user_session", "user_id", "session_id"),
+    )
+
+    def __repr__(self):
+        return f"<Visit sid={self.session_id} user={self.user_id} at={self.created_at}>"
+
+
+# -----------------------------
 # INIT & CLOSE
 # -----------------------------
 def init_app_db(app: Flask):
@@ -79,7 +109,7 @@ def init_app_db(app: Flask):
 
     db.init_app(app)
     with app.app_context():
-        db.create_all()
+        db.create_all()  # створить таблицю visits, якщо її ще немає
 
 
 def close_db(error=None):
