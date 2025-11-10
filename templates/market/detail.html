@@ -1,0 +1,55 @@
+{% extends "market/layout.html" %}
+
+{% block market_body %}
+  <div class="detail">
+    <div class="media">
+      {# контейнер для переглядача 3D або великого зображення #}
+      <div id="viewer" class="viewer" data-item-id="{{ item.id }}"></div>
+      {% if item.images %}
+        <div class="thumbs">
+          {% for im in item.images|sort(attribute='order') %}
+            <img loading="lazy" src="{{ im.url }}" alt="{{ item.title }}">
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="side">
+      <h1 class="ttl">{{ item.title }}</h1>
+
+      <div class="stats">
+        <span>★ {{ '%.1f'|format(item.rating or 0) }}</span>
+        <span>⬇ {{ item.downloads or 0 }}</span>
+      </div>
+
+      <div class="price">
+        {% if item.is_free %}
+          <strong class="free">{{ _('Безкоштовно') }}</strong>
+        {% else %}
+          <strong>{{ (item.price_cents or 0)/100 }} {{ item.currency or 'USD' }}</strong>
+        {% endif %}
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btn-download">{{ _('Завантажити') }}</button>
+        <button class="btn" id="btn-fav" data-id="{{ item.id }}">♡ {{ _('В обране') }}</button>
+      </div>
+
+      {% include "market/_owner_panel.html" %}
+      {% if item.description %}
+        <div class="desc"><p>{{ item.description }}</p></div>
+      {% endif %}
+
+      {% if item.stl_meta %}
+        <div class="meta-box">
+          <h3>{{ _('Параметри моделі') }}</h3>
+          <ul>
+            <li>{{ _('Формат') }}: {{ item.files[0].fmt if item.files else 'stl' }}</li>
+            <li>{{ _('Розміри') }}: {{ item.stl_meta.dimensions if item.stl_meta.dimensions is defined }}</li>
+            <li>{{ _('Вага') }}: {{ item.stl_meta.weight if item.stl_meta.weight is defined }}</li>
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
