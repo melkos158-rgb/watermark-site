@@ -1,0 +1,13 @@
+{% extends "market/layout.html" %}
+
+{% block market_body %}
+  {% if not items %}
+    {% include "market/_empty.html" %}
+  {% else %}
+    {% include "market/_grid.html" %}
+    {% include "market/_pagination.html" %}
+  {% endif %}
+
+  {# Модалка завантаження (поки без JS — просто розмітка) #}
+  {% include "market/_upload_modal.html" %}
+{% endblock %}
