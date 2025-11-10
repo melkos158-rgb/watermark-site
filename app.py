@@ -2,6 +2,7 @@ import os
 import threading
 from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort, g
 from flask_babel import Babel  # ✅
+import stripe  # === (added) Stripe SDK ===
 
 from db import init_app_db, close_db, db, User
 from models import db as models_db, MarketItem
@@ -118,6 +119,17 @@ def create_app():
     app.config.setdefault("MEDIA_ROOT", os.path.join(base_dir, "media"))
     app.config.setdefault("MEDIA_URL", "/media/")
     os.makedirs(app.config["MEDIA_ROOT"], exist_ok=True)
+
+    # === Stripe config (added) ===
+    app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    app.config["STRIPE_PUBLISHABLE_KEY"] = os.getenv("STRIPE_PUBLISHABLE_KEY", "").strip()
+    if app.config["STRIPE_SECRET_KEY"]:
+        stripe.api_key = app.config["STRIPE_SECRET_KEY"]
+
+    @app.context_processor
+    def _inject_stripe_keys():
+        # даємо доступ до публічного ключа у всіх шаблонах
+        return dict(STRIPE_PUBLISHABLE_KEY=app.config.get("STRIPE_PUBLISHABLE_KEY", ""))
 
     # Init DB
     init_app_db(app)
@@ -608,6 +620,46 @@ def create_app():
                 )
 
         return abort(404)
+
+    # === (added) Stripe routes for card payments ===
+    @app.route("/donate")
+    def donate_page():
+        # Рендерить твій donate.html; ключ для Stripe доступний у контексті
+        return render_template("donate.html")
+
+    @app.post("/create-payment-intent")
+    def create_payment_intent():
+        """
+        Створює PaymentIntent на вказану суму у PLN (мінімум 2 PLN).
+        Тіло запиту: {"amount": 10}
+        Відповідь: {"clientSecret": "..."}
+        """
+        if not app.config.get("STRIPE_SECRET_KEY"):
+            return jsonify({"error": "stripe_not_configured"}), 500
+
+        data = request.get_json(silent=True) or {}
+        try:
+            amount_pln = max(int(data.get("amount", 2)), 2)  # мінімум 2 PLN
+        except Exception:
+            amount_pln = 2
+
+        try:
+            intent = stripe.PaymentIntent.create(
+                amount=amount_pln * 100,   # у ґрошах
+                currency="pln",
+                automatic_payment_methods={"enabled": True},
+                description="Proofly Balance Top-Up (card)"
+            )
+            return jsonify(clientSecret=intent.client_secret)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+    @app.route("/success")
+    def success_page():
+        # Можеш замінити на власний шаблон
+        return render_template("success.html") if os.path.exists(
+            os.path.join(app.root_path, "templates", "success.html")
+        ) else ("<h2 style='color:#16a34a'>✅ Оплата успішна</h2>", 200)
 
     return app
 
