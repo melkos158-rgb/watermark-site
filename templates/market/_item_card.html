@@ -1,0 +1,24 @@
+{# знаходка першого cover, або плейсхолдер #}
+{% set cover = (it.images|selectattr('kind','equalto','cover')|list|first) if it.images else None %}
+<article class="card">
+  <a class="thumb" href="{{ url_for('market.detail', slug=it.slug) }}">
+    <img loading="lazy"
+         src="{{ cover.url if cover else url_for('static', filename='img/placeholder_stl.jpg') }}"
+         alt="{{ it.title }}">
+  </a>
+
+  <div class="meta">
+    <h3 class="ttl">
+      <a href="{{ url_for('market.detail', slug=it.slug) }}">{{ it.title }}</a>
+    </h3>
+
+    <div class="row">
+      <span>★ {{ '%.1f'|format(it.rating or 0) }} · ⬇ {{ it.downloads or 0 }}</span>
+      <strong>
+        {% if it.is_free %}{{ _('Безкоштовно') }}
+        {% else %}{{ (it.price_cents or 0)/100 }} {{ it.currency or 'USD' }}
+        {% endif %}
+      </strong>
+    </div>
+  </div>
+</article>
