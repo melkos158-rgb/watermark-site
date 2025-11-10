@@ -1,0 +1,7 @@
+{% if current_user.is_authenticated and (current_user.is_admin or current_user.id == item.owner_id) %}
+<div class="owner-panel">
+  <a class="btn" href="{{ url_for('market.edit', slug=item.slug) }}">{{ _('Редагувати') }}</a>
+  <a class="btn danger" href="{{ url_for('market.delete', slug=item.slug) }}" 
+     onclick="return confirm('{{ _('Видалити модель?') }}')">{{ _('Видалити') }}</a>
+</div>
+{% endif %}
