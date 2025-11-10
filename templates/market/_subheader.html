@@ -1,0 +1,19 @@
+{# Друга шапка тільки для Market #}
+<div class="market-subheader">
+  <div class="left">
+    <strong>STL Market</strong>
+    <span class="divider"></span>
+    {% include "market/_filters.html" %}
+  </div>
+
+  <div class="right">
+    <div class="search">
+      <input id="q" class="inp" placeholder="{{ _('Пошук: dragon, stand, toy…') }}"
+             value="{{ request.args.get('q','') }}">
+      <button id="btn-search" class="btn">{{ _('Пошук') }}</button>
+    </div>
+
+    <a class="btn" href="{{ url_for('market.index') }}?owner=me">{{ _('Мої оголошення') }}</a>
+    <a class="btn primary" href="#" id="btn-upload">{{ _('+ Додати модель') }}</a>
+  </div>
+</div>
