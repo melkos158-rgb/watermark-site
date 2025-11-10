@@ -95,7 +95,7 @@ def row_to_dict(row):
 
 # === MAIN APP CREATOR ===
 def create_app():
-    app = Flask(__name__())
+    app = Flask(__name__)  # ✅ виправлено
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
     # ==== Babel (локаль) — FIX для Babel 3.x ====
