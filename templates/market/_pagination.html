@@ -1,0 +1,19 @@
+{% if pages and pages > 1 %}
+<nav class="pagination">
+  {% set p = page or 1 %}
+  {% set params = request.args.to_dict() %}
+
+  {% if p > 1 %}
+    {% set params = params.update({'page': 1}) or request.args.to_dict() %}
+    <a href="?{{ request.query_string|tojson|safe and '' }}&page=1" class="pg">&laquo;</a>
+    <a href="?{{ request.query_string|tojson|safe and '' }}&page={{ p-1 }}" class="pg">‹</a>
+  {% endif %}
+
+  <span class="pg current">{{ p }}/{{ pages }}</span>
+
+  {% if p < pages %}
+    <a href="?{{ request.query_string|tojson|safe and '' }}&page={{ p+1 }}" class="pg">›</a>
+    <a href="?{{ request.query_string|tojson|safe and '' }}&page={{ pages }}" class="pg">&raquo;</a>
+  {% endif %}
+</nav>
+{% endif %}
