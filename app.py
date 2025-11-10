@@ -32,6 +32,7 @@ BOT_RE = re.compile(
     r"preview|embed|curl|wget|python-requests)",
     re.I
 )
+# 👉 якщо хочеш, додай "/api/" сюди, щоб API-запити не рахувалися як візити
 IGNORED_PATHS_PREFIX = ("/static/", "/favicon.ico", "/robots.txt")
 IGNORED_PATHS_EXACT = {"/healthz", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"}
 
@@ -525,12 +526,11 @@ def create_app():
     def admin_panel():
         return render_template("admin.html")
 
-    # --- 🔧 ДОДАНІ URL-ПРАВИЛА ДЛЯ ШАБЛОНУ admin.html (без змін існуючих функцій) ---
+    # --- Допоміжні URL для шаблону admin.html (старі кнопки-заглушки) ---
     app.add_url_rule("/admin/reset-month",
                      endpoint="admin_reset_month",
                      view_func=admin_panel,
                      methods=["POST"])
-
     app.add_url_rule("/admin/pxp-add",
                      endpoint="admin_pxp_add",
                      view_func=admin_panel,
@@ -570,6 +570,25 @@ def create_app():
 
         flash("Дефолтний банер оновлено.")
         return redirect(url_for("admin_panel"))
+
+    # === ⬇️ НОВЕ: Reset visits ===
+    @app.route("/admin/reset-visits", methods=["POST"])
+    @admin_required
+    def admin_reset_visits():
+        """
+        Очищає всю таблицю visits (метрики "онлайн" і "унікальних за місяць" почнуть рахуватись з нуля).
+        """
+        try:
+            db.session.execute(text("DELETE FROM visits;"))
+            db.session.commit()
+            from flask import flash, redirect, url_for
+            flash("Логи відвідувань очищено.")
+            return redirect(url_for("admin_panel"))
+        except Exception as e:
+            db.session.rollback()
+            from flask import flash, redirect, url_for
+            flash(f"Не вдалось очистити visits: {e}")
+            return redirect(url_for("admin_panel"))
 
     # === ⬇️ lightweight visits tracker
     from time import time as _now
@@ -614,7 +633,6 @@ def create_app():
     # === Robots (щоб чемні боти поважали) ===
     @app.route("/robots.txt")
     def robots_txt():
-        # якщо маєш static/robots.txt — віддасться він; інакше базовий
         try:
             return send_from_directory(os.path.join(app.root_path, "static"), "robots.txt")
         except Exception:
@@ -669,28 +687,22 @@ def create_app():
     # === (added) Stripe routes for card payments ===
     @app.route("/donate")
     def donate_page():
-        # Рендерить твій donate.html; ключ для Stripe доступний у контексті
         return render_template("donate.html")
 
     @app.post("/create-payment-intent")
     def create_payment_intent():
-        """
-        Створює PaymentIntent на вказану суму у PLN (мінімум 2 PLN).
-        Тіло запиту: {"amount": 10}
-        Відповідь: {"clientSecret": "..."}
-        """
         if not app.config.get("STRIPE_SECRET_KEY"):
             return jsonify({"error": "stripe_not_configured"}), 500
 
         data = request.get_json(silent=True) or {}
         try:
-            amount_pln = max(int(data.get("amount", 2)), 2)  # мінімум 2 PLN
+            amount_pln = max(int(data.get("amount", 2)), 2)
         except Exception:
             amount_pln = 2
 
         try:
             intent = stripe.PaymentIntent.create(
-                amount=amount_pln * 100,   # у ґрошах
+                amount=amount_pln * 100,
                 currency="pln",
                 automatic_payment_methods={"enabled": True},
                 description="Proofly Balance Top-Up (card)"
@@ -701,7 +713,6 @@ def create_app():
 
     @app.route("/success")
     def success_page():
-        # Можеш замінити на власний шаблон
         return render_template("success.html") if os.path.exists(
             os.path.join(app.root_path, "templates", "success.html")
         ) else ("<h2 style='color:#16a34a'>✅ Оплата успішна</h2>", 200)
