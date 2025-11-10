@@ -1,0 +1,51 @@
+<div id="upload-modal" class="modal" hidden>
+  <div class="modal-box">
+    <button class="modal-close" aria-label="Close">&times;</button>
+    <h3>{{ _('Додати модель') }}</h3>
+
+    <form id="upload-form" method="post" enctype="multipart/form-data" action="/api/market/upload">
+      <label>{{ _('Назва') }}
+        <input type="text" name="title" required>
+      </label>
+
+      <label>{{ _('Опис') }}
+        <textarea name="description" rows="4"></textarea>
+      </label>
+
+      <label>{{ _('Категорія') }}
+        <select name="category">
+          <option value="">{{ _('Без категорії') }}</option>
+          {% for c in (g.market_categories or []) %}
+            <option value="{{ c.slug }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="drop">
+        {{ _('Файли моделі (STL/OBJ/GLTF/ZIP)') }}
+        <input type="file" name="files" accept=".stl,.obj,.gltf,.glb,.zip" multiple>
+      </label>
+
+      <label class="drop">
+        {{ _('Зображення (обкладинка/превʼю)') }}
+        <input type="file" name="images" accept="image/*" multiple>
+      </label>
+
+      <label class="row">
+        <input type="checkbox" name="is_free" value="1" checked> {{ _('Безкоштовно') }}
+      </label>
+
+      <div class="row price-row" data-bind="price">
+        <input type="number" min="0" step="0.01" name="price" placeholder="5.00">
+        <select name="currency">
+          <option>USD</option><option>EUR</option><option>PLN</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="button" data-close>{{ _('Скасувати') }}</button>
+        <button class="btn primary" type="submit">{{ _('Завантажити') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
