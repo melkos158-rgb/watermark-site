@@ -1,0 +1,27 @@
+{# Безпечні дефолти, якщо не підклали категорії #}
+{% set cats = g.market_categories if g.market_categories is defined and g.market_categories else [] %}
+
+<div class="filters">
+  <label>
+    <span>{{ _('Показати') }}</span>
+    <select id="cat">
+      <option value="">{{ _('Усі') }}</option>
+      {% for c in cats %}
+        <option value="{{ c.slug }}" {{ 'selected' if request.args.get('cat')==c.slug else '' }}>
+          {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>
+    <span>{{ _('Сортувати') }}</span>
+    {% set cur = request.args.get('sort','new') %}
+    <select id="sort">
+      <option value="new"     {{ 'selected' if cur=='new' }}>Нові</option>
+      <option value="popular" {{ 'selected' if cur=='popular' }}>Популярні</option>
+      <option value="rating"  {{ 'selected' if cur=='rating' }}>Рейтинг</option>
+      <option value="price"   {{ 'selected' if cur=='price' }}>Ціна</option>
+    </select>
+  </label>
+</div>
