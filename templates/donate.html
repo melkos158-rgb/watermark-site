@@ -180,7 +180,7 @@
   tabCrypto.onclick=()=>setTab('crypto');
 
   // ====== Stripe Payment Element (нова логіка, існуючі функції нижче не чіпаю) ======
-  const stripe = Stripe("{{ config.get('STRIPE_PUBLISHABLE_KEY', STRIPE_PUBLISHABLE_KEY) if 'STRIPE_PUBLISHABLE_KEY' in globals() else STRIPE_PUBLISHABLE_KEY }}");
+  const stripe = Stripe("{{ STRIPE_PUBLISHABLE_KEY|e }}");
   let elements, paymentElement, clientSecret = null;
 
   async function initElement(amountPln){
