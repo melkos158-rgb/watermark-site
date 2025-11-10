@@ -1,5 +1,6 @@
 import os
 import threading
+import re  # 👈 ДОДАНО
 from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort, g
 from flask_babel import Babel  # ✅
 import stripe  # === (added) Stripe SDK ===
@@ -24,6 +25,20 @@ DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")
 
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
+# === BOT FILTER (мінімальний) ===
+BOT_RE = re.compile(
+    r"(bot|crawler|spider|ahrefs|semrush|bingpreview|facebookexternalhit|"
+    r"twitterbot|slackbot|discordbot|whatsapp|telegrambot|linkedinbot|"
+    r"preview|embed|curl|wget|python-requests)",
+    re.I
+)
+IGNORED_PATHS_PREFIX = ("/static/", "/favicon.ico", "/robots.txt")
+IGNORED_PATHS_EXACT = {"/healthz", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"}
+
+def is_bot_ua(ua: str) -> bool:
+    if not ua:
+        return True
+    return bool(BOT_RE.search(ua))
 
 def to_int(v, default=0):
     try:
@@ -80,7 +95,7 @@ def row_to_dict(row):
 
 # === MAIN APP CREATOR ===
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__())
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
     # ==== Babel (локаль) — FIX для Babel 3.x ====
@@ -297,6 +312,20 @@ def create_app():
             session["is_admin"] = True
         else:
             session.pop("is_admin", None)
+
+    # === BOT MARKER (не лізе у твої функції підрахунку, лише виставляє прапор) ===
+    @app.before_request
+    def _mark_bot_and_ignored():
+        try:
+            path = (request.path or "/")
+            if path in IGNORED_PATHS_EXACT or path.startswith(IGNORED_PATHS_PREFIX):
+                g.is_bot = True
+                return
+            ua = request.headers.get("User-Agent", "")
+            # боти, прев’юшки месенджерів, сканери
+            g.is_bot = is_bot_ua(ua)
+        except Exception:
+            g.is_bot = False  # безпечний дефолт
 
     # === Banner logic ===
     def get_top1_user_this_month():
@@ -548,6 +577,13 @@ def create_app():
     @app.before_request
     def _track_visit():
         try:
+            # ігноруємо боти/health/static/іконки
+            if getattr(g, "is_bot", False):
+                return
+            path = (request.path or "/")
+            if path in IGNORED_PATHS_EXACT or path.startswith(IGNORED_PATHS_PREFIX):
+                return
+
             sid = session.get("sid")
             if not sid:
                 sid = os.urandom(16).hex()
@@ -559,7 +595,7 @@ def create_app():
             session["_last_visit_ts"] = _now()
 
             uid = session.get("user_id")
-            pth = (request.path or "/")[:255]
+            pth = path[:255]
 
             # явний created_at = NOW() для коректного підрахунку "онлайн"
             db.session.execute(
@@ -574,6 +610,15 @@ def create_app():
     @app.route("/healthz")
     def healthz():
         return "ok", 200
+
+    # === Robots (щоб чемні боти поважали) ===
+    @app.route("/robots.txt")
+    def robots_txt():
+        # якщо маєш static/robots.txt — віддасться він; інакше базовий
+        try:
+            return send_from_directory(os.path.join(app.root_path, "static"), "robots.txt")
+        except Exception:
+            return ("User-agent: *\nCrawl-delay: 5\n", 200, {"Content-Type": "text/plain; charset=utf-8"})
 
     # === Media route ===
     @app.route("/media/<path:filename>")
