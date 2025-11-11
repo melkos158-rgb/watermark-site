@@ -1,5 +1,31 @@
+{# templates/market/_empty.html #}
+{% set q = request.args.get('q','') %}
+{% set cat = request.args.get('cat','') %}
+{% set sort = request.args.get('sort','new') %}
+
 <div class="empty">
-  <img src="{{ url_for('static', filename='img/filters-base.jpg') }}" alt="" />
-  <h3>{{ _('Нічого не знайдено') }}</h3>
-  <p>{{ _('Спробуй змінити запит або фільтри.') }}</p>
+  <img
+    src="{{ url_for('static', filename='img/filters-base.jpg') if 'filters-base.jpg' in ([]) else url_for('static', filename='img/placeholder_stl.jpg') }}"
+    alt="Nothing found"
+    loading="lazy"
+  >
+
+  <h3 style="margin:8px 0 4px 0">{{ _('Нічого не знайдено') }}</h3>
+
+  {% if q or cat %}
+    <p style="opacity:.85">
+      {% if q %} {{ _('Запит') }}: <strong>“{{ q }}”</strong>. {% endif %}
+      {% if cat %} {{ _('Категорія') }}: <strong>{{ cat }}</strong>. {% endif %}
+    </p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+      <a class="btn" href="{{ url_for('market.index') }}">{{ _('Очистити фільтри') }}</a>
+      <a class="btn primary" href="#" id="btn-upload">{{ _('+ Додати модель') }}</a>
+    </div>
+  {% else %}
+    <p style="opacity:.85">{{ _('Спробуй змінити запит, вибрати іншу категорію або додати свою модель.') }}</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+      <a class="btn" href="{{ url_for('market.index') }}?sort=popular">{{ _('Переглянути популярні') }}</a>
+      <a class="btn primary" href="#" id="btn-upload">{{ _('+ Додати модель') }}</a>
+    </div>
+  {% endif %}
 </div>
