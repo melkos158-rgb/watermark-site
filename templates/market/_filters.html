@@ -1,6 +1,4 @@
-{# Безпечні дефолти, якщо не підклали категорії #}
 {% set cats = g.market_categories if g.market_categories is defined and g.market_categories else [] %}
-
 <div class="filters">
   <label>
     <span>{{ _('Показати') }}</span>
