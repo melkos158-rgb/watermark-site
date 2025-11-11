@@ -1,20 +1,16 @@
 {% extends "base.html" %}
-
 {% block content %}
-  <!-- 🔹 Market Layout — має другу шапку і зону контенту -->
   <div class="market-wrap">
-
-    <!-- друга шапка (фільтри, пошук, кнопки тощо) -->
     {% include "market/_subheader.html" %}
-
-    <!-- головна частина сторінки маркету -->
-    <div class="market-body">
-      {% block market_body %}{% endblock %}
-    </div>
-
+    <div class="market-body">{% block market_body %}{% endblock %}</div>
   </div>
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='market/market.js') }}"></script>
+  <!-- Підключай із static/, не з templates/ -->
+  <script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/api.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/filters.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/uploader.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/viewer.js') }}"></script>
 {% endblock %}
