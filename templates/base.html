@@ -167,5 +167,30 @@
     })();
   })();
   </script>
+
+  <!-- === JS-маячок «живого» відвідувача для /api/visit === -->
+  <script>
+  (function(){
+    function ping(){
+      try{
+        fetch("/api/visit", {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Visit-Beacon": "1"
+          },
+          body: JSON.stringify({ path: location.pathname })
+        });
+      }catch(e){}
+    }
+    // логнемо одразу, коли вкладка видима
+    if (document.visibilityState === "visible") ping();
+    // і ще при поверненні у вкладку
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "visible") ping();
+    });
+  })();
+  </script>
 </body>
 </html>
