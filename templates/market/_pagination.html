@@ -1,19 +1,17 @@
 {% if pages and pages > 1 %}
 <nav class="pagination">
   {% set p = page or 1 %}
-  {% set params = request.args.to_dict() %}
-
+  {% set base = request.path %}
+  {% set args = request.args.copy().to_dict() %}
   {% if p > 1 %}
-    {% set params = params.update({'page': 1}) or request.args.to_dict() %}
-    <a href="?{{ request.query_string|tojson|safe and '' }}&page=1" class="pg">&laquo;</a>
-    <a href="?{{ request.query_string|tojson|safe and '' }}&page={{ p-1 }}" class="pg">‹</a>
+    {% set args = args.update({'page':1}) or request.args.to_dict() %}
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=1)|urlencode }}">&laquo;</a>
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=p-1)|urlencode }}">‹</a>
   {% endif %}
-
   <span class="pg current">{{ p }}/{{ pages }}</span>
-
   {% if p < pages %}
-    <a href="?{{ request.query_string|tojson|safe and '' }}&page={{ p+1 }}" class="pg">›</a>
-    <a href="?{{ request.query_string|tojson|safe and '' }}&page={{ pages }}" class="pg">&raquo;</a>
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=p+1)|urlencode }}">›</a>
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=pages)|urlencode }}">&raquo;</a>
   {% endif %}
 </nav>
 {% endif %}
