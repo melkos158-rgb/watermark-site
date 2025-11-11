@@ -25,14 +25,15 @@ DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")
 
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-# === BOT FILTER (мінімальний) ===
+# === BOT FILTER (посилений) ===
 BOT_RE = re.compile(
     r"(bot|crawler|spider|ahrefs|semrush|bingpreview|facebookexternalhit|"
     r"twitterbot|slackbot|discordbot|whatsapp|telegrambot|linkedinbot|"
-    r"preview|embed|curl|wget|python-requests)",
+    r"preview|embed|curl|wget|python-requests|node-fetch|axios|postman|"
+    r"linkpreview|unfurl|proofly)",
     re.I
 )
-# 👉 якщо хочеш, додай "/api/" сюди, щоб API-запити не рахувалися як візити
+# НЕ додаємо тут "/api/", бо будемо приймати тільки спец-POST /api/visit
 IGNORED_PATHS_PREFIX = ("/static/", "/favicon.ico", "/robots.txt")
 IGNORED_PATHS_EXACT = {"/healthz", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"}
 
@@ -232,7 +233,17 @@ def create_app():
                       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
-                conn.execute(text("""ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"""))
+                # ✅ visits (для метрик)
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS visits (
+                      id SERIAL PRIMARY KEY,
+                      session_id TEXT NOT NULL,
+                      user_id INTEGER,
+                      path TEXT,
+                      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    );
+                """))
+                conn.execute(text("""CREATE INDEX IF NOT EXISTS visits_created_idx ON visits (created_at);"""))
             else:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS suggestions (
@@ -275,6 +286,17 @@ def create_app():
                       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
+                # ✅ visits (для метрик)
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS visits (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      session_id TEXT NOT NULL,
+                      user_id INTEGER,
+                      path TEXT,
+                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                """))
+                conn.execute(text("""CREATE INDEX IF NOT EXISTS visits_created_idx ON visits (created_at);"""))
                 try:
                     conn.execute(text("""ALTER TABLE users ADD COLUMN avatar_url TEXT"""))
                 except Exception:
@@ -554,7 +576,7 @@ def create_app():
         f = request.files.get("image")
         link_url = request.form.get("link_url") or ""
         if not f or not allowed_file(f.filename):
-            flash("Дай .png/.jpg/.jpeg/.webp")
+            flash("Дай .png/.jpg/.jpeg/.webп")
             return redirect(url_for("admin_panel"))
 
         ext = f.filename.rsplit(".", 1)[1].lower()
@@ -590,40 +612,54 @@ def create_app():
             flash(f"Не вдалось очистити visits: {e}")
             return redirect(url_for("admin_panel"))
 
-    # === ⬇️ lightweight visits tracker
+    # === ⬇️ lightweight visits tracker — тепер лише для людських JS-сигналів
     from time import time as _now
 
     @app.before_request
     def _track_visit():
         try:
-            # ігноруємо боти/health/static/іконки
-            if getattr(g, "is_bot", False):
-                return
-            path = (request.path or "/")
-            if path in IGNORED_PATHS_EXACT or path.startswith(IGNORED_PATHS_PREFIX):
+            # ✅ Рахуємо тільки спеціальний POST із фронтенда
+            if request.method != "POST" or request.path != "/api/visit":
                 return
 
+            # хедер-маячок, щоб сторонні POST не засмічували метрику
+            if request.headers.get("X-Visit-Beacon") != "1":
+                return ("", 204)
+
+            # відсікаємо боти / службові
+            if getattr(g, "is_bot", False):
+                return ("", 204)
+
+            # шлях беремо з JSON-тела
+            data = request.get_json(silent=True) or {}
+            path = (data.get("path") or "/")[:255]
+            if path in IGNORED_PATHS_EXACT or path.startswith(IGNORED_PATHS_PREFIX):
+                return ("", 204)
+
+            # сесія
             sid = session.get("sid")
             if not sid:
                 sid = os.urandom(16).hex()
                 session["sid"] = sid
 
+            # анти-спам: не частіше ніж раз/хвилину
             last_ts = session.get("_last_visit_ts") or 0
             if _now() - float(last_ts) < 60:
-                return
+                return ("", 204)
             session["_last_visit_ts"] = _now()
 
             uid = session.get("user_id")
-            pth = path[:255]
 
-            # явний created_at = NOW() для коректного підрахунку "онлайн"
+            # INSERT без created_at — візьметься дефолт БД (NOW()/CURRENT_TIMESTAMP)
             db.session.execute(
-                text("INSERT INTO visits (session_id, user_id, path, created_at) VALUES (:sid, :uid, :pth, NOW())"),
-                {"sid": sid, "uid": uid, "pth": pth}
+                text("INSERT INTO visits (session_id, user_id, path) VALUES (:sid, :uid, :pth)"),
+                {"sid": sid, "uid": uid, "pth": path}
             )
             db.session.commit()
+            return ("", 204)
         except Exception:
             db.session.rollback()
+            return ("", 204)
 
     # === Healthcheck ===
     @app.route("/healthz")
