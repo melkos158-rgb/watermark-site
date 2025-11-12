@@ -2,9 +2,7 @@
 <nav class="pagination">
   {% set p = page or 1 %}
   {% set base = request.path %}
-  {% set args = request.args.copy().to_dict() %}
   {% if p > 1 %}
-    {% set args = args.update({'page':1}) or request.args.to_dict() %}
     <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=1)|urlencode }}">&laquo;</a>
     <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=p-1)|urlencode }}">‹</a>
   {% endif %}
@@ -15,3 +13,12 @@
   {% endif %}
 </nav>
 {% endif %}
+
+<style>
+.pagination{display:flex;gap:6px;align-items:center;justify-content:center;margin:14px 0}
+.pg{display:inline-flex;align-items:center;justify-content:center;
+    min-width:32px;height:32px;padding:0 8px;border:1px solid var(--line);
+    border-radius:8px;background:var(--card);color:var(--text);text-decoration:none}
+.pg.current{background:transparent;border-style:dashed;color:var(--muted);pointer-events:none}
+.pg:hover{transform:translateY(-1px)}
+</style>
