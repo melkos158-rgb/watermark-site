@@ -2,7 +2,6 @@
 {% set market_page = 'detail' %}
 
 {% block market_body %}
-{# ---- нормалізуємо джерело моделі для viewer ---- #}
 {% set main_src = item.stl_main_url
   or item.url
   or ( (item.files_json|safe) and (item.files_json if item.files_json is string else None) )
@@ -15,14 +14,12 @@
 {% endif %}
 
 <article class="detail-wrap">
-  <!-- Хлібні крихти -->
   <nav class="crumbs">
     <a href="{{ url_for('market.page_market') }}">Market</a>
     <span>/</span>
     <span>{{ item.title }}</span>
   </nav>
 
-  <!-- Заголовок + базова мета -->
   <header class="detail-head">
     <h1 class="title">{{ item.title }}</h1>
     <div class="meta">
@@ -39,7 +36,6 @@
   </header>
 
   <div class="detail-grid">
-    <!-- Вʼювер -->
     <section class="viewer-card">
       <div id="viewer"
            class="viewer"
@@ -58,7 +54,6 @@
       </div>
     </section>
 
-    <!-- Опис + зображення -->
     <section class="desc-card">
       {% set cover_src = item.cover_url or item.cover or (item.photos[0] if item.photos) %}
       <div class="cover">
@@ -82,7 +77,6 @@
       {% include "market/_owner_panel.html" ignore missing %}
     </section>
 
-    <!-- Відгуки -->
     <section class="reviews-card">
       <h2>Відгуки</h2>
 
@@ -117,13 +111,17 @@
     </section>
   </div>
 
-  <!-- Автор -->
   <section id="author" class="author-card">
     <img class="avatar" src="{{ item.owner.avatar_url if item.owner and item.owner.avatar_url else '/static/img/user.jpg' }}" alt="author">
     <div class="a-meta">
       <div class="name">{{ item.owner.name if item.owner else '—' }}</div>
       <div class="bio muted">{{ item.owner.bio if item.owner and item.owner.bio else '3D-дизайнер' }}</div>
     </div>
+  </section>
+
+  <section class="related">
+    <h2>Схожі моделі</h2>
+    <div id="related-grid" class="grid"></div>
   </section>
 </article>
 
@@ -155,11 +153,13 @@
   .r-head{display:flex;gap:10px;align-items:center}
   .author-card{display:flex;gap:12px;align-items:center;margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
   .author-card .avatar{width:56px;height:56px;border-radius:50%;border:1px solid var(--line);object-fit:cover}
+  .related{margin-top:24px;}
+  .related h2{margin:0 0 10px 0;}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}
   .muted{color:var(--muted)}
 </style>
 
 <script type="module">
-  // 1) Підставляємо основний src у кнопку "Відкрити файл"
   const viewerEl = document.getElementById('viewer');
   const statusEl = document.getElementById('status');
   const btnOpenRaw = document.getElementById('btnOpenRaw');
@@ -169,7 +169,6 @@
     else { btnOpenRaw.style.display = 'none'; }
   }
 
-  // 2) Обране
   const btnFav = document.getElementById('btnFav');
   if (btnFav) {
     btnFav.addEventListener('click', async ()=>{
@@ -189,7 +188,6 @@
     });
   }
 
-  // 3) Checkout / Download
   const btnBuy = document.getElementById('btnBuy');
   const btnDownload = document.getElementById('btnDownload');
 
@@ -206,7 +204,7 @@
           window.location.href = j.download_url;
           return;
         }
-        if (j.url){ window.location.href = j.url; return; } // Stripe session
+        if (j.url){ window.location.href = j.url; return; }
         alert('Демо-режим: оплата не підключена.');
       }catch(e){ console.error(e); alert('Помилка під час створення платежу.'); }
     });
@@ -220,7 +218,6 @@
     });
   }
 
-  // 4) Відгук
   const form = document.getElementById('reviewForm');
   if (form){
     form.addEventListener('submit', async (e)=>{
@@ -245,5 +242,22 @@
       }catch(err){ console.error(err); msg.textContent = 'Помилка мережі.'; }
     });
   }
+
+  // 🔹 Завантаження схожих моделей
+  (async()=>{
+    try{
+      const r = await fetch(`/api/items/related?item_id={{ item.id }}`);
+      if(!r.ok) return;
+      const arr = await r.json().catch(()=>[]);
+      const grid = document.getElementById('related-grid');
+      if(Array.isArray(arr) && arr.length){
+        grid.innerHTML = arr.map(it=>`
+          <a href="/item/${it.id}" class="rel-item">
+            <img src="${it.cover_url || '/static/img/placeholder_stl.jpg'}" alt="${it.title}" loading="lazy">
+            <div class="rel-title">${it.title}</div>
+          </a>`).join('');
+      }
+    }catch(e){ console.error(e); }
+  })();
 </script>
 {% endblock %}
