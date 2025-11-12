@@ -17,15 +17,42 @@
       {% if q %} {{ _('Запит') }}: <strong>“{{ q }}”</strong>. {% endif %}
       {% if cat %} {{ _('Категорія') }}: <strong>{{ cat }}</strong>. {% endif %}
     </p>
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+    <div class="empty-actions">
       <a class="btn" href="{{ url_for('market.index') }}">{{ _('Очистити фільтри') }}</a>
       <a class="btn primary" href="#" id="btn-upload">{{ _('+ Додати модель') }}</a>
     </div>
   {% else %}
     <p style="opacity:.85">{{ _('Спробуй змінити запит, вибрати іншу категорію або додати свою модель.') }}</p>
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+    <div class="empty-actions">
       <a class="btn" href="{{ url_for('market.index') }}?sort=popular">{{ _('Переглянути популярні') }}</a>
       <a class="btn primary" href="#" id="btn-upload">{{ _('+ Додати модель') }}</a>
     </div>
   {% endif %}
 </div>
+
+<style>
+.empty{
+  text-align:center;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:18px;
+  color:var(--text);
+}
+.empty img{
+  width:180px;height:120px;object-fit:cover;
+  border-radius:10px;border:1px solid var(--line);
+  margin-bottom:8px;
+}
+.empty .btn{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:8px 12px;
+  color:var(--text);
+  text-decoration:none;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.empty .btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.empty-actions{ display:flex; gap:8px; justify-content:center; margin-top:10px; flex-wrap:wrap; }
+</style>
