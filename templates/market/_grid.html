@@ -1,14 +1,38 @@
 <div class="grid">
-  {% for it in items %}
-    {% include "market/_item_card.html" %}
-  {% endfor %}
+  {% if items and items|length > 0 %}
+    {% for it in items %}
+      <div class="grid-item {% if it.is_featured or it.featured %}featured{% endif %}">
+        {% include "market/_item_card.html" %}
+      </div>
+    {% endfor %}
+  {% else %}
+    {% include "market/_empty.html" %}
+  {% endif %}
 </div>
 
 <style>
-.grid{
-  display:grid;gap:16px;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-}
-@media (max-width:1100px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
-@media (max-width:700px){ .grid{grid-template-columns:1fr;} }
+  .grid{
+    display:grid;
+    gap:16px;
+    /* Гнучка сітка: автоматично підбирає кількість колонок */
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    align-items:stretch;
+  }
+
+  /* Обгортка для керування розтягом “featured” */
+  .grid-item{ display:block; }
+
+  /* Виділені картки можуть займати 2 колонки на широких екранах */
+  @media (min-width: 1200px){
+    .grid-item.featured{ grid-column: span 2; }
+  }
+
+  /* Точки перелому для більш щільної сітки на середніх екранах */
+  @media (max-width: 1100px){
+    .grid{ grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
+  }
+
+  @media (max-width: 700px){
+    .grid{ grid-template-columns:1fr; }
+  }
 </style>
