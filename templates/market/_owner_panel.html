@@ -2,6 +2,7 @@
 <div class="owner-panel">
   <a class="btn" href="{{ url_for('market.page_edit_item', item_id=item.id) }}">{{ _('Редагувати') }}</a>
   <button class="btn danger" id="btn-owner-delete">{{ _('Видалити') }}</button>
+  <a class="btn ghost" href="{{ url_for('market.page_upload') }}">{{ _('Додати нову') }}</a>
 </div>
 
 <script>
@@ -10,22 +11,59 @@
     if(!btn) return;
     btn.addEventListener('click', async ()=>{
       if(!confirm('{{ _("Видалити модель?") }}')) return;
+      btn.disabled = true;
+      btn.textContent = '⏳ Видалення...';
       try{
-        const r = await fetch('/api/item/{{ item.id }}' + '/delete', { method:'POST' });
+        const r = await fetch('/api/item/{{ item.id }}/delete', { method:'POST' });
         const j = await r.json().catch(()=>({}));
-        if(r.ok && j.ok){ window.location.href = '/market'; }
-        else{ alert('Не вдалося видалити (немає прав або помилка).'); }
-      }catch(e){ console.error(e); alert('Помилка мережі.'); }
+        if(r.ok && j.ok){
+          alert('Модель успішно видалено.');
+          window.location.href = '/market';
+        }else{
+          alert('Не вдалося видалити (немає прав або помилка).');
+        }
+      }catch(e){
+        console.error(e);
+        alert('Помилка мережі.');
+      }finally{
+        btn.disabled = false;
+        btn.textContent = '{{ _("Видалити") }}';
+      }
     });
   })();
 </script>
 
 <style>
-.owner-panel{display:flex;gap:8px;margin-top:10px}
-.owner-panel .btn{
-  background:var(--card);border:1px solid var(--line);color:var(--text);
-  padding:8px 12px;border-radius:10px;cursor:pointer;text-decoration:none
+.owner-panel{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+  flex-wrap:wrap;
 }
-.owner-panel .btn.danger{background:#ef4444;border-color:#ef4444;color:#fff}
+.owner-panel .btn{
+  background:var(--card);
+  border:1px solid var(--line);
+  color:var(--text);
+  padding:8px 12px;
+  border-radius:10px;
+  cursor:pointer;
+  text-decoration:none;
+  transition:all .15s;
+}
+.owner-panel .btn:hover{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+.owner-panel .btn.danger{
+  background:#ef4444;
+  border-color:#ef4444;
+  color:#fff;
+}
+.owner-panel .btn.ghost{
+  background:transparent;
+  border:1px dashed var(--line);
+  color:var(--muted);
+}
 </style>
 {% endif %}
