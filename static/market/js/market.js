@@ -1,3 +1,4 @@
+// static/market/js/market.js
 // Загальний ініт маркету: пошук, друга шапка, модалка
 const $ = (s, r=document) => r.querySelector(s);
 
@@ -24,13 +25,43 @@ document.addEventListener("DOMContentLoaded", () => {
   sort?.addEventListener("change",()=> goWithParams({ sort: sort.value }));
 
   // Модалка «Додати модель»
-  $("#btn-upload")?.addEventListener("click", (e)=>{ e.preventDefault(); modal.hidden = false; });
-  modal?.querySelector("[data-close]")?.addEventListener("click", ()=> modal.hidden = true);
-  modal?.querySelector(".modal-close")?.addEventListener("click", ()=> modal.hidden = true);
+  const openBtn   = $("#btn-upload");
+  const closeBtn  = modal?.querySelector("[data-close]");
+  const xBtn      = modal?.querySelector(".modal-close");
+  const free      = modal?.querySelector('input[name="is_free"]');
+  const priceRow  = modal?.querySelector(".price-row");
+  const titleInp  = modal?.querySelector('input[name="title"]');
+
+  const syncPriceVis = ()=> priceRow && (priceRow.style.display = free?.checked ? "none" : "flex");
+
+  function openModal(e){
+    if (e) e.preventDefault();
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.style.overflow = "hidden";
+    // автофокус на назву моделі
+    setTimeout(()=> titleInp?.focus(), 0);
+  }
+  function closeModal(){
+    if (!modal) return;
+    modal.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  openBtn?.addEventListener("click", openModal);
+  closeBtn?.addEventListener("click", closeModal);
+  xBtn?.addEventListener("click", closeModal);
+
+  // закриття по кліку на бекдроп
+  modal?.addEventListener("click", (e)=>{
+    if (e.target === modal) closeModal();
+  });
+  // закриття по Esc
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape" && modal && !modal.hidden) closeModal();
+  });
 
   // Ціна: показувати/ховати поле
-  const free = modal?.querySelector('input[name="is_free"]');
-  const priceRow = modal?.querySelector(".price-row");
-  const syncPriceVis = ()=> priceRow && (priceRow.style.display = free?.checked ? "none" : "flex");
-  free?.addEventListener("change", syncPriceVis); syncPriceVis();
+  free?.addEventListener("change", syncPriceVis);
+  syncPriceVis();
 });
