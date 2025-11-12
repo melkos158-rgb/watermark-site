@@ -1,35 +1,78 @@
 {% set cats = g.market_categories if g.market_categories is defined and g.market_categories else [] %}
 <div class="filters">
-  <label>
-    <span>{{ _('Показати') }}</span>
-    <select id="cat">
-      <option value="">{{ _('Усі') }}</option>
-      {% for c in cats %}
-        <option value="{{ c.slug }}" {{ 'selected' if request.args.get('cat')==c.slug else '' }}>
-          {{ c.name }}
-        </option>
-      {% endfor %}
-    </select>
-  </label>
+  <div class="cat-tags">
+    <button class="tag-btn active" data-cat="">{{ _('Усі') }}</button>
+    {% for c in cats %}
+      <button class="tag-btn" data-cat="{{ c.slug }}">{{ c.name }}</button>
+    {% endfor %}
+  </div>
 
-  <label>
-    <span>{{ _('Сортувати') }}</span>
-    {% set cur = request.args.get('sort','new') %}
-    <select id="sort">
-      <option value="new"     {{ 'selected' if cur=='new' }}>Нові</option>
-      <option value="popular" {{ 'selected' if cur=='popular' }}>Популярні</option>
-      <option value="rating"  {{ 'selected' if cur=='rating' }}>Рейтинг</option>
-      <option value="price"   {{ 'selected' if cur=='price' }}>Ціна</option>
-    </select>
-  </label>
+  <div class="sort-wrap">
+    <label>
+      <span>{{ _('Сортувати') }}</span>
+      {% set cur = request.args.get('sort','new') %}
+      <select id="sort">
+        <option value="new"     {{ 'selected' if cur=='new' }}>Нові</option>
+        <option value="popular" {{ 'selected' if cur=='popular' }}>Популярні</option>
+        <option value="rating"  {{ 'selected' if cur=='rating' }}>Рейтинг</option>
+        <option value="price"   {{ 'selected' if cur=='price' }}>Ціна</option>
+      </select>
+    </label>
+  </div>
 </div>
 
 <style>
-.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.filters label{display:flex;gap:6px;align-items:center}
-.filters select{
-  background:var(--card);border:1px solid var(--line);color:var(--text);
-  border-radius:8px;padding:6px 10px
+.filters{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-bottom:10px;
 }
-.filters span{color:var(--muted);font-size:.95em}
+
+.cat-tags{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.tag-btn{
+  background:var(--card);
+  border:1px solid var(--line);
+  color:var(--text);
+  border-radius:20px;
+  padding:5px 12px;
+  font-size:13px;
+  cursor:pointer;
+  transition:all .2s;
+}
+.tag-btn:hover{background:var(--accent);color:#fff;}
+.tag-btn.active{background:var(--accent);color:#fff;box-shadow:0 0 10px rgba(59,130,246,.5);}
+
+.sort-wrap{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.sort-wrap span{color:var(--muted);font-size:.95em;}
+.sort-wrap select{
+  background:var(--card);
+  border:1px solid var(--line);
+  color:var(--text);
+  border-radius:8px;
+  padding:6px 10px;
+}
 </style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const tagBtns = document.querySelectorAll('.tag-btn');
+    tagBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        tagBtns.forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const cat = btn.dataset.cat;
+        document.dispatchEvent(new CustomEvent('marketCategoryChange', { detail: cat }));
+      });
+    });
+  });
+</script>
