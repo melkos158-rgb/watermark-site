@@ -16,3 +16,27 @@
     <a class="btn primary" href="#" id="btn-upload">{{ _('+ Додати модель') }}</a>
   </div>
 </div>
+
+<style>
+.market-subheader{
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:10px;
+  background:var(--card);border-bottom:1px solid var(--line);
+  padding:10px 14px;border-radius:10px;margin-bottom:14px;
+}
+.market-subheader .left{display:flex;align-items:center;gap:10px;font-weight:600;}
+.market-subheader .divider{width:1px;height:18px;background:var(--line);}
+.market-subheader .right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.market-subheader .btn{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--text);cursor:pointer;}
+.market-subheader .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.market-subheader .search{display:flex;align-items:center;gap:6px;}
+.market-subheader .inp{
+  border:1px solid var(--line);border-radius:8px;background:transparent;
+  color:var(--text);padding:6px 10px;width:200px;
+}
+@media(max-width:720px){
+  .market-subheader{flex-direction:column;align-items:stretch;}
+  .market-subheader .right{width:100%;justify-content:space-between;}
+  .market-subheader .inp{flex:1;}
+}
+</style>
