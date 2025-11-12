@@ -1,0 +1,222 @@
+{% extends "market/layout.html" %}
+
+{# 
+  Сторінка "Порівняння моделей"
+  URL типу: /market/compare?items=1,2,3
+#}
+
+{% block market_main %}
+
+  {% set items = compare_items if compare_items is defined else [] %}
+
+  <section class="market-compare-page">
+    <header class="compare-page-header">
+      <h1>Порівняння моделей</h1>
+      <p class="muted">
+        Дивись різницю по часу друку, об’єму, вазі, ціні, полігонах, підтримках і сумісності з принтером.
+      </p>
+
+      <div class="compare-page-actions">
+        <a href="{{ url_for('market.index') }}" class="btn ghost">
+          ← Назад до каталогу
+        </a>
+        <button id="compare-refresh" class="btn tiny">
+          Оновити дані
+        </button>
+      </div>
+    </header>
+
+    {% if not items %}
+      <div class="compare-empty-state">
+        <p class="muted">
+          Ти ще не вибрав жодної моделі для порівняння.
+        </p>
+        <a href="{{ url_for('market.index') }}" class="btn primary">
+          До каталогу моделей
+        </a>
+      </div>
+    {% else %}
+
+      <div class="compare-table-wrapper" 
+           id="compare-table-wrapper"
+           data-endpoint="/api/market/compare">
+        <table class="compare-table" id="compare-table">
+          <thead>
+            <tr>
+              <th>Параметр</th>
+              {% for item in items %}
+                <th data-item-id="{{ item.id }}">
+                  <div class="cmp-head-item">
+                    <img src="{{ item.thumb_url or item.preview_url }}" 
+                         alt="{{ item.title }}" 
+                         class="cmp-thumb">
+                    <a href="{{ url_for('market.detail', item_id=item.id) }}" class="cmp-title">
+                      {{ item.title }}
+                    </a>
+                    <button class="cmp-remove" 
+                            data-remove-id="{{ item.id }}"
+                            title="Прибрати з порівняння">✕</button>
+                  </div>
+                </th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cmp-param">Ціна</td>
+              {% for item in items %}
+                <td class="cmp-cell">
+                  {% if item.price and item.price > 0 %}
+                    {{ "%.2f"|format(item.price) }} zł
+                  {% else %}
+                    Безкоштовно
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Рейтинг</td>
+              {% for item in items %}
+                <td class="cmp-cell">
+                  {% if item.rating %}
+                    ⭐ {{ "%.1f"|format(item.rating) }} / 5
+                    <span class="muted">({{ item.reviews_count or 0 }} відгуків)</span>
+                  {% else %}
+                    <span class="muted">Поки немає оцінок</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Час друку (оцінка)</td>
+              {% for item in items %}
+                <td class="cmp-cell" data-metric="print_time" data-id="{{ item.id }}">
+                  {% if item.print_time_human %}
+                    {{ item.print_time_human }}
+                  {% else %}
+                    <span class="muted">буде пораховано…</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Об’єм / вага</td>
+              {% for item in items %}
+                <td class="cmp-cell" data-metric="volume" data-id="{{ item.id }}">
+                  {% if item.volume_cm3 %}
+                    {{ "%.1f"|format(item.volume_cm3) }} см³
+                    {% if item.weight_g %}
+                      <span class="muted">(~{{ "%.0f"|format(item.weight_g) }} г)</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="muted">буде пораховано…</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Габарити (X × Y × Z)</td>
+              {% for item in items %}
+                <td class="cmp-cell" data-metric="bbox" data-id="{{ item.id }}">
+                  {% if item.size_x and item.size_y and item.size_z %}
+                    {{ "%.1f"|format(item.size_x) }} ×
+                    {{ "%.1f"|format(item.size_y) }} ×
+                    {{ "%.1f"|format(item.size_z) }} мм
+                  {% else %}
+                    <span class="muted">нема даних</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Кількість полігонів</td>
+              {% for item in items %}
+                <td class="cmp-cell" data-metric="polygons" data-id="{{ item.id }}">
+                  {% if item.polygons %}
+                    {{ item.polygons | int | string }}
+                  {% else %}
+                    <span class="muted">буде пораховано…</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Підтримки</td>
+              {% for item in items %}
+                <td class="cmp-cell">
+                  {% if item.supports == 'none' %}
+                    Без підтримок
+                  {% elif item.supports == 'minimal' %}
+                    Мінімальні
+                  {% elif item.supports == 'required' %}
+                    Потрібні
+                  {% else %}
+                    <span class="muted">не вказано</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Рекомендований матеріал</td>
+              {% for item in items %}
+                <td class="cmp-cell">
+                  {% if item.material %}
+                    {{ item.material }}
+                  {% else %}
+                    <span class="muted">PLA за замовчуванням</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Сумісність з принтером</td>
+              {% for item in items %}
+                <td class="cmp-cell" data-metric="printer_match" data-id="{{ item.id }}">
+                  <span class="muted">залежить від профілю принтера користувача</span>
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Ліцензія</td>
+              {% for item in items %}
+                <td class="cmp-cell">
+                  {% if item.license_label %}
+                    {{ item.license_label }}
+                  {% else %}
+                    Стандартна ліцензія Proofly
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+
+            <tr>
+              <td class="cmp-param">Завантаження / продажі</td>
+              {% for item in items %}
+                <td class="cmp-cell">
+                  <div>{{ item.downloads or 0 }} завантажень</div>
+                  <div class="muted">{{ item.sales or 0 }} продажів</div>
+                </td>
+              {% endfor %}
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='market/js/compare.js') }}"></script>
+{% endblock %}
