@@ -2,6 +2,18 @@
 {% set market_page = 'detail' %}
 
 {% block market_body %}
+{# ---- нормалізуємо джерело моделі для viewer ---- #}
+{% set main_src = item.stl_main_url
+  or item.url
+  or ( (item.files_json|safe) and (item.files_json if item.files_json is string else None) )
+%}
+{% if not main_src and item.files_json %}
+  {% set _arr = item.files_json if item.files_json is sequence else [] %}
+  {% if _arr and _arr[0] is mapping %}
+    {% set main_src = _arr[0].url %}
+  {% endif %}
+{% endif %}
+
 <article class="detail-wrap">
   <!-- Хлібні крихти -->
   <nav class="crumbs">
@@ -32,7 +44,7 @@
       <div id="viewer"
            class="viewer"
            data-item-id="{{ item.id }}"
-           data-src="{{ item.main_model_url or (item.files_json and (item.files_json|safe)) }}"></div>
+           data-src="{{ main_src }}"></div>
       <span id="status" class="viewer-status"></span>
 
       <div class="viewer-actions">
@@ -48,8 +60,9 @@
 
     <!-- Опис + зображення -->
     <section class="desc-card">
+      {% set cover_src = item.cover_url or item.cover or (item.photos[0] if item.photos) %}
       <div class="cover">
-        <img src="{{ item.cover_url or '/static/img/placeholder_stl.jpg' }}" alt="{{ item.title }}"
+        <img src="{{ cover_src or '/static/img/placeholder_stl.jpg' }}" alt="{{ item.title }}"
              onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
       </div>
 
@@ -152,7 +165,7 @@
   const btnOpenRaw = document.getElementById('btnOpenRaw');
   const rawSrc = viewerEl?.dataset?.src || null;
   if (btnOpenRaw) {
-    if (rawSrc) { btnOpenRaw.href = rawSrc.startsWith('/') ? rawSrc : rawSrc; }
+    if (rawSrc) { btnOpenRaw.href = rawSrc; }
     else { btnOpenRaw.style.display = 'none'; }
   }
 
