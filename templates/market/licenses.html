@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if license %}
+  {{ license.name }} — Ліцензія STL | Proofly
+{% else %}
+  Ліценції STL — Proofly
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<style>
+  .lic-public-wrap{
+    max-width:960px;
+    margin:24px auto 40px;
+    padding:0 12px;
+  }
+  .lic-public-header{
+    margin-bottom:18px;
+  }
+  .lic-public-title{
+    font-size:24px;
+    font-weight:600;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+  }
+  .lic-public-badge{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.85;
+  }
+  .lic-public-sub{
+    font-size:13px;
+    opacity:.8;
+    margin-top:6px;
+  }
+
+  .lic-public-meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:8px;
+    font-size:12px;
+  }
+  .lic-public-tag{
+    padding:2px 7px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+  }
+
+  .lic-public-card{
+    background:#0f1117;
+    border:1px solid #242735;
+    border-radius:12px;
+    padding:16px 18px;
+    margin-bottom:16px;
+  }
+  .lic-public-card h2{
+    margin:0 0 10px 0;
+    font-size:18px;
+  }
+  .lic-public-card h3{
+    margin:14px 0 8px;
+    font-size:16px;
+  }
+  .lic-public-help{
+    font-size:12px;
+    opacity:.8;
+    margin-top:4px;
+  }
+
+  .lic-public-list{
+    margin-top:4px;
+  }
+  .lic-public-list ul{
+    padding-left:18px;
+    margin:4px 0;
+    font-size:13px;
+  }
+
+  .lic-public-code{
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size:11px;
+    padding:2px 7px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.9;
+  }
+
+  .lic-public-body{
+    margin-top:8px;
+    font-size:13px;
+    line-height:1.6;
+    white-space:pre-wrap;
+  }
+
+  .lic-public-footer{
+    margin-top:16px;
+    font-size:12px;
+    opacity:.7;
+  }
+
+  .lic-public-other{
+    margin-top:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    font-size:12px;
+  }
+  .lic-public-link-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    text-decoration:none;
+    color:#e5e7eb;
+    font-size:12px;
+    cursor:pointer;
+  }
+  .lic-public-link-btn:hover{
+    border-color:#2563eb;
+  }
+</style>
+
+<div class="lic-public-wrap">
+  {% if license %}
+    <header class="lic-public-header">
+      <div class="lic-public-title">
+        <span>{{ license.name }}</span>
+        <span class="lic-public-code">{{ license.code }}</span>
+        {% if license.is_default %}
+          <span class="lic-public-badge">⭐ Дефолтна для Proofly</span>
+        {% endif %}
+      </div>
+      <div class="lic-public-sub">
+        {{ license.short_title or license.summary or 'Ліцензія STL/3D-моделей для Proofly.market.' }}
+      </div>
+
+      <div class="lic-public-meta">
+        <span class="lic-public-tag">
+          {% if license.type == 'proofly' %}
+            Proofly License
+          {% elif license.type == 'cc' %}
+            Creative Commons
+          {% else %}
+            Custom
+          {% endif %}
+        </span>
+
+        {% if license.allow_commercial %}
+          <span class="lic-public-tag">💰 Commercial OK</span>
+        {% else %}
+          <span class="lic-public-tag">🚫 Commercial use</span>
+        {% endif %}
+
+        {% if license.allow_print %}
+          <span class="lic-public-tag">🧵 Prints allowed</span>
+        {% else %}
+          <span class="lic-public-tag">🚫 Prints</span>
+        {% endif %}
+
+        {% if license.allow_remix %}
+          <span class="lic-public-tag">🧩 Remix</span>
+        {% endif %}
+
+        {% if license.allow_redistribute %}
+          <span class="lic-public-tag">🌐 Redistribute STL</span>
+        {% endif %}
+
+        {% if license.share_alike %}
+          <span class="lic-public-tag">♻ Share-alike</span>
+        {% endif %}
+
+        {% if license.region %}
+          <span class="lic-public-tag">🌍 {{ license.region }}</span>
+        {% endif %}
+      </div>
+    </header>
+
+    <section class="lic-public-card">
+      <h2>Коротко про права та обмеження</h2>
+      <div class="lic-public-list">
+        <ul>
+          {% if license.allow_print %}
+            <li>Дозволено друк моделі для особистого використання.</li>
+          {% else %}
+            <li>Друк моделі для особистого використання не дозволено (дуже жорсткі умови).</li>
+          {% endif %}
+
+          {% if license.allow_commercial %}
+            {% if license.max_prints and license.max_prints > 0 %}
+              <li>Дозволено продавати до {{ license.max_prints }} комерційних друків з одного придбання.</li>
+            {% else %}
+              <li>Дозволено продавати надруковані моделі (без ліміту кількості, якщо інше не вказано автором).</li>
+            {% endif %}
+          {% else %}
+            <li>Продаж надрукованих моделей заборонений. Ліцензія тільки для некомерційного використання.</li>
+          {% endif %}
+
+          {% if license.allow_remix %}
+            <li>Дозволено ремікси та модифікації моделі.
+              {% if license.share_alike %}
+                Ремікси повинні публікуватися під тією ж або сумісною ліцензією (share-alike).
+              {% endif %}
+            </li>
+          {% else %}
+            <li>Ремікси та модифікації моделі заборонені без окремого дозволу автора.</li>
+          {% endif %}
+
+          {% if license.allow_redistribute %}
+            <li>Дозволено поширювати STL-файл з урахуванням умов цієї ліцензії.</li>
+          {% else %}
+            <li>Поширення STL-файлу за межами Proofly заборонене (тільки оригінальне джерело).</li>
+          {% endif %}
+
+          {% if license.require_attribution %}
+            <li>Необхідно вказувати автора моделі у публікаціях, описах та на сторінках продажу друків.</li>
+          {% else %}
+            <li>Вказувати автора необовʼязково (attribution не є обовʼязковим).</li>
+          {% endif %}
+
+          {% if license.require_linkback %}
+            <li>Необхідно залишати посилання на Proofly / сторінку моделі, якщо це технічно можливо.</li>
+          {% endif %}
+
+          {% if license.region %}
+            <li>Юрисдикція / регіон застосування ліцензії: {{ license.region }}.</li>
+          {% endif %}
+        </ul>
+      </div>
+
+      {% if license.summary %}
+        <div class="lic-public-help">
+          {{ license.summary }}
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="lic-public-card">
+      <h2>Повний текст ліцензії</h2>
+      {% if license.body %}
+        <div class="lic-public-body">
+          {{ license.body }}
+        </div>
+      {% elif license.type == 'cc' and license.external_url %}
+        <div class="lic-public-body">
+          Ця ліцензія базується на стандарті Creative Commons:
+          <br>
+          <a href="{{ license.external_url }}" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:underline;">
+            {{ license.external_url }}
+          </a>
+        </div>
+      {% else %}
+        <div class="lic-public-body">
+          Повний текст цієї ліцензії ще не заповнений. Поки що користуйся коротким описом вище
+          та стандартними умовами авторського права.
+        </div>
+      {% endif %}
+
+      <div class="lic-public-footer">
+        Ця сторінка має інформативний характер. У разі конфлікту з локальним законодавством
+        переважну силу має чинне авторське право та умови, явно зазначені автором моделі.
+      </div>
+    </section>
+
+    {% if other_licenses %}
+      <section class="lic-public-card">
+        <h3>Інші ліцензії на Proofly</h3>
+        <div class="lic-public-other">
+          {% for l in other_licenses %}
+            <a class="lic-public-link-btn"
+               href="{{ url_for('licenses.view_license', code=l.code) }}">
+              📜 {{ l.name }}
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% else %}
+    <!-- Якщо в шаблон не передали конкретну ліцензію — показуємо загальний список -->
+    <header class="lic-public-header">
+      <div class="lic-public-title">Ліценції STL на Proofly</div>
+      <div class="lic-public-sub">
+        Тут зібрані всі основні ліцензії, які використовуються на Proofly STL Market.
+        Обери конкретну, щоб подивитися деталі.
+      </div>
+    </header>
+
+    <section class="lic-public-card">
+      <h2>Доступні ліцензії</h2>
+      {% if licenses %}
+        <ul>
+          {% for l in licenses %}
+            <li style="margin-bottom:6px;font-size:13px;">
+              <a href="{{ url_for('licenses.view_license', code=l.code) }}"
+                 style="color:#93c5fd;text-decoration:underline;">
+                {{ l.name }}
+              </a>
+              <span class="lic-public-code" style="margin-left:6px;">{{ l.code }}</span>
+              {% if l.short_title %}
+                — <span style="opacity:.85;">{{ l.short_title }}</span>
+              {% endif %}
+              {% if l.is_default %}
+                <span class="lic-public-badge" style="margin-left:6px;">⭐ Дефолтна</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="lic-public-help">
+          Поки що жодної ліцензії не налаштовано. Адмін може додати їх у «Менеджері ліцензій».
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}
