@@ -191,18 +191,47 @@ def _inject_market_categories():
 
 @bp.get("/market")
 def page_market():
-    return render_template("market.html")
+    # ✅ рендеримо новий список маркету
+    return render_template("market/index.html")
 
 @bp.get("/market/mine")
 def page_market_mine():
+    # якщо є новий шаблон — можна відрендерити тут;
+    # інакше залишаємо як було
     return render_template("market_mine.html")
 
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
+    # ✅ беремо дані й робимо невеличкий бридж під новий detail.html
     it = _fetch_item_with_author(item_id)
     if not it:
         return render_template("item.html", item=None), 404
-    return render_template("item.html", item=it)
+
+    d = dict(it)  # копія
+
+    # owner-об’єкт для шаблону
+    d["owner"] = {
+        "name": d.get("author_name") or "-",
+        "avatar_url": d.get("author_avatar") or "/static/img/user.jpg",
+        "bio": d.get("author_bio") or "3D-дизайнер",
+    }
+
+    # відповідність полів ціни/безкоштовності
+    if "price_cents" not in d:
+        try:
+            price_pln = float(d.get("price") or 0)
+            d["price_cents"] = int(round(price_pln * 100))
+        except Exception:
+            d["price_cents"] = 0
+    d["is_free"] = bool(d.get("is_free")) or (int(d.get("price_cents") or 0) == 0)
+
+    # головний файл (для data-src)
+    d["main_model_url"] = d.get("stl_main_url") or d.get("url")
+
+    # обкладинка узгоджена
+    d["cover_url"] = _normalize_cover_url(d.get("cover_url") or d.get("cover"))
+
+    return render_template("market/detail.html", item=d)
 
 @bp.get("/upload")
 def page_upload():
