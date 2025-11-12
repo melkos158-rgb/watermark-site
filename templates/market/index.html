@@ -82,6 +82,13 @@
   .sentinel{height:1px}
 </style>
 
+<!-- невеличкий прапор типу сторінки для аналітики -->
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    document.body.dataset.marketPage = 'list';
+  });
+</script>
+
 <script type="module">
   const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
 
