@@ -1,55 +1,236 @@
 {% extends "market/layout.html" %}
+{% set market_page = 'detail' %}
 
 {% block market_body %}
-  <div class="detail">
-    <div class="media">
-      {# контейнер для переглядача 3D або великого зображення #}
-      <div id="viewer" class="viewer" data-item-id="{{ item.id }}"></div>
-      {% if item.images %}
-        <div class="thumbs">
-          {% for im in item.images|sort(attribute='order') %}
-            <img loading="lazy" src="{{ im.url }}" alt="{{ item.title }}">
-          {% endfor %}
-        </div>
+<article class="detail-wrap">
+  <!-- Хлібні крихти -->
+  <nav class="crumbs">
+    <a href="{{ url_for('market.page_market') }}">Market</a>
+    <span>/</span>
+    <span>{{ item.title }}</span>
+  </nav>
+
+  <!-- Заголовок + базова мета -->
+  <header class="detail-head">
+    <h1 class="title">{{ item.title }}</h1>
+    <div class="meta">
+      <span>★ {{ item.rating or '—' }} ({{ item.ratings_cnt or 0 }})</span>
+      <span>⬇️ {{ item.downloads or 0 }}</span>
+      {% if item.price_cents and not item.is_free %}
+        <span class="price">{{ (item.price_cents/100)|round(2) }} PLN</span>
+      {% else %}
+        <span class="price free">Безкоштовно</span>
       {% endif %}
+      <span class="sep">•</span>
+      <a class="author" href="#author">Автор: {{ item.owner.name if item.owner else '—' }}</a>
     </div>
+  </header>
 
-    <div class="side">
-      <h1 class="ttl">{{ item.title }}</h1>
+  <div class="detail-grid">
+    <!-- Вʼювер -->
+    <section class="viewer-card">
+      <div id="viewer"
+           class="viewer"
+           data-item-id="{{ item.id }}"
+           data-src="{{ item.main_model_url or (item.files_json and (item.files_json|safe)) }}"></div>
+      <span id="status" class="viewer-status"></span>
 
-      <div class="stats">
-        <span>★ {{ '%.1f'|format(item.rating or 0) }}</span>
-        <span>⬇ {{ item.downloads or 0 }}</span>
-      </div>
-
-      <div class="price">
-        {% if item.is_free %}
-          <strong class="free">{{ _('Безкоштовно') }}</strong>
+      <div class="viewer-actions">
+        {% if item.is_free or not item.price_cents %}
+          <button id="btnDownload" class="btn primary">⬇️ Завантажити</button>
         {% else %}
-          <strong>{{ (item.price_cents or 0)/100 }} {{ item.currency or 'USD' }}</strong>
+          <button id="btnBuy" class="btn primary">💳 Купити та завантажити</button>
         {% endif %}
+        <button id="btnFav" class="btn">☆ В обране</button>
+        <a id="btnOpenRaw" class="btn ghost" target="_blank" rel="noopener">Відкрити файл</a>
+      </div>
+    </section>
+
+    <!-- Опис + зображення -->
+    <section class="desc-card">
+      <div class="cover">
+        <img src="{{ item.cover_url or '/static/img/placeholder_stl.jpg' }}" alt="{{ item.title }}"
+             onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
       </div>
 
-      <div class="actions">
-        <button class="btn primary" id="btn-download">{{ _('Завантажити') }}</button>
-        <button class="btn" id="btn-fav" data-id="{{ item.id }}">♡ {{ _('В обране') }}</button>
+      {% if item.photos and item.photos|length %}
+      <div class="gallery">
+        {% for img in item.photos %}
+          <img src="{{ img }}" alt="preview" loading="lazy"
+               onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="desc">
+        {{ (item.description or 'Немає опису') }}
       </div>
 
-      {% include "market/_owner_panel.html" %}
-      {% if item.description %}
-        <div class="desc"><p>{{ item.description }}</p></div>
-      {% endif %}
+      {% include "market/_owner_panel.html" ignore missing %}
+    </section>
 
-      {% if item.stl_meta %}
-        <div class="meta-box">
-          <h3>{{ _('Параметри моделі') }}</h3>
-          <ul>
-            <li>{{ _('Формат') }}: {{ item.files[0].fmt if item.files else 'stl' }}</li>
-            <li>{{ _('Розміри') }}: {{ item.stl_meta.dimensions if item.stl_meta.dimensions is defined }}</li>
-            <li>{{ _('Вага') }}: {{ item.stl_meta.weight if item.stl_meta.weight is defined }}</li>
-          </ul>
-        </div>
-      {% endif %}
-    </div>
+    <!-- Відгуки -->
+    <section class="reviews-card">
+      <h2>Відгуки</h2>
+
+      <form id="reviewForm" class="review-form">
+        <label>
+          Оцінка:
+          <select name="rating" id="revRating">
+            <option value="5">5 — 💎</option>
+            <option value="4">4 — 👍</option>
+            <option value="3">3 — 🙂</option>
+            <option value="2">2 — 😐</option>
+            <option value="1">1 — 👎</option>
+          </select>
+        </label>
+        <textarea id="revText" rows="3" placeholder="Ваш відгук..."></textarea>
+        <button class="btn" id="btnSendReview" type="submit">Надіслати</button>
+        <span id="revMsg" class="muted"></span>
+      </form>
+
+      <div class="reviews-list" id="reviewsList">
+        {% for r in item.reviews or [] %}
+          <div class="rev">
+            <div class="r-head">
+              <strong>{{ r.user.name if r.user else 'Користувач' }}</strong>
+              <span>★ {{ r.rating }}</span>
+              <span class="muted">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '' }}</span>
+            </div>
+            <div class="r-text">{{ r.text }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
   </div>
+
+  <!-- Автор -->
+  <section id="author" class="author-card">
+    <img class="avatar" src="{{ item.owner.avatar_url if item.owner and item.owner.avatar_url else '/static/img/user.jpg' }}" alt="author">
+    <div class="a-meta">
+      <div class="name">{{ item.owner.name if item.owner else '—' }}</div>
+      <div class="bio muted">{{ item.owner.bio if item.owner and item.owner.bio else '3D-дизайнер' }}</div>
+    </div>
+  </section>
+</article>
+
+<style>
+  .detail-wrap{max-width:1200px;margin:0 auto;padding:16px}
+  .crumbs{display:flex;gap:6px;align-items:center;color:var(--muted)}
+  .detail-head .title{margin:8px 0 6px 0}
+  .detail-head .meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted)}
+  .detail-head .price{font-weight:700}
+  .detail-head .price.free{color:#22c55e}
+  .detail-grid{display:grid;grid-template-columns:1.4fr .9fr;gap:16px;margin-top:14px}
+  @media(max-width:980px){.detail-grid{grid-template-columns:1fr}}
+  .viewer-card,.desc-card,.reviews-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .viewer{height:520px;background:#0b0f15;border-radius:10px;border:1px solid var(--line)}
+  .viewer-status{display:block;margin-top:6px;color:var(--muted)}
+  .viewer-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .btn{background:var(--card);border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.ghost{opacity:.85}
+  .cover img{width:100%;height:220px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .gallery img{width:100%;height:110px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .desc{margin-top:10px;white-space:pre-wrap}
+  .reviews-card h2{margin:0 0 8px 0}
+  .review-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .review-form textarea{flex:1;min-width:240px;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:8px}
+  .reviews-list .rev{border-top:1px solid var(--line);padding:10px 0}
+  .reviews-list .rev:first-child{border-top:none}
+  .r-head{display:flex;gap:10px;align-items:center}
+  .author-card{display:flex;gap:12px;align-items:center;margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .author-card .avatar{width:56px;height:56px;border-radius:50%;border:1px solid var(--line);object-fit:cover}
+  .muted{color:var(--muted)}
+</style>
+
+<script type="module">
+  // 1) Підставляємо основний src у кнопку "Відкрити файл"
+  const viewerEl = document.getElementById('viewer');
+  const statusEl = document.getElementById('status');
+  const btnOpenRaw = document.getElementById('btnOpenRaw');
+  const rawSrc = viewerEl?.dataset?.src || null;
+  if (btnOpenRaw) {
+    if (rawSrc) { btnOpenRaw.href = rawSrc.startsWith('/') ? rawSrc : rawSrc; }
+    else { btnOpenRaw.style.display = 'none'; }
+  }
+
+  // 2) Обране
+  const btnFav = document.getElementById('btnFav');
+  if (btnFav) {
+    btnFav.addEventListener('click', async ()=>{
+      try{
+        const r = await fetch('/api/market/fav', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ item_id: {{ item.id }} })
+        });
+        const j = await r.json();
+        if (j && j.ok){
+          btnFav.textContent = j.fav ? '★ В обраному' : '☆ В обране';
+        } else if (r.status === 401){
+          alert('Увійдіть, щоб додати в обране.');
+        }
+      }catch(e){ console.error(e); }
+    });
+  }
+
+  // 3) Checkout / Download
+  const btnBuy = document.getElementById('btnBuy');
+  const btnDownload = document.getElementById('btnDownload');
+
+  if (btnBuy){
+    btnBuy.addEventListener('click', async ()=>{
+      try{
+        const r = await fetch('/api/market/checkout', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ item_id: {{ item.id }} })
+        });
+        const j = await r.json();
+        if (j.free && j.download_url){
+          window.location.href = j.download_url;
+          return;
+        }
+        if (j.url){ window.location.href = j.url; return; } // Stripe session
+        alert('Демо-режим: оплата не підключена.');
+      }catch(e){ console.error(e); alert('Помилка під час створення платежу.'); }
+    });
+  }
+
+  if (btnDownload){
+    btnDownload.addEventListener('click', ()=>{
+      if (!rawSrc){ alert('Файл відсутній.'); return; }
+      fetch(`/api/item/{{ item.id }}/download`, { method:'POST' }).catch(()=>{});
+      window.open(rawSrc, '_blank');
+    });
+  }
+
+  // 4) Відгук
+  const form = document.getElementById('reviewForm');
+  if (form){
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const rating = Number(document.getElementById('revRating').value || 5);
+      const text = String(document.getElementById('revText').value || '').trim();
+      const msg = document.getElementById('revMsg'); msg.textContent = '';
+      try{
+        const r = await fetch('/api/market/review', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ item_id: {{ item.id }}, rating, text })
+        });
+        if (r.status === 401) { msg.textContent = 'Увійди, щоб залишити відгук.'; return; }
+        const j = await r.json();
+        if (j.ok){
+          msg.textContent = 'Збережено ✔';
+          setTimeout(()=>location.reload(), 700);
+        } else {
+          msg.textContent = 'Помилка збереження.';
+        }
+      }catch(err){ console.error(err); msg.textContent = 'Помилка мережі.'; }
+    });
+  }
+</script>
 {% endblock %}
