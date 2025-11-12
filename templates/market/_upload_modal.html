@@ -1,6 +1,6 @@
 <div id="upload-modal" class="modal" hidden>
   <div class="modal-box">
-    <button class="modal-close" aria-label="Close">&times;</button>
+    <button class="modal-close" aria-label="Close" data-close>&times;</button>
     <h3>{{ _('Додати модель') }}</h3>
 
     <form id="upload-form" method="post" enctype="multipart/form-data" action="/api/market/upload">
@@ -13,7 +13,7 @@
       </label>
 
       <label>{{ _('Категорія') }}
-        <select name="category">
+        <select name="category_slug">
           <option value="">{{ _('Без категорії') }}</option>
           {% for c in (g.market_categories or []) %}
             <option value="{{ c.slug }}">{{ c.name }}</option>
@@ -22,24 +22,25 @@
       </label>
 
       <label class="drop">
-        {{ _('Файли моделі (STL/OBJ/GLTF/ZIP)') }}
-        <input type="file" name="files" accept=".stl,.obj,.gltf,.glb,.zip" multiple>
+        {{ _('Головний файл моделі (STL/OBJ/GLTF/ZIP)') }}
+        <input type="file" name="file" accept=".stl,.obj,.gltf,.glb,.zip" required>
       </label>
 
       <label class="drop">
-        {{ _('Зображення (обкладинка/превʼю)') }}
-        <input type="file" name="images" accept="image/*" multiple>
+        {{ _('Обкладинка (зображення)') }}
+        <input type="file" name="cover" accept="image/*">
       </label>
 
       <label class="row">
-        <input type="checkbox" name="is_free" value="1" checked> {{ _('Безкоштовно') }}
+        <input type="checkbox" name="is_free" value="1" id="is_free" checked>
+        <span>{{ _('Безкоштовно') }}</span>
       </label>
 
-      <div class="row price-row" data-bind="price">
-        <input type="number" min="0" step="0.01" name="price" placeholder="5.00">
-        <select name="currency">
-          <option>USD</option><option>EUR</option><option>PLN</option>
-        </select>
+      <div class="row price-row" id="price_row" hidden>
+        <label style="display:flex;gap:8px;align-items:center">
+          <span>{{ _('Ціна (у центах)') }}</span>
+          <input type="number" min="0" step="1" name="price_cents" placeholder="500">
+        </label>
       </div>
 
       <div class="actions">
@@ -49,3 +50,56 @@
     </form>
   </div>
 </div>
+
+<script>
+  (function(){
+    const modal = document.getElementById('upload-modal');
+    const openBtn = document.getElementById('btn-upload');
+    const priceRow = document.getElementById('price_row');
+    const isFree = document.getElementById('is_free');
+
+    function open(){ modal.hidden = false; document.body.style.overflow = 'hidden'; }
+    function close(){ modal.hidden = true; document.body.style.overflow = ''; }
+
+    document.addEventListener('click', (e)=>{
+      if (e.target.matches('[data-close]') || e.target.classList.contains('modal')) close();
+    });
+    if (openBtn){ openBtn.addEventListener('click', (e)=>{ e.preventDefault(); open(); }); }
+
+    if (isFree){
+      const sync = ()=>{ priceRow.hidden = isFree.checked; };
+      isFree.addEventListener('change', sync); sync();
+    }
+  })();
+</script>
+
+<style>
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:block}
+.modal[hidden]{display:none}
+.modal-box{
+  width:min(680px, 92vw);
+  margin:6vh auto; background:var(--card);
+  border:1px solid var(--line); border-radius:12px; padding:16px;
+  color:var(--text); position:relative;
+}
+.modal-close{
+  position:absolute; right:10px; top:8px;
+  background:transparent; border:none; color:var(--text);
+  font-size:22px; cursor:pointer;
+}
+label{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+input[type="text"], textarea, select, input[type="number"]{
+  background:transparent; border:1px solid var(--line);
+  color:var(--text); border-radius:10px; padding:8px 10px; outline:none;
+}
+.drop{
+  border:1px dashed var(--line); border-radius:10px; padding:10px;
+}
+.row{display:flex;gap:8px;align-items:center}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.btn{
+  background:var(--card);border:1px solid var(--line);color:var(--text);
+  padding:8px 12px;border-radius:10px;cursor:pointer
+}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+</style>
