@@ -1,0 +1,112 @@
+{% extends "market/layout.html" %}
+
+{% block market_main %}
+
+{#
+  Сторінка параметричних моделей.
+
+  Очікувані змінні (опціонально):
+    - presets: список заготовок, наприклад:
+      [
+        { key: "box", label: "Універсальний бокс", thumb_url: "...", description: "..." },
+        { key: "stand", label: "Підставка для телефону", ... },
+        ...
+      ]
+#}
+
+{% set presets = presets or [
+  {"key": "box", "label": "Універсальний бокс", "description": "Прямокутна коробка з налаштовуваними розмірами."},
+  {"key": "stand", "label": "Підставка для телефону", "description": "Кут нахилу і ширина під твій смартфон."},
+  {"key": "tag", "label": "Бірка/брелок з текстом", "description": "Текст, розміри і отвір під кільце."}
+] %}
+
+<section class="parametric-page">
+  <header class="parametric-header">
+    <h1>Параметричні STL-моделі</h1>
+    <p class="muted">
+      Задавай параметри (розміри, текст, радіуси) і отримуй STL, згенерований спеціально під твої потреби.
+    </p>
+  </header>
+
+  <div class="parametric-layout">
+
+    <!-- ===== Ліва колонка: вибір шаблону ===== -->
+    <section class="parametric-presets card-like">
+      <h2>1. Обери шаблон</h2>
+
+      <div class="preset-list" id="parametric-presets">
+        {% for p in presets %}
+          <button
+            type="button"
+            class="preset-card"
+            data-preset-key="{{ p.key }}"
+          >
+            <div class="preset-card-header">
+              <strong>{{ p.label }}</strong>
+            </div>
+            <p class="muted small">
+              {{ p.description or '' }}
+            </p>
+          </button>
+        {% endfor %}
+      </div>
+
+      <p class="muted small">
+        В майбутньому тут можна буде додавати власні параметричні моделі як автор.
+      </p>
+    </section>
+
+    <!-- ===== Права колонка: параметри + результат ===== -->
+    <section class="parametric-config card-like">
+      <h2>2. Налаштуй параметри</h2>
+
+      <!-- Контейнер для динамічних полів (JS підставить інпути в залежності від шаблону) -->
+      <form id="parametric-form" class="parametric-form">
+        <input type="hidden" name="preset_key" id="parametric-preset-key" value="">
+
+        <div id="parametric-fields">
+          <p class="muted">
+            Обери шаблон зліва — тут з’являться параметри (довжина, ширина, висота, текст і т.д.).
+          </p>
+        </div>
+
+        <div class="parametric-actions">
+          <button type="button" id="parametric-generate" class="btn primary" disabled>
+            Згенерувати STL
+          </button>
+          <span id="parametric-status" class="muted small"></span>
+        </div>
+      </form>
+
+      <div class="parametric-result" id="parametric-result">
+        <!-- Тут з’явиться лінк на STL і коротке резюме -->
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== Нижній блок: як це працює ===== -->
+  <section class="parametric-info card-like">
+    <h2>Як працюють параметричні моделі?</h2>
+    <ul class="parametric-info-list">
+      <li>
+        Ти задаєш параметри (розміри, радіуси, текст).
+      </li>
+      <li>
+        Бекенд генерує геометрію (через OpenSCAD / solidpython / власний генератор) і експортує STL.
+      </li>
+      <li>
+        STL зберігається тимчасово (або в твоєму акаунті) і стає доступний для завантаження.
+      </li>
+      <li>
+        Потім ти можеш додати цю конкретну версію в маркет як окрему модель.
+      </li>
+    </ul>
+  </section>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='market/js/parametric_ui.js') }}"></script>
+{% endblock %}
