@@ -1,0 +1,152 @@
+{% extends "market/layout.html" %}
+
+{% block market_main %}
+
+{# 
+  Сторінка аналізу друкованості STL-моделей.
+  Очікувані змінні:
+    - my_items: список моделей користувача (опціонально)
+      [
+        { id, title, thumb_url, print_time_human, material },
+        ...
+      ]
+#}
+
+{% set my_items = my_items or [] %}
+
+<section class="printability-page">
+  <header class="printability-header">
+    <h1>Перевірка друкованості моделі</h1>
+    <p class="muted">
+      Аналіз STL на потенційні проблеми: тонкі стінки, нависання, дрібні деталі, потребу в підтримках.
+    </p>
+  </header>
+
+  <div class="printability-layout">
+
+    <!-- ===== ЛІВА КОЛОНКА: Вибір моделі / завантаження ===== -->
+    <section class="printability-input card-like">
+      <h2>1. Обери або завантаж модель</h2>
+
+      <div class="field">
+        <label>Мої STL в маркеті</label>
+        {% if not my_items %}
+          <p class="muted small">
+            У тебе ще немає опублікованих моделей. Можеш завантажити STL-файл нижче.
+          </p>
+        {% else %}
+          <select id="printability-item-select" class="inp">
+            <option value="">— Не вибрано —</option>
+            {% for it in my_items %}
+              <option value="{{ it.id }}">
+                {{ it.title }}
+                {% if it.print_time_human %}
+                  ({{ it.print_time_human }})
+                {% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <p class="muted small">
+            Вибери STL з Proofly Market, щоб проаналізувати вже завантажену модель.
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label>Або завантаж локальний STL/OBJ</label>
+        <input id="printability-file"
+               type="file"
+               accept=".stl,.obj"
+               class="inp">
+        <p class="muted small">
+          Файл не зберігатиметься в маркеті — використовується тільки для аналізу.
+        </p>
+      </div>
+
+      <div class="field">
+        <label for="printability-material">Матеріал</label>
+        <select id="printability-material" class="inp">
+          <option value="PLA">PLA (стандарт)</option>
+          <option value="PETG">PETG</option>
+          <option value="ABS">ABS</option>
+          <option value="TPU">TPU / гнучкий</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="printability-layer-height">Висота шару</label>
+        <select id="printability-layer-height" class="inp">
+          <option value="0.2">0.20 мм (стандарт)</option>
+          <option value="0.16">0.16 мм (detail)</option>
+          <option value="0.12">0.12 мм (high detail)</option>
+          <option value="0.28">0.28 мм (швидкий друк)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="printability-supports">Підтримки</label>
+        <select id="printability-supports" class="inp">
+          <option value="auto">Авто (рекомендовано)</option>
+          <option value="on">Завжди вмикати</option>
+          <option value="off">Без підтримок</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <button id="printability-run" class="btn primary">
+          Перевірити модель
+        </button>
+        <p class="muted small" id="printability-status"></p>
+      </div>
+    </section>
+
+    <!-- ===== ПРАВА КОЛОНКА: Результати аналізу ===== -->
+    <section class="printability-results card-like">
+      <h2>2. Результати аналізу</h2>
+
+      <div id="printability-summary" class="printability-summary">
+        <p class="muted">
+          Після запуску аналізу тут з’явиться коротке резюме: чи модель легка в друці, чи потребує уваги.
+        </p>
+      </div>
+
+      <div class="printability-issues" id="printability-issues">
+        <!-- Сюди JS додасть блоки з проблемами -->
+      </div>
+
+      <div class="printability-tips" id="printability-tips">
+        <!-- Сюди JS додасть рекомендації -->
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== НИЖЕ — ОПИС КАТЕГОРІЙ ПРОБЛЕМ ===== -->
+  <section class="printability-legend card-like">
+    <h2>Як ми аналізуємо модель</h2>
+    <ul class="legend-list">
+      <li>
+        <strong>Тонкі стінки</strong> — ділянки тонші за рекомендовану ширину екструдера
+        (зазвичай &lt; 0.4–0.6 мм).
+      </li>
+      <li>
+        <strong>Нависання</strong> — кути понад ~45°, які можуть провисати без підтримок.
+      </li>
+      <li>
+        <strong>Дрібні деталі</strong> — елементи менші за 0.3–0.5 мм, які можуть не надрукуватися.
+      </li>
+      <li>
+        <strong>Гострі мости</strong> — довгі горизонтальні ділянки, які друкуються "в повітрі".
+      </li>
+      <li>
+        <strong>Порожнини</strong> — закриті об’єми без отворів — ризик незаповнених зон / повітря.
+      </li>
+    </ul>
+  </section>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='market/js/printability_check.js') }}"></script>
+{% endblock %}
