@@ -1,24 +1,65 @@
-{# знаходка першого cover, або плейсхолдер #}
-{% set cover = (it.images|selectattr('kind','equalto','cover')|list|first) if it.images else None %}
+{# 1) обираємо коректне посилання: спершу slug, інакше — за id #}
+{% if it.slug %}
+  {% set href = url_for('market.detail', slug=it.slug) %}
+{% elif it.id %}
+  {% set href = url_for('market.page_item', item_id=it.id) %}
+{% else %}
+  {% set href = '#' %}
+{% endif %}
+
+{# 2) шукаємо обкладинку: images[kind=cover] -> cover_url -> cover -> gallery[0] -> placeholder #}
+{% set cover_img = None %}
+{% if it.images %}
+  {% set c = (it.images|selectattr('kind','equalto','cover')|list|first) %}
+  {% if c %}{% set cover_img = c.url %}{% endif %}
+{% endif %}
+{% if not cover_img and it.cover_url %}{% set cover_img = it.cover_url %}{% endif %}
+{% if not cover_img and it.cover %}{% set cover_img = it.cover %}{% endif %}
+{% if not cover_img and it.gallery_urls %}
+  {% set g = it.gallery_urls if it.gallery_urls is iterable else [] %}
+  {% if g and g|length %}{% set cover_img = g[0] %}{% endif %}
+{% endif %}
+{% set cover_fallback = url_for('static', filename='img/placeholder_stl.jpg') %}
+
 <article class="card">
-  <a class="thumb" href="{{ url_for('market.detail', slug=it.slug) }}">
+  <a class="thumb" href="{{ href }}">
     <img loading="lazy"
-         src="{{ cover.url if cover else url_for('static', filename='img/placeholder_stl.jpg') }}"
-         alt="{{ it.title }}">
+         src="{{ cover_img or cover_fallback }}"
+         onerror="this.onerror=null;this.src='{{ cover_fallback }}';"
+         alt="{{ it.title or 'Model' }}">
   </a>
 
   <div class="meta">
     <h3 class="ttl">
-      <a href="{{ url_for('market.detail', slug=it.slug) }}">{{ it.title }}</a>
+      <a href="{{ href }}">{{ it.title or 'Без назви' }}</a>
     </h3>
 
     <div class="row">
       <span>★ {{ '%.1f'|format(it.rating or 0) }} · ⬇ {{ it.downloads or 0 }}</span>
       <strong>
-        {% if it.is_free %}{{ _('Безкоштовно') }}
-        {% else %}{{ (it.price_cents or 0)/100 }} {{ it.currency or 'USD' }}
+        {% if it.is_free or (it.price_cents is defined and it.price_cents|int == 0) or (it.price is defined and it.price|int == 0) %}
+          {{ _('Безкоштовно') }}
+        {% else %}
+          {# підтримуємо як price_cents (PLN/100), так і price (ціле) #}
+          {% if it.price_cents is defined %}
+            {{ ((it.price_cents or 0)/100)|round(2) }} {{ it.currency or 'PLN' }}
+          {% else %}
+            {{ it.price or 0 }} {{ it.currency or 'PLN' }}
+          {% endif %}
         {% endif %}
       </strong>
     </div>
   </div>
 </article>
+
+<style>
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s}
+.card:hover{transform:translateY(-2px)}
+.thumb{position:relative;display:block;width:100%;padding-top:66.666%}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.meta{padding:12px;display:flex;flex-direction:column;gap:6px}
+.ttl{margin:0;font-size:15px;line-height:1.2}
+.ttl a{color:var(--text);text-decoration:none}
+.row{display:flex;align-items:center;justify-content:space-between;color:var(--muted);gap:8px}
+.row strong{color:var(--text)}
+</style>
