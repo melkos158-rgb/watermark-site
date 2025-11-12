@@ -1,43 +1,55 @@
 // static/market/js/uploader.js
-// Завантаження моделі через форму модалки
+// =====================================================
+// Завантаження моделі через форму модалки + UX покращення
+// =====================================================
 import { uploadModel } from "./api.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("upload-form");
   if (!form) return;
 
-  // Підтримуємо і нові, і старі назви інпутів
-  const mainFileI = form.querySelector('input[name="file"]');     // нове
-  const coverI    = form.querySelector('input[name="cover"]');    // нове
-  const filesI    = form.querySelector('input[name="files"]');    // старе (multi)
-  const imagesI   = form.querySelector('input[name="images"]');   // старе (multi)
+  const mainFileI = form.querySelector('input[name="file"]');     
+  const coverI    = form.querySelector('input[name="cover"]');    
+  const filesI    = form.querySelector('input[name="files"]');    
+  const imagesI   = form.querySelector('input[name="images"]');   
 
-  // Drag&drop на весь блок .drop
-  form.querySelectorAll(".drop").forEach(drop=>{
-    drop.addEventListener("dragover", (e)=>{ e.preventDefault(); drop.classList.add("hover"); });
-    drop.addEventListener("dragleave",(e)=>{ drop.classList.remove("hover"); });
-    drop.addEventListener("drop", (e)=>{
+  // Drag&Drop для всіх блоків .drop
+  form.querySelectorAll(".drop").forEach(drop => {
+    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("hover"); });
+    drop.addEventListener("dragleave", () => { drop.classList.remove("hover"); });
+    drop.addEventListener("drop", (e) => {
       e.preventDefault(); drop.classList.remove("hover");
       const input = drop.querySelector('input[type="file"]');
       if (input) input.files = e.dataTransfer.files;
     });
   });
 
-  form.addEventListener("submit", async (e)=>{
+  // Попередній перегляд обкладинки
+  const coverPreview = document.createElement("img");
+  coverPreview.className = "cover-preview";
+  if (coverI && coverI.parentNode) coverI.parentNode.appendChild(coverPreview);
+
+  if (coverI) {
+    coverI.addEventListener("change", () => {
+      if (!coverI.files.length) { coverPreview.src = ""; coverPreview.style.display = "none"; return; }
+      const file = coverI.files[0];
+      coverPreview.src = URL.createObjectURL(file);
+      coverPreview.style.display = "block";
+    });
+  }
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
 
     // ── Нормалізація полів під /api/market/upload ───────────────────────────
-    // 1) Головний файл: беремо з name="file", або зі старого name="files"[0]
     const hasMain = !!(mainFileI?.files?.length);
     const hasOld  = !!(filesI?.files?.length);
     if (!hasMain && hasOld) {
-      // якщо в FormData випадково вже є "files", приберемо щоб не плутати бек
       fd.delete("files");
       fd.set("file", filesI.files[0]);
     }
 
-    // 2) Обкладинка: name="cover" або зі старого name="images"[0]
     const hasCoverNew = !!(coverI?.files?.length);
     const hasCoverOld = !!(imagesI?.files?.length);
     if (!hasCoverNew && hasCoverOld) {
@@ -45,35 +57,123 @@ document.addEventListener("DOMContentLoaded", () => {
       fd.set("cover", imagesI.files[0]);
     }
 
-    // Перевірка наявності головного файлу
     const mainFilePresent =
       (mainFileI && mainFileI.files && mainFileI.files.length) ||
       (fd.get("file") instanceof File);
 
     if (!mainFilePresent) {
-      alert("Додай хоча б один STL/OBJ/GLTF/ZIP файл");
+      alert("⚠️ Додай хоча б один STL/OBJ/GLTF/ZIP файл перед завантаженням.");
       return;
     }
 
-    // ── UX: блокуємо кнопку під час аплоаду ─────────────────────────────────
     const submitBtn = form.querySelector('button[type="submit"]');
     const prevText = submitBtn ? submitBtn.textContent : "";
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Завантаження…"; }
+    const progress = createProgressBar(form);
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "⏳ Завантаження...";
+    }
 
     try {
-      const res = await uploadModel(fd);
-      // Очікуємо { ok: true, url: "/market/<slug>" }
+      const res = await uploadWithProgress(fd, progress);
       if (res?.url) {
         location.href = res.url;
       } else {
-        alert("Завантажено. Оновлюю сторінку.");
+        alert("✅ Завантажено! Оновлюю сторінку...");
         location.reload();
       }
     } catch (err) {
       console.error(err);
-      alert("Помилка завантаження.");
+      alert("❌ Помилка під час завантаження.");
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = prevText; }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = prevText;
+      }
+      progress.remove();
     }
   });
 });
+
+// =====================================================
+// Допоміжні функції
+// =====================================================
+
+// Відображення progress bar
+function createProgressBar(form) {
+  const barWrap = document.createElement("div");
+  barWrap.className = "upload-progress";
+  barWrap.innerHTML = `<div class="bar"><div class="fill"></div></div><div class="percent">0%</div>`;
+  form.appendChild(barWrap);
+  return barWrap;
+}
+
+// Завантаження з індикатором прогресу
+function uploadWithProgress(fd, barWrap) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/market/upload", true);
+    xhr.withCredentials = true;
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const p = Math.round((e.loaded / e.total) * 100);
+      barWrap.querySelector(".fill").style.width = p + "%";
+      barWrap.querySelector(".percent").textContent = p + "%";
+    };
+
+    xhr.onload = () => {
+      try {
+        const res = JSON.parse(xhr.responseText || "{}");
+        if (xhr.status >= 200 && xhr.status < 300) resolve(res);
+        else reject(res);
+      } catch (e) { reject(e); }
+    };
+
+    xhr.onerror = () => reject(new Error("network"));
+    xhr.send(fd);
+  });
+}
+
+// =====================================================
+// CSS (інжектується автоматично)
+// =====================================================
+const css = `
+.upload-progress {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.upload-progress .bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+.upload-progress .fill {
+  width: 0%;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+.upload-progress .percent {
+  text-align: right;
+}
+.cover-preview {
+  display: none;
+  margin-top: 6px;
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+`;
+const style = document.createElement("style");
+style.textContent = css;
+document.head.appendChild(style);
