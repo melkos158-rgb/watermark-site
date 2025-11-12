@@ -1,0 +1,73 @@
+{# 
+  Панель "Порівняти моделі"
+  - показує список вибраних моделей (до 4)
+  - кнопка "Очистити" і "Порівняти"
+  - виглядає як нижня док-панель або блок справа (в залежності від CSS)
+#}
+
+<div
+  id="compare-panel"
+  class="compare-panel hidden"
+  data-max-items="4"
+>
+  <div class="compare-inner">
+    <div class="compare-header">
+      <strong>Порівняння моделей</strong>
+      <span class="compare-count" id="compare-count">0 / 4</span>
+
+      <button
+        type="button"
+        class="btn tiny ghost"
+        id="compare-clear"
+        aria-label="Очистити список порівняння"
+      >
+        Очистити
+      </button>
+    </div>
+
+    <div class="compare-list" id="compare-list">
+      {# Сюди JS буде додавати вибрані моделі #}
+      <div class="compare-empty muted">
+        Додай до 4 моделей, щоб порівняти час друку, об’єм, ціну, полігони та інші параметри.
+      </div>
+    </div>
+
+    <div class="compare-actions">
+      <button
+        type="button"
+        class="btn primary"
+        id="compare-go"
+        disabled
+      >
+        Порівняти
+      </button>
+
+      <label class="compare-option">
+        <input
+          type="checkbox"
+          id="compare-sync-filters"
+          checked
+        >
+        <span>Синхронізувати фільтри на сторінці порівняння</span>
+      </label>
+    </div>
+  </div>
+
+  {# Шаблон одного елементу для JS (можна клонувати через data-template) #}
+  <template id="compare-item-template">
+    <div class="compare-item" data-id="">
+      <img src="" alt="" class="compare-thumb">
+      <div class="compare-meta">
+        <div class="compare-title"></div>
+        <div class="compare-tags"></div>
+      </div>
+      <button
+        type="button"
+        class="compare-remove"
+        aria-label="Прибрати з порівняння"
+      >
+        ✕
+      </button>
+    </div>
+  </template>
+</div>
