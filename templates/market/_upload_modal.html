@@ -5,11 +5,11 @@
 
     <form id="upload-form" method="post" enctype="multipart/form-data" action="/api/market/upload">
       <label>{{ _('Назва') }}
-        <input type="text" name="title" required>
+        <input type="text" name="title" required placeholder="Наприклад: Flexi Dragon">
       </label>
 
       <label>{{ _('Опис') }}
-        <textarea name="description" rows="4"></textarea>
+        <textarea name="description" rows="4" placeholder="Опиши модель, особливості, масштаб тощо..."></textarea>
       </label>
 
       <label>{{ _('Категорія') }}
@@ -21,7 +21,7 @@
         </select>
       </label>
 
-      <label class="drop">
+      <label class="drop" id="fileDrop">
         {{ _('Головний файл моделі (STL/OBJ/GLTF/ZIP)') }}
         <input type="file" name="file" accept=".stl,.obj,.gltf,.glb,.zip" required>
       </label>
@@ -30,6 +30,8 @@
         {{ _('Обкладинка (зображення)') }}
         <input type="file" name="cover" accept="image/*">
       </label>
+
+      <div id="ai-tags" class="ai-tags muted"></div>
 
       <label class="row">
         <input type="checkbox" name="is_free" value="1" id="is_free" checked>
@@ -52,36 +54,77 @@
 </div>
 
 <script>
-  (function(){
-    const modal = document.getElementById('upload-modal');
-    const openBtn = document.getElementById('btn-upload');
-    const priceRow = document.getElementById('price_row');
-    const isFree = document.getElementById('is_free');
+(function(){
+  const modal = document.getElementById('upload-modal');
+  const openBtn = document.getElementById('btn-upload');
+  const priceRow = document.getElementById('price_row');
+  const isFree = document.getElementById('is_free');
+  const aiTags = document.getElementById('ai-tags');
+  const fileInput = document.querySelector('#fileDrop input[type="file"]');
 
-    function open(){ modal.hidden = false; document.body.style.overflow = 'hidden'; }
-    function close(){ modal.hidden = true; document.body.style.overflow = ''; }
+  function open(){ modal.hidden = false; document.body.style.overflow = 'hidden'; }
+  function close(){ modal.hidden = true; document.body.style.overflow = ''; }
 
-    document.addEventListener('click', (e)=>{
-      if (e.target.matches('[data-close]') || e.target.classList.contains('modal')) close();
+  document.addEventListener('click', (e)=>{
+    if (e.target.matches('[data-close]') || e.target.classList.contains('modal')) close();
+  });
+  if (openBtn){ openBtn.addEventListener('click', (e)=>{ e.preventDefault(); open(); }); }
+
+  if (isFree){
+    const sync = ()=>{ priceRow.hidden = isFree.checked; };
+    isFree.addEventListener('change', sync); sync();
+  }
+
+  // AI AutoTag — генерує теги з назви при вводі
+  const titleInput = document.querySelector('input[name="title"]');
+  let timer;
+  if (titleInput && aiTags){
+    titleInput.addEventListener('input', ()=>{
+      clearTimeout(timer);
+      const val = titleInput.value.trim();
+      if(!val){ aiTags.innerHTML = ''; return; }
+      aiTags.innerHTML = '🤖 Аналіз...';
+      timer = setTimeout(async ()=>{
+        try{
+          const r = await fetch(`/api/autotag?q=${encodeURIComponent(val)}`);
+          if(!r.ok) throw new Error('no');
+          const arr = await r.json().catch(()=>[]);
+          if(Array.isArray(arr) && arr.length){
+            aiTags.innerHTML = 'AI-теги: ' + arr.map(x=>`<span class="tag">${x}</span>`).join(' ');
+          } else aiTags.innerHTML = '';
+        }catch{ aiTags.innerHTML = ''; }
+      }, 400);
     });
-    if (openBtn){ openBtn.addEventListener('click', (e)=>{ e.preventDefault(); open(); }); }
+  }
 
-    if (isFree){
-      const sync = ()=>{ priceRow.hidden = isFree.checked; };
-      isFree.addEventListener('change', sync); sync();
-    }
-  })();
+  // Drag-and-drop стиль
+  const drop = document.getElementById('fileDrop');
+  if(drop){
+    drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('drag'); });
+    drop.addEventListener('dragleave', ()=>drop.classList.remove('drag'));
+    drop.addEventListener('drop', e=>{
+      e.preventDefault(); drop.classList.remove('drag');
+      if(e.dataTransfer.files.length) fileInput.files = e.dataTransfer.files;
+    });
+  }
+})();
 </script>
 
 <style>
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:block}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:block;z-index:1000}
 .modal[hidden]{display:none}
 .modal-box{
   width:min(680px, 92vw);
-  margin:6vh auto; background:var(--card);
-  border:1px solid var(--line); border-radius:12px; padding:16px;
-  color:var(--text); position:relative;
+  margin:6vh auto;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:16px;
+  color:var(--text);
+  position:relative;
+  animation:pop .25s ease;
 }
+@keyframes pop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
 .modal-close{
   position:absolute; right:10px; top:8px;
   background:transparent; border:none; color:var(--text);
@@ -91,15 +134,30 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0}
 input[type="text"], textarea, select, input[type="number"]{
   background:transparent; border:1px solid var(--line);
   color:var(--text); border-radius:10px; padding:8px 10px; outline:none;
+  transition:border .15s, box-shadow .15s;
+}
+input:focus, textarea:focus, select:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 10px rgba(59,130,246,.3);
 }
 .drop{
-  border:1px dashed var(--line); border-radius:10px; padding:10px;
+  border:1px dashed var(--line);
+  border-radius:10px;
+  padding:10px;
+  transition:border .15s, background .15s;
+}
+.drop.drag{
+  border-color:var(--accent);
+  background:rgba(59,130,246,.1);
 }
 .row{display:flex;gap:8px;align-items:center}
 .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 .btn{
   background:var(--card);border:1px solid var(--line);color:var(--text);
-  padding:8px 12px;border-radius:10px;cursor:pointer
+  padding:8px 12px;border-radius:10px;cursor:pointer;transition:all .15s;
 }
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:hover{background:var(--accent);color:#fff;}
+.ai-tags{margin-top:6px;font-size:13px;}
+.ai-tags .tag{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:6px;background:rgba(59,130,246,.15);color:var(--text);font-size:12px;}
 </style>
