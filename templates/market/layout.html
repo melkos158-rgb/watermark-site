@@ -1,5 +1,7 @@
 {% extends "base.html" %}
+
 {% block content %}
+  {# можна задати тип сторінки з дочірнього шаблону: {% set market_page = 'list' or 'detail' or 'my' %} #}
   <div class="market-wrap">
     {% include "market/_subheader.html" %}
     <div class="market-body">{% block market_body %}{% endblock %}</div>
@@ -7,10 +9,28 @@
 {% endblock %}
 
 {% block scripts %}
-  <!-- Підключай із static/, не з templates/ -->
-  <script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
+  <!-- Виставляємо data-атрибут для трекінгу типу сторінки -->
+  <script>
+    (function(){
+      try {
+        var t = {{ (market_page or 'list')|tojson }};
+        document.addEventListener('DOMContentLoaded', function(){
+          document.body.dataset.marketPage = t;
+        });
+      } catch(e) {}
+    })();
+  </script>
+
+  <!-- Підключай ІЗ static/, не з templates/ -->
   <script type="module" src="{{ url_for('static', filename='market/js/api.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/filters.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/uploader.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/viewer.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/favorites.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/reviews.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/checkout.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/analytics.js') }}"></script>
+  <!-- опціонально -->
+  <script type="module" src="{{ url_for('static', filename='market/js/recommend.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
 {% endblock %}
