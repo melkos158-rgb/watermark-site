@@ -21,8 +21,15 @@
 {% endif %}
 {% set cover_fallback = url_for('static', filename='img/placeholder_stl.jpg') %}
 
-<article class="card">
+<article class="card {% if it.is_featured or it.featured %}featured{% endif %}">
   <a class="thumb" href="{{ href }}">
+    {% if it.is_free or (it.price_cents|default(0) == 0 and it.price|default(0) == 0) %}
+      <span class="badge free">FREE</span>
+    {% elif it.trending %}
+      <span class="badge trend">TRENDING</span>
+    {% elif it.is_featured or it.featured %}
+      <span class="badge feat">FEATURED</span>
+    {% endif %}
     <img loading="lazy"
          src="{{ cover_img or cover_fallback }}"
          onerror="this.onerror=null;this.src='{{ cover_fallback }}';"
@@ -40,7 +47,6 @@
         {% if it.is_free or (it.price_cents is defined and it.price_cents|int == 0) or (it.price is defined and it.price|int == 0) %}
           {{ _('Безкоштовно') }}
         {% else %}
-          {# підтримуємо як price_cents (PLN/100), так і price (ціле) #}
           {% if it.price_cents is defined %}
             {{ ((it.price_cents or 0)/100)|round(2) }} {{ it.currency or 'PLN' }}
           {% else %}
@@ -53,13 +59,69 @@
 </article>
 
 <style>
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s}
-.card:hover{transform:translateY(-2px)}
-.thumb{position:relative;display:block;width:100%;padding-top:66.666%}
-.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-.meta{padding:12px;display:flex;flex-direction:column;gap:6px}
-.ttl{margin:0;font-size:15px;line-height:1.2}
-.ttl a{color:var(--text);text-decoration:none}
-.row{display:flex;align-items:center;justify-content:space-between;color:var(--muted);gap:8px}
-.row strong{color:var(--text)}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  transition:transform .15s, box-shadow .15s;
+}
+.card:hover{
+  transform:translateY(-3px) scale(1.02);
+  box-shadow:0 0 18px rgba(100,120,255,.15);
+}
+.thumb{
+  position:relative;
+  display:block;
+  width:100%;
+  padding-top:66.666%;
+  overflow:hidden;
+  border-bottom:1px solid var(--line);
+}
+.thumb img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  transition:transform .3s ease;
+}
+.card:hover .thumb img{ transform:scale(1.05); }
+
+.badge{
+  position:absolute;
+  top:8px;left:8px;
+  background:#1a73e8;
+  color:#fff;
+  font-size:11px;
+  padding:2px 8px;
+  border-radius:6px;
+  font-weight:600;
+  letter-spacing:.5px;
+}
+.badge.free{background:#00b894;}
+.badge.trend{background:#fdcb6e;color:#222;}
+.badge.feat{background:#6c5ce7;}
+
+.meta{
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.ttl{margin:0;font-size:15px;line-height:1.3;}
+.ttl a{color:var(--text);text-decoration:none;}
+.ttl a:hover{text-decoration:underline;}
+.row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  color:var(--muted);
+  gap:8px;
+  font-size:13px;
+}
+.row strong{color:var(--text);}
 </style>
