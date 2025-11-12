@@ -5,7 +5,7 @@ import shutil
 import uuid
 from typing import Any, Dict, Optional
 
-from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort, redirect
+from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort, redirect, g
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
@@ -26,6 +26,12 @@ except Exception:
 from models import db, MarketItem
 # якщо User у тебе лишається в db.py — імпортуємо тільки його звідти
 from db import User
+
+# ✅ категорії з нового market-модуля
+try:
+    from models_market import MarketCategory  # для g.market_categories
+except Exception:
+    MarketCategory = None  # fallback, якщо поки не підключено
 
 bp = Blueprint("market", __name__)
 
@@ -162,6 +168,25 @@ def json_dumps_safe(obj) -> str:
         return json.dumps(obj, ensure_ascii=False)
     except Exception:
         return "[]"
+
+# ───────────────────────────── NEW: категорії в g ─────────────────────────────
+@bp.before_app_request
+def _inject_market_categories():
+    """
+    Підкидаємо g.market_categories на сторінках маркету,
+    щоб друга шапка мала список категорій без зайвих запитів у в’юшках.
+    """
+    p = request.path or ""
+    if not (p.startswith("/market") or p.startswith("/api/market")):
+        return
+    cats = []
+    if MarketCategory is not None:
+        try:
+            cats = MarketCategory.query.order_by(MarketCategory.name.asc()).all()
+        except Exception:
+            cats = []
+    g.market_categories = cats
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @bp.get("/market")
