@@ -1,7 +1,31 @@
 {% if current_user.is_authenticated and (current_user.is_admin or current_user.id == item.owner_id) %}
 <div class="owner-panel">
-  <a class="btn" href="{{ url_for('market.edit', slug=item.slug) }}">{{ _('Редагувати') }}</a>
-  <a class="btn danger" href="{{ url_for('market.delete', slug=item.slug) }}" 
-     onclick="return confirm('{{ _('Видалити модель?') }}')">{{ _('Видалити') }}</a>
+  <a class="btn" href="{{ url_for('market.page_edit_item', item_id=item.id) }}">{{ _('Редагувати') }}</a>
+  <button class="btn danger" id="btn-owner-delete">{{ _('Видалити') }}</button>
 </div>
+
+<script>
+  (function(){
+    const btn = document.getElementById('btn-owner-delete');
+    if(!btn) return;
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('{{ _("Видалити модель?") }}')) return;
+      try{
+        const r = await fetch('/api/item/{{ item.id }}' + '/delete', { method:'POST' });
+        const j = await r.json().catch(()=>({}));
+        if(r.ok && j.ok){ window.location.href = '/market'; }
+        else{ alert('Не вдалося видалити (немає прав або помилка).'); }
+      }catch(e){ console.error(e); alert('Помилка мережі.'); }
+    });
+  })();
+</script>
+
+<style>
+.owner-panel{display:flex;gap:8px;margin-top:10px}
+.owner-panel .btn{
+  background:var(--card);border:1px solid var(--line);color:var(--text);
+  padding:8px 12px;border-radius:10px;cursor:pointer;text-decoration:none
+}
+.owner-panel .btn.danger{background:#ef4444;border-color:#ef4444;color:#fff}
+</style>
 {% endif %}
