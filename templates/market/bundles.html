@@ -1,0 +1,259 @@
+{% extends "market/layout.html" %}
+
+{% block market_main %}
+
+{# 
+  Панель управління бандлами STL моделей.
+
+  Очікувані змінні з бекенду:
+    - bundles: список бандлів автора
+      [
+        {
+          id, title, price, discount, items_count, thumb_url, is_active
+        }, ...
+      ]
+
+    - my_items: список моделей автора
+      [
+        { id, title, price, thumb_url },
+        ...
+      ]
+
+    - edit_bundle: бандл, який зараз редагується (або None)
+#}
+
+{% set bundles = bundles or [] %}
+{% set my_items = my_items or [] %}
+{% set edit_bundle = edit_bundle or None %}
+
+<section class="bundles-page">
+  <header class="bundles-header">
+    <h1>Мої бандли</h1>
+    <p class="muted">
+      Об’єднуй кілька STL моделей у набори зі знижкою — як на Humble Bundle, тільки для 3D-друку.
+    </p>
+  </header>
+
+  <div class="bundles-layout">
+    <!-- ================= ЛІВА КОЛОНКА: СПИСОК БАНДЛІВ ================= -->
+    <section class="bundles-list card-like">
+      <div class="bundles-list-header">
+        <h2>Усі бандли</h2>
+        <p class="muted small">
+          Тут відображаються всі твої набори STL. Можеш вмикати / вимикати, редагувати або видаляти.
+        </p>
+      </div>
+
+      {% if not bundles %}
+        <div class="bundles-empty muted">
+          У тебе ще немає бандлів. Створи перший справа 👉
+        </div>
+      {% else %}
+        <div class="bundles-table-wrap">
+          <table class="bundles-table">
+            <thead>
+              <tr>
+                <th>Назва</th>
+                <th>Ціна</th>
+                <th>Знижка</th>
+                <th>Моделей</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in bundles %}
+                <tr>
+                  <td>
+                    <div class="bundle-row-main">
+                      {% if b.thumb_url %}
+                        <img src="{{ b.thumb_url }}" alt="{{ b.title }}" class="bundle-row-thumb">
+                      {% endif %}
+                      <div class="bundle-row-text">
+                        <div class="bundle-row-title">{{ b.title }}</div>
+                        <div class="bundle-row-id muted small">ID: {{ b.id }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {{ "%.2f"|format(b.price or 0) }} zł
+                  </td>
+                  <td>
+                    {% if b.discount and b.discount > 0 %}
+                      -{{ "%.0f"|format(b.discount) }}%
+                    {% else %}
+                      <span class="muted small">без знижки</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ b.items_count or 0 }}
+                  </td>
+                  <td>
+                    {% if b.is_active %}
+                      <span class="badge badge-green">Активний</span>
+                    {% else %}
+                      <span class="badge badge-grey">Вимкнено</span>
+                    {% endif %}
+                  </td>
+                  <td class="bundle-row-actions">
+                    <a href="{{ url_for('market.bundles', edit_id=b.id) }}" class="btn tiny ghost">
+                      Редагувати
+                    </a>
+                    <form method="post"
+                          action="{{ url_for('market.delete_bundle', bundle_id=b.id) }}"
+                          onsubmit="return confirm('Видалити бандл? Це не можна відмінити.');">
+                      <button type="submit" class="btn tiny danger">
+                        Видалити
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- ================= ПРАВА КОЛОНКА: СТВОРЕННЯ / РЕДАГУВАННЯ ================= -->
+    <section class="bundles-editor card-like">
+      <h2>
+        {% if edit_bundle %}
+          Редагування бандла
+        {% else %}
+          Створити новий бандл
+        {% endif %}
+      </h2>
+
+      <form method="post" action="{{ url_for('market.save_bundle') }}">
+        {% if edit_bundle %}
+          <input type="hidden" name="bundle_id" value="{{ edit_bundle.id }}">
+        {% endif %}
+
+        <div class="field">
+          <label for="bundle-title">Назва бандла</label>
+          <input id="bundle-title"
+                 name="title"
+                 type="text"
+                 class="inp"
+                 maxlength="120"
+                 required
+                 value="{{ edit_bundle.title if edit_bundle else '' }}"
+                 placeholder="Наприклад: Flexi Dragons Mega Pack">
+        </div>
+
+        <div class="field">
+          <label for="bundle-desc">Короткий опис</label>
+          <textarea id="bundle-desc"
+                    name="description"
+                    class="inp"
+                    rows="3"
+                    placeholder="Опиши, що входить до набору, для кого він, чим вигідний…">{{ edit_bundle.description if edit_bundle else '' }}</textarea>
+        </div>
+
+        <div class="field field-inline">
+          <div>
+            <label for="bundle-price">Ціна бандла</label>
+            <input id="bundle-price"
+                   name="price"
+                   type="number"
+                   min="0"
+                   step="0.01"
+                   class="inp"
+                   required
+                   value="{{ "%.2f"|format(edit_bundle.price) if edit_bundle and edit_bundle.price is not none else '' }}"
+                   placeholder="0.00">
+          </div>
+          <div>
+            <label for="bundle-discount">Знижка (%)</label>
+            <input id="bundle-discount"
+                   name="discount"
+                   type="number"
+                   min="0"
+                   max="100"
+                   step="1"
+                   class="inp"
+                   value="{{ "%.0f"|format(edit_bundle.discount) if edit_bundle and edit_bundle.discount is not none else '' }}"
+                   placeholder="наприклад 30">
+            <p class="muted small">
+              Необов’язково. Використовується для красивого бейджа типу “-30%”.
+            </p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Зображення бандла (опціонально)</label>
+          <p class="muted small">
+            Поки що можна вказати URL (Cloudinary), потім зробимо завантаження.
+          </p>
+          <input
+            type="url"
+            name="thumb_url"
+            class="inp"
+            placeholder="https://…"
+            value="{{ edit_bundle.thumb_url if edit_bundle else '' }}"
+          >
+        </div>
+
+        <div class="field">
+          <label>Моделі в бандлі</label>
+          <p class="muted small">
+            Вибери, які з твоїх STL входять до набору.
+          </p>
+
+          <div class="bundle-items-list">
+            {% if not my_items %}
+              <p class="muted small">
+                У тебе ще немає моделей для бандла. Спочатку завантаж STL в маркет.
+              </p>
+            {% else %}
+              {% set included_ids = (edit_bundle.item_ids if edit_bundle and edit_bundle.item_ids is defined else []) %}
+              {% for item in my_items %}
+                {% set checked = item.id in included_ids %}
+                <label class="bundle-item-row">
+                  <input type="checkbox"
+                         name="item_ids"
+                         value="{{ item.id }}"
+                         {% if checked %}checked{% endif %}>
+                  {% if item.thumb_url %}
+                    <img src="{{ item.thumb_url }}" alt="{{ item.title }}" class="bundle-item-thumb">
+                  {% endif %}
+                  <span class="bundle-item-title">
+                    {{ item.title }}
+                    {% if item.price and item.price > 0 %}
+                      <span class="muted small">— {{ "%.2f"|format(item.price) }} zł</span>
+                    {% else %}
+                      <span class="muted small">— безкоштовно</span>
+                    {% endif %}
+                  </span>
+                </label>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="field field-inline">
+          <label class="checkbox-line">
+            <input type="checkbox"
+                   name="is_active"
+                   value="1"
+                   {% if not edit_bundle or edit_bundle.is_active %}checked{% endif %}>
+            <span>Показувати бандл у маркеті</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <button type="submit" class="btn primary">
+            {% if edit_bundle %}
+              Зберегти зміни
+            {% else %}
+              Створити бандл
+            {% endif %}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+</section>
+
+{% endblock %}
