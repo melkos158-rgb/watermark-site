@@ -1,0 +1,286 @@
+/* static/css/viewer.css
+ *
+ * Стилі для STL/GLTF/OBJ/PLY переглядача Proofly.
+ * Використовується на сторінках:
+ *   - printability.html
+ *   - gcode_viewer.html
+ *   - parametric.html
+ *   - будь-яких tools із модульним STL-viewer
+ *
+ * Містить:
+ *   ✓ темну панель
+ *   ✓ кнопки режимів (wireframe / solid / x-ray / floor)
+ *   ✓ індикатори load-status
+ *   ✓ панель властивостей моделі
+ *   ✓ слайдери & контролери
+ *   ✓ drag-drop зону
+ */
+
+
+/* ================== LAYOUT ================== */
+
+.viewer-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #0b0d12;
+  border: 1px solid #1a1d27;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.viewer-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+  display: block;
+  cursor: grab;
+  background: #0f1117;
+}
+
+.viewer-canvas:active {
+  cursor: grabbing;
+}
+
+.viewer-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+
+/* ================== LOAD STATUS ================== */
+
+.viewer-status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: rgba(2, 6, 20, 0.6);
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  color: #e5e7eb;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  z-index: 20;
+}
+
+.viewer-status.ok {
+  border-color: #22c55e;
+  color: #a7f3d0;
+}
+
+.viewer-status.err {
+  border-color: #f87171;
+  color: #fecaca;
+}
+
+
+/* ================== CONTROL PANEL ================== */
+
+.viewer-panel {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 180px;
+  background: rgba(11,13,18,0.7);
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+  color: #e5e7eb;
+  backdrop-filter: blur(6px);
+  z-index: 30;
+}
+
+.viewer-panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: .9;
+}
+
+.viewer-panel-group {
+  margin-bottom: 10px;
+}
+
+.viewer-panel-group:last-child {
+  margin-bottom: 0;
+}
+
+.viewer-panel label {
+  display: block;
+  margin-bottom: 4px;
+  opacity: .8;
+}
+
+.viewer-panel input[type="range"] {
+  width: 100%;
+}
+
+.viewer-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.viewer-btn {
+  flex: 1 1 48%;
+  padding: 6px 0;
+  border-radius: 8px;
+  font-size: 11px;
+  border: 1px solid #1f2937;
+  background: #0f1117;
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.viewer-btn:hover {
+  background: #1b2333;
+  border-color: #3b4255;
+}
+
+.viewer-btn.active {
+  border-color: #2563eb;
+  background: #1a3f7c;
+}
+
+
+/* ================== VIEW MODES ================== */
+
+.viewer-mode-bar {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 25;
+}
+
+.viewer-mode-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(10,12,17,0.65);
+  border: 1px solid #1f2937;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 15px;
+  cursor: pointer;
+  color: #e5e7eb;
+  transition: background .15s, border-color .15s;
+  backdrop-filter: blur(4px);
+}
+
+.viewer-mode-btn:hover {
+  background: #1b2333;
+  border-color: #3b4255;
+}
+
+.viewer-mode-btn.active {
+  background: #0f172a;
+  border-color: #2563eb;
+}
+
+
+/* ================== MEASURE / INFO PANEL ================== */
+
+.viewer-info {
+  position: absolute;
+  top: 12px;
+  right: 200px;
+  min-width: 140px;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 8px;
+  background: rgba(2,6,20,0.65);
+  border: 1px solid #1f2937;
+  color: #e5e7eb;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.viewer-info .row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.viewer-info .row:last-child {
+  margin-bottom: 0;
+}
+
+.viewer-info span {
+  opacity: .9;
+}
+
+
+
+/* ================== DRAG / DROP ZONE ================== */
+
+.viewer-dropzone {
+  position: absolute;
+  inset: 0;
+  border: 2px dashed rgba(96,165,250,0.5);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #93c5fd;
+  font-size: 14px;
+  background: rgba(2,6,20,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.viewer-dropzone.hidden {
+  display: none;
+}
+
+
+
+/* ================== AXES GIZMO (mini-cube) ================== */
+
+.viewer-gizmo {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  width: 68px;
+  height: 68px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  overflow: hidden;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.viewer-gizmo canvas {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* ================== MOBILE ================== */
+
+@media (max-width: 760px) {
+  .viewer-panel {
+    width: 160px;
+    padding: 8px;
+  }
+
+  .viewer-mode-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+
+  .viewer-info {
+    right: 170px;
+  }
+}
