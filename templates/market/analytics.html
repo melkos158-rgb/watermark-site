@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Аналітика — Proofly STL{% endblock %}
+
+{% block content %}
+<style>
+  .an-wrap{
+    max-width:1120px;
+    margin:24px auto 40px;
+    padding:0 12px;
+  }
+  .an-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .an-title{
+    font-size:22px;
+    font-weight:600;
+  }
+  .an-sub{
+    font-size:13px;
+    opacity:.8;
+    margin-top:4px;
+  }
+  .an-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:8px;
+  }
+  .an-badge{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.85;
+  }
+
+  .an-toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    margin-bottom:14px;
+  }
+  .an-toolbar-left{
+    flex:1 1 auto;
+    font-size:13px;
+    opacity:.8;
+  }
+  .an-toolbar-right{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+  }
+
+  .an-select{
+    background:#050712;
+    border:1px solid #252a3a;
+    border-radius:999px;
+    padding:4px 10px;
+    color:#e2e8f0;
+    font-size:13px;
+  }
+
+  .an-status{
+    font-size:12px;
+    opacity:.8;
+    margin-bottom:10px;
+  }
+
+  .an-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+    align-items:stretch;
+  }
+  @media(max-width:980px){
+    .an-grid{
+      grid-template-columns:1fr;
+    }
+  }
+
+  .an-card{
+    background:#0f1117;
+    border:1px solid #242735;
+    border-radius:12px;
+    padding:12px 14px;
+    display:flex;
+    flex-direction:column;
+    min-height:220px;
+  }
+  .an-card-wide{
+    grid-column:1 / -1;
+  }
+  .an-card-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .an-card-title{
+    font-size:15px;
+    font-weight:500;
+  }
+  .an-card-note{
+    font-size:11px;
+    opacity:.75;
+  }
+  .an-canvas-wrap{
+    position:relative;
+    flex:1 1 auto;
+    min-height:200px;
+    margin-top:4px;
+  }
+  .an-canvas-wrap canvas{
+    width:100% !important;
+    height:100% !important;
+  }
+</style>
+
+<div class="an-wrap">
+  <header class="an-header">
+    <div>
+      <div class="an-title">Аналітика Proofly STL</div>
+      <div class="an-sub">
+        Живі графіки по відвідувачах, нових акаунтах і доданих моделях. Ці дані
+        допоможуть зрозуміти, як росте маркет і які фічі дають найбільший ефект.
+      </div>
+      <div class="an-badges">
+        <div class="an-badge">📈 Daily metrics</div>
+        <div class="an-badge">🧩 visitors / signups / models</div>
+        <div class="an-badge">⚙ API /api/analytics/series</div>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="an-toolbar">
+      <div class="an-toolbar-left">
+        Період:
+        <select id="stats-range" class="an-select">
+          {% for d in ranges or [7,14,30,60,90] %}
+            <option value="{{ d }}" {% if d == 30 %}selected{% endif %}>
+              {{ d }} днів
+            </option>
+          {% endfor %}
+        </select>
+        <span style="margin-left:6px;">(всі графіки оновлюються разом)</span>
+      </div>
+      <div class="an-toolbar-right">
+        <!-- Можна додати кнопки Export CSV / Today / This month пізніше -->
+      </div>
+    </div>
+
+    <div id="stats-status" class="an-status"></div>
+
+    <div class="an-grid">
+      <div class="an-card an-card-wide">
+        <div class="an-card-header">
+          <div class="an-card-title">Унікальні відвідувачі</div>
+          <div class="an-card-note">За вибраний період (cookie / session-based)</div>
+        </div>
+        <div class="an-canvas-wrap">
+          <canvas id="stats-visitors"></canvas>
+        </div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-header">
+          <div class="an-card-title">Нові акаунти</div>
+          <div class="an-card-note">Реєстрації користувачів за день</div>
+        </div>
+        <div class="an-canvas-wrap">
+          <canvas id="stats-signups"></canvas>
+        </div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-header">
+          <div class="an-card-title">Нові моделі / STL</div>
+          <div class="an-card-note">Додано на маркет за день</div>
+        </div>
+        <div class="an-canvas-wrap">
+          <canvas id="stats-models"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+{# Chart.js (можна винести в base.html, якщо треба глобально) #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script type="module">
+  import { initStatsCharts } from "{{ url_for('static', filename='js/stats_charts.js') }}";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initStatsCharts({
+      visitorsCanvasId: "stats-visitors",
+      signupsCanvasId: "stats-signups",
+      modelsCanvasId: "stats-models",
+      rangeSelectId: "stats-range",
+      statusId: "stats-status"
+    });
+  });
+</script>
+{% endblock %}
