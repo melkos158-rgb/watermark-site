@@ -7,10 +7,11 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from slugify import slugify
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint, Index, func
 
 # ВАЖЛИВО: використовуємо спільний db та User із твого проекту
-# ❗ БУЛО: from models import db, User  (але в models.py немає User)
+# ✅ беремо їх з db.py, а не з models.py
 from db import db, User  # noqa: F401
 
 
@@ -83,7 +84,7 @@ class MarketItem(db.Model):
         n = 1
         while MarketItem.query.filter_by(slug=candidate).first():
             n += 1
-            candidate = f"{stem}-{n}"""
+            candidate = f"{stem}-{n}"
         self.slug = candidate
 
     @property
@@ -130,7 +131,8 @@ class Favorite(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     user = db.relationship("User", backref="favorite_items")
-    item = db.relationship("MarketItem", backref="fav_by")
+    # ⚙️ тут вказуємо повністю кваліфікований шлях, щоб не плутатись з іншим MarketItem
+    item = db.relationship("models_market.MarketItem", backref="fav_by")
 
     __table_args__ = (
         UniqueConstraint("user_id", "item_id", name="uq_market_fav"),
@@ -154,7 +156,8 @@ class Review(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
-    item = db.relationship("MarketItem", backref="reviews")
+    # ⚙️ те саме: повністю кваліфікований шлях
+    item = db.relationship("models_market.MarketItem", backref="reviews")
     user = db.relationship("User")
 
     __table_args__ = (
