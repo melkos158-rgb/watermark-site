@@ -11,10 +11,10 @@ import secrets
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any, List
+from functools import wraps
 
-from flask import Blueprint, request, jsonify, current_app, url_for, abort
-from flask_login import current_user, login_required
-from sqlalchemy import func  # 👈 додано для сортування/агрегації
+from flask import Blueprint, request, jsonify, current_app, url_for, abort, session
+from sqlalchemy import func  # 👈 для сортування/агрегації
 
 from models_market import (
     db,
@@ -27,6 +27,33 @@ from models_market import (
 
 # 🔧 БЕЗ url_prefix — префікс даємо в app.register_blueprint(..., url_prefix="/api/market")
 bp = Blueprint("market_api", __name__)
+
+
+# ─────────────────────── СВОЙ current_user/login_required ───────────────────────
+
+class _SessionUser:
+    """Простий проксі над flask.session замість flask_login.current_user."""
+    @property
+    def is_authenticated(self) -> bool:
+        return bool(session.get("user_id"))
+
+    @property
+    def id(self) -> Optional[int]:
+        return session.get("user_id")
+
+
+current_user = _SessionUser()
+
+
+def login_required(f):
+    """Аналог flask_login.login_required, але через session['user_id']."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("user_id"):
+            return _json_error("Unauthorized", 401)
+        return f(*args, **kwargs)
+
+    return wrapper
 
 
 # ───────────────────────── ХЕЛПЕРИ ─────────────────────────
@@ -451,11 +478,16 @@ def upload():
         main_url, size = _save_file(main_file)
         # try визначити тип
         name = (main_file.filename or "").lower()
-        if name.endswith(".stl"):  main_kind = "stl"
-        elif name.endswith(".obj"): main_kind = "obj"
-        elif name.endswith(".gltf") or name.endswith(".glb"): main_kind = "gltf"
-        elif name.endswith(".ply"):  main_kind = "ply"
-        elif name.endswith(".zip"):  main_kind = "zip"
+        if name.endswith(".stl"):
+            main_kind = "stl"
+        elif name.endswith(".obj"):
+            main_kind = "obj"
+        elif name.endswith(".gltf") or name.endswith(".glb"):
+            main_kind = "gltf"
+        elif name.endswith(".ply"):
+            main_kind = "ply"
+        elif name.endswith(".zip"):
+            main_kind = "zip"
         files_json.append({"url": main_url, "kind": main_kind, "size": size})
 
     # створюємо Item
