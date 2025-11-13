@@ -1,12 +1,12 @@
 import os
 import threading
-import re  # 👈 ДОДАНО
-import importlib       # 👈 ДОДАНО
-import pkgutil         # 👈 ДОДАНО
+import re  # 👈
+import importlib
+import pkgutil
 
 from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort, g
-from flask_babel import Babel  # ✅
-import stripe  # === (added) Stripe SDK ===
+from flask_babel import Babel
+import stripe
 
 from db import init_app_db, close_db, db, User
 from models import db as models_db, MarketItem
@@ -34,7 +34,7 @@ DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")
 
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # 👈 потрібно для api_routes
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # === BOT FILTER (посилений) ===
 BOT_RE = re.compile(
@@ -44,14 +44,15 @@ BOT_RE = re.compile(
     r"linkpreview|unfurl|proofly)",
     re.I
 )
-# НЕ додаємо тут "/api/", бо будемо приймати тільки спец-POST /api/visit
 IGNORED_PATHS_PREFIX = ("/static/", "/favicon.ico", "/robots.txt")
 IGNORED_PATHS_EXACT = {"/healthz", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"}
+
 
 def is_bot_ua(ua: str) -> bool:
     if not ua:
         return True
     return bool(BOT_RE.search(ua))
+
 
 def to_int(v, default=0):
     try:
@@ -78,7 +79,6 @@ def admin_required(f):
     return _wrap
 
 
-# === Banner model ===
 class BannerAd(db.Model):
     __tablename__ = "banner_ad"
     id = db.Column(db.Integer, primary_key=True)
@@ -89,7 +89,6 @@ class BannerAd(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# === JSON login guard ===
 def login_required_json(f):
     @wraps(f)
     def inner(*args, **kwargs):
@@ -106,16 +105,13 @@ def row_to_dict(row):
         return dict(row)
 
 
-# === MAIN APP CREATOR ===
 def create_app():
-    app = Flask(__name__)  # ✅ виправлено
+    app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
-    # ==== Babel (локаль) — FIX для Babel 3.x ====
-    babel = Babel()  # створюємо інстанс без додекоратора
+    babel = Babel()
 
     def _get_locale():
-        """Визначення поточної мови: user.lang → session['lang'] → 'uk'."""
         lang = None
         if session.get("user_id"):
             try:
@@ -128,10 +124,8 @@ def create_app():
             lang = (session.get("lang") or "uk").lower()
         return (lang[:8] or "uk")
 
-    # реєструємо селектор через init_app (нова API)
     babel.init_app(app, locale_selector=_get_locale)
 
-    # зробимо доступною мову у шаблонах
     @app.context_processor
     def _inject_current_lang():
         try:
@@ -148,7 +142,6 @@ def create_app():
     app.config.setdefault("MEDIA_URL", "/media/")
     os.makedirs(app.config["MEDIA_ROOT"], exist_ok=True)
 
-    # === Stripe config (added) ===
     app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "").strip()
     app.config["STRIPE_PUBLISHABLE_KEY"] = os.getenv("STRIPE_PUBLISHABLE_KEY", "").strip()
     if app.config["STRIPE_SECRET_KEY"]:
@@ -156,21 +149,17 @@ def create_app():
 
     @app.context_processor
     def _inject_stripe_keys():
-        # даємо доступ до публічного ключа у всіх шаблонах
         return dict(STRIPE_PUBLISHABLE_KEY=app.config.get("STRIPE_PUBLISHABLE_KEY", ""))
 
-    # Init DB
     init_app_db(app)
     app.teardown_appcontext(close_db)
     models_db.init_app(app)
 
-    # === Ensure tables once ===
     _tables_ready_key = "FEEDBACK_TABLES_READY"
     _tables_lock = threading.Lock()
     app.config.setdefault(_tables_ready_key, False)
 
     def ensure_feedback_tables():
-        """Create required tables if missing."""
         if not hasattr(db, "engine"):
             return
         dialect = db.engine.dialect.name
@@ -244,7 +233,6 @@ def create_app():
                       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                     );
                 """))
-                # ✅ visits (для метрик)
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS visits (
                       id SERIAL PRIMARY KEY,
@@ -297,7 +285,6 @@ def create_app():
                       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                 """))
-                # ✅ visits (для метрик)
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS visits (
                       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -327,14 +314,12 @@ def create_app():
             finally:
                 app.config[_tables_ready_key] = True
 
-    # === Blueprints ===
     import auth, profile, chat, market
     app.register_blueprint(auth.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(chat.bp)
     app.register_blueprint(market.bp)
 
-    # 👇 ДОДАНО: API blueprints (якщо є)
     try:
         import market_api
         app.register_blueprint(market_api.bp, url_prefix="/api/market")
@@ -353,7 +338,6 @@ def create_app():
     except Exception as e:
         print("[lang_api] skip:", e)
 
-    # === Mark admin ===
     @app.before_request
     def _mark_admin():
         uid = session.get("user_id")
@@ -366,7 +350,6 @@ def create_app():
         else:
             session.pop("is_admin", None)
 
-    # 👇 ДОДАНО: current_user також в g
     @app.before_request
     def _load_current_user():
         g.user = None
@@ -377,7 +360,6 @@ def create_app():
             except Exception:
                 g.user = None
 
-    # === BOT MARKER (не лізе у твої функції підрахунку, лише виставляє прапор) ===
     @app.before_request
     def _mark_bot_and_ignored():
         try:
@@ -386,12 +368,10 @@ def create_app():
                 g.is_bot = True
                 return
             ua = request.headers.get("User-Agent", "")
-            # боти, прев’юшки месенджерів, сканери
             g.is_bot = is_bot_ua(ua)
         except Exception:
-            g.is_bot = False  # безпечний дефолт
+            g.is_bot = False
 
-    # === Banner logic ===
     def get_top1_user_this_month():
         if hasattr(User, "pxp_month"):
             u = User.query.order_by(User.pxp_month.desc(), User.id.asc()).first()
@@ -409,7 +389,6 @@ def create_app():
                 return {"image_path": rec.image_path, "link_url": rec.link_url or ""}
         return {"image_path": DEFAULT_BANNER_IMG, "link_url": DEFAULT_BANNER_URL}
 
-    # === Contexts ===
     @app.context_processor
     def inject_user():
         u = User.query.get(session["user_id"]) if session.get("user_id") else None
@@ -419,7 +398,6 @@ def create_app():
     def inject_banner():
         return dict(banner=get_active_banner())
 
-    # === ⬇️ Admin metrics injected into templates
     @app.context_processor
     def _inject_admin_metrics():
         try:
@@ -427,7 +405,6 @@ def create_app():
                 text(f"SELECT COUNT(*) FROM {USERS_TBL}")
             ).scalar() or 0
 
-            # Визначаємо діалект для сумісності
             dialect = getattr(getattr(db, "engine", None), "dialect", None)
             dialect_name = getattr(dialect, "name", "postgresql")
 
@@ -462,7 +439,6 @@ def create_app():
         except Exception:
             return dict(admin_metrics={"total_users": 0, "online_now": 0, "monthly_visitors": 0})
 
-    # === Pages ===
     @app.route("/", endpoint="index")
     def index():
         return render_template("index.html")
@@ -471,7 +447,6 @@ def create_app():
     def stl():
         return render_template("stl.html")
 
-    # === STL viewer (окреме вікно) ===
     @app.route("/stl/viewer", endpoint="stl_viewer")
     def stl_viewer():
         return render_template("stl_viewer.html")
@@ -502,7 +477,6 @@ def create_app():
     def documents():
         return render_template("documents.html")
 
-    # === Language API (нове, не чіпає існуючі) ===
     @app.post("/api/lang/set")
     def api_lang_set():
         data = request.get_json(silent=True) or {}
@@ -540,7 +514,6 @@ def create_app():
             lang = (session.get("lang") or "uk").lower()
         return jsonify({"lang": (lang[:8] or "uk")})
 
-    # === Banner management ===
     @app.route("/ad/click")
     def ad_click():
         if not session.get("user_id"):
@@ -583,13 +556,11 @@ def create_app():
 
         return render_template("ad_upload_inline.html")
 
-    # === Admin Panel ===
     @app.route("/admin", endpoint="admin_panel")
     @admin_required
     def admin_panel():
         return render_template("admin.html")
 
-    # --- Допоміжні URL для шаблону admin.html (старі кнопки-заглушки) ---
     app.add_url_rule("/admin/reset-month",
                      endpoint="admin_reset_month",
                      view_func=admin_panel,
@@ -634,13 +605,9 @@ def create_app():
         flash("Дефолтний банер оновлено.")
         return redirect(url_for("admin_panel"))
 
-    # === ⬇️ НОВЕ: Reset visits ===
     @app.route("/admin/reset-visits", methods=["POST"])
     @admin_required
     def admin_reset_visits():
-        """
-        Очищає всю таблицю visits (метрики "онлайн" і "унікальних за місяць" почнуть рахуватись з нуля).
-        """
         try:
             db.session.execute(text("DELETE FROM visits;"))
             db.session.commit()
@@ -653,37 +620,31 @@ def create_app():
             flash(f"Не вдалось очистити visits: {e}")
             return redirect(url_for("admin_panel"))
 
-    # === ⬇️ lightweight visits tracker — тепер лише для людських JS-сигналів
-    from time as _now
+    # ✅ ВИПРАВЛЕНИЙ ІМПОРТ
+    from time import time as _now
 
     @app.before_request
     def _track_visit():
         try:
-            # ✅ Рахуємо тільки спеціальний POST із фронтенда
             if request.method != "POST" or request.path != "/api/visit":
                 return
 
-            # хедер-маячок, щоб сторонні POST не засмічували метрику
             if request.headers.get("X-Visit-Beacon") != "1":
                 return ("", 204)
 
-            # відсікаємо боти / службові
             if getattr(g, "is_bot", False):
                 return ("", 204)
 
-            # шлях беремо з JSON-тела
             data = request.get_json(silent=True) or {}
             path = (data.get("path") or "/")[:255]
             if path in IGNORED_PATHS_EXACT or path.startswith(IGNORED_PATHS_PREFIX):
                 return ("", 204)
 
-            # сесія
             sid = session.get("sid")
             if not sid:
                 sid = os.urandom(16).hex()
                 session["sid"] = sid
 
-            # анти-спам: не частіше ніж раз/хвилину
             last_ts = session.get("_last_visit_ts") or 0
             if _now() - float(last_ts) < 60:
                 return ("", 204)
@@ -691,7 +652,6 @@ def create_app():
 
             uid = session.get("user_id")
 
-            # INSERT без created_at — візьметься дефолт БД (NOW()/CURRENT_TIMESTAMP)
             db.session.execute(
                 text("INSERT INTO visits (session_id, user_id, path) VALUES (:sid, :uid, :pth)"),
                 {"sid": sid, "uid": uid, "pth": path}
@@ -702,17 +662,14 @@ def create_app():
             db.session.rollback()
             return ("", 204)
 
-    # === Healthcheck ===
     @app.route("/healthz")
     def healthz():
         return "ok", 200
 
-    # 👇 невеликий alias /health для зручності
     @app.route("/health")
     def health():
         return "ok", 200
 
-    # === Robots (щоб чемні боти поважали) ===
     @app.route("/robots.txt")
     def robots_txt():
         try:
@@ -720,10 +677,9 @@ def create_app():
         except Exception:
             return ("User-agent: *\nCrawl-delay: 5\n", 200, {"Content-Type": "text/plain; charset=utf-8"})
 
-    # === Media route ===
     @app.route("/media/<path:filename>")
     @app.route("/market/media/<path:filename>")
-    @app.route("/static/market_uploads/media/<path:filename>")  # ⬅️ сумісність зі старими URL
+    @app.route("/static/market_uploads/media/<path:filename>")
     def media(filename):
         safe = os.path.normpath(filename).lstrip(os.sep)
         roots = [
@@ -766,7 +722,6 @@ def create_app():
 
         return abort(404)
 
-    # === (added) Stripe routes for card payments ===
     @app.route("/donate")
     def donate_page():
         return render_template("donate.html")
@@ -799,25 +754,18 @@ def create_app():
             os.path.join(app.root_path, "templates", "success.html")
         ) else ("<h2 style='color:#16a34a'>✅ Оплата успішна</h2>", 200)
 
-    # 👇 ДОДАНО: автоматичне підключення всіх api_routes/*
     try:
         register_api_routes(app)
     except Exception as e:
         print("[api_routes] skipped:", e)
 
-    # 👇 ДОДАНО: запуск воркера, якщо є
     if app.config.get("ENABLE_WORKER", True) and run_worker is not None:
         start_worker_thread(app)
 
     return app
 
 
-# === helper-функції для api_routes та worker ===
 def register_api_routes(app):
-    """
-    Шукає всі .py файли в папці api_routes
-    і, якщо в модулі є змінна bp (Blueprint), реєструє її як /api/<ім'я>.
-    """
     package_name = "api_routes"
     package_path = os.path.join(BASE_DIR, "api_routes")
     if not os.path.isdir(package_path):
@@ -846,7 +794,6 @@ def register_api_routes(app):
 
 
 def start_worker_thread(app):
-    """Запускає фоновий воркер у окремому потоці."""
     if run_worker is None:
         return
 
