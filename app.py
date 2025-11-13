@@ -82,7 +82,8 @@ def admin_required(f):
             from flask import redirect, url_for, flash
 
             flash("Доступ лише для адміністратора.")
-            return redirect(url_for("index"))
+            # було url_for("index"), тепер core.index
+            return redirect(url_for("core.index"))
         return f(*args, **kwargs)
 
     return _wrap
@@ -556,7 +557,7 @@ def create_app():
             return redirect(url_for("admin_panel"))
 
     # ========= трекінг візитів (API) =========
-    from time import time as _now
+    from time as _now
 
     @app.before_request
     def _track_visit():
