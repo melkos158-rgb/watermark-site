@@ -1,141 +1,333 @@
-// static/market/js/market_listeners.js
-// =====================================================
-// Глобальні слухачі подій для сторінок STL Market
-// Реагують на зміни категорії, пошуку, сортування тощо
-// =====================================================
+// static/js/market_listeners.js
+// Єдиний "слухач" для STL-маркету Proofly.
+//
+// Завдання:
+//   • клік по кнопках "Add to bundle", "Favorite", "Quick view" і т.п.
+//   • надсилати події на бекенд (аналітика / трекінг / wishlist)
+//   • кидати кастомні події, які ловлять інші скрипти (bundle_cart.js, suggest.js, тощо)
+//   • мінімальні тости через window.ProoflyNotify.toast (якщо є)
+//
+// Очікувані (але не обовʼязкові) бекенд-ендпоінти:
+//
+//   POST /api/market/track_event
+//     body: { action, item_id, payload }
+//     -> { ok:true }
+//
+//   POST /api/market/favorite
+//     body: { item_id, on:true/false }
+//     -> { ok:true, on:true/false }
+//
+// HTML-атрибути, з якими ми працюємо:
+//
+//   data-market-card           – картка моделі (для impression-трекінгу)
+//   data-item-id               – id моделі
+//   data-add-to-bundle         – кнопка "в бандл" (іконка або текст)
+//   data-add-to-cart           – якщо колись буде окремий кошик
+//   data-favorite-toggle       – кнопка "додати в улюблене / забрати"
+//   data-track-click           – довільна подія (наприклад, відкриття quick-view)
+//   data-track-action          – назва події для track_click
+//   data-track-payload         – JSON-строка з додатковими даними (опційно)
+//
+// Приклад у шаблоні картки:
+//
+//   <article class="market-card" data-market-card data-item-id="{{ item.id }}">
+//     ...
+//     <button class="btn-bundle" data-add-to-bundle data-item-id="{{ item.id }}">
+//       ➕ До бандлу
+//     </button>
+//     <button class="btn-fav" data-favorite-toggle data-item-id="{{ item.id }}">
+//       ❤
+//     </button>
+//   </article>
+//
+// Ініціалізація в templates/market/*.html:
+//
+//   <script type="module">
+//     import { initMarketListeners } from "{{ url_for('static', filename='js/market_listeners.js') }}";
+//     document.addEventListener("DOMContentLoaded", () => {
+//       initMarketListeners();
+//     });
+//   </script>
 
-import { API, assetUrl } from "./api.js";
+export function initMarketListeners({
+  root = document,
+  impressionThreshold = 0.4, // частина картки, що має бути у вʼюпорті
+} = {}) {
+  const doc = root || document;
 
-document.addEventListener("DOMContentLoaded", () => {
-  const grid = document.querySelector("#grid");
-  if (!grid) return;
+  // ========= УТИЛІТИ =========
 
-  const q = document.querySelector("#q");
-  const sort = document.querySelector("#sort");
-  const catSel = document.querySelector("#cat");
-  const sentinel = document.querySelector("#sentinel");
+  function apiFetch(url, options = {}) {
+    const opts = {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+      credentials: "same-origin",
+      ...options,
+    };
+    return fetch(url, opts).then(async (res) => {
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error("Invalid JSON from server");
+      }
+      if (!res.ok || data.ok === false) {
+        const msg = (data && data.error) || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    });
+  }
 
-  let page = 1;
-  let hasMore = true;
-  let loading = false;
-  let currentCat = catSel?.value || "";
-  let currentSort = sort?.value || "new";
-  let currentQ = q?.value || "";
-
-  // Основна функція: завантажує одну сторінку
-  async function loadPage(reset = false) {
-    if (loading || (!hasMore && !reset)) return;
-    if (reset) {
-      page = 1;
-      grid.innerHTML = "";
-      hasMore = true;
-    }
-    loading = true;
-
-    const loadingEl = document.createElement("div");
-    loadingEl.className = "empty";
-    loadingEl.textContent = "Завантаження…";
-    grid.appendChild(loadingEl);
-
+  function safeJsonParse(str) {
+    if (!str) return null;
     try {
-      const data = await API.get("/api/items", {
-        page,
-        per_page: 24,
-        q: currentQ,
-        cat: currentCat,
-        sort: currentSort,
+      return JSON.parse(str);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function toast(msg, level = "info") {
+    if (window.ProoflyNotify && window.ProoflyNotify.toast) {
+      window.ProoflyNotify.toast(msg, level);
+    } else {
+      // запасний варіант
+      console.log("[Proofly toast]", level, msg);
+    }
+  }
+
+  function trackEvent(action, payload = {}) {
+    try {
+      // Паралельно можна кинути глобальну подію, якщо іншим скриптам цікаво
+      window.dispatchEvent(
+        new CustomEvent("proofly:market_event", {
+          detail: { action, payload },
+        })
+      );
+
+      // Якщо бекенд не готовий — просто не робимо fetch
+      if (!window.ProoflyConfig || !window.ProoflyConfig.enableMarketTracking) {
+        return;
+      }
+
+      apiFetch("/api/market/track_event", {
+        method: "POST",
+        body: JSON.stringify({
+          action,
+          payload,
+        }),
+      }).catch((err) => {
+        console.warn("[market_listeners] track_event error:", err);
       });
-
-      const items = Array.isArray(data.items) ? data.items : [];
-      const pages = Number(data.pages || 1);
-      if (loadingEl.parentNode === grid) grid.removeChild(loadingEl);
-
-      appendItems(items);
-      page += 1;
-      hasMore = page <= pages && items.length > 0;
-
-      if (!grid.children.length) {
-        grid.innerHTML = `<div class="empty">Нічого не знайдено 😿</div>`;
-      }
-    } catch (err) {
-      console.error(err);
-      grid.innerHTML = `<div class="empty">Помилка мережі.</div>`;
-    } finally {
-      loading = false;
+    } catch (e) {
+      console.warn("[market_listeners] trackEvent failed:", e);
     }
   }
 
-  // Рендер карток
-  function appendItems(items) {
-    for (const it of items) {
-      const el = document.createElement("div");
-      el.className = "item";
-      const cover = assetUrl(it.cover || it.cover_url);
+  // ========= IMPRESSIONS ДЛЯ КАРТОК =========
 
-      el.innerHTML = `
-        <div class="thumb-wrap" data-open="${it.id}">
-          <img src="${cover}" alt="${escapeHtml(it.title)}" class="thumb" loading="lazy">
-        </div>
-        <div class="meta">
-          <div class="title">${escapeHtml(it.title || "Без назви")}</div>
-          <div class="muted">★ ${it.rating ?? "—"} • ⬇️ ${it.downloads ?? 0}</div>
-          <div class="price">${(+it.price || 0) === 0 ? "Безкоштовно" : it.price + " PLN"}</div>
-        </div>`;
-      grid.appendChild(el);
+  const seenImpressions = new Set();
+
+  function setupImpressionObserver() {
+    if (!("IntersectionObserver" in window)) {
+      console.warn("[market_listeners] IntersectionObserver not supported");
+      return;
+    }
+
+    const cards = doc.querySelectorAll("[data-market-card]");
+    if (!cards.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          const ratio = entry.intersectionRatio || 0;
+          if (ratio < impressionThreshold) return;
+
+          const itemId = el.getAttribute("data-item-id");
+          const key = itemId ? `item:${itemId}` : `el:${Date.now()}-${Math.random()}`;
+
+          if (seenImpressions.has(key)) {
+            return;
+          }
+          seenImpressions.add(key);
+
+          if (itemId) {
+            trackEvent("impression", {
+              item_id: itemId,
+              source: "market_card",
+            });
+          }
+
+          // після першого разу цей елемент нам не потрібен
+          observer.unobserve(el);
+        });
+      },
+      {
+        threshold: impressionThreshold,
+      }
+    );
+
+    cards.forEach((card) => observer.observe(card));
+  }
+
+  // ========= WISHLIST / FAVORITES =========
+
+  function handleFavoriteToggle(target) {
+    const itemId = target.getAttribute("data-item-id");
+    if (!itemId) return;
+
+    const isActive = target.classList.contains("is-favorite");
+    const nextState = !isActive;
+
+    // Миттєво перемикаємо UI (optimistic)
+    target.classList.toggle("is-favorite", nextState);
+    const iconEl = target.querySelector("[data-fav-icon]") || target;
+    iconEl.dataset.state = nextState ? "on" : "off";
+
+    apiFetch("/api/market/favorite", {
+      method: "POST",
+      body: JSON.stringify({
+        item_id: itemId,
+        on: nextState,
+      }),
+    })
+      .then((data) => {
+        const serverOn =
+          typeof data.on === "boolean" ? data.on : nextState;
+        target.classList.toggle("is-favorite", serverOn);
+        iconEl.dataset.state = serverOn ? "on" : "off";
+
+        if (serverOn) {
+          toast("Додано в улюблені.", "success");
+          trackEvent("favorite_on", { item_id: itemId });
+        } else {
+          toast("Прибрано з улюблених.", "info");
+          trackEvent("favorite_off", { item_id: itemId });
+        }
+      })
+      .catch((err) => {
+        console.error("[market_listeners] favorite error:", err);
+        // відкотимо UI
+        target.classList.toggle("is-favorite", isActive);
+        iconEl.dataset.state = isActive ? "on" : "off";
+        toast("Не вдалося оновити улюблене. Спробуй ще раз.", "error");
+      });
+  }
+
+  // ========= BUNDLE / CART =========
+
+  function handleAddToBundle(target) {
+    const itemId = target.getAttribute("data-item-id");
+    if (!itemId) return;
+
+    // Шлемо подію, яку вже може слухати bundle_cart.js
+    window.dispatchEvent(
+      new CustomEvent("proofly:bundle_add", {
+        detail: {
+          itemId,
+          source: "market_card",
+        },
+      })
+    );
+
+    toast("Додано в бандл. Відкрий панель бандлів, щоб переглянути.", "success");
+    trackEvent("bundle_add", { item_id: itemId });
+  }
+
+  function handleAddToCart(target) {
+    const itemId = target.getAttribute("data-item-id");
+    if (!itemId) return;
+
+    window.dispatchEvent(
+      new CustomEvent("proofly:cart_add", {
+        detail: {
+          itemId,
+          source: "market_card",
+        },
+      })
+    );
+
+    toast("Додано в кошик.", "success");
+    trackEvent("cart_add", { item_id: itemId });
+  }
+
+  // ========= GENERIC CLICK TRACKING =========
+
+  function handleTrackClick(target) {
+    const action =
+      target.getAttribute("data-track-action") || "click";
+    const payloadStr = target.getAttribute("data-track-payload");
+    const payload = safeJsonParse(payloadStr) || {};
+
+    const itemId = target.getAttribute("data-item-id");
+    if (itemId && !payload.item_id) {
+      payload.item_id = itemId;
+    }
+    payload.source = payload.source || "market";
+
+    trackEvent(action, payload);
+  }
+
+  // ========= DELEGATION: ОБРОБКА КЛІКІВ =========
+
+  function onClick(e) {
+    const target = e.target;
+    if (!target || !(target instanceof HTMLElement)) return;
+
+    // шукаємо найближчий елемент з потрібними data-атрибутами
+    const favBtn = target.closest("[data-favorite-toggle]");
+    if (favBtn) {
+      e.preventDefault();
+      handleFavoriteToggle(favBtn);
+      return;
+    }
+
+    const bundleBtn = target.closest("[data-add-to-bundle]");
+    if (bundleBtn) {
+      e.preventDefault();
+      handleAddToBundle(bundleBtn);
+      return;
+    }
+
+    const cartBtn = target.closest("[data-add-to-cart]");
+    if (cartBtn) {
+      e.preventDefault();
+      handleAddToCart(cartBtn);
+      return;
+    }
+
+    const trackBtn = target.closest("[data-track-click]");
+    if (trackBtn) {
+      // не блокуємо default поведінку, тільки трекаєм
+      handleTrackClick(trackBtn);
+      return;
     }
   }
 
-  // Обробка кліку по картці
-  grid.addEventListener("click", (e) => {
-    const openId = e.target.closest("[data-open]")?.dataset?.open;
-    if (openId) window.location.href = `/item/${openId}`;
-  });
+  doc.addEventListener("click", onClick, { passive: false });
 
-  // Реакції на зміни UI
-  if (q) q.addEventListener("keydown", (e) => e.key === "Enter" && updateSearch());
-  if (sort) sort.addEventListener("change", updateSearch);
-  if (catSel) catSel.addEventListener("change", updateSearch);
+  // ========= СТАРТ IMPRESSIONS =========
 
-  document.addEventListener("marketCategoryChange", (ev) => {
-    currentCat = ev.detail || "";
-    updateSearch();
-  });
+  setupImpressionObserver();
 
-  function updateSearch() {
-    currentQ = q?.value || "";
-    currentSort = sort?.value || "new";
-    currentCat = catSel?.value || currentCat;
-    loadPage(true);
+  // ========= ГЛОБАЛЬНИЙ API =========
+
+  if (!window.ProoflyMarket) {
+    window.ProoflyMarket = {};
   }
 
-  // Infinite scroll
-  if (sentinel) {
-    const io = new IntersectionObserver((entries) => {
-      for (const en of entries) {
-        if (en.isIntersecting) loadPage();
-      }
-    }, { rootMargin: "600px 0px" });
-    io.observe(sentinel);
-  }
+  window.ProoflyMarket.trackEvent = trackEvent;
+  window.ProoflyMarket.initListeners = initMarketListeners;
 
-  // Початкове завантаження
-  loadPage(true);
-});
-
-// Допоміжна функція
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (m) => (
-    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]
-  ));
+  return {
+    trackEvent,
+    destroy() {
+      doc.removeEventListener("click", onClick, { passive: false });
+    },
+  };
 }
-
-// =====================================================
-// CSS (мінімальний стиль для порожнього стану)
-// =====================================================
-const css = `
-.empty{text-align:center;color:var(--muted);padding:20px;}
-.thumb-wrap{cursor:pointer;}
-`;
-const style = document.createElement("style");
-style.textContent = css;
-document.head.appendChild(style);
