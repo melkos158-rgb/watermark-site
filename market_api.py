@@ -10,10 +10,11 @@ import os
 import secrets
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any, List
 
 from flask import Blueprint, request, jsonify, current_app, url_for, abort
 from flask_login import current_user, login_required
+from sqlalchemy import func  # 👈 додано для сортування/агрегації
 
 from models_market import (
     db,
@@ -78,6 +79,65 @@ def _current_user_id_or_401() -> int:
     return int(current_user.id)
 
 
+def _files_json_to_list(files_json: Optional[str]) -> List[Dict[str, Any]]:
+    try:
+        return json.loads(files_json or "[]")
+    except Exception:
+        return []
+
+
+def _item_to_dict(it: MarketItem, *, include_files: bool = False, is_fav: bool = False) -> Dict[str, Any]:
+    """
+    Базова серіалізація товару для гріда/детейлу.
+    JS може брати поля:
+      id, slug, title, cover_url, price_cents, is_free, rating, downloads,
+      created_at, category_slug, owner_id, is_fav, files[]
+    """
+    data: Dict[str, Any] = {
+        "id": it.id,
+        "slug": getattr(it, "slug", None),
+        "title": it.title,
+        "description": (it.description or ""),
+        "cover_url": it.cover_url,
+        "price_cents": getattr(it, "price_cents", 0),
+        "is_free": getattr(it, "is_free", False),
+        "rating": getattr(it, "rating", 0.0),
+        "downloads": getattr(it, "downloads", 0),
+        "created_at": it.created_at.isoformat() if getattr(it, "created_at", None) else None,
+        "owner_id": getattr(it, "owner_id", None),
+        "is_fav": bool(is_fav),
+    }
+
+    # категорія
+    cat = None
+    try:
+        cat = it.category  # relationship if exists
+    except Exception:
+        cat = None
+    if cat is not None:
+        data["category_id"] = cat.id
+        data["category_slug"] = getattr(cat, "slug", None)
+        data["category_name"] = getattr(cat, "title", None)
+    else:
+        data["category_id"] = getattr(it, "category_id", None)
+
+    if include_files:
+        data["files"] = _files_json_to_list(it.files_json)
+
+    return data
+
+
+def _base_query():
+    """Базовий запит по маркету з мінімальними фільтрами."""
+    q = MarketItem.query
+
+    # тільки опубліковані, якщо є прапор поля
+    if hasattr(MarketItem, "is_published"):
+        q = q.filter(MarketItem.is_published.is_(True))
+
+    return q
+
+
 # ──────────────────────── SUGGEST (GET) ─────────────────────
 
 @bp.get("/suggest")
@@ -99,6 +159,205 @@ def suggest():
     )
     data = [{"title": it.title, "slug": it.slug} for it in items]
     return jsonify(data)
+
+
+# ───────────────────────── LIST (GET) ───────────────────────
+
+@bp.get("/items")
+def items():
+    """
+    GET /api/market/items
+    Параметри:
+      q          – пошук по title/description
+      page       – сторінка (1..)
+      per_page   – кількість на сторінку (до 60)
+      sort       – new | popular | top | price_asc | price_desc | free | paid
+      category   – slug категорії
+      owner_id   – фільтр по автору (для "Мої моделі" можна передати свій id)
+      free       – 1/0 (примусово безкоштовні/платні)
+
+    Відповідь:
+      {
+        ok: true,
+        page: 1,
+        pages: 3,
+        total: 57,
+        items: [ {...}, ... ]
+      }
+    """
+    q = (request.args.get("q") or "").strip()
+    sort = (request.args.get("sort") or "new").lower()
+    category_slug = (request.args.get("category") or "").strip() or None
+    owner_id = request.args.get("owner_id")
+    free_filter = request.args.get("free")
+
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except Exception:
+        page = 1
+
+    try:
+        per_page = int(request.args.get("per_page", 24))
+    except Exception:
+        per_page = 24
+    per_page = max(1, min(per_page, 60))
+
+    query = _base_query()
+
+    # пошук
+    if q:
+        pattern = f"%{q}%"
+        query = query.filter(
+            (MarketItem.title.ilike(pattern)) |
+            (MarketItem.description.ilike(pattern))
+        )
+
+    # категорія
+    if category_slug:
+        cat = MarketCategory.query.filter_by(slug=category_slug).first()
+        if cat:
+            query = query.filter(MarketItem.category_id == cat.id)
+
+    # автор
+    if owner_id:
+        try:
+            oid = int(owner_id)
+            query = query.filter(MarketItem.owner_id == oid)
+        except Exception:
+            pass
+
+    # free/paid
+    if free_filter is not None:
+        flg = _coerce_bool(free_filter)
+        query = query.filter(MarketItem.is_free.is_(flg))
+
+    # сортування
+    if sort == "popular":
+        query = query.order_by(MarketItem.downloads.desc(), MarketItem.created_at.desc())
+    elif sort == "top":
+        if hasattr(MarketItem, "rating"):
+            query = query.order_by(MarketItem.rating.desc(), MarketItem.downloads.desc())
+        else:
+            query = query.order_by(MarketItem.downloads.desc())
+    elif sort == "price_asc":
+        query = query.order_by(MarketItem.price_cents.asc(), MarketItem.created_at.desc())
+    elif sort == "price_desc":
+        query = query.order_by(MarketItem.price_cents.desc(), MarketItem.created_at.desc())
+    elif sort == "free":
+        query = query.filter(MarketItem.is_free.is_(True)).order_by(MarketItem.created_at.desc())
+    elif sort == "paid":
+        query = query.filter(MarketItem.is_free.is_(False)).order_by(MarketItem.created_at.desc())
+    else:  # "new"
+        query = query.order_by(MarketItem.created_at.desc())
+
+    # пагінація
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    items_list = pagination.items
+
+    # фаворити юзера (щоб не робити 24 окремих запити)
+    fav_ids: set[int] = set()
+    if current_user.is_authenticated:
+        fav_ids = {
+            f.item_id
+            for f in Favorite.query.filter_by(user_id=current_user.id).all()
+        }
+
+    data_items = [_item_to_dict(it, include_files=False, is_fav=(it.id in fav_ids)) for it in items_list]
+
+    return jsonify({
+        "ok": True,
+        "page": pagination.page,
+        "pages": pagination.pages,
+        "total": pagination.total,
+        "items": data_items,
+    })
+
+
+# alias, якщо фронтенд звертається на /list
+@bp.get("/list")
+def items_alias():
+    return items()
+
+
+# ──────────────────────── DETAIL (GET) ──────────────────────
+
+@bp.get("/item/<slug>")
+def item_detail(slug: str):
+    """
+    GET /api/market/item/<slug>
+    Детальна інформація про модель + останні відгуки.
+    """
+    it = MarketItem.query.filter_by(slug=slug).first()
+    if not it:
+        return _json_error("Item not found", 404)
+
+    is_fav = False
+    if current_user.is_authenticated:
+        is_fav = Favorite.query.filter_by(
+            user_id=current_user.id,
+            item_id=it.id
+        ).first() is not None
+
+    item_data = _item_to_dict(it, include_files=True, is_fav=is_fav)
+
+    # останні 10 відгуків
+    reviews_q = (
+        Review.query
+        .filter_by(item_id=it.id)
+        .order_by(Review.created_at.desc())
+        .limit(10)
+    )
+    reviews_data = [{
+        "id": r.id,
+        "user_id": r.user_id,
+        "rating": r.rating,
+        "text": r.text,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    } for r in reviews_q]
+
+    return jsonify({
+        "ok": True,
+        "item": item_data,
+        "reviews": reviews_data,
+    })
+
+
+# ──────────────────────── MY ITEMS (GET) ────────────────────
+
+@bp.get("/my")
+@login_required
+def my_items():
+    """
+    GET /api/market/my
+    Повертає всі моделі поточного користувача (для вкладки "Мої оголошення").
+    Параметри page/per_page підтримуються так само, як у /items.
+    """
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except Exception:
+        page = 1
+
+    try:
+        per_page = int(request.args.get("per_page", 24))
+    except Exception:
+        per_page = 24
+    per_page = max(1, min(per_page, 60))
+
+    query = _base_query().filter(MarketItem.owner_id == current_user.id)
+    query = query.order_by(MarketItem.created_at.desc())
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    items_list = pagination.items
+
+    data_items = [_item_to_dict(it, include_files=False, is_fav=False) for it in items_list]
+
+    return jsonify({
+        "ok": True,
+        "page": pagination.page,
+        "pages": pagination.pages,
+        "total": pagination.total,
+        "items": data_items,
+    })
 
 
 # ──────────────────────── FAVORITE (POST) ───────────────────
