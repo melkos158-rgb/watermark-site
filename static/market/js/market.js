@@ -1,67 +1,282 @@
 // static/market/js/market.js
-// Загальний ініт маркету: пошук, друга шапка, модалка
-const $ = (s, r=document) => r.querySelector(s);
+// Головна логіка сторінки STL Market:
+// - тягнемо список моделей з /api/market/items або /api/market/my
+// - реагуємо на пошук, кнопки фільтрів, пагінацію
+// - рендеримо грід карток
 
-function goWithParams(next = {}) {
-  const p = new URLSearchParams(location.search);
-  Object.entries(next).forEach(([k, v]) => (v==null || v==="") ? p.delete(k) : p.set(k, v));
-  p.set("page", "1");
-  location.search = p.toString();
+import {
+  fetchItems,
+  fetchMyItems,
+  toggleFavorite,
+} from "./api.js";
+
+const PAGE_TYPE = document.body.dataset.marketPage || "list";
+
+const state = {
+  q: "",
+  page: 1,
+  per_page: 24,
+  sort: "new",      // new | popular | top | price_asc | price_desc | free | paid
+  category: null,   // slug категорії
+  free: null,       // null / 1 / 0
+};
+
+function buildStateFromDOM() {
+  const qInput = document.getElementById("q");
+  if (qInput) state.q = qInput.value.trim();
+
+  // селекти (якщо є)
+  const sortSelect = document.querySelector("[data-filter-sort]");
+  if (sortSelect && sortSelect.value) {
+    state.sort = sortSelect.value;
+  }
+
+  const showSelect = document.querySelector("[data-filter-show]");
+  if (showSelect && showSelect.value) {
+    const v = showSelect.value;
+    if (v === "free") state.free = 1;
+    else if (v === "paid") state.free = 0;
+    else state.free = null;
+  }
+
+  // активна категорія (кнопки з data-filter-category)
+  const activeCat = document.querySelector(
+    "[data-filter-category].is-active, [data-filter-category].active"
+  );
+  state.category = activeCat
+    ? (activeCat.dataset.slug || activeCat.dataset.category || null)
+    : null;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const q     = $("#q");
-  const cat   = $("#cat");
-  const sort  = $("#sort");
-  const btnS  = $("#btn-search");
-  const modal = $("#upload-modal");
+async function loadPage(page = 1) {
+  const grid = document.querySelector("[data-market-grid]");
+  const pag = document.querySelector("[data-market-pagination]");
+  if (!grid) return;
 
-  // Пошук
-  btnS?.addEventListener("click", () => goWithParams({ q: q?.value || "" }));
-  q?.addEventListener("keydown", (e)=>{ if(e.key==="Enter") goWithParams({ q: q.value }); });
+  state.page = page;
+  buildStateFromDOM();
 
-  // Фільтри
-  cat?.addEventListener("change", ()=> goWithParams({ cat: cat.value }));
-  sort?.addEventListener("change",()=> goWithParams({ sort: sort.value }));
+  grid.dataset.loading = "1";
+  grid.innerHTML = `<div class="market-grid-loading">Завантаження моделей…</div>`;
+  if (pag) pag.innerHTML = "";
 
-  // Модалка «Додати модель»
-  const openBtn   = $("#btn-upload");
-  const closeBtn  = modal?.querySelector("[data-close]");
-  const xBtn      = modal?.querySelector(".modal-close");
-  const free      = modal?.querySelector('input[name="is_free"]');
-  const priceRow  = modal?.querySelector(".price-row");
-  const titleInp  = modal?.querySelector('input[name="title"]');
+  const params = {
+    q: state.q || undefined,
+    page: state.page,
+    per_page: state.per_page,
+    sort: state.sort,
+    category: state.category || undefined,
+    free: state.free === null ? undefined : state.free ? 1 : 0,
+  };
 
-  const syncPriceVis = ()=> priceRow && (priceRow.style.display = free?.checked ? "none" : "flex");
-
-  function openModal(e){
-    if (e) e.preventDefault();
-    if (!modal) return;
-    modal.hidden = false;
-    document.body.style.overflow = "hidden";
-    // автофокус на назву моделі
-    setTimeout(()=> titleInp?.focus(), 0);
+  let resp;
+  try {
+    if (PAGE_TYPE === "my") {
+      resp = await fetchMyItems(params);
+    } else {
+      resp = await fetchItems(params);
+    }
+  } catch (err) {
+    console.error(err);
+    grid.dataset.loading = "0";
+    grid.innerHTML =
+      `<div class="market-grid-error">` +
+      `Помилка завантаження маркету 😢<br>` +
+      `<button type="button" class="btn" id="market-retry">Спробувати ще раз</button>` +
+      `</div>`;
+    const retry = document.getElementById("market-retry");
+    if (retry) {
+      retry.addEventListener("click", () => loadPage(state.page));
+    }
+    return;
   }
-  function closeModal(){
-    if (!modal) return;
-    modal.hidden = true;
-    document.body.style.overflow = "";
+
+  grid.dataset.loading = "0";
+
+  const items = (resp && resp.items) || [];
+  if (!items.length) {
+    grid.innerHTML =
+      `<div class="market-grid-empty">` +
+      `Поки що немає моделей за цим запитом.` +
+      `</div>`;
+  } else {
+    grid.innerHTML = items.map(renderItemCard).join("");
   }
 
-  openBtn?.addEventListener("click", openModal);
-  closeBtn?.addEventListener("click", closeModal);
-  xBtn?.addEventListener("click", closeModal);
+  bindFavButtons(grid);
 
-  // закриття по кліку на бекдроп
-  modal?.addEventListener("click", (e)=>{
-    if (e.target === modal) closeModal();
-  });
-  // закриття по Esc
-  document.addEventListener("keydown", (e)=>{
-    if (e.key === "Escape" && modal && !modal.hidden) closeModal();
-  });
+  if (pag) {
+    pag.innerHTML = renderPagination(resp.page, resp.pages);
+    pag.querySelectorAll("[data-page]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const p = parseInt(btn.dataset.page || "1", 10) || 1;
+        if (p !== state.page) {
+          loadPage(p);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      });
+    });
+  }
+}
 
-  // Ціна: показувати/ховати поле
-  free?.addEventListener("change", syncPriceVis);
-  syncPriceVis();
-});
+function renderItemCard(it) {
+  const priceLabel =
+    it.is_free || !it.price_cents
+      ? "Безкоштовно"
+      : (it.price_cents / 100).toFixed(2) + " zł";
+
+  const rating =
+    typeof it.rating === "number" ? it.rating.toFixed(1) : "0.0";
+
+  const downloads = it.downloads || 0;
+
+  return `
+<a class="market-item-card" href="/market/${encodeURIComponent(
+    it.slug
+  )}" data-item-id="${it.id}">
+  <div class="thumb">
+    ${
+      it.cover_url
+        ? `<img src="${it.cover_url}" loading="lazy" alt="${escapeHtml(it.title)}">`
+        : `<div class="thumb-placeholder">STL</div>`
+    }
+    <button type="button"
+            class="fav ${it.is_fav ? "is-active" : ""}"
+            data-fav="${it.id}">
+      ${it.is_fav ? "★" : "☆"}
+    </button>
+  </div>
+  <div class="meta">
+    <div class="title">${escapeHtml(it.title)}</div>
+    <div class="row">
+      <span class="price">${priceLabel}</span>
+      <span class="rating">⭐ ${rating}</span>
+    </div>
+    <div class="row">
+      <span class="downloads">⬇ ${downloads}</span>
+      ${
+        it.category_name
+          ? `<span class="category">${escapeHtml(it.category_name)}</span>`
+          : ""
+      }
+    </div>
+  </div>
+</a>`;
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderPagination(page, pages) {
+  page = page || 1;
+  pages = pages || 1;
+  if (pages <= 1) return "";
+
+  let html = `<div class="market-pagination-inner">`;
+
+  const addBtn = (p, label, active = false) => {
+    if (active) {
+      html += `<span class="pg-btn is-active">${label}</span>`;
+    } else {
+      html += `<button class="pg-btn" type="button" data-page="${p}">${label}</button>`;
+    }
+  };
+
+  if (page > 1) addBtn(page - 1, "‹");
+
+  const start = Math.max(1, page - 2);
+  const end = Math.min(pages, page + 2);
+  for (let p = start; p <= end; p++) {
+    addBtn(p, p, p === page);
+  }
+
+  if (page < pages) addBtn(page + 1, "›");
+
+  html += `</div>`;
+  return html;
+}
+
+function bindFavButtons(root) {
+  root.querySelectorAll("[data-fav]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.fav || "0", 10);
+      if (!id) return;
+      btn.disabled = true;
+      try {
+        const res = await toggleFavorite(id);
+        btn.classList.toggle("is-active", !!res.fav);
+        btn.textContent = res.fav ? "★" : "☆";
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function bindUI() {
+  const searchInput = document.getElementById("q");
+  const searchBtn = document.getElementById("btn-search");
+
+  if (searchInput) {
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        loadPage(1);
+      }
+    });
+  }
+
+  if (searchBtn) {
+    searchBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadPage(1);
+    });
+  }
+
+  // кнопки сортування/фільтрів у сабхедері: data-sort / data-show
+  document.addEventListener("click", (e) => {
+    const sortBtn = e.target.closest("[data-sort]");
+    if (sortBtn) {
+      state.sort = sortBtn.dataset.sort || "new";
+      document
+        .querySelectorAll("[data-sort]")
+        .forEach((b) => b.classList.toggle("is-active", b === sortBtn));
+      loadPage(1);
+      return;
+    }
+
+    const showBtn = e.target.closest("[data-show]");
+    if (showBtn) {
+      const v = showBtn.dataset.show || "all";
+      if (v === "free") state.free = 1;
+      else if (v === "paid") state.free = 0;
+      else state.free = null;
+
+      document
+        .querySelectorAll("[data-show]")
+        .forEach((b) => b.classList.toggle("is-active", b === showBtn));
+      loadPage(1);
+    }
+  });
+}
+
+// ініціалізація
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    bindUI();
+    loadPage(1);
+  });
+} else {
+  bindUI();
+  loadPage(1);
+}
