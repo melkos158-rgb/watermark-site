@@ -164,6 +164,16 @@ def create_app():
     app.teardown_appcontext(close_db)
     models_db.init_app(app)
 
+    # === STL Market: створити таблиці market_* якщо їх ще немає ===
+    try:
+        import models_market  # noqa: F401  (важливо лише імпортувати моделі)
+
+        with app.app_context():
+            # створить market_items, market_categories, market_favorites, market_reviews
+            db.create_all()
+    except Exception as e:
+        print("[models_market] skip:", e)
+
     # ========= разове створення службових таблиць =========
     _tables_ready_key = "FEEDBACK_TABLES_READY"
     _tables_lock = threading.Lock()
@@ -412,18 +422,6 @@ def create_app():
         print("[lang_api] skip:", e)
 
     # ========= before_request хуки =========
-
-    @app.before_request
-    def _reset_failed_session():
-        """
-        Захист від 'current transaction is aborted' у Postgres:
-        перед кожним запитом пробуємо відкрутити незавершену/биту транзакцію.
-        Якщо все ок — rollback нічого не робить.
-        """
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
 
     @app.before_request
     def _mark_admin():
