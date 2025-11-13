@@ -414,6 +414,18 @@ def create_app():
     # ========= before_request хуки =========
 
     @app.before_request
+    def _reset_failed_session():
+        """
+        Захист від 'current transaction is aborted' у Postgres:
+        перед кожним запитом пробуємо відкрутити незавершену/биту транзакцію.
+        Якщо все ок — rollback нічого не робить.
+        """
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+    @app.before_request
     def _mark_admin():
         uid = session.get("user_id")
         if not uid:
