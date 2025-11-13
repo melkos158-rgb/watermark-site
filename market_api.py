@@ -25,7 +25,8 @@ from models_market import (
     recompute_item_rating,
 )
 
-bp = Blueprint("market_api", __name__, url_prefix="/api/market")
+# 🔧 ВАЖЛИВО: без url_prefix тут, бо prefix задається в app.register_blueprint(...)
+bp = Blueprint("market_api", __name__)
 
 
 # ───────────────────────── ХЕЛПЕРИ ─────────────────────────
