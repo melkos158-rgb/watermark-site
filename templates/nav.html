@@ -4,13 +4,13 @@
     <button class="burger" id="burger" aria-label="Меню" aria-expanded="false">☰</button>
 
     <!-- ЛОГО + НАЗВА -->
-    <a href="{{ url_for('index') }}" class="brand" aria-label="На головну">
+    <a href="{{ url_for('core.index') }}" class="brand" aria-label="На головну">
       <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
       <span class="wordmark" aria-label="Proofly">Proofly</span>
     </a>
 
     <!-- ЛІВІ КНОПКИ -->
-    <a class="nav-btn {{ 'active' if request.endpoint=='index' else '' }}" href="{{ url_for('index') }}">Головна</a>
+    <a class="nav-btn {{ 'active' if request.endpoint=='core.index' else '' }}" href="{{ url_for('core.index') }}">Головна</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='stl' else '' }}" href="{{ url_for('stl') }}">STL3D</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='video' else '' }}" href="{{ url_for('video') }}">Video</a>
 
@@ -108,7 +108,7 @@
   </div>
 
   <nav class="drawer-links">
-    <a href="{{ url_for('index') }}"     class="{{ 'active' if request.endpoint=='index' else '' }}">Головна</a>
+    <a href="{{ url_for('core.index') }}"     class="{{ 'active' if request.endpoint=='core.index' else '' }}">Головна</a>
     <a href="{{ url_for('stl') }}"       class="{{ 'active' if request.endpoint=='stl' else '' }}">STL3D</a>
     <a href="{{ url_for('video') }}"     class="{{ 'active' if request.endpoint=='video' else '' }}">Video</a>
     <a href="{{ url_for('photo') }}"      class="{{ 'active' if request.endpoint=='photo' else '' }}">Photo — Gallery / Tools</a>
@@ -252,7 +252,7 @@
 
     function toggle(){
       if(inPortal){ restoreMenu(); }
-    else { root.classList.add('open'); placeMenu(); }
+      else { root.classList.add('open'); placeMenu(); }
     }
 
     btn && btn.addEventListener('click', function(e){
