@@ -1,87 +1,182 @@
 // static/market/js/api.js
-// ========================================================
-// Легкий клієнт для API Proofly STL Market
-// Уніфіковані методи get/post + допоміжні API-виклики
-// ========================================================
+// Єдиний клієнт для API маркету STL.
+// Використовується іншими модулями: market.js, favorites.js, reviews.js, checkout.js тощо.
 
-export const API = {
-  async get(url, params = {}) {
-    const u = new URL(url, location.origin);
-    Object.entries(params).forEach(([k, v]) =>
-      v == null ? u.searchParams.delete(k) : u.searchParams.set(k, v)
+const BASE = "/api/market";
+
+/**
+ * Формує query-string з обʼєкта.
+ */
+function buildQuery(params = {}) {
+  const parts = [];
+  for (const [key, val] of Object.entries(params)) {
+    if (val === undefined || val === null || val === "") continue;
+    parts.push(
+      encodeURIComponent(key) + "=" + encodeURIComponent(String(val))
     );
-    const r = await fetch(u, { credentials: "same-origin" });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json().catch(() => ({}));
-  },
-
-  async post(url, data) {
-    const headers = { "X-Requested-With": "fetch" };
-    let body, method = "POST";
-    if (data instanceof FormData) {
-      body = data;
-    } else {
-      headers["Content-Type"] = "application/json";
-      body = JSON.stringify(data || {});
-    }
-    const r = await fetch(url, { method, headers, body, credentials: "same-origin" });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json().catch(() => ({}));
-  },
-};
-
-// ========================================================
-// API endpoints
-// ========================================================
-export const suggest         = (q)        => API.get("/api/market/suggest", { q });
-export const toggleFav       = (item_id)  => API.post("/api/market/fav", { item_id });
-export const postReview      = (payload)  => API.post("/api/market/review", payload);
-export const uploadModel     = (formData) => API.post("/api/market/upload", formData);
-export const createCheckout  = (payload)  => API.post("/api/market/checkout", payload);
-export const track           = (event, data = {}) => API.post("/api/market/track", { event, ...data }).catch(() => {});
-
-// ========================================================
-// AI AutoTag — автоматичне визначення тегів за назвою
-// ========================================================
-export const autoTag = async (title) => {
-  try {
-    const r = await API.get("/api/autotag", { q: title });
-    return Array.isArray(r) ? r : [];
-  } catch {
-    return [];
   }
-};
-
-// ========================================================
-// Утиліта: нормалізація шляхів до медіа (єдина логіка для фронта)
-// ========================================================
-export function assetUrl(src, placeholder = "/static/img/placeholder_stl.jpg") {
-  if (!src) return placeholder;
-  let s = String(src).trim();
-
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
-  if (s.startsWith("/media/")) return s;
-  if (s.startsWith("media/")) return "/" + s;
-
-  if (s.startsWith("/static/market_uploads/"))  return s.replace("/static/market_uploads/", "/media/");
-  if (s.startsWith("static/market_uploads/"))   return ("/" + s).replace("/static/market_uploads/", "/media/");
-  if (s.startsWith("/static/market_uploads/media/")) return s.replace("/static/market_uploads", "");
-  if (s.startsWith("static/market_uploads/media/"))  return ("/" + s).replace("/static/market_uploads", "");
-  if (s.startsWith("/market_uploads/media/"))   return s.replace("/market_uploads", "");
-  if (s.startsWith("market_uploads/media/"))    return "/" + s.replace("market_uploads", "");
-
-  if (s.startsWith("/static/")) return s;
-  if (s.startsWith("static/"))  return "/" + s;
-
-  return s.startsWith("/") ? s : "/" + s;
+  return parts.length ? "?" + parts.join("&") : "";
 }
 
-// ========================================================
-// Глобальний error handler для фронтенду маркету
-// ========================================================
-window.addEventListener("unhandledrejection", (e) => {
-  console.warn("[API Error]", e.reason);
-  if (String(e.reason).includes("Unauthorized")) {
-    alert("⛔ Потрібно увійти в акаунт, щоб виконати цю дію.");
+/**
+ * Базовий запит до API.
+ * Повертає:
+ *   - null, якщо статус 204
+ *   - JSON-обʼєкт у всіх інших випадках
+ * Кидає Error, якщо HTTP-статус ≥ 400 або { ok:false }.
+ */
+async function apiRequest(path, { method = "GET", params, body } = {}) {
+  const qs = buildQuery(params);
+  const url = BASE + path + qs;
+
+  const opts = {
+    method,
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+    credentials: "same-origin",
+  };
+
+  if (body !== undefined) {
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
   }
-});
+
+  const res = await fetch(url, opts);
+
+  // no-content
+  if (res.status === 204) return null;
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    throw new Error("Invalid JSON from API (" + res.status + ")");
+  }
+
+  if (!res.ok || (data && data.ok === false)) {
+    const msg =
+      (data && (data.error || data.message)) ||
+      "API error (" + res.status + ")";
+    const err = new Error(msg);
+    err.status = res.status;
+    err.payload = data;
+    throw err;
+  }
+
+  return data;
+}
+
+/* ───────────────────── ПУБЛІЧНІ ФУНКЦІЇ ───────────────────── */
+
+/**
+ * Завантаження списку моделей для головної сторінки маркету.
+ * params:
+ *   q, page, per_page, sort, category, owner_id, free
+ */
+export function fetchItems(params = {}) {
+  return apiRequest("/items", { method: "GET", params });
+}
+
+/**
+ * Альяс, якщо десь у коді ще використовується /list.
+ */
+export function fetchItemsList(params = {}) {
+  return apiRequest("/list", { method: "GET", params });
+}
+
+/**
+ * Детальна інформація про модель.
+ * @param {string} slug
+ */
+export function fetchItemDetail(slug) {
+  if (!slug) throw new Error("slug is required");
+  return apiRequest(`/item/${encodeURIComponent(slug)}`, { method: "GET" });
+}
+
+/**
+ * Моделі поточного користувача ("Мої оголошення").
+ */
+export function fetchMyItems(params = {}) {
+  return apiRequest("/my", { method: "GET", params });
+}
+
+/**
+ * Підказки для пошуку.
+ * @param {string} q
+ */
+export function fetchSuggest(q) {
+  return apiRequest("/suggest", {
+    method: "GET",
+    params: { q: q || "" },
+  });
+}
+
+/**
+ * Тогл фавориту.
+ * @param {number} itemId
+ */
+export function toggleFavorite(itemId) {
+  if (!itemId) throw new Error("itemId is required");
+  return apiRequest("/fav", {
+    method: "POST",
+    body: { item_id: itemId },
+  });
+}
+
+/**
+ * Надіслати / оновити відгук.
+ * payload: { item_id, rating, text }
+ */
+export function sendReview(payload) {
+  if (!payload || !payload.item_id) {
+    throw new Error("item_id is required");
+  }
+  return apiRequest("/review", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+/**
+ * Створити чекаут (Stripe/BLIK або free-download).
+ * @param {number} itemId
+ */
+export function createCheckout(itemId) {
+  if (!itemId) throw new Error("itemId is required");
+  return apiRequest("/checkout", {
+    method: "POST",
+    body: { item_id: itemId },
+  });
+}
+
+/**
+ * Трекінг подій маркету (view/click/download/scroll).
+ * payload: { type, slug?, item_id? , ... }
+ */
+export function trackMarketEvent(payload = {}) {
+  return apiRequest("/track", {
+    method: "POST",
+    body: payload,
+  }).catch(() => {
+    // трекінг не критичний — ковтаємо помилки
+  });
+}
+
+/**
+ * Хелпер, щоб зручно використовувати у глобальному коді без import:
+ *   window.MARKET_API.fetchItems(...)
+ */
+if (typeof window !== "undefined") {
+  window.MARKET_API = {
+    fetchItems,
+    fetchItemsList,
+    fetchItemDetail,
+    fetchMyItems,
+    fetchSuggest,
+    toggleFavorite,
+    sendReview,
+    createCheckout,
+    trackMarketEvent,
+  };
+}
