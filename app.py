@@ -1,6 +1,9 @@
 import os
 import threading
 import re  # 👈 ДОДАНО
+import importlib
+import pkgutil
+
 from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort, g
 from flask_babel import Babel  # ✅
 import stripe  # === (added) Stripe SDK ===
@@ -24,6 +27,8 @@ DEFAULT_BANNER_IMG = os.getenv("DEFAULT_BANNER_IMG", "ads/default_banner.jpg")
 DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")
 
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # === BOT FILTER (посилений) ===
 BOT_RE = re.compile(
@@ -95,10 +100,24 @@ def row_to_dict(row):
         return dict(row)
 
 
+# ─────────────────────────────
+# worker (опціонально)
+# ─────────────────────────────
+try:
+    from worker import run_worker  # очікуємо функцію run_worker(app)
+except Exception:
+    run_worker = None
+
+
 # === MAIN APP CREATOR ===
 def create_app():
     app = Flask(__name__)  # ✅ виправлено
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
+
+    # базові Jinja-настройки
+    app.jinja_env.trim_blocks = True
+    app.jinja_env.lstrip_blocks = True
+    app.jinja_env.auto_reload = True
 
     # ==== Babel (локаль) — FIX для Babel 3.x ====
     babel = Babel()  # створюємо інстанс без додекоратора
@@ -323,6 +342,25 @@ def create_app():
     app.register_blueprint(chat.bp)
     app.register_blueprint(market.bp)
 
+    # додаткові API-blueprints (якщо існують)
+    try:
+        import market_api
+        app.register_blueprint(market_api.bp, url_prefix="/api/market")
+    except Exception as e:
+        print("[market_api] skip:", e)
+
+    try:
+        import ai_api
+        app.register_blueprint(ai_api.bp, url_prefix="/api/ai")
+    except Exception as e:
+        print("[ai_api] skip:", e)
+
+    try:
+        import lang_api
+        app.register_blueprint(lang_api.bp, url_prefix="/api/lang")
+    except Exception as e:
+        print("[lang_api] skip:", e)
+
     # === Mark admin ===
     @app.before_request
     def _mark_admin():
@@ -335,6 +373,17 @@ def create_app():
             session["is_admin"] = True
         else:
             session.pop("is_admin", None)
+
+    # окремо: current_user у g
+    @app.before_request
+    def _load_current_user():
+        g.user = None
+        uid = session.get("user_id")
+        if uid:
+            try:
+                g.user = User.query.get(uid)
+            except Exception:
+                g.user = None
 
     # === BOT MARKER (не лізе у твої функції підрахунку, лише виставляє прапор) ===
     @app.before_request
@@ -377,6 +426,10 @@ def create_app():
     @app.context_processor
     def inject_banner():
         return dict(banner=get_active_banner())
+
+    @app.context_processor
+    def inject_now():
+        return dict(now=datetime.utcnow)
 
     # === ⬇️ Admin metrics injected into templates
     @app.context_processor
@@ -666,6 +719,10 @@ def create_app():
     def healthz():
         return "ok", 200
 
+    @app.route("/health")
+    def health():
+        return "ok", 200
+
     # === Robots (щоб чемні боти поважали) ===
     @app.route("/robots.txt")
     def robots_txt():
@@ -720,6 +777,16 @@ def create_app():
 
         return abort(404)
 
+    # простий route для локальних uploads (якщо треба окремо від media)
+    @app.route("/uploads/<path:filename>")
+    def uploads(filename):
+        upload_root = os.path.join(app.root_path, "uploads")
+        safe = os.path.normpath(filename).lstrip(os.sep)
+        full = os.path.join(upload_root, safe)
+        if not os.path.isfile(full):
+            abort(404)
+        return send_from_directory(upload_root, safe)
+
     # === (added) Stripe routes for card payments ===
     @app.route("/donate")
     def donate_page():
@@ -753,7 +820,73 @@ def create_app():
             os.path.join(app.root_path, "templates", "success.html")
         ) else ("<h2 style='color:#16a34a'>✅ Оплата успішна</h2>", 200)
 
+    # ─────────────────────────────
+    # автопідключення api_routes/*
+    # ─────────────────────────────
+    try:
+        register_api_routes(app)
+    except Exception as e:
+        print("[api_routes] skipped:", e)
+
+    # ─────────────────────────────
+    # запуск background worker
+    # ─────────────────────────────
+    if app.config.get("ENABLE_WORKER", True) and run_worker is not None:
+        start_worker_thread(app)
+
     return app
+
+
+# ─────────────────────────────
+# helper-функції ПІСЛЯ create_app
+# (будуть визначені до виклику create_app)
+# ─────────────────────────────
+def register_api_routes(app):
+    """
+    Шукає всі .py файли в папці api_routes
+    і, якщо в модулі є змінна bp (Blueprint), реєструє її як /api/<ім'я>.
+    """
+    package_name = "api_routes"
+    package_path = os.path.join(BASE_DIR, "api_routes")
+    if not os.path.isdir(package_path):
+        return
+
+    for _, module_name, ispkg in pkgutil.iter_modules([package_path]):
+        if ispkg or module_name.startswith("_"):
+            continue
+        full_module_name = f"{package_name}.{module_name}"
+        try:
+            module = importlib.import_module(full_module_name)
+        except Exception as e:
+            print(f"[api_routes] import fail {full_module_name}: {e}")
+            continue
+
+        bp = getattr(module, "bp", None) or getattr(module, "blueprint", None)
+        if bp is None:
+            continue
+
+        url_prefix = "/api/" + module_name.replace("_api", "")
+        try:
+            app.register_blueprint(bp, url_prefix=url_prefix)
+            print(f"[api_routes] registered {full_module_name} at {url_prefix}")
+        except Exception as e:
+            print(f"[api_routes] register fail {full_module_name}: {e}")
+
+
+def start_worker_thread(app):
+    """Запускає фоновий воркер у окремому потоці."""
+    if run_worker is None:
+        return
+
+    def _run():
+        with app.app_context():
+            try:
+                run_worker(app)
+            except Exception as e:
+                print("[worker] stopped:", e)
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
 
 
 app = create_app()
