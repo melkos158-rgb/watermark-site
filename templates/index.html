@@ -99,7 +99,7 @@
     {% set _src = url_for('static', filename=_src) %}
   {% endif %}
   <div class="promo-wrap">
-    <a class="promo-banner" href="{{ url_for('ad_click') }}">
+    <a class="promo-banner" href="{{ url_for('ads.ad_click') }}">
       <img src="{{ _src }}" alt="PXP Top-1 Banner">
       <div class="promo-overlay">
         <span>Займи TOP-1 PXP цього місяця — і твоя реклама буде тут!</span>
@@ -107,7 +107,7 @@
     </a>
     {% if session.is_admin %}
       <!-- Кнопка додавання бачить лише адмін; TOP-1 може зайти напряму на /ad/upload -->
-      <a class="promo-cta" href="{{ url_for('ad_upload') }}">➕ Додати банер</a>
+      <a class="promo-cta" href="{{ url_for('ads.ad_upload') }}">➕ Додати банер</a>
     {% endif %}
   </div>
   {% endif %}
@@ -119,31 +119,31 @@
     <div class="welcome-grid">
       <!-- Edit Photo -->
       <div class="welcome-card">
-        <a href="{{ url_for('edit_photo') }}">✏️ Edit Photo</a>
+        <a href="{{ url_for('core.edit_photo') }}">✏️ Edit Photo</a>
         <span>Базовий редактор фото</span>
       </div>
 
       <!-- Photo Enhance -->
       <div class="welcome-card">
-        <a href="{{ url_for('enhance') }}">✨ Photo Enhance</a>
+        <a href="{{ url_for('core.enhance') }}">✨ Photo Enhance</a>
         <span>AI покращення й апскейл</span>
       </div>
 
       <!-- STL -->
       <div class="welcome-card">
-        <a href="{{ url_for('stl') }}">📐 STL</a>
+        <a href="{{ url_for('core.stl') }}">📐 STL</a>
         <span>Редактор 3D-моделей</span>
       </div>
 
       <!-- Video -->
       <div class="welcome-card">
-        <a href="{{ url_for('video') }}">🎬 Video</a>
+        <a href="{{ url_for('core.video') }}">🎬 Video</a>
         <span>Простий редактор відео</span>
       </div>
 
       <!-- Нова окрема кнопка Photo -->
       <div class="welcome-card">
-        <a href="{{ url_for('photo') }}">📷 Photo</a>
+        <a href="{{ url_for('core.photo') }}">📷 Photo</a>
         <span>Швидкі інструменти фото</span>
       </div>
 
@@ -155,7 +155,7 @@
 
       <!-- ✅ НОВЕ: Documents -->
       <div class="welcome-card">
-        <a href="{{ url_for('documents') }}">📄 Documents</a>
+        <a href="{{ url_for('core.documents') }}">📄 Documents</a>
         <span>Робота з документами</span>
       </div>
     </div>
