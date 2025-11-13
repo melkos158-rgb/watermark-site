@@ -1,8 +1,8 @@
 import os
 import threading
 import re  # 👈 ДОДАНО
-import importlib
-import pkgutil
+import importlib       # 👈 ДОДАНО
+import pkgutil         # 👈 ДОДАНО
 
 from flask import Flask, render_template, jsonify, request, session, send_from_directory, abort, g
 from flask_babel import Babel  # ✅
@@ -17,6 +17,12 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+# === worker (опціонально) ===
+try:
+    from worker import run_worker  # очікуємо def run_worker(app): ...
+except Exception:
+    run_worker = None
+
 # === ADMIN CONFIG ===
 ADMIN_EMAILS = {e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()}
 UPLOAD_DIR = os.path.join("static", "ads")
@@ -28,7 +34,7 @@ DEFAULT_BANNER_URL = os.getenv("DEFAULT_BANNER_URL", "")
 
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # 👈 потрібно для api_routes
 
 # === BOT FILTER (посилений) ===
 BOT_RE = re.compile(
@@ -100,24 +106,10 @@ def row_to_dict(row):
         return dict(row)
 
 
-# ─────────────────────────────
-# worker (опціонально)
-# ─────────────────────────────
-try:
-    from worker import run_worker  # очікуємо функцію run_worker(app)
-except Exception:
-    run_worker = None
-
-
 # === MAIN APP CREATOR ===
 def create_app():
     app = Flask(__name__)  # ✅ виправлено
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
-
-    # базові Jinja-настройки
-    app.jinja_env.trim_blocks = True
-    app.jinja_env.lstrip_blocks = True
-    app.jinja_env.auto_reload = True
 
     # ==== Babel (локаль) — FIX для Babel 3.x ====
     babel = Babel()  # створюємо інстанс без додекоратора
@@ -342,7 +334,7 @@ def create_app():
     app.register_blueprint(chat.bp)
     app.register_blueprint(market.bp)
 
-    # додаткові API-blueprints (якщо існують)
+    # 👇 ДОДАНО: API blueprints (якщо є)
     try:
         import market_api
         app.register_blueprint(market_api.bp, url_prefix="/api/market")
@@ -374,7 +366,7 @@ def create_app():
         else:
             session.pop("is_admin", None)
 
-    # окремо: current_user у g
+    # 👇 ДОДАНО: current_user також в g
     @app.before_request
     def _load_current_user():
         g.user = None
@@ -426,10 +418,6 @@ def create_app():
     @app.context_processor
     def inject_banner():
         return dict(banner=get_active_banner())
-
-    @app.context_processor
-    def inject_now():
-        return dict(now=datetime.utcnow)
 
     # === ⬇️ Admin metrics injected into templates
     @app.context_processor
@@ -666,7 +654,7 @@ def create_app():
             return redirect(url_for("admin_panel"))
 
     # === ⬇️ lightweight visits tracker — тепер лише для людських JS-сигналів
-    from time import time as _now
+    from time as _now
 
     @app.before_request
     def _track_visit():
@@ -719,6 +707,7 @@ def create_app():
     def healthz():
         return "ok", 200
 
+    # 👇 невеликий alias /health для зручності
     @app.route("/health")
     def health():
         return "ok", 200
@@ -777,16 +766,6 @@ def create_app():
 
         return abort(404)
 
-    # простий route для локальних uploads (якщо треба окремо від media)
-    @app.route("/uploads/<path:filename>")
-    def uploads(filename):
-        upload_root = os.path.join(app.root_path, "uploads")
-        safe = os.path.normpath(filename).lstrip(os.sep)
-        full = os.path.join(upload_root, safe)
-        if not os.path.isfile(full):
-            abort(404)
-        return send_from_directory(upload_root, safe)
-
     # === (added) Stripe routes for card payments ===
     @app.route("/donate")
     def donate_page():
@@ -820,27 +799,20 @@ def create_app():
             os.path.join(app.root_path, "templates", "success.html")
         ) else ("<h2 style='color:#16a34a'>✅ Оплата успішна</h2>", 200)
 
-    # ─────────────────────────────
-    # автопідключення api_routes/*
-    # ─────────────────────────────
+    # 👇 ДОДАНО: автоматичне підключення всіх api_routes/*
     try:
         register_api_routes(app)
     except Exception as e:
         print("[api_routes] skipped:", e)
 
-    # ─────────────────────────────
-    # запуск background worker
-    # ─────────────────────────────
+    # 👇 ДОДАНО: запуск воркера, якщо є
     if app.config.get("ENABLE_WORKER", True) and run_worker is not None:
         start_worker_thread(app)
 
     return app
 
 
-# ─────────────────────────────
-# helper-функції ПІСЛЯ create_app
-# (будуть визначені до виклику create_app)
-# ─────────────────────────────
+# === helper-функції для api_routes та worker ===
 def register_api_routes(app):
     """
     Шукає всі .py файли в папці api_routes
