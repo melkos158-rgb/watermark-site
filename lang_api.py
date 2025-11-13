@@ -1,9 +1,11 @@
 from flask import Blueprint, request, jsonify, session, g
 from db import db
 
-lang_api = Blueprint("lang_api", __name__, url_prefix="/api/lang")
+# 🔧 Blueprint без url_prefix — префікс даємо в app.register_blueprint(...)
+bp = Blueprint("lang_api", __name__)
 
-@lang_api.post("/set")
+
+@bp.post("/set")
 def set_lang():
     data = request.get_json(silent=True) or {}
     lang = (data.get("lang") or "").lower()[:8]
@@ -22,7 +24,8 @@ def set_lang():
 
     return jsonify({"ok": True, "lang": lang})
 
-@lang_api.get("/me")
+
+@bp.get("/me")
 def me_lang():
     lang = None
     if getattr(g, "user", None) and getattr(g.user, "lang", None):
