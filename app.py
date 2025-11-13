@@ -557,7 +557,7 @@ def create_app():
             return redirect(url_for("admin_panel"))
 
     # ========= трекінг візитів (API) =========
-    from time as _now
+    from time import time as _now
 
     @app.before_request
     def _track_visit():
