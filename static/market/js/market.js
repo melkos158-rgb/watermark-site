@@ -12,6 +12,10 @@ import {
 
 const PAGE_TYPE = document.body.dataset.marketPage || "list";
 
+// кореневі елементи (якщо є)
+const ROOT = document.querySelector("[data-market-root]") || document.body;
+const NOTICE = document.querySelector("[data-market-notice]");
+
 const state = {
   q: "",
   page: 1,
@@ -20,6 +24,19 @@ const state = {
   category: null,   // slug категорії
   free: null,       // null / 1 / 0
 };
+
+function setNotice(text, kind = "") {
+  if (!NOTICE) return;
+  if (!text) {
+    NOTICE.style.display = "none";
+    NOTICE.textContent = "";
+    NOTICE.classList.remove("error");
+    return;
+  }
+  NOTICE.style.display = "";
+  NOTICE.textContent = text;
+  NOTICE.classList.toggle("error", kind === "error");
+}
 
 function buildStateFromDOM() {
   const qInput = document.getElementById("q");
@@ -56,6 +73,7 @@ async function loadPage(page = 1) {
   state.page = page;
   buildStateFromDOM();
 
+  setNotice("", "");
   grid.dataset.loading = "1";
   grid.innerHTML = `<div class="market-grid-loading">Завантаження моделей…</div>`;
   if (pag) pag.innerHTML = "";
@@ -79,6 +97,8 @@ async function loadPage(page = 1) {
   } catch (err) {
     console.error(err);
     grid.dataset.loading = "0";
+
+    setNotice("Помилка завантаження маркету 😢", "error");
     grid.innerHTML =
       `<div class="market-grid-error">` +
       `Помилка завантаження маркету 😢<br>` +
@@ -99,8 +119,10 @@ async function loadPage(page = 1) {
       `<div class="market-grid-empty">` +
       `Поки що немає моделей за цим запитом.` +
       `</div>`;
+    setNotice("Поки що немає моделей за цим запитом.", "");
   } else {
     grid.innerHTML = items.map(renderItemCard).join("");
+    setNotice("", "");
   }
 
   bindFavButtons(grid);
