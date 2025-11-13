@@ -22,6 +22,8 @@
   </script>
 
   <!-- Підключай ІЗ static/, не з templates/ -->
+
+  {# базове API + фільтри, завантаження, перегляд, оплата, аналітика #}
   <script type="module" src="{{ url_for('static', filename='market/js/api.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/filters.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/uploader.js') }}"></script>
@@ -30,7 +32,30 @@
   <script type="module" src="{{ url_for('static', filename='market/js/reviews.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/checkout.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/analytics.js') }}"></script>
-  <!-- опціонально -->
+
+  {# рекомендації + основна логіка маркету #}
   <script type="module" src="{{ url_for('static', filename='market/js/recommend.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
+
+  {# глобальні слухачі, пошук, підказки, related, категорії #}
+  <script type="module" src="{{ url_for('static', filename='market/js/market_listeners.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/search.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/suggest.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/related.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/categories.js') }}"></script>
+
+  {# нотифікації, бандли, профілі принтерів, параметричні моделі, перевірка друкованості #}
+  <script type="module" src="{{ url_for('static', filename='market/js/notifications.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/bundle_cart.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/printer_profiles.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/parametric_ui.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/printability_check.js') }}"></script>
+
+  {# G-code інструменти + статистика #}
+  <script type="module" src="{{ url_for('static', filename='market/js/gcode_viewer.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/stats_charts.js') }}"></script>
+
+  {# AI-інструменти (дашборд і окремі тулзи) #}
+  <script type="module" src="{{ url_for('static', filename='market/js/ai_tools.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/dashboard_ai_tools.js') }}"></script>
 {% endblock %}
