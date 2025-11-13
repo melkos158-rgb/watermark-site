@@ -5,7 +5,7 @@ import json
 from typing import Optional, Dict, Any
 
 # >>> використовуємо існуючий інстанс з db.py
-from db import db as _db  # реальний Flask-SQLAlchemy
+from db import db as _db, User as _User  # ✅ беремо і db, і User з db.py
 
 
 class _DBProxy:
@@ -26,7 +26,10 @@ class _DBProxy:
 #   from models import db as models_db, MarketItem
 db = _DBProxy()
 
-__all__ = ["db", "MarketItem"]
+# ✅ також експортуємо User як просто посилання на клас із db.py
+User = _User
+
+__all__ = ["db", "MarketItem", "User"]
 
 
 class MarketItem(_db.Model):
