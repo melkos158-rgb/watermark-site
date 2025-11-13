@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Сповіщення — Proofly STL{% endblock %}
+
+{% block content %}
+<style>
+  .notif-wrap{
+    max-width:960px;
+    margin:24px auto 40px;
+    padding:0 12px;
+  }
+  .notif-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .notif-title{
+    font-size:22px;
+    font-weight:600;
+  }
+  .notif-sub{
+    font-size:13px;
+    opacity:.8;
+    margin-top:4px;
+  }
+  .notif-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:8px;
+  }
+  .notif-badge{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.85;
+  }
+
+  .notif-card{
+    background:#0f1117;
+    border:1px solid #242735;
+    border-radius:12px;
+    padding:14px 16px;
+  }
+  .notif-card h2{
+    margin:0 0 10px 0;
+    font-size:18px;
+  }
+
+  .notif-toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .notif-toolbar-left{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    flex:1 1 auto;
+  }
+  .notif-toolbar-right{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  .notif-select{
+    background:#050712;
+    border:1px solid #252a3a;
+    border-radius:999px;
+    padding:4px 10px;
+    color:#e2e8f0;
+    font-size:13px;
+  }
+
+  .notif-btn{
+    border-radius:999px;
+    border:1px solid #374151;
+    background:#111827;
+    padding:5px 11px;
+    font-size:12px;
+    cursor:pointer;
+    color:#e5e7eb;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    transition:background .12s,border-color .12s,transform .06s;
+  }
+  .notif-btn.primary{
+    border-color:#2563eb;
+    background:#1d3a7f;
+  }
+  .notif-btn:active{
+    transform:translateY(1px);
+  }
+  .notif-btn:disabled{
+    opacity:.6;
+    cursor:default;
+  }
+
+  .notif-status{
+    font-size:12px;
+    opacity:.8;
+    margin-bottom:10px;
+  }
+
+  .notif-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  .notif-empty{
+    font-size:13px;
+    opacity:.8;
+    padding:8px 0;
+  }
+
+  .notif-item{
+    border-radius:10px;
+    border:1px solid #1f2937;
+    background:#020617;
+    padding:8px 10px;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    align-items:stretch;
+    cursor:pointer;
+    transition:border-color .12s,background .12s,transform .06s;
+  }
+  .notif-item:hover{
+    border-color:#2563eb;
+    background:#020817;
+  }
+  .notif-item-unread{
+    border-color:#22c55e;
+    box-shadow:0 0 0 1px rgba(34,197,94,.3);
+  }
+
+  .notif-item-main{
+    display:flex;
+    gap:8px;
+    flex:1 1 auto;
+  }
+  .notif-item-icon{
+    width:26px;
+    height:26px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:15px;
+    flex-shrink:0;
+    background:#020617;
+  }
+  .notif-item-body{
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .notif-item-header{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:2px;
+  }
+  .notif-item-title{
+    font-size:14px;
+    font-weight:500;
+  }
+  .notif-item-pill{
+    font-size:10px;
+    padding:2px 6px;
+    border-radius:999px;
+    border:1px solid #22c55e;
+    color:#bbf7d0;
+  }
+
+  .notif-item-text{
+    font-size:13px;
+    opacity:.9;
+    margin-bottom:4px;
+    word-wrap:break-word;
+  }
+  .notif-item-meta{
+    font-size:11px;
+    opacity:.7;
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+  }
+
+  .notif-item-actions{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    align-items:flex-end;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .notif-item-actions .notif-btn{
+    font-size:11px;
+    padding:4px 9px;
+  }
+</style>
+
+<div class="notif-wrap">
+  <header class="notif-header">
+    <div>
+      <div class="notif-title">Сповіщення</div>
+      <div class="notif-sub">
+        Тут збираються всі важливі події: результати Printability Check, оновлення AI-задач,
+        замовлення, коментарі до моделей і системні оновлення Proofly.
+      </div>
+      <div class="notif-badges">
+        <div class="notif-badge">🔔 Централізований фід</div>
+        <div class="notif-badge">✅ Mark as read</div>
+        <div class="notif-badge">⏱ Live-оновлення</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="notif-card">
+    <h2>Усі сповіщення</h2>
+
+    <div class="notif-toolbar">
+      <div class="notif-toolbar-left">
+        <select id="notif-filter" class="notif-select">
+          <option value="all">Показати всі</option>
+          <option value="unread">Тільки непрочитані</option>
+        </select>
+      </div>
+      <div class="notif-toolbar-right">
+        <button id="notif-mark-all" class="notif-btn">
+          ✅ Позначити всі прочитаними
+        </button>
+        <button id="notif-refresh" class="notif-btn">
+          ⟲ Оновити
+        </button>
+      </div>
+    </div>
+
+    <div id="notif-status" class="notif-status"></div>
+
+    <div id="notif-empty" class="notif-empty" style="display:none;">
+      Наразі немає сповіщень. Як тільки буде нова подія (коментар, результат перевірки, AI-завдання) —
+      вона зʼявиться тут.
+    </div>
+
+    <div id="notif-list" class="notif-list">
+      <!-- елементи рендерить notifications.js -->
+    </div>
+  </section>
+</div>
+
+<script type="module">
+  import { initNotifications } from "{{ url_for('static', filename='js/notifications.js') }}";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initNotifications({
+      listId: "notif-list",
+      emptyId: "notif-empty",
+      statusId: "notif-status",
+      filterId: "notif-filter",
+      markAllId: "notif-mark-all",
+      refreshId: "notif-refresh",
+      // Якщо хочеш, одразу включаємо автополінг (оновлення бейджа/списку)
+      autoPoll: true,
+      pollIntervalMs: 60000
+    });
+  });
+</script>
+{% endblock %}
