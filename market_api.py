@@ -1,8 +1,8 @@
 # market_api.py
 # Blueprint JSON API для розділу маркету.
 # Підключення в app.py:
-#   from market_api import bp as market_api_bp
-#   app.register_blueprint(market_api_bp)
+#   import market_api
+#   app.register_blueprint(market_api.bp, url_prefix="/api/market")
 
 from __future__ import annotations
 import json
@@ -25,7 +25,7 @@ from models_market import (
     recompute_item_rating,
 )
 
-# 🔧 ВАЖЛИВО: без url_prefix тут, бо prefix задається в app.register_blueprint(...)
+# 🔧 БЕЗ url_prefix — префікс даємо в app.register_blueprint(..., url_prefix="/api/market")
 bp = Blueprint("market_api", __name__)
 
 
@@ -581,13 +581,16 @@ def track():
 def _handle_unauth(e):
     return _json_error("Unauthorized", 401)
 
+
 @bp.app_errorhandler(404)
 def _handle_404(e):
     return _json_error("Not found", 404)
 
+
 @bp.app_errorhandler(405)
 def _handle_405(e):
     return _json_error("Method not allowed", 405)
+
 
 @bp.app_errorhandler(413)
 def _handle_413(e):
