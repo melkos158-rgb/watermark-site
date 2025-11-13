@@ -2,7 +2,7 @@
 {% set market_page = 'list' %}
 
 {% block market_body %}
-<div class="market-main">
+<div class="market-main" data-market-root>
 
   <!-- Верхній ряд з селектами "Показати" / "Сортувати" -->
   <div class="market-controls">
@@ -31,6 +31,9 @@
     </div>
   </div>
 
+  <!-- Блок для повідомлень (помилка / “немає моделей” / лоадер) -->
+  <div class="market-notice" data-market-notice style="display:none"></div>
+
   <!-- Сітка карток. JS (market.js) підміняє вміст через data-market-grid -->
   <div class="market-grid-wrap">
     <div class="market-grid" data-market-grid>
@@ -38,6 +41,9 @@
         Завантаження моделей…
       </div>
     </div>
+
+    <!-- sentinel для infinite-scroll (опціонально) -->
+    <div class="market-sentinel" data-market-sentinel></div>
   </div>
 
   <!-- Пагінація, заповнюється JS -->
@@ -83,6 +89,7 @@
     border:1px solid var(--line, #1b2131);
     background:rgba(15,17,23,.7);
     padding:16px;
+    position:relative;
   }
 
   .market-grid{
@@ -124,6 +131,25 @@
     background:var(--btn, #1a73e8);
     border-color:var(--btn, #1a73e8);
     color:#fff;
+  }
+
+  .market-notice{
+    margin-bottom:12px;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--line, #1b2131);
+    background:var(--card, #11141b);
+    font-size:14px;
+    color:var(--ink, #e8eaed);
+  }
+
+  .market-notice.error{
+    border-color:#ef4444;
+    color:#fecaca;
+  }
+
+  .market-sentinel{
+    height:1px;
   }
 
   @media (max-width:768px){
