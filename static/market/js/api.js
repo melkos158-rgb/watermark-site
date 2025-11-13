@@ -163,6 +163,19 @@ export function trackMarketEvent(payload = {}) {
   });
 }
 
+/* ───── АЛЬЯСИ ПІД СТАРІ НАЗВИ (щоб не було помилок import) ───── */
+
+// старі назви, які могли використовуватись у favorites.js / reviews.js / analytics.js / search.js
+export const toggleFav   = toggleFavorite;
+export const postReview  = sendReview;
+export const track       = trackMarketEvent;
+export const suggest     = fetchSuggest;
+export const listItems   = fetchItems;
+export const getItem     = fetchItemDetail;
+
+// якщо хтось імпортує buildQuery / apiRequest напряму
+export { buildQuery, apiRequest };
+
 /**
  * Хелпер, щоб зручно використовувати у глобальному коді без import:
  *   window.MARKET_API.fetchItems(...)
@@ -178,5 +191,13 @@ if (typeof window !== "undefined") {
     sendReview,
     createCheckout,
     trackMarketEvent,
+
+    // альяси
+    toggleFav,
+    postReview,
+    track,
+    suggest,
+    listItems,
+    getItem,
   };
 }
