@@ -11,8 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint, Index, func
 
 # ВАЖЛИВО: використовуємо спільний db та User із твого проекту
-# ✅ беремо їх з db.py, а не з models.py
-from db import db, User  # noqa: F401
+from models import db, User  # db = той самий інстанс, User – основна юзер-модель
 
 
 # ───────────────────────── Категорії ─────────────────────────
@@ -82,6 +81,7 @@ class MarketItem(db.Model):
         stem = base[:90] or "item"
         candidate = stem
         n = 1
+        from . import MarketItem as _MI  # уникнути колізії імен при імпорті
         while MarketItem.query.filter_by(slug=candidate).first():
             n += 1
             candidate = f"{stem}-{n}"
@@ -131,7 +131,7 @@ class Favorite(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     user = db.relationship("User", backref="favorite_items")
-    # ⚙️ тут вказуємо повністю кваліфікований шлях, щоб не плутатись з іншим MarketItem
+    # 👇 тут ВАЖЛИВО: повністю кваліфіковане ім’я, щоб не плутати з models.MarketItem
     item = db.relationship("models_market.MarketItem", backref="fav_by")
 
     __table_args__ = (
@@ -156,7 +156,7 @@ class Review(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
-    # ⚙️ те саме: повністю кваліфікований шлях
+    # 👇 знову повністю кваліфіковане ім’я
     item = db.relationship("models_market.MarketItem", backref="reviews")
     user = db.relationship("User")
 
