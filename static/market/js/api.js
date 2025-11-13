@@ -1,6 +1,6 @@
 // static/market/js/api.js
 // Єдиний клієнт для API маркету STL.
-// Використовується іншими модулями: market.js, favorites.js, reviews.js, checkout.js тощо.
+// Використовується іншими модулями: market.js, favorites.js, reviews.js, checkout.js, uploader.js тощо.
 
 const BASE = "/api/market";
 
@@ -24,6 +24,10 @@ function buildQuery(params = {}) {
  *   - null, якщо статус 204
  *   - JSON-обʼєкт у всіх інших випадках
  * Кидає Error, якщо HTTP-статус ≥ 400 або { ok:false }.
+ *
+ * Підтримує два типи body:
+ *   - FormData  → відправляється як multipart/form-data (Content-Type не чіпаємо)
+ *   - будь-який інший → JSON
  */
 async function apiRequest(path, { method = "GET", params, body } = {}) {
   const qs = buildQuery(params);
@@ -37,7 +41,10 @@ async function apiRequest(path, { method = "GET", params, body } = {}) {
     credentials: "same-origin",
   };
 
-  if (body !== undefined) {
+  if (body instanceof FormData) {
+    // multipart upload — не ставимо Content-Type
+    opts.body = body;
+  } else if (body !== undefined) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
@@ -163,15 +170,31 @@ export function trackMarketEvent(payload = {}) {
   });
 }
 
+/**
+ * Завантаження / оновлення моделі (multipart/form-data).
+ * formData:
+ *   title, description, category_slug, is_free, price_cents, cover, file, ...
+ */
+export function uploadModel(formData) {
+  if (!(formData instanceof FormData)) {
+    throw new Error("formData must be instance of FormData");
+  }
+  return apiRequest("/upload", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 /* ───── АЛЬЯСИ ПІД СТАРІ НАЗВИ (щоб не було помилок import) ───── */
 
-// старі назви, які могли використовуватись у favorites.js / reviews.js / analytics.js / search.js
+// старі назви, які могли використовуватись у favorites.js / reviews.js / analytics.js / search.js / uploader.js
 export const toggleFav   = toggleFavorite;
 export const postReview  = sendReview;
 export const track       = trackMarketEvent;
 export const suggest     = fetchSuggest;
 export const listItems   = fetchItems;
 export const getItem     = fetchItemDetail;
+export const upload      = uploadModel;
 
 // якщо хтось імпортує buildQuery / apiRequest напряму
 export { buildQuery, apiRequest };
@@ -191,6 +214,7 @@ if (typeof window !== "undefined") {
     sendReview,
     createCheckout,
     trackMarketEvent,
+    uploadModel,
 
     // альяси
     toggleFav,
@@ -199,5 +223,6 @@ if (typeof window !== "undefined") {
     suggest,
     listItems,
     getItem,
+    upload,
   };
 }
