@@ -7,11 +7,11 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from slugify import slugify
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint, Index, func
 
 # ВАЖЛИВО: використовуємо спільний db та User із твого проекту
-from models import db, User  # noqa: F401
+# ❗ БУЛО: from models import db, User  (але в models.py немає User)
+from db import db, User  # noqa: F401
 
 
 # ───────────────────────── Категорії ─────────────────────────
@@ -83,7 +83,7 @@ class MarketItem(db.Model):
         n = 1
         while MarketItem.query.filter_by(slug=candidate).first():
             n += 1
-            candidate = f"{stem}-{n}"
+            candidate = f"{stem}-{n}"""
         self.slug = candidate
 
     @property
