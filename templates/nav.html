@@ -70,6 +70,16 @@
            href="{{ url_for('profile.donate') }}">Donate</a>
         <span class="sep" aria-hidden="true">|</span>
 
+        <!-- PXP бейдж без імені -->
+        <div class="nav-user-meta">
+          <div class="nav-pxp-pill" title="Ваші PXP токени">
+            <span class="nav-pxp-label">PXP</span>
+            <span class="nav-pxp-value">{{ pxp }}</span>
+          </div>
+        </div>
+
+        <span class="sep" aria-hidden="true">|</span>
+
         <a class="nav-btn {{ 'active' if (request.path == '/profile') else '' }}"
            href="/profile">Профіль</a>
 
@@ -78,14 +88,6 @@
           <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}"
              href="{{ url_for('admin_panel') }}">Admin</a>
         {% endif %}
-
-        <span class="user-chip" style="opacity:.8">
-          {{ (g.user.name if g is defined and g.user and g.user.name
-              else (current_user.name if current_user is defined and current_user.is_authenticated and current_user.name
-              else (g.user.email if g is defined and g.user and g.user.email
-              else (current_user.email if current_user is defined and current_user.is_authenticated else '')))) }}
-          {% if g is defined and g.user and (g.user.pxp is not none) %} • PXP: {{ g.user.pxp }}{% endif %}
-        </span>
 
         <a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a>
       {% else %}
@@ -530,6 +532,36 @@
 
 /* правий блок */
 .nav-right{gap:8px !important}
+
+/* PXP бейдж */
+.nav-user-meta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.nav-pxp-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#111827,#1f2937);
+  border:1px solid rgba(147,197,253,0.4);
+  box-shadow:0 0 12px rgba(59,130,246,0.45);
+  font-size:12px;
+  line-height:1;
+}
+.nav-pxp-label{
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  font-weight:600;
+  color:#93c5fd;
+}
+.nav-pxp-value{
+  font-weight:700;
+  font-size:13px;
+  color:#e5e7eb;
+}
 
 /* Dropdown — базові стилі; реальне меню рендериться у портал */
 .nav-dropdown{ position:relative; display:inline-block; }
