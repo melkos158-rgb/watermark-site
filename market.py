@@ -56,6 +56,7 @@ def _row_to_dict(row) -> Dict[str, Any]:
     except Exception:
         return dict(row)
 
+
 def _parse_int(v, default=0):
     try:
         return int(v)
@@ -65,13 +66,16 @@ def _parse_int(v, default=0):
         except Exception:
             return default
 
+
 def _normalize_free(value: Optional[str]) -> str:
     v = (value or "all").lower()
     return v if v in ("all", "free", "paid") else "all"
 
+
 def _normalize_sort(value: Optional[str]) -> str:
     v = (value or "new").lower()
     return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
+
 
 def _local_media_exists(media_url: str) -> bool:
     """
@@ -91,6 +95,7 @@ def _local_media_exists(media_url: str) -> bool:
 
     abs_path = os.path.join(current_app.root_path, "static", "market_uploads", rel)
     return os.path.isfile(abs_path)
+
 
 def _normalize_cover_url(url: Optional[str]) -> str:
     """
@@ -117,6 +122,7 @@ def _normalize_cover_url(url: Optional[str]) -> str:
         return f"/media/{rest}"
 
     return COVER_PLACEHOLDER
+
 
 def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     if not file_storage or not getattr(file_storage, "filename", ""):
@@ -163,11 +169,13 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     rel_inside_market = os.path.join(subdir, name).replace("\\", "/")
     return f"/media/{rel_inside_market}"
 
+
 def json_dumps_safe(obj) -> str:
     try:
         return json.dumps(obj, ensure_ascii=False)
     except Exception:
         return "[]"
+
 
 # ───────────────────────────── NEW: категорії в g ─────────────────────────────
 @bp.before_app_request
@@ -194,11 +202,13 @@ def page_market():
     # ✅ рендеримо новий список маркету
     return render_template("market/index.html")
 
+
 @bp.get("/market/mine")
 def page_market_mine():
     # якщо є новий шаблон — можна відрендерити тут;
     # інакше залишаємо як було
     return render_template("market_mine.html")
+
 
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
@@ -233,13 +243,22 @@ def page_item(item_id: int):
 
     return render_template("market/detail.html", item=d)
 
+
+# 🔧 сторінка завантаження (старий шлях /upload)
 @bp.get("/upload")
 def page_upload():
-    return render_template("upload.html")
+    return render_template("market/uploader.html")
+
+
+# 🔧 додатковий шлях /market/upload, щоб працювали лінки з маркету
+@bp.get("/market/upload")
+def page_market_upload():
+    return render_template("market/uploader.html")
+
 
 @bp.get("/edit/<int:item_id>")
 def page_edit_item(item_id: int):
-    return render_template("edit.html")
+    return render_template("market/edit.html")
 
 
 @bp.get("/api/items")
@@ -253,14 +272,14 @@ def api_items():
     dialect = db.session.get_bind().dialect.name
     if dialect == "postgresql":
         title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
-        tags_expr  = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
+        tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
         cover_expr = "COALESCE(cover_url, '')"
-        url_expr   = "stl_main_url"
+        url_expr = "stl_main_url"
     else:
         title_expr = "LOWER(COALESCE(title, ''))"
-        tags_expr  = "LOWER(COALESCE(tags,  ''))"
+        tags_expr = "LOWER(COALESCE(tags,  ''))"
         cover_expr = "COALESCE(cover_url, '')"
-        url_expr   = "stl_main_url"
+        url_expr = "stl_main_url"
 
     where, params = [], {}
     if q:
@@ -536,8 +555,8 @@ def api_upload():
         form, files = request.form, request.files
         title = (form.get("title") or "").strip()
         price = _parse_int(form.get("price"), 0)
-        desc  = (form.get("desc") or "").strip()
-        fmt   = (form.get("format") or "stl").strip().lower()
+        desc = (form.get("desc") or "").strip()
+        fmt = (form.get("format") or "stl").strip().lower()
 
         raw_tags = form.get("tags") or ""
         try:
@@ -546,7 +565,7 @@ def api_upload():
             tags_val = raw_tags
 
         file_url = (form.get("stl_url") or (form.get("url") or "")).strip()
-        zip_url  = (form.get("zip_url") or "").strip()
+        zip_url = (form.get("zip_url") or "").strip()
 
         stl_extra_files = files.getlist("stl_files") if "stl_files" in files else []
         stl_urls = []
@@ -589,10 +608,10 @@ def api_upload():
         data = request.get_json(silent=True) or {}
         title = (data.get("title") or "").strip()
         price = _parse_int(data.get("price"), 0)
-        desc  = (data.get("desc") or "").strip()
-        fmt   = (data.get("format") or "stl").strip().lower()
+        desc = (data.get("desc") or "").strip()
+        fmt = (data.get("format") or "stl").strip().lower()
         file_url = (data.get("url") or data.get("file_url") or "").strip()
-        zip_url  = (data.get("zip_url") or "").strip()
+        zip_url = (data.get("zip_url") or "").strip()
         cover = (data.get("cover") or data.get("cover_url") or "").strip()
         tags_val = data.get("tags") or ""
         user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
@@ -608,7 +627,7 @@ def api_upload():
         cover = COVER_PLACEHOLDER
 
     if isinstance(tags_val, list):
-        tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip() ])
+        tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
     else:
         tags_str = str(tags_val or "")
 
