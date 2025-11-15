@@ -247,7 +247,7 @@ def page_item(item_id: int):
 # 🔧 сторінка завантаження (старий шлях /upload)
 @bp.get("/upload")
 def page_upload():
-    # тут використовується існуючий шаблон templates/upload.html
+    # використовуємо вже існуючий шаблон templates/upload.html
     return render_template("upload.html")
 
 
@@ -388,6 +388,12 @@ def api_items():
     })
 
 
+# ✅ СТАРИЙ ШЛЯХ ДЛЯ СУМІСНОСТІ: /api/market/items
+@bp.get("/api/market/items")
+def api_items_compat():
+    return api_items()
+
+
 @bp.get("/api/my/items")
 def api_my_items():
     uid = _parse_int(session.get("user_id"), 0)
@@ -486,6 +492,12 @@ def api_my_items():
         "pages": math.ceil(total / per_page) if per_page else 1,
         "total": total
     })
+
+
+# ✅ СТАРИЙ ШЛЯХ ДЛЯ СУМІСНОСТІ: /api/market/my-items
+@bp.get("/api/market/my-items")
+def api_my_items_compat():
+    return api_my_items()
 
 
 @bp.get("/api/item/<int:item_id>")
