@@ -247,13 +247,15 @@ def page_item(item_id: int):
 # 🔧 сторінка завантаження (старий шлях /upload)
 @bp.get("/upload")
 def page_upload():
-    return render_template("market/uploader.html")
+    # тут використовується існуючий шаблон templates/upload.html
+    return render_template("upload.html")
 
 
 # 🔧 додатковий шлях /market/upload, щоб працювали лінки з маркету
 @bp.get("/market/upload")
 def page_market_upload():
-    return render_template("market/uploader.html")
+    # теж рендеримо той самий upload.html
+    return render_template("upload.html")
 
 
 @bp.get("/edit/<int:item_id>")
