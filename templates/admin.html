@@ -41,7 +41,7 @@
   <!-- Поточний активний банер (що бачать користувачі зараз) -->
   <div class="card">
     <h2>Поточний банер на головній</h2>
-    {% set _src = banner.image_path %}
+    {% set _src = banner['image_path'] %}
     {% if _src and not _src.startswith('http') %}
       {% set _src = url_for('static', filename=_src) %}
     {% endif %}
@@ -52,8 +52,8 @@
            src="{{ _src }}?t={{ request.args.get('t','') }}"
            alt="Active banner">
     </div>
-    {% if banner.link_url %}
-      <div class="hint">Посилання при кліку: <code>{{ banner.link_url }}</code></div>
+    {% if banner['link_url'] %}
+      <div class="hint">Посилання при кліку: <code>{{ banner['link_url'] }}</code></div>
     {% else %}
       <div class="hint">Посилання при кліку не задано.</div>
     {% endif %}
