@@ -39,6 +39,10 @@
   @media (max-width:560px){.stat-value{font-size:42px}}
 
   .stat-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+  /* обгортка для графіка */
+  .chart-wrap{margin-top:16px;height:190px}
+  .chart-wrap canvas{width:100%;height:100%}
 </style>
 
 <div class="admin-wrap">
@@ -133,6 +137,11 @@
       </div>
     </div>
 
+    <!-- 🔘 Графік відвідувачів -->
+    <div class="chart-wrap">
+      <canvas id="visitsChart"></canvas>
+    </div>
+
     <!-- 🔘 Кнопка скидання відвідувачів -->
     <div class="stat-actions">
       <form action="{{ url_for('admin_reset_visits') }}" method="post"
@@ -179,7 +188,16 @@
   </div>
 </div>
 
-<!-- ===== JS: інтерактивний прев'ю + пробиття кешу банера ===== -->
+{# Масив для графіка (опційний): [{'label':'...', 'count':...}, ...] #}
+{% set vc = visits_chart if visits_chart is defined else [] %}
+<script>
+  window.__VISITS_TIMESERIES__ = {{ vc|tojson|safe }};
+</script>
+
+<!-- Chart.js для графіка -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- ===== JS: інтерактивний прев'ю + пробиття кешу банера + графік ===== -->
 <script>
 /* === Інтерактивний прев'ю-редактор === */
 (function(){
@@ -266,6 +284,66 @@
     const t = url.searchParams.get('t') || Date.now();
     img.src = img.dataset.base + (img.dataset.base.includes('?') ? '&' : '?') + 't=' + t;
   }
+})();
+
+/* === Графік відвідувачів (лінія) === */
+(function(){
+  var canvas = document.getElementById('visitsChart');
+  if (!canvas) return;
+
+  var raw = window.__VISITS_TIMESERIES__ || [];
+  // якщо з бека нічого не прийшло – робимо просту лінію з 7 точок
+  if (!raw.length) {
+    var total = {{ am.monthly_visitors|default(0) }};
+    var days = 7;
+    for (var i = 1; i <= days; i++) {
+      raw.push({
+        label: 'День ' + i,
+        count: Math.round(total * i / days)
+      });
+    }
+  }
+
+  var labels = raw.map(function(p){ return p.label || p.date || ''; });
+  var data   = raw.map(function(p){ return p.count || p.value || 0; });
+
+  function start(){
+    if (!window.Chart) { setTimeout(start, 80); return; }
+
+    var ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Відвідувачі',
+          data: data,
+          tension: 0.3,
+          fill: false,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#9fb0d4' },
+            grid: { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#9fb0d4' },
+            grid: { color: '#1f2937' }
+          }
+        }
+      }
+    });
+  }
+  start();
 })();
 </script>
 {% endblock %}
