@@ -70,7 +70,7 @@
     <h2>Змінити дефолтний банер</h2>
     <p class="hint">Цей банер показується, якщо TOP-1 ще не поставив свій або його перегнали.</p>
     <form id="formDefaultBanner"
-          action="{{ url_for('admin_banner_default') }}"
+          action="{{ url_for('ads.admin_banner_default') }}"
           method="post"
           enctype="multipart/form-data"
           style="margin-top:10px">
@@ -104,9 +104,9 @@
   <div class="card">
     <h2>Керування банером TOP-1</h2>
     <p class="hint">Якщо TOP-1 розмістив небажане зображення — вимкни його. Повернеться дефолтний банер.</p>
-    <form action="{{ url_for('admin_disable_top_banner') }}" method="post" class="actions">
+    <form action="{{ url_for('ads.admin_disable_top_banner') }}" method="post" class="actions">
       <button class="btn btn-danger" type="submit">Вимкнути банер TOP-1</button>
-      <a class="btn btn-ghost" href="{{ url_for('ad_upload') }}">Завантажити банер як TOP-1</a>
+      <a class="btn btn-ghost" href="{{ url_for('ads.ad_upload') }}">Завантажити банер як TOP-1</a>
     </form>
   </div>
 
