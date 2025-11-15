@@ -6,6 +6,12 @@
   'total_users': 0, 'online_now': 0, 'monthly_visitors': 0
 } %}
 
+{# SAFE defaults: якщо banner взагалі не передали у контексті #}
+{% set b = banner if banner is defined else {
+  'image_path': '',
+  'link_url': ''
+} %}
+
 <style>
   .admin-wrap{max-width:900px;margin:28px auto;padding:20px;background:#171922;border-radius:14px}
   .admin-h1{margin:0 0 16px 0}
@@ -41,7 +47,7 @@
   <!-- Поточний активний банер (що бачать користувачі зараз) -->
   <div class="card">
     <h2>Поточний банер на головній</h2>
-    {% set _src = banner['image_path'] %}
+    {% set _src = b['image_path'] %}
     {% if _src and not _src.startswith('http') %}
       {% set _src = url_for('static', filename=_src) %}
     {% endif %}
@@ -49,11 +55,11 @@
       <!-- cache-bust: додаємо id і базовий шлях, src з ?t= -->
       <img id="activeBanner"
            data-base="{{ _src }}"
-           src="{{ _src }}?t={{ request.args.get('t','') }}"
+           src="{{ _src }}{% if _src %}?t={{ request.args.get('t','') }}{% endif %}"
            alt="Active banner">
     </div>
-    {% if banner['link_url'] %}
-      <div class="hint">Посилання при кліку: <code>{{ banner['link_url'] }}</code></div>
+    {% if b['link_url'] %}
+      <div class="hint">Посилання при кліку: <code>{{ b['link_url'] }}</code></div>
     {% else %}
       <div class="hint">Посилання при кліку не задано.</div>
     {% endif %}
@@ -251,10 +257,10 @@
   }
   // 2) Якщо сторінка без t, все одно підміняємо src активного банера
   const img = document.getElementById('activeBanner');
-  if (img) {
+  if (img && img.dataset.base) {
     const url = new URL(window.location.href);
     const t = url.searchParams.get('t') || Date.now();
-    img.src = img.dataset.base + '?t=' + t;
+    img.src = img.dataset.base + (img.dataset.base.includes('?') ? '&' : '?') + 't=' + t;
   }
 })();
 </script>
