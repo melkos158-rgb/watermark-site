@@ -114,10 +114,37 @@
   .market-grid{
     display:grid;
     gap:16px;
-    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  }
+
+  /* КОЖНА картка, яку малює JS */
+  .market-grid > *{
+    background:var(--card, #11141b);
+    border-radius:14px;
+    border:1px solid var(--line, #1b2131);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Зображення всередині карток — нормальний формат */
+  .market-grid img{
+    width:100%;
+    display:block;
+    aspect-ratio:4/3;
+    object-fit:cover;
+  }
+
+  /* Низ картки з текстом (як би JS не назвав клас) */
+  .market-grid .mi-body,
+  .market-grid .card-body,
+  .market-grid .body{
+    padding:10px 12px 12px;
+    font-size:13px;
   }
 
   .market-grid-placeholder{
+    grid-column:1 / -1;
     text-align:center;
     font-size:14px;
     color:var(--muted, #9fb0d4);
