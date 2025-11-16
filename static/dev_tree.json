@@ -74,6 +74,67 @@
           "status": "ok"
         },
         {
+          "id": "tpl_market_bundles",
+          "label": "templates/bundles.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_market_printability",
+          "label": "templates/printability.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_market_parametric",
+          "label": "templates/parametric.html",
+          "type": "template",
+          "status": "fix"
+        },
+        {
+          "id": "tpl_market_gcode_viewer",
+          "label": "templates/gcode_viewer.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_printer_profiles",
+          "label": "templates/printer_profiles.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_license_manager",
+          "label": "templates/license_manager.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_licenses",
+          "label": "templates/licenses.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_notifications",
+          "label": "templates/notifications.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_stats",
+          "label": "templates/stats.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_analytics",
+          "label": "templates/analytics.html",
+          "type": "template",
+          "status": "ok"
+        },
+
+        {
           "id": "js_stl_viewer",
           "label": "static/js/stl_viewer.js",
           "type": "js",
@@ -86,8 +147,81 @@
           "status": "ok"
         },
         {
+          "id": "js_bundle_cart",
+          "label": "static/market/js/bundle_cart.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_printability_check",
+          "label": "static/market/js/printability_check.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_parametric_ui",
+          "label": "static/market/js/parametric_ui.js",
+          "type": "js",
+          "status": "fix"
+        },
+        {
+          "id": "js_gcode_viewer",
+          "label": "static/market/js/gcode_viewer.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_printer_profiles",
+          "label": "static/market/js/printer_profiles.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_notifications",
+          "label": "static/market/js/notifications.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_stats_charts",
+          "label": "static/market/js/stats_charts.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_dashboard_ai_tools",
+          "label": "static/market/js/dashboard_ai_tools.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_market_listeners",
+          "label": "static/market/js/market_listeners.js",
+          "type": "js",
+          "status": "ok"
+        },
+
+        {
           "id": "css_viewer",
           "label": "static/css/viewer.css",
+          "type": "css",
+          "status": "ok"
+        },
+        {
+          "id": "css_animations",
+          "label": "static/css/animations.css",
+          "type": "css",
+          "status": "ok"
+        },
+        {
+          "id": "css_market_cards",
+          "label": "static/css/market_cards.css",
+          "type": "css",
+          "status": "ok"
+        },
+        {
+          "id": "css_search",
+          "label": "static/css/search.css",
           "type": "css",
           "status": "ok"
         }
@@ -122,13 +256,13 @@
       "status": "fix",
       "children": [
         {
-          "id": "tpl_parametric",
+          "id": "tpl_parametric_dup",
           "label": "templates/parametric.html",
           "type": "template",
           "status": "fix"
         },
         {
-          "id": "js_parametric",
+          "id": "js_parametric_dup",
           "label": "static/market/js/parametric_ui.js",
           "type": "js",
           "status": "fix"
@@ -212,6 +346,111 @@
           "id": "css_dev_map",
           "label": "static/css/dev_map.css",
           "type": "css",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_api_routes",
+      "label": "api_routes/* (Auto API Blueprints)",
+      "type": "group",
+      "status": "ok",
+      "children": [
+        {
+          "id": "api_market_api",
+          "label": "market_api.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "api_lang_api",
+          "label": "lang_api.py",
+          "type": "module",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_models",
+      "label": "models / models_market",
+      "type": "group",
+      "status": "ok",
+      "children": [
+        {
+          "id": "models_py",
+          "label": "models.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "models_market_py",
+          "label": "models_market.py",
+          "type": "module",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_backend_tools",
+      "label": "Backend tools / worker / analytics",
+      "type": "group",
+      "status": "ok",
+      "children": [
+        {
+          "id": "worker_py",
+          "label": "worker.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "printability_check_py",
+          "label": "printability_check.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "parametric_api_py",
+          "label": "parametric_api.py",
+          "type": "module",
+          "status": "fix"
+        },
+        {
+          "id": "gcode_metrics_py",
+          "label": "gcode_metrics.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "printer_profiles_py",
+          "label": "printer_profiles.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "license_api_py",
+          "label": "license_api.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "notifications_api_py",
+          "label": "notifications_api.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "bundles_api_py",
+          "label": "bundles_api.py",
+          "type": "module",
+          "status": "ok"
+        },
+        {
+          "id": "analytics_py",
+          "label": "analytics.py",
+          "type": "module",
           "status": "ok"
         }
       ]
