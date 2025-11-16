@@ -1,0 +1,126 @@
+/* =============================
+   DEV ISSUES PAGE — FULL CSS
+   ============================= */
+
+body {
+  color: #e5e7eb;
+}
+
+/* Контейнер */
+.dev-issues-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 18px;
+  margin-bottom: 40px;
+}
+
+/* Карточка фічі */
+.issue-card {
+  background: #0f1117;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.issue-card:hover {
+  background: #131721;
+  border-color: #374151;
+}
+
+/* Хедер фічі */
+.issue-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.issue-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Статус текст */
+.issue-status {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Статуси кольорами */
+.issue-ok {
+  border-left: 5px solid #16a34a;   /* Зелений — все ОК */
+}
+
+.issue-fix {
+  border-left: 5px solid #3b82f6;   /* Синій — потрібна правка */
+}
+
+.issue-error {
+  border-left: 5px solid #ef4444;   /* Червоний — проблема */
+}
+
+.issue-orphan {
+  border-left: 5px solid #9ca3af;   /* Сірий — не підключений код */
+}
+
+/* Секція списків */
+.issue-section {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.issue-section ul {
+  padding-left: 18px;
+  margin-top: 6px;
+}
+
+.issue-section li {
+  margin-bottom: 4px;
+  color: #d1d5db;
+}
+
+/* Проблеми */
+.problem-item {
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.problem-item:hover .problem-link {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.problem-link {
+  color: #d1d5db;
+}
+
+/* Деталі проблеми */
+.problem-detail {
+  border: 1px solid #374151;
+  background: #0a0d14;
+  padding: 14px;
+  border-radius: 12px;
+  margin-top: 20px;
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+#pd-title {
+  margin-bottom: 10px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+#pd-text {
+  white-space: pre-wrap;
+  font-size: 14px;
+}
+
+/* Дрібні елементи */
+.issue-card strong {
+  color: #93c5fd;
+}
