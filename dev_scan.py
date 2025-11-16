@@ -1,251 +1,346 @@
-"""
-dev_scan.py
-===========
-
-Утиліта для побудови дерева файлів для Dev Map.
-
-Функції:
-- build_dev_tree(base_dir: str, overrides_path: str | None = None) -> dict
-    Повертає дерево у форматі, сумісному з dev_map.js:
-    {
-      "id": "app",
-      "label": "app.py",
-      "type": "core",
-      "status": "ok",
-      "children": [ ... ]
-    }
-
-- load_overrides(path) -> dict
-    Читає static/dev_overrides.json (якщо є) і повертає
-    словник: rel_path -> {status, feature, notes, ...}
-"""
+# dev_scan.py
+# Автосканер структури проєкту Proofly для Dev Map.
+#
+# Робить:
+#  - проходить по всіх файлах від root_path
+#  - збирає .py, .js, .css, .html, .json, .sql
+#  - аналізує імпорти / інклюди:
+#       * Python: import / from ... import ...
+#       * JS: import ... from "./..." / require("...")
+#       * Jinja: {% include "..." %}, {% extends "..." %}
+#       * HTML: посилання на static/js/*.js та static/css/*.css
+#  - будує дерево з коренем app.py
+#  - всі файли, до яких ніхто не підключається, кидає в "orphans"
+#
+# Повертає дерево у форматі, який чекає dev_bp/dev_map:
+#  {
+#    "id": "app_py",
+#    "label": "app.py",
+#    "path": "app.py",
+#    "type": "py",
+#    "status": "ok",
+#    "feature": "",
+#    "notes": "",
+#    "children": [ ... ]
+#  }
 
 from __future__ import annotations
 
-import json
 import os
-from typing import Dict, Any, Optional
+import json
+import re
+from typing import Dict, List, Set, Tuple, Optional
 
 
-IGNORED_DIRS = {
-    ".git",
-    "__pycache__",
-    "node_modules",
-    ".idea",
-    ".vscode",
-    ".venv",
-    "venv",
-}
+# ---- утиліти ---------------------------------------------------------------
+
+def _norm_path(path: str) -> str:
+  """Нормалізує шлях у вигляді з / (щоб однаково працювало на всіх ОС)."""
+  return os.path.normpath(path).replace(os.sep, "/")
 
 
-def load_overrides(path: str) -> Dict[str, Dict[str, Any]]:
-    """
-    Читає JSON з перевизначеннями статусів/фіч/нотаток.
-    Формат файлу (static/dev_overrides.json):
-
-    {
-      "templates/market/item.html": {
-        "status": "fix",
-        "feature": "STL Market — сторінка моделі",
-        "notes": "viewer лагає на мобілці"
-      },
-      "ai/ai_api.py": {
-        "status": "error",
-        "feature": "AI Tools",
-        "notes": "500 error при завантаженні"
-      }
-    }
-
-    :param path: абсолютний шлях до JSON
-    :return: dict { rel_path: overrides_dict }
-    """
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, dict):
-            # ключі — це шляхи від кореня проєкту (relpath)
-            return {str(k): (v or {}) for k, v in data.items()}
-        return {}
-    except FileNotFoundError:
-        return {}
-    except Exception:
-        # при помилці читаємо пустий словник, щоб не ламати dev map
-        return {}
+def _make_id(path: str) -> str:
+  """
+  Стабільний id для ноди: шлях з /, де / та . замінені.
+  Приклад: 'static/js/dev_map.js' -> 'static_js_dev_map_js'
+  """
+  p = _norm_path(path)
+  return p.replace("/", "_").replace(".", "_")
 
 
-def guess_type(rel_path: str) -> str:
-    """
-    Визначає тип вузла за шляхом.
-    """
-    rel = rel_path.replace("\\", "/")
-
-    if rel.startswith("templates/"):
-        return "template"
-
-    if rel.startswith("static/"):
-        if "/js/" in rel or rel.endswith(".js"):
-            return "js"
-        if "/css/" in rel or rel.endswith(".css"):
-            return "css"
-        return "static"
-
-    if rel.endswith(".py"):
-        return "module"
-
-    return "file"
+def _guess_type(path: str) -> str:
+  ext = os.path.splitext(path)[1].lower()
+  if ext == ".py":
+    return "py"
+  if ext == ".js":
+    return "js"
+  if ext == ".css":
+    return "css"
+  if ext in (".html", ".htm"):
+    return "html"
+  if ext == ".json":
+    return "json"
+  if ext in (".sql",):
+    return "sql"
+  if ext in (".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"):
+    return "img"
+  return "other"
 
 
-def guess_feature(rel_path: str) -> Optional[str]:
-    """
-    Груба спроба віднести файл до якоїсь фічі.
-    Це тільки для зручності у правій панелі, нічого критичного.
-    """
-    rel = rel_path.replace("\\", "/").lower()
+def _read_text(path: str) -> str:
+  try:
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+      return f.read()
+  except Exception:
+    return ""
 
-    if "market" in rel:
-        return "STL Market"
-    if "/ai_" in rel or "/ai/" in rel:
-        return "AI Tools"
-    if "parametric" in rel:
-        return "Parametric Generator"
-    if "gcode" in rel:
-        return "G-code Viewer"
-    if "printer" in rel:
-        return "Printer Profiles"
-    if "license" in rel:
-        return "License Manager"
-    if "notify" in rel or "notification" in rel:
-        return "Notifications"
-    if "stats" in rel or "analytics" in rel:
-        return "Stats / Analytics"
-    if "profile" in rel:
-        return "User Profile"
-    if "auth" in rel or "login" in rel or "register" in rel:
-        return "Auth / Login"
-    if "core_pages" in rel or "index.html" in rel:
-        return "Core pages"
 
+# ---- сканування файлової системи ------------------------------------------
+
+def _collect_files(root_path: str) -> List[str]:
+  """
+  Збирає всі файли проєкту, які нам цікаві.
+  """
+  exts = {".py", ".js", ".css", ".html", ".htm", ".json", ".sql"}
+  collected: List[str] = []
+
+  for dirpath, dirnames, filenames in os.walk(root_path):
+    # пропускаємо приховані папки типу .git, __pycache__ і т.п.
+    base = os.path.basename(dirpath)
+    if base.startswith(".") or base in ("__pycache__", "venv", ".venv"):
+      continue
+
+    for fname in filenames:
+      _, ext = os.path.splitext(fname)
+      if ext.lower() in exts:
+        full = os.path.join(dirpath, fname)
+        collected.append(_norm_path(os.path.relpath(full, root_path)))
+
+  return collected
+
+
+# ---- парсери залежностей ---------------------------------------------------
+
+# прості regex-и, не ідеально, але ок для dev-карти
+RE_PY_IMPORT = re.compile(r"^\s*import\s+([a-zA-Z0-9_.,\s]+)", re.MULTILINE)
+RE_PY_FROM   = re.compile(r"^\s*from\s+([a-zA-Z0-9_.]+)\s+import\s+([a-zA-Z0-9_.*, \t]+)", re.MULTILINE)
+
+RE_JS_IMPORT = re.compile(r"import\s+.+?\s+from\s+['\"](.+?)['\"]", re.MULTILINE)
+RE_JS_REQ    = re.compile(r"require\(\s*['\"](.+?)['\"]\s*\)")
+
+RE_JINJA_INC = re.compile(r"\{%\s*(?:include|extends)\s+\"([^\"]+)\"\s*%}")
+RE_HTML_STAT = re.compile(r"(?:href|src)\s*=\s*['\"][^'\"]*static/([^'\"]+)['\"]")
+
+
+def _resolve_js_relative(base_path: str, import_str: str) -> Optional[str]:
+  """
+  Перетворює відносний імпорт ('./foo', '../bar/baz') у нормальний шлях
+  всередині проєкту (static/js/... або market/js/... і т.п.).
+  Повертає відносний шлях від root або None.
+  """
+  # зовнішні/URL не чіпаємо
+  if "://" in import_str or import_str.startswith(("/", "http", "https")):
     return None
 
+  # якщо немає ./ або ../ — скоріше за все це бібліотека, пропускаємо
+  if not import_str.startswith("."):
+    return None
 
-def default_status_for(rel_path: str) -> str:
-    """
-    Базовий статус, якщо немає оверрайдів.
-    Можна додати прості хардкод-правила.
-    """
-    name = os.path.basename(rel_path).lower()
-    if "old_" in name or "test" in name:
-        return "orphan"
-    return "ok"
+  base_dir = os.path.dirname(base_path)
+  candidate = os.path.normpath(os.path.join(base_dir, import_str))
+
+  # якщо немає розширення — пробуємо .js
+  if not os.path.splitext(candidate)[1]:
+    candidate_js = candidate + ".js"
+  else:
+    candidate_js = candidate
+
+  return _norm_path(candidate_js)
 
 
-def build_dev_tree(base_dir: str, overrides_path: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Складає дерево файлів проекту.
+def _parse_dependencies_for_file(root_path: str,
+                                 rel_path: str,
+                                 all_files: Set[str]) -> Set[str]:
+  """
+  Повертає множину відносних шляхів файлів, від яких залежить rel_path.
+  """
+  full_path = os.path.join(root_path, rel_path)
+  content = _read_text(full_path)
+  deps: Set[str] = set()
 
-    :param base_dir: корінь проєкту (current_app.root_path)
-    :param overrides_path: шлях до static/dev_overrides.json (або None)
-    :return: dict — кореневий вузол дерева
-    """
-    base_dir = os.path.abspath(base_dir)
+  ext = os.path.splitext(rel_path)[1].lower()
 
-    if overrides_path is None:
-        overrides_path = os.path.join(base_dir, "static", "dev_overrides.json")
+  # --- Python імпорти ------------------------------------------------------
+  if ext == ".py":
+    # мапа за basename (без .py)
+    by_name: Dict[str, List[str]] = {}
+    for f in all_files:
+      if f.endswith(".py"):
+        name = os.path.splitext(os.path.basename(f))[0]
+        by_name.setdefault(name, []).append(f)
 
-    overrides = load_overrides(overrides_path)
+    def _add_module(mod: str) -> None:
+      short = mod.split(".")[-1]
+      for cand in by_name.get(short, []):
+        deps.add(cand)
 
-    # Кореневий вузол — app.py, якщо існує, інакше "Project root"
-    app_py = os.path.join(base_dir, "app.py")
-    root_label = "app.py" if os.path.exists(app_py) else "Project root"
+    for match in RE_PY_IMPORT.findall(content):
+      parts = [p.strip() for p in match.split(",") if p.strip()]
+      for p in parts:
+        # import a.b.c -> беремо останню частину
+        _add_module(p.split()[-1])
 
-    root: Dict[str, Any] = {
-        "id": "app",
-        "label": root_label,
-        "type": "core",
-        "status": "ok",
-        "children": []
+    for mod, _names in RE_PY_FROM.findall(content):
+      _add_module(mod)
+
+  # --- JS імпорти ----------------------------------------------------------
+  elif ext == ".js":
+    all_files_set = set(all_files)
+    for imp in RE_JS_IMPORT.findall(content):
+      resolved = _resolve_js_relative(rel_path, imp)
+      if resolved and resolved in all_files_set:
+        deps.add(resolved)
+    for imp in RE_JS_REQ.findall(content):
+      resolved = _resolve_js_relative(rel_path, imp)
+      if resolved and resolved in all_files_set:
+        deps.add(resolved)
+
+  # --- Jinja шаблони / HTML ------------------------------------------------
+  if ext in (".html", ".htm"):
+    # {% include "market/item.html" %}
+    for tpl in RE_JINJA_INC.findall(content):
+      tpl_path = _norm_path(os.path.join("templates", tpl))
+      if tpl_path in all_files:
+        deps.add(tpl_path)
+
+    # static/js/... або static/css/...
+    for static_rel in RE_HTML_STAT.findall(content):
+      candidate = _norm_path(os.path.join("static", static_rel))
+      if candidate in all_files:
+        deps.add(candidate)
+
+  return deps
+
+
+# ---- побудова дерева -------------------------------------------------------
+
+def _make_node_dict(path: str) -> Dict:
+  return {
+    "id": _make_id(path),
+    "label": os.path.basename(path),
+    "path": path,
+    "type": _guess_type(path),
+    "status": "ok",
+    "feature": "",
+    "notes": "",
+    "children": []
+  }
+
+
+def _apply_overrides(root_path: str,
+                     nodes_by_path: Dict[str, Dict]) -> None:
+  """
+  Підтягуємо налаштування з static/dev_overrides.json, якщо він є.
+  Ключі у overrides можуть бути або повним шляхом, або basename.
+  """
+  overrides_path = os.path.join(root_path, "static", "dev_overrides.json")
+  try:
+    with open(overrides_path, "r", encoding="utf-8") as f:
+      overrides = json.load(f)
+  except Exception:
+    overrides = {}
+
+  if not isinstance(overrides, dict):
+    return
+
+  for path, node in nodes_by_path.items():
+    norm = _norm_path(path)
+    base = os.path.basename(path)
+    for key, cfg in overrides.items():
+      if key == norm or key == base:
+        if not isinstance(cfg, dict):
+          continue
+        for field in ("type", "status", "feature", "notes", "label"):
+          if field in cfg:
+            node[field] = cfg[field]
+
+
+def build_dev_tree(root_path: str) -> Dict:
+  """
+  Головна функція, яку викликає dev_bp.
+  root_path — корінь проєкту (де лежить app.py).
+
+  Повертає дерево для Dev Map.
+  """
+  root_path = os.path.abspath(root_path)
+
+  # 1) збираємо всі файли
+  files = _collect_files(root_path)
+  all_files_set = set(files)
+
+  if not files:
+    # fallback — мінімальне дерево
+    return {
+      "id": "app",
+      "label": "app.py",
+      "path": "app.py",
+      "type": "py",
+      "status": "ok",
+      "feature": "",
+      "notes": "dev_scan: файлів не знайдено",
+      "children": []
     }
 
-    # Групи: python / templates / js / css / static / other
-    groups: Dict[str, Dict[str, Any]] = {}
+  # 2) створюємо ноди
+  nodes_by_path: Dict[str, Dict] = {f: _make_node_dict(f) for f in files}
 
-    def get_group(key: str, label: str, status: str = "ok") -> Dict[str, Any]:
-        if key not in groups:
-            groups[key] = {
-                "id": f"group_{key}",
-                "label": label,
-                "type": "group",
-                "status": status,
-                "children": []
-            }
-        return groups[key]
+  # 3) парсимо залежності
+  deps: Dict[str, Set[str]] = {}
+  for path in files:
+    deps[path] = _parse_dependencies_for_file(root_path, path, all_files_set)
 
-    # Проходимо по всіх файлах
-    for dirpath, dirnames, filenames in os.walk(base_dir):
-        # фільтруємо службові папки
-        dirnames[:] = [
-            d for d in dirnames
-            if d not in IGNORED_DIRS and not d.startswith(".")
-        ]
+  # 4) підтягуємо overrides
+  _apply_overrides(root_path, nodes_by_path)
 
-        for name in filenames:
-            full_path = os.path.join(dirpath, name)
-            rel_path = os.path.relpath(full_path, base_dir).replace("\\", "/")
+  # 5) визначаємо корінь (app.py), якщо нема — створюємо штучний root
+  app_rel = "app.py"
+  app_rel_norm = _norm_path(app_rel)
 
-            # ігноруємо сам dev_tree.json / dev_graph.json / overrides
-            if rel_path.startswith("static/dev_tree.json") or rel_path.startswith("static/dev_graph.json") \
-               or rel_path.startswith("static/dev_overrides.json"):
-                continue
+  if app_rel_norm in nodes_by_path:
+    root_path_key = app_rel_norm
+    root_node = nodes_by_path[root_path_key]
+  else:
+    root_path_key = "__root__"
+    root_node = {
+      "id": "root",
+      "label": "Project root",
+      "path": "",
+      "type": "group",
+      "status": "ok",
+      "feature": "Root",
+      "notes": "",
+      "children": []
+    }
 
-            # ігноруємо приховані файли
-            if os.path.basename(rel_path).startswith("."):
-                continue
+  # 6) будуємо дерево: DFS від root, інші — в 'orphans'
+  visited: Set[str] = set()
 
-            # тип
-            node_type = guess_type(rel_path)
+  def attach_children(path: str, node: Dict):
+    if path in visited:
+      return
+    visited.add(path)
+    for dep in sorted(deps.get(path, [])):
+      child_node = nodes_by_path.get(dep)
+      if not child_node:
+        continue
+      node.setdefault("children", []).append(child_node)
+      attach_children(dep, child_node)
 
-            # оверрайди
-            ov = overrides.get(rel_path, {})
-            status = ov.get("status") or default_status_for(rel_path)
-            feature = ov.get("feature") or guess_feature(rel_path)
-            notes = ov.get("notes")
+  if root_path_key in nodes_by_path:
+    attach_children(root_path_key, root_node)
 
-            node: Dict[str, Any] = {
-                "id": rel_path.replace("/", "_"),
-                "label": rel_path,
-                "type": node_type,
-                "status": status
-            }
+  # 7) додаємо "orphans" (файли, до яких ніхто не підключається)
+  orphan_children: List[Dict] = []
+  for path, node in nodes_by_path.items():
+    if path == root_path_key:
+      continue
+    if path not in visited:
+      # позначаємо як сиріт
+      if node.get("status") == "ok":
+        node["status"] = "orphan"
+      orphan_children.append(node)
 
-            if feature:
-                node["feature"] = feature
-            if notes:
-                node["notes"] = notes
+  if orphan_children:
+    orphans_node = {
+      "id": "orphans",
+      "label": "Orphans (не підключені файли)",
+      "path": "",
+      "type": "group",
+      "status": "orphan",
+      "feature": "Код, який ніхто не імпортує",
+      "notes": "Перевір, чи ці файли потрібні, чи можна видалити / підключити.",
+      "children": orphan_children
+    }
+    root_node.setdefault("children", []).append(orphans_node)
 
-            # Визначаємо групу
-            if node_type == "template":
-                grp = get_group("templates", "Templates")
-            elif node_type == "js":
-                grp = get_group("js", "JavaScript")
-            elif node_type == "css":
-                grp = get_group("css", "CSS")
-            elif node_type == "module":
-                grp = get_group("python", "Python modules")
-            elif node_type == "static":
-                grp = get_group("static", "Static files")
-            else:
-                grp = get_group("other", "Other files")
-
-            grp["children"].append(node)
-
-    # додаємо всі групи кореню
-    root["children"] = list(groups.values())
-    return root
-
-
-# Для ручного запуску з терміналу:
-if __name__ == "__main__":
-    here = os.path.abspath(os.path.dirname(__file__))
-    tree = build_dev_tree(here)
-    print(json.dumps(tree, ensure_ascii=False, indent=2))
-
+  return root_node
