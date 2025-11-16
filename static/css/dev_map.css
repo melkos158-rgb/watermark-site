@@ -1,0 +1,221 @@
+/* ============================================
+   DEV MAP — глобальна карта файлів Proofly
+   ============================================ */
+
+/* Основний контейнер */
+.devmap-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+/* Заголовки */
+.devmap-title {
+  margin: 10px 0 4px;
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.devmap-subtitle {
+  opacity: 0.75;
+  margin-bottom: 16px;
+}
+
+/* ===========================
+   ЛІВИЙ БЛОК: КАНВАС
+   =========================== */
+
+.devmap-left {
+  background: #0d1017;
+  border: 1px solid #202530;
+  border-radius: 12px;
+  padding: 10px;
+  position: relative;
+}
+
+/* Toolbar */
+.devmap-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dm-btn {
+  background: #1a1f2c;
+  border: 1px solid #2c3445;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: #eee;
+  cursor: pointer;
+  transition: 0.15s;
+  font-size: 14px;
+}
+.dm-btn:hover {
+  background: #2a3347;
+}
+
+/* Полотно */
+.devmap-wrapper {
+  width: 100%;
+  height: 650px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0a0c12;
+  position: relative;
+  cursor: grab;
+}
+
+.devmap-wrapper:active {
+  cursor: grabbing;
+}
+
+.devmap-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+/* ===========================
+   ВУЗЛИ (файли / модулі)
+   =========================== */
+
+.dm-node {
+  position: absolute;
+  padding: 8px 12px;
+  background: #131722;
+  border: 2px solid #2b3243;
+  border-radius: 10px;
+  color: #dbe2f4;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: 0.2s;
+  cursor: pointer;
+}
+
+.dm-node:hover {
+  background: #1a1f2b;
+  border-color: #4f5d78;
+}
+
+/* Стани вузлів */
+.dm-ok {
+  border-color: #22c55e; /* green */
+}
+.dm-fix {
+  border-color: #3b82f6; /* blue */
+}
+.dm-error {
+  border-color: #ef4444; /* red */
+}
+.dm-orphan {
+  border-color: #9ca3af; /* gray */
+}
+
+/* ===========================
+   СТРІЛКИ
+   =========================== */
+
+.dm-edge {
+  position: absolute;
+  pointer-events: none;
+}
+
+.dm-edge line {
+  stroke: #394255;
+  stroke-width: 2;
+}
+
+.dm-edge-arrow {
+  fill: #394255;
+}
+
+/* ===========================
+   ПРАВА ПАНЕЛЬ ДЕТАЛЕЙ
+   =========================== */
+
+.devmap-detail {
+  background: #10131b;
+  border: 1px solid #202530;
+  border-radius: 12px;
+  padding: 16px;
+  height: 650px;
+  overflow-y: auto;
+}
+
+#dm-detail-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+.dm-detail-block {
+  margin-bottom: 14px;
+}
+
+.dm-detail-label {
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+
+.dm-detail-value {
+  background: #0b0e14;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #252b37;
+  word-break: break-all;
+}
+
+.dm-notes {
+  width: 100%;
+  height: 70px;
+  background: #0b0e14;
+  border: 1px solid #252b37;
+  border-radius: 8px;
+  color: #e6edff;
+  padding: 8px;
+}
+
+.dm-ai-text {
+  background: #0b0e14;
+  border: 1px solid #2b3243;
+  border-radius: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: #c9d4ef;
+}
+
+/* Скролбар */
+.devmap-detail::-webkit-scrollbar,
+.devmap-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.devmap-detail::-webkit-scrollbar-thumb,
+.devmap-wrapper::-webkit-scrollbar-thumb {
+  background: #303748;
+  border-radius: 4px;
+}
+
+.devmap-detail::-webkit-scrollbar-track,
+.devmap-wrapper::-webkit-scrollbar-track {
+  background: #12151d;
+}
+
+/* ==============
+   MOBILE
+   ============== */
+
+@media (max-width: 900px) {
+  .devmap-layout {
+    grid-template-columns: 1fr;
+  }
+  .devmap-detail {
+    height: auto;
+    max-height: 400px;
+  }
+}
