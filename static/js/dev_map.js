@@ -14,6 +14,11 @@
   const canvas = document.getElementById("devmap-canvas");
   const wrapper = document.getElementById("devmap-wrapper");
 
+  if (!canvas || !wrapper) {
+    console.error("DEV_MAP: canvas or wrapper not found");
+    return;
+  }
+
   // Права панель
   const detail_title = document.getElementById("dm-detail-title");
   const detail_path = document.getElementById("dm-detail-path");
@@ -33,6 +38,7 @@
   // Дані по вузлах та стрілках
   const nodePositions = {};        // id → {x,y,width,height,node,el}
   const edges = [];                // {fromId,toId,svg,line}
+  let selectedNodeEl = null;
 
   /* ===========================
      МАСШТАБУВАННЯ ВСІЄЇ КАРТИ
@@ -104,6 +110,21 @@
     updateTransform();
   });
 
+  /* Клік по фону — скинути вибір */
+  wrapper.addEventListener("click", (e) => {
+    if (e.target.classList.contains("dm-node")) return;
+    if (selectedNodeEl) {
+      selectedNodeEl.classList.remove("dm-node-active");
+      selectedNodeEl = null;
+    }
+    if (detail_title) detail_title.textContent = "Вибери файл на карті";
+    if (detail_path) detail_path.textContent = "—";
+    if (detail_type) detail_type.textContent = "—";
+    if (detail_feature) detail_feature.textContent = "—";
+    if (detail_status) detail_status.textContent = "—";
+    if (detail_ai) detail_ai.textContent = "";
+  });
+
   /* =================================================
      РЕНДЕР ДЕРЕВА — РЕКУРСИВНО
      ================================================= */
@@ -136,7 +157,17 @@
     el.className = `dm-node dm-${node.status}`;
     el.style.left = x + "px";
     el.style.top = y + "px";
-    el.textContent = node.label;
+
+    // коротке ім’я для відображення на карті (basename),
+    // але повний шлях лишається у node.label і показується справа
+    if (typeof node.label === "string") {
+      const parts = node.label.split("/");
+      const shortName = parts[parts.length - 1] || node.label;
+      el.textContent = shortName;
+    } else {
+      el.textContent = String(node.label || node.id || "node");
+    }
+
     el.dataset.id = node.id;
 
     canvas.appendChild(el);
@@ -144,8 +175,8 @@
     nodePositions[node.id] = {
       x: x,
       y: y,
-      width: el.offsetWidth,
-      height: el.offsetHeight,
+      width: el.offsetWidth || 120,
+      height: el.offsetHeight || 32,
       node: node,
       el: el
     };
@@ -153,6 +184,11 @@
     // Клік → деталі
     el.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (selectedNodeEl && selectedNodeEl !== el) {
+        selectedNodeEl.classList.remove("dm-node-active");
+      }
+      selectedNodeEl = el;
+      el.classList.add("dm-node-active");
       showDetails(node);
     });
 
@@ -234,23 +270,27 @@
      ================================================= */
 
   function showDetails(node) {
-    detail_title.textContent = node.label;
-    detail_path.textContent = node.label;
-    detail_type.textContent = node.type;
-    detail_feature.textContent = node.feature || "(немає)";
-    detail_status.textContent =
-      node.status === "ok"
-        ? "🟢 Все ок"
-        : node.status === "fix"
-        ? "🔵 Потрібна правка"
-        : node.status === "error"
-        ? "🔴 Проблема"
-        : "⚪ Не підключено";
+    if (detail_title) detail_title.textContent = node.label || node.id;
+    if (detail_path) detail_path.textContent = node.label || node.id;
+    if (detail_type) detail_type.textContent = node.type || "—";
+    if (detail_feature) detail_feature.textContent = node.feature || "(немає)";
+    if (detail_status) {
+      detail_status.textContent =
+        node.status === "ok"
+          ? "🟢 Все ок"
+          : node.status === "fix"
+          ? "🔵 Потрібна правка"
+          : node.status === "error"
+          ? "🔴 Проблема"
+          : node.status === "orphan"
+          ? "⚪ Не підключено"
+          : String(node.status || "—");
+    }
 
     const aiText =
-`Файл: ${node.label}
-Тип: ${node.type}
-Статус: ${node.status}
+`Файл: ${node.label || node.id}
+Тип: ${node.type || "—"}
+Статус: ${node.status || "—"}
 
 Опис проблеми / правки:
 (впиши тут свої слова і кинь у чат)
@@ -259,14 +299,19 @@
 ${node.notes || "(немає)"} 
 `;
 
-    detail_ai.textContent = aiText;
+    if (detail_ai) detail_ai.textContent = aiText;
   }
 
   /* =================================================
      ЗАПУСК РЕНДЕРА
      ================================================= */
 
-  renderTree(tree, 500, 20);
+  // стартова позиція — центр по ширині wrapper
+  const rect = wrapper.getBoundingClientRect();
+  const startX = rect.width / 2;
+  const startY = 20;
+
+  renderTree(tree, startX, startY);
   repositionEdges();
   updateTransform();
 })();
