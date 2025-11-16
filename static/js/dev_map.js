@@ -1,6 +1,7 @@
 /* ==========================================================
    DEV MAP — Глобальна карта файлів Proofly
-   Рендер вузлів, стрілок, масштаб, панорамування, деталі
+   Рендер вузлів, стрілок, масштаб, панорамування, деталі,
+   перетягування окремих вузлів
    ========================================================== */
 
 (function () {
@@ -21,16 +22,20 @@
   const detail_status = document.getElementById("dm-detail-status-text");
   const detail_ai = document.getElementById("dm-detail-ai-text");
 
-  // Масштаб та переміщення
+  // Масштаб та переміщення ВСЬОГО полотна
   let scale = 1;
   let offsetX = 50;
   let offsetY = 50;
-  let dragging = false;
-  let startX = 0;
-  let startY = 0;
+  let panDragging = false;
+  let panStartX = 0;
+  let panStartY = 0;
+
+  // Дані по вузлах та стрілках
+  const nodePositions = {};        // id → {x,y,width,height,node,el}
+  const edges = [];                // {fromId,toId,svg,line}
 
   /* ===========================
-     МАСШТАБУВАННЯ
+     МАСШТАБУВАННЯ ВСІЄЇ КАРТИ
      =========================== */
   wrapper.addEventListener("wheel", (e) => {
     e.preventDefault();
@@ -40,22 +45,31 @@
     updateTransform();
   });
 
-  /* Перетягування полотна */
+  /* Перетягування ВСІЄЇ карти (фон) */
   wrapper.addEventListener("mousedown", (e) => {
-    dragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
+    // Якщо клікнули по вузлу – перетягування вузла обробляється окремо
+    if (e.target.classList.contains("dm-node")) return;
+    panDragging = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
   });
 
-  window.addEventListener("mouseup", () => (dragging = false));
+  window.addEventListener("mouseup", () => {
+    panDragging = false;
+    draggingNode = null;
+  });
 
   window.addEventListener("mousemove", (e) => {
-    if (!dragging) return;
-    offsetX += e.clientX - startX;
-    offsetY += e.clientY - startY;
-    startX = e.clientX;
-    startY = e.clientY;
-    updateTransform();
+    if (panDragging) {
+      offsetX += e.clientX - panStartX;
+      offsetY += e.clientY - panStartY;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      updateTransform();
+    }
+    if (draggingNode) {
+      dragNodeMove(e);
+    }
   });
 
   function updateTransform() {
@@ -63,33 +77,36 @@
   }
 
   /* Кнопки масштабування */
-  document.getElementById("dm-zoom-in").onclick = () => {
+  const btnIn = document.getElementById("dm-zoom-in");
+  const btnOut = document.getElementById("dm-zoom-out");
+  const btnReset = document.getElementById("dm-zoom-reset");
+  const btnCenter = document.getElementById("dm-center");
+
+  btnIn && (btnIn.onclick = () => {
     scale = Math.min(2.5, scale + 0.1);
     updateTransform();
-  };
+  });
 
-  document.getElementById("dm-zoom-out").onclick = () => {
+  btnOut && (btnOut.onclick = () => {
     scale = Math.max(0.3, scale - 0.1);
     updateTransform();
-  };
+  });
 
-  document.getElementById("dm-zoom-reset").onclick = () => {
+  btnReset && (btnReset.onclick = () => {
     scale = 1;
     updateTransform();
-  };
+  });
 
-  document.getElementById("dm-center").onclick = () => {
+  btnCenter && (btnCenter.onclick = () => {
     offsetX = 50;
     offsetY = 50;
     scale = 1;
     updateTransform();
-  };
+  });
 
   /* =================================================
      РЕНДЕР ДЕРЕВА — РЕКУРСИВНО
      ================================================= */
-
-  let nodePositions = {}; // id → {x,y,width,height}
 
   function renderTree(root, x, y) {
     createNode(root, x, y);
@@ -102,12 +119,18 @@
 
     children.forEach((child) => {
       renderTree(child, childX, y + gapY);
-      drawArrow(root.id, child.id);
+      createEdge(root.id, child.id);
       childX += gapX;
     });
   }
 
   /* Створити вузол */
+  let draggingNode = null;
+  let nodeStartX = 0;
+  let nodeStartY = 0;
+  let mouseStartX = 0;
+  let mouseStartY = 0;
+
   function createNode(node, x, y) {
     const el = document.createElement("div");
     el.className = `dm-node dm-${node.status}`;
@@ -118,26 +141,68 @@
 
     canvas.appendChild(el);
 
-    // Зберегти позицію
     nodePositions[node.id] = {
       x: x,
       y: y,
       width: el.offsetWidth,
       height: el.offsetHeight,
-      node: node
+      node: node,
+      el: el
     };
 
-    // Клік → показати деталі
+    // Клік → деталі
     el.addEventListener("click", (e) => {
       e.stopPropagation();
       showDetails(node);
     });
+
+    // Перетягування конкретного вузла
+    el.addEventListener("mousedown", (e) => {
+      e.stopPropagation(); // не запускаємо панорамування
+      draggingNode = nodePositions[node.id];
+      nodeStartX = draggingNode.x;
+      nodeStartY = draggingNode.y;
+      mouseStartX = e.clientX;
+      mouseStartY = e.clientY;
+    });
   }
 
-  /* Малювання стрілки */
-  function drawArrow(fromId, toId) {
-    const p1 = nodePositions[fromId];
-    const p2 = nodePositions[toId];
+  function dragNodeMove(e) {
+    const dx = (e.clientX - mouseStartX) / scale;
+    const dy = (e.clientY - mouseStartY) / scale;
+
+    draggingNode.x = nodeStartX + dx;
+    draggingNode.y = nodeStartY + dy;
+
+    const el = draggingNode.el;
+    el.style.left = draggingNode.x + "px";
+    el.style.top = draggingNode.y + "px";
+
+    repositionEdges();
+  }
+
+  /* Малювання стрілки (зберігаємо, щоб оновлювати) */
+  function createEdge(fromId, toId) {
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.classList.add("dm-edge");
+
+    const line = document.createElementNS(svgNS, "line");
+    svg.appendChild(line);
+
+    canvas.appendChild(svg);
+
+    edges.push({ fromId, toId, svg, line });
+    repositionEdge(edges[edges.length - 1]);
+  }
+
+  function repositionEdges() {
+    edges.forEach(repositionEdge);
+  }
+
+  function repositionEdge(edge) {
+    const p1 = nodePositions[edge.fromId];
+    const p2 = nodePositions[edge.toId];
     if (!p1 || !p2) return;
 
     const x1 = p1.x + p1.width / 2;
@@ -145,23 +210,23 @@
     const x2 = p2.x + p2.width / 2;
     const y2 = p2.y;
 
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.classList.add("dm-edge");
+    const left = Math.min(x1, x2);
+    const top = Math.min(y1, y2);
+    const width = Math.abs(x2 - x1);
+    const height = Math.abs(y2 - y1);
 
-    svg.style.left = Math.min(x1, x2) + "px";
-    svg.style.top = Math.min(y1, y2) + "px";
-    svg.style.width = Math.abs(x2 - x1) + "px";
-    svg.style.height = Math.abs(y2 - y1) + "px";
+    const svg = edge.svg;
+    const line = edge.line;
 
-    const line = document.createElementNS(svgNS, "line");
-    line.setAttribute("x1", x1 < x2 ? 0 : Math.abs(x1 - x2));
-    line.setAttribute("y1", y1 < y2 ? 0 : Math.abs(y1 - y2));
-    line.setAttribute("x2", x2 < x1 ? 0 : Math.abs(x2 - x1));
-    line.setAttribute("y2", y2 < y1 ? 0 : Math.abs(y2 - y1));
-    svg.appendChild(line);
+    svg.style.left = left + "px";
+    svg.style.top = top + "px";
+    svg.style.width = width + "px";
+    svg.style.height = height + "px";
 
-    canvas.appendChild(svg);
+    line.setAttribute("x1", x1 < x2 ? 0 : width);
+    line.setAttribute("y1", y1 < y2 ? 0 : height);
+    line.setAttribute("x2", x2 < x1 ? 0 : width);
+    line.setAttribute("y2", y2 < y1 ? 0 : height);
   }
 
   /* =================================================
@@ -202,5 +267,6 @@ ${node.notes || "(немає)"}
      ================================================= */
 
   renderTree(tree, 500, 20);
+  repositionEdges();
   updateTransform();
 })();
