@@ -1,0 +1,235 @@
+{
+  "id": "app",
+  "label": "app.py",
+  "type": "core",
+  "status": "ok",
+  "children": [
+    {
+      "id": "bp_auth",
+      "label": "auth.py (Auth Blueprint)",
+      "type": "bp",
+      "status": "ok",
+      "children": [
+        {
+          "id": "tpl_login",
+          "label": "templates/auth/login.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_register",
+          "label": "templates/auth/register.html",
+          "type": "template",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_profile",
+      "label": "profile.py (User Profile)",
+      "type": "bp",
+      "status": "ok",
+      "children": [
+        {
+          "id": "tpl_profile",
+          "label": "templates/profile/index.html",
+          "type": "template",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_chat",
+      "label": "chat.py (Chat / Messages)",
+      "type": "bp",
+      "status": "ok",
+      "children": [
+        {
+          "id": "tpl_chat",
+          "label": "templates/chat/chat.html",
+          "type": "template",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_market",
+      "label": "market/routes.py (STL Market)",
+      "type": "bp",
+      "status": "fix",
+      "children": [
+        {
+          "id": "tpl_item",
+          "label": "templates/market/item.html",
+          "type": "template",
+          "status": "fix"
+        },
+        {
+          "id": "tpl_market_index",
+          "label": "templates/market/index.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "js_stl_viewer",
+          "label": "static/js/stl_viewer.js",
+          "type": "js",
+          "status": "fix"
+        },
+        {
+          "id": "js_related",
+          "label": "static/market/js/related.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "css_viewer",
+          "label": "static/css/viewer.css",
+          "type": "css",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_ai_tools",
+      "label": "ai/ai_api.py (AI Tools)",
+      "type": "bp",
+      "status": "error",
+      "children": [
+        {
+          "id": "tpl_ai_tools",
+          "label": "templates/ai_tools.html",
+          "type": "template",
+          "status": "error"
+        },
+        {
+          "id": "js_ai_tools",
+          "label": "static/market/js/ai_tools.js",
+          "type": "js",
+          "status": "error"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_parametric",
+      "label": "parametric/parametric_api.py (Parametric Generator)",
+      "type": "bp",
+      "status": "fix",
+      "children": [
+        {
+          "id": "tpl_parametric",
+          "label": "templates/parametric.html",
+          "type": "template",
+          "status": "fix"
+        },
+        {
+          "id": "js_parametric",
+          "label": "static/market/js/parametric_ui.js",
+          "type": "js",
+          "status": "fix"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_core",
+      "label": "core_pages.py (Main pages)",
+      "type": "bp",
+      "status": "ok",
+      "children": [
+        {
+          "id": "tpl_index",
+          "label": "templates/index.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_documents",
+          "label": "templates/documents.html",
+          "type": "template",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_ads",
+      "label": "ads.py (Banner System)",
+      "type": "bp",
+      "status": "ok",
+      "children": [
+        {
+          "id": "tpl_ad_upload",
+          "label": "templates/ad_upload.html",
+          "type": "template",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "bp_dev",
+      "label": "dev_bp.py (Dev Tools)",
+      "type": "bp",
+      "status": "ok",
+      "children": [
+        {
+          "id": "tpl_dev_issues",
+          "label": "templates/dev_issues.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "tpl_dev_map",
+          "label": "templates/dev_map.html",
+          "type": "template",
+          "status": "ok"
+        },
+        {
+          "id": "js_dev_issues",
+          "label": "static/js/dev_issues.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "js_dev_map",
+          "label": "static/js/dev_map.js",
+          "type": "js",
+          "status": "ok"
+        },
+        {
+          "id": "css_dev_issues",
+          "label": "static/css/dev_issues.css",
+          "type": "css",
+          "status": "ok"
+        },
+        {
+          "id": "css_dev_map",
+          "label": "static/css/dev_map.css",
+          "type": "css",
+          "status": "ok"
+        }
+      ]
+    },
+
+    {
+      "id": "orphan_files",
+      "label": "Непідключені файли",
+      "type": "group",
+      "status": "orphan",
+      "children": [
+        {
+          "id": "tpl_old_test_block",
+          "label": "templates/market/old_test_block.html",
+          "type": "template",
+          "status": "orphan"
+        }
+      ]
+    }
+  ]
+}
