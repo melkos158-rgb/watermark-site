@@ -103,8 +103,9 @@
 
     visit(root);
 
-    const shiftX = minX < 0 ? -minX + GAP_X : GAP_X;
-    const shiftY = GAP_Y;
+    // невеликий відступ зліва і зверху
+    const shiftX = (minX < 0 ? -minX : 0) + GAP_X;
+    const shiftY = GAP_Y * 1.5; // більше вниз, щоб не лізло до тулбару
 
     function applyShift(node) {
       node.x = (node._px || 0) + shiftX;
@@ -117,7 +118,7 @@
     applyShift(root);
 
     const width = (maxX - minX) + 2 * GAP_X + NODE_WIDTH;
-    const height = (maxDepth + 1) * (NODE_HEIGHT + GAP_Y) + 2 * GAP_Y;
+    const height = (maxDepth + 1) * (NODE_HEIGHT + GAP_Y) + 3 * GAP_Y;
 
     canvas.style.width = Math.max(width, wrapper.clientWidth) + "px";
     canvas.style.height = Math.max(height, wrapper.clientHeight) + "px";
@@ -208,7 +209,7 @@
     const endX = x2;
     const endY = y2 - NODE_MARGIN;
 
-    // прямокутний маршрут: вниз від батька, потім вбік, потім вниз до дитини
+    // квадратна лінія: вниз → вбік → вниз
     const midY = (startY + endY) / 2;
 
     const pad = 10;
@@ -312,16 +313,15 @@
     applyScale();
   }
 
+  // ❗ Центруємо тільки по ширині, по вертикалі тримаємо зверху,
+  // щоб дерево не заходило під тулбар-кнопки.
   function centerView() {
     const rect = canvas.getBoundingClientRect();
     const w = rect.width * currentScale;
-    const h = rect.height * currentScale;
-
     const cw = wrapper.clientWidth;
-    const ch = wrapper.clientHeight;
 
     wrapper.scrollLeft = Math.max(0, (w - cw) / 2);
-    wrapper.scrollTop = Math.max(0, (h - ch) / 2);
+    wrapper.scrollTop = 0;
   }
 
   if (btnZoomIn) btnZoomIn.addEventListener("click", zoomIn);
