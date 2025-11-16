@@ -32,11 +32,12 @@
   const btnZoomReset = document.getElementById("dm-zoom-reset");
   const btnCenter = document.getElementById("dm-center");
 
-  // Параметри лейауту дерева (зроблено компактніше)
-  const NODE_WIDTH = 120;   // умовна ширина ноди
-  const NODE_HEIGHT = 40;   // умовна висота (для розрахунку відступів по Y)
-  const GAP_X = 24;         // горизонтальний відступ між нодами
-  const GAP_Y = 60;         // вертикальний відступ між рівнями
+  // Параметри лейауту дерева (компактно)
+  const NODE_WIDTH = 140;   // умовна ширина ноди
+  const NODE_HEIGHT = 44;   // умовна висота
+  const GAP_X = 40;         // горизонтальний відступ між нодами
+  const GAP_Y = 80;         // вертикальний відступ між рівнями
+  const MAX_PER_ROW = 4;    // максимум нод в одному рядку на рівні
 
   // Масштаб
   let currentScale = 1;
@@ -48,28 +49,21 @@
   const nodePositions = {};  // id -> { x, y, width, height, el, node }
   const edges = [];          // { fromId, toId, el, path }
 
+  // Для лейауту: depth -> список нод
+  let levelsByDepth = {};
+
   // ==== АВТО-ЛЕЙАУТ ДЕРЕВА =================================================
 
   function computeLayout(root) {
-    let leafIndex = 0;
+    levelsByDepth = {};
 
     function dfs(node, depth) {
       node._depth = depth;
-      const children = Array.isArray(node.children) ? node.children : [];
+      if (!levelsByDepth[depth]) levelsByDepth[depth] = [];
+      levelsByDepth[depth].push(node);
 
-      if (!children.length) {
-        node._x = leafIndex;
-        leafIndex += 1;
-      } else {
-        children.forEach(child => dfs(child, depth + 1));
-        let minX = children[0]._x;
-        let maxX = children[0]._x;
-        for (let i = 1; i < children.length; i++) {
-          if (children[i]._x < minX) minX = children[i]._x;
-          if (children[i]._x > maxX) maxX = children[i]._x;
-        }
-        node._x = (minX + maxX) / 2;
-      }
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach(child => dfs(child, depth + 1));
     }
 
     dfs(root, 0);
@@ -80,29 +74,35 @@
     let maxX = -Infinity;
     let maxDepth = 0;
 
-    function visit(node) {
-      const x = node._x * (NODE_WIDTH + GAP_X);
-      const y = node._depth * (NODE_HEIGHT + GAP_Y);
+    // Розкладаємо по рівнях у "сітку": максимум MAX_PER_ROW на рядок
+    Object.keys(levelsByDepth).forEach(depthKey => {
+      const depth = parseInt(depthKey, 10);
+      const nodes = levelsByDepth[depth];
+      if (!nodes || !nodes.length) return;
 
-      node._px = x;
-      node._py = y;
+      maxDepth = Math.max(maxDepth, depth);
 
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (node._depth > maxDepth) maxDepth = node._depth;
+      nodes.forEach((node, idx) => {
+        const row = Math.floor(idx / MAX_PER_ROW);
+        const col = idx % MAX_PER_ROW;
 
-      const children = Array.isArray(node.children) ? node.children : [];
-      children.forEach(visit);
-    }
+        const x = col * (NODE_WIDTH + GAP_X);
+        const y = depth * (NODE_HEIGHT + GAP_Y) + row * (NODE_HEIGHT + GAP_Y);
 
-    visit(root);
+        node._px = x;
+        node._py = y;
+
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+      });
+    });
 
     const shiftX = minX < 0 ? -minX + GAP_X : GAP_X;
     const shiftY = GAP_Y;
 
     function applyShift(node) {
-      node.x = node._px + shiftX;
-      node.y = node._py + shiftY;
+      node.x = (node._px || 0) + shiftX;
+      node.y = (node._py || 0) + shiftY;
 
       const children = Array.isArray(node.children) ? node.children : [];
       children.forEach(applyShift);
@@ -111,7 +111,13 @@
     applyShift(root);
 
     const width = (maxX - minX) + 2 * GAP_X + NODE_WIDTH;
-    const height = (maxDepth + 1) * (NODE_HEIGHT + GAP_Y) + 2 * GAP_Y;
+    // враховуємо можливі додаткові "ряди" на рівнях
+    let maxExtraRows = 0;
+    Object.values(levelsByDepth).forEach(nodes => {
+      const extraRows = Math.floor((nodes.length - 1) / MAX_PER_ROW);
+      if (extraRows > maxExtraRows) maxExtraRows = extraRows;
+    });
+    const height = (maxDepth + 1 + maxExtraRows) * (NODE_HEIGHT + GAP_Y) + 2 * GAP_Y;
 
     canvas.style.width = Math.max(width, wrapper.clientWidth) + "px";
     canvas.style.height = Math.max(height, wrapper.clientHeight) + "px";
@@ -202,7 +208,11 @@
     const endX = x2;
     const endY = y2 - NODE_MARGIN;
 
-    const pad = 8;
+    // робимо прямокутний маршрут:
+    // вниз від батька, потім горизонтально, потім вниз до дитини
+    const midY = (startY + endY) / 2;
+
+    const pad = 10;
     const left = Math.min(startX, endX) - pad;
     const top = Math.min(startY, endY) - pad;
     const right = Math.max(startX, endX) + pad;
@@ -219,9 +229,17 @@
     const sy = startY - top;
     const ex = endX - left;
     const ey = endY - top;
+    const my = midY - top;
 
-    // Пряма тонка лінія (без "ковбаски")
-    edge.path.setAttribute("d", `M ${sx} ${sy} L ${ex} ${ey}`);
+    // М -> вниз до середини, потім вбік, потім вниз до дитини
+    const d = [
+      "M", sx, sy,
+      "L", sx, my,
+      "L", ex, my,
+      "L", ex, ey
+    ].join(" ");
+
+    edge.path.setAttribute("d", d);
   }
 
   function renderEdges(root) {
