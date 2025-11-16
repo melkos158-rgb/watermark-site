@@ -32,12 +32,11 @@
   const btnZoomReset = document.getElementById("dm-zoom-reset");
   const btnCenter = document.getElementById("dm-center");
 
-  // Параметри лейауту дерева (компактно)
+  // Параметри лейауту дерева (компактно, більше вниз, менше вбік)
   const NODE_WIDTH = 140;   // умовна ширина ноди
   const NODE_HEIGHT = 44;   // умовна висота
-  const GAP_X = 40;         // горизонтальний відступ між нодами
+  const GAP_X = 30;         // горизонтальний відступ між нодами
   const GAP_Y = 80;         // вертикальний відступ між рівнями
-  const MAX_PER_ROW = 4;    // максимум нод в одному рядку на рівні
 
   // Масштаб
   let currentScale = 1;
@@ -49,21 +48,34 @@
   const nodePositions = {};  // id -> { x, y, width, height, el, node }
   const edges = [];          // { fromId, toId, el, path }
 
-  // Для лейауту: depth -> список нод
-  let levelsByDepth = {};
-
   // ==== АВТО-ЛЕЙАУТ ДЕРЕВА =================================================
+  // Класичний tree-layout:
+  //  - листи отримують послідовні X
+  //  - батько стає посередині між своїми дітьми
 
   function computeLayout(root) {
-    levelsByDepth = {};
+    let leafIndex = 0;
 
     function dfs(node, depth) {
       node._depth = depth;
-      if (!levelsByDepth[depth]) levelsByDepth[depth] = [];
-      levelsByDepth[depth].push(node);
-
       const children = Array.isArray(node.children) ? node.children : [];
-      children.forEach(child => dfs(child, depth + 1));
+
+      if (!children.length) {
+        // лист — даємо наступний X
+        node._x = leafIndex;
+        leafIndex += 1;
+      } else {
+        children.forEach(child => dfs(child, depth + 1));
+
+        // ставимо батька по центру між дітьми
+        let minX = children[0]._x;
+        let maxX = children[0]._x;
+        for (let i = 1; i < children.length; i++) {
+          if (children[i]._x < minX) minX = children[i]._x;
+          if (children[i]._x > maxX) maxX = children[i]._x;
+        }
+        node._x = (minX + maxX) / 2;
+      }
     }
 
     dfs(root, 0);
@@ -74,28 +86,22 @@
     let maxX = -Infinity;
     let maxDepth = 0;
 
-    // Розкладаємо по рівнях у "сітку": максимум MAX_PER_ROW на рядок
-    Object.keys(levelsByDepth).forEach(depthKey => {
-      const depth = parseInt(depthKey, 10);
-      const nodes = levelsByDepth[depth];
-      if (!nodes || !nodes.length) return;
+    function visit(node) {
+      const x = node._x * (NODE_WIDTH + GAP_X);
+      const y = node._depth * (NODE_HEIGHT + GAP_Y);
 
-      maxDepth = Math.max(maxDepth, depth);
+      node._px = x;
+      node._py = y;
 
-      nodes.forEach((node, idx) => {
-        const row = Math.floor(idx / MAX_PER_ROW);
-        const col = idx % MAX_PER_ROW;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (node._depth > maxDepth) maxDepth = node._depth;
 
-        const x = col * (NODE_WIDTH + GAP_X);
-        const y = depth * (NODE_HEIGHT + GAP_Y) + row * (NODE_HEIGHT + GAP_Y);
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach(visit);
+    }
 
-        node._px = x;
-        node._py = y;
-
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-      });
-    });
+    visit(root);
 
     const shiftX = minX < 0 ? -minX + GAP_X : GAP_X;
     const shiftY = GAP_Y;
@@ -111,13 +117,7 @@
     applyShift(root);
 
     const width = (maxX - minX) + 2 * GAP_X + NODE_WIDTH;
-    // враховуємо можливі додаткові "ряди" на рівнях
-    let maxExtraRows = 0;
-    Object.values(levelsByDepth).forEach(nodes => {
-      const extraRows = Math.floor((nodes.length - 1) / MAX_PER_ROW);
-      if (extraRows > maxExtraRows) maxExtraRows = extraRows;
-    });
-    const height = (maxDepth + 1 + maxExtraRows) * (NODE_HEIGHT + GAP_Y) + 2 * GAP_Y;
+    const height = (maxDepth + 1) * (NODE_HEIGHT + GAP_Y) + 2 * GAP_Y;
 
     canvas.style.width = Math.max(width, wrapper.clientWidth) + "px";
     canvas.style.height = Math.max(height, wrapper.clientHeight) + "px";
@@ -208,8 +208,7 @@
     const endX = x2;
     const endY = y2 - NODE_MARGIN;
 
-    // робимо прямокутний маршрут:
-    // вниз від батька, потім горизонтально, потім вниз до дитини
+    // прямокутний маршрут: вниз від батька, потім вбік, потім вниз до дитини
     const midY = (startY + endY) / 2;
 
     const pad = 10;
@@ -231,7 +230,6 @@
     const ey = endY - top;
     const my = midY - top;
 
-    // М -> вниз до середини, потім вбік, потім вниз до дитини
     const d = [
       "M", sx, sy,
       "L", sx, my,
