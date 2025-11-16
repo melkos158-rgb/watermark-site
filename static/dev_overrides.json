@@ -1,0 +1,91 @@
+{
+  "templates/market/item.html": {
+    "status": "fix",
+    "feature": "STL Market — Item Page",
+    "notes": "Потрібно оновити viewer та блок покупок."
+  },
+
+  "static/js/stl_viewer.js": {
+    "status": "fix",
+    "feature": "3D STL Viewer",
+    "notes": "Оптимізація завантаження великих STL, лаги на мобільних."
+  },
+
+  "ai/ai_api.py": {
+    "status": "error",
+    "feature": "AI Tools — Backend",
+    "notes": "Повертає 500 при обробці зображення; треба логування."
+  },
+
+  "templates/ai_tools.html": {
+    "status": "error",
+    "feature": "AI Tools — Frontend",
+    "notes": "Поламаний JS, layout роз’їжджається, треба адаптив."
+  },
+
+  "static/market/js/ai_tools.js": {
+    "status": "error",
+    "feature": "AI Tools — JS",
+    "notes": "fetch('/api/ai/...') падає на CORS."
+  },
+
+  "parametric/parametric_api.py": {
+    "status": "fix",
+    "feature": "Parametric Generator Backend",
+    "notes": "Невірний output JSON при складній геометрії."
+  },
+
+  "static/market/js/parametric_ui.js": {
+    "status": "fix",
+    "feature": "Parametric UI",
+    "notes": "Слайдери оновлюються з лагом при drag."
+  },
+
+  "templates/market/old_test_block.html": {
+    "status": "orphan",
+    "feature": "Старий непотрібний файл",
+    "notes": "Не використовується, можна видалити."
+  },
+
+  "templates/printability.html": {
+    "status": "ok",
+    "feature": "Printability Checker",
+    "notes": "Все працює стабільно."
+  },
+
+  "templates/market/index.html": {
+    "status": "ok",
+    "feature": "STL Market — Головна",
+    "notes": "Треба лише покращити SEO, але функціонал норм."
+  },
+
+  "static/market/js/related.js": {
+    "status": "ok",
+    "feature": "Related Models",
+    "notes": "Усе стабільно."
+  },
+
+  "static/css/viewer.css": {
+    "status": "ok",
+    "feature": "3D Viewer UI",
+    "notes": "Можливо треба адаптив на 360px ширину."
+  },
+
+  "templates/index.html": {
+    "status": "ok",
+    "feature": "Main Landing Page",
+    "notes": "Готово."
+  },
+
+  "ads.py": {
+    "status": "ok",
+    "feature": "Banner System",
+    "notes": "Працює стабільно."
+  },
+
+  "worker.py": {
+    "status": "ok",
+    "feature": "Background Worker",
+    "notes": "Усе добре."
+  }
+}
