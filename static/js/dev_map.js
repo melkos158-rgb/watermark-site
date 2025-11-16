@@ -1,6 +1,6 @@
 // static/js/dev_map.js
-// Dev Map — автоматичне дерево файлів без перетягування.
-// Беремо window.__DEV_TREE__ із бекенду і малюємо акуратне дерево:
+// Dev Map — автоматичне дерево файлів з можливістю перетягування карти.
+// Беремо window.__DEV_TREE__ із бекенду і малюємо дерево:
 // root зверху, діти нижче. Орфани (непідключені файли) йдуть окремою гілкою.
 
 (function () {
@@ -44,29 +44,24 @@
   const MAX_SCALE = 2.0;
   const SCALE_STEP = 0.1;
 
-  // Зібрані DOM-ноди і позиції
+  // Позиції та DOM-ноди
   const nodePositions = {};  // id -> { x, y, width, height, el, node }
   const edges = [];          // { fromId, toId, el, path }
 
-  // ======================= АВТО-ЛЕЙАУТ ДЕРЕВА =============================
+  // ==== АВТО-ЛЕЙАУТ ДЕРЕВА =================================================
 
-  // 1) Обчислюємо _depth і "логічну" координату _x
   function computeLayout(root) {
     let leafIndex = 0;
 
     function dfs(node, depth) {
       node._depth = depth;
-
       const children = Array.isArray(node.children) ? node.children : [];
 
       if (!children.length) {
-        // лист
         node._x = leafIndex;
         leafIndex += 1;
       } else {
         children.forEach(child => dfs(child, depth + 1));
-
-        // центримо батька між дітьми
         let minX = children[0]._x;
         let maxX = children[0]._x;
         for (let i = 1; i < children.length; i++) {
@@ -80,7 +75,6 @@
     dfs(root, 0);
   }
 
-  // 2) Перетворюємо логічну _x / _depth у піксельні x / y
   function assignPixelPositions(root) {
     let minX = Infinity;
     let maxX = -Infinity;
@@ -103,7 +97,6 @@
 
     visit(root);
 
-    // Зсунути все, щоб не було від'ємних x
     const shiftX = minX < 0 ? -minX + GAP_X : GAP_X;
     const shiftY = GAP_Y;
 
@@ -117,7 +110,6 @@
 
     applyShift(root);
 
-    // Розмір canvas
     const width = (maxX - minX) + 2 * GAP_X + NODE_WIDTH;
     const height = (maxDepth + 1) * (NODE_HEIGHT + GAP_Y) + 2 * GAP_Y;
 
@@ -125,13 +117,12 @@
     canvas.style.height = Math.max(height, wrapper.clientHeight) + "px";
   }
 
-  // ======================= РЕНДЕР НОД І СТРІЛОК ===========================
+  // ==== РЕНДЕР НОД І СТРІЛОК ===============================================
 
   function createNode(node) {
     const el = document.createElement("div");
     el.classList.add("dm-node");
 
-    // статус як клас
     const status = node.status || "ok";
     el.classList.add("dm-" + status);
 
@@ -150,8 +141,6 @@
     canvas.appendChild(el);
 
     const rect = el.getBoundingClientRect();
-    const canvasRect = canvas.getBoundingClientRect();
-
     const width = rect.width;
     const height = rect.height;
 
@@ -176,7 +165,7 @@
 
   // --- Стрілки -------------------------------------------------------------
 
-  const NODE_MARGIN = 8; // щоб лінії не входили усередину прямокутників
+  const NODE_MARGIN = 8; // щоб лінії не входили в прямокутники
 
   function createEdge(fromId, toId) {
     const from = nodePositions[fromId];
@@ -231,7 +220,6 @@
     const ex = endX - left;
     const ey = endY - top;
 
-    // Легка дуга
     const mx = (sx + ex) / 2;
     const my = (sy + ey) / 2 - 30;
 
@@ -249,7 +237,7 @@
     walk(root);
   }
 
-  // ======================= ПРАВА ПАНЕЛЬ ====================================
+  // ==== ПРАВА ПАНЕЛЬ =======================================================
 
   function showDetails(node) {
     if (!node) return;
@@ -265,12 +253,8 @@
       lines.push(`Файл: ${node.path || node.label || node.id}`);
       lines.push(`Тип: ${node.type || "unknown"}`);
       lines.push(`Статус: ${node.status || "ok"}`);
-      if (node.feature) {
-        lines.push(`Фіча: ${node.feature}`);
-      }
-      if (node.notes) {
-        lines.push(`Нотатки: ${node.notes}`);
-      }
+      if (node.feature) lines.push(`Фіча: ${node.feature}`);
+      if (node.notes) lines.push(`Нотатки: ${node.notes}`);
       lines.push("");
       lines.push("Опиши тут, що треба зробити з цим файлом, і кинь цей текст в чат ChatGPT:");
       lines.push("");
@@ -292,7 +276,7 @@
     }
   }
 
-  // ======================= ЗУМ / ЦЕНТРУВАННЯ ===============================
+  // ==== ЗУМ / ПЕРЕТЯГУВАННЯ КАРТИ =========================================
 
   function applyScale() {
     canvas.style.transformOrigin = "0 0";
@@ -315,7 +299,6 @@
   }
 
   function centerView() {
-    // Центруємо по ширині/висоті всередині wrapper
     const rect = canvas.getBoundingClientRect();
     const w = rect.width * currentScale;
     const h = rect.height * currentScale;
@@ -335,24 +318,63 @@
   });
   if (btnCenter) btnCenter.addEventListener("click", centerView);
 
-  // ======================= СТАРТ ===========================================
+  // ---- Drag-перетягування карти (панорамування) ---------------------------
+
+  let isPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let panScrollLeft = 0;
+  let panScrollTop = 0;
+
+  function onPanMouseDown(e) {
+    // ЛКМ
+    if (e.button !== 0) return;
+
+    // Якщо клік по ноді — даємо можливість клікати, а не тягати карту
+    if (e.target.closest(".dm-node")) return;
+
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    panScrollLeft = wrapper.scrollLeft;
+    panScrollTop = wrapper.scrollTop;
+
+    wrapper.style.cursor = "grabbing";
+
+    document.addEventListener("mousemove", onPanMouseMove);
+    document.addEventListener("mouseup", onPanMouseUp);
+  }
+
+  function onPanMouseMove(e) {
+    if (!isPanning) return;
+    const dx = e.clientX - panStartX;
+    const dy = e.clientY - panStartY;
+
+    wrapper.scrollLeft = panScrollLeft - dx;
+    wrapper.scrollTop = panScrollTop - dy;
+  }
+
+  function onPanMouseUp() {
+    isPanning = false;
+    wrapper.style.cursor = "default";
+    document.removeEventListener("mousemove", onPanMouseMove);
+    document.removeEventListener("mouseup", onPanMouseUp);
+  }
+
+  wrapper.addEventListener("mousedown", onPanMouseDown);
+
+  // ==== СТАРТ =============================================================
 
   function init() {
-    // 1) рахуємо лейаут
     computeLayout(tree);
     assignPixelPositions(tree);
 
-    // 2) рендер нод
     renderNodes(tree);
-
-    // 3) рендер стрілок
     renderEdges(tree);
 
-    // 4) скейл 1 і центрування
     applyScale();
     centerView();
 
-    // 5) по дефолту активуємо root
     if (tree.id) {
       setActiveNode(tree.id);
       showDetails(tree);
