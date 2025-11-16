@@ -32,11 +32,11 @@
   const btnZoomReset = document.getElementById("dm-zoom-reset");
   const btnCenter = document.getElementById("dm-center");
 
-  // Параметри лейауту дерева
-  const NODE_WIDTH = 160;   // умовна ширина ноди
-  const NODE_HEIGHT = 46;   // умовна висота (для розрахунку відступів по Y)
-  const GAP_X = 40;         // горизонтальний відступ між нодами
-  const GAP_Y = 80;         // вертикальний відступ між рівнями
+  // Параметри лейауту дерева (зроблено компактніше)
+  const NODE_WIDTH = 120;   // умовна ширина ноди
+  const NODE_HEIGHT = 40;   // умовна висота (для розрахунку відступів по Y)
+  const GAP_X = 24;         // горизонтальний відступ між нодами
+  const GAP_Y = 60;         // вертикальний відступ між рівнями
 
   // Масштаб
   let currentScale = 1;
@@ -202,7 +202,7 @@
     const endX = x2;
     const endY = y2 - NODE_MARGIN;
 
-    const pad = 12;
+    const pad = 8;
     const left = Math.min(startX, endX) - pad;
     const top = Math.min(startY, endY) - pad;
     const right = Math.max(startX, endX) + pad;
@@ -220,10 +220,8 @@
     const ex = endX - left;
     const ey = endY - top;
 
-    const mx = (sx + ex) / 2;
-    const my = (sy + ey) / 2 - 30;
-
-    edge.path.setAttribute("d", `M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`);
+    // Пряма тонка лінія (без "ковбаски")
+    edge.path.setAttribute("d", `M ${sx} ${sy} L ${ex} ${ey}`);
   }
 
   function renderEdges(root) {
@@ -317,6 +315,18 @@
     centerView();
   });
   if (btnCenter) btnCenter.addEventListener("click", centerView);
+
+  // Zoom колесиком миші
+  wrapper.addEventListener("wheel", (e) => {
+    e.preventDefault(); // щоб не скролило сторінку
+    const delta = e.deltaY;
+    if (delta > 0) {
+      currentScale = Math.max(MIN_SCALE, currentScale - SCALE_STEP);
+    } else {
+      currentScale = Math.min(MAX_SCALE, currentScale + SCALE_STEP);
+    }
+    applyScale();
+  }, { passive: false });
 
   // ---- Drag-перетягування карти (панорамування) ---------------------------
 
