@@ -1,7 +1,7 @@
 /* ==========================================================
    DEV MAP — Глобальна карта файлів Proofly
    Рендер вузлів, стрілок, масштаб, панорамування, деталі,
-   перетягування окремих вузлів
+   перетягування окремих вузлів + автозбереження позицій
    ========================================================== */
 
 (function () {
@@ -40,6 +40,9 @@
   const edges = [];                // {fromId,toId,svg,line}
   let selectedNodeEl = null;
 
+  // Позиції для збереження на бек
+  const savedPositions = {};       // id → {x,y}
+
   /* ===========================
      МАСШТАБУВАННЯ ВСІЄЇ КАРТИ
      =========================== */
@@ -62,6 +65,11 @@
 
   window.addEventListener("mouseup", () => {
     panDragging = false;
+    if (draggingNode) {
+      // коли відпускаємо вузол — зберігаємо всі позиції
+      collectPositionsFromNodes();
+      savePositionsDebounced();
+    }
     draggingNode = null;
   });
 
@@ -130,6 +138,12 @@
      ================================================= */
 
   function renderTree(root, x, y) {
+    // Якщо є заздалегідь збережена позиція node.pos — використовуємо її
+    if (root.pos && typeof root.pos.x === "number" && typeof root.pos.y === "number") {
+      x = root.pos.x;
+      y = root.pos.y;
+    }
+
     createNode(root, x, y);
 
     const children = root.children || [];
@@ -181,6 +195,9 @@
       el: el
     };
 
+    // одразу кладемо в локальну мапу для збереження
+    savedPositions[node.id] = { x: x, y: y };
+
     // Клік → деталі
     el.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -213,6 +230,14 @@
     const el = draggingNode.el;
     el.style.left = draggingNode.x + "px";
     el.style.top = draggingNode.y + "px";
+
+    // оновлюємо локальну мапу позицій
+    if (draggingNode.node && draggingNode.node.id) {
+      savedPositions[draggingNode.node.id] = {
+        x: draggingNode.x,
+        y: draggingNode.y
+      };
+    }
 
     repositionEdges();
   }
@@ -303,13 +328,66 @@ ${node.notes || "(немає)"}
   }
 
   /* =================================================
+     АВТОЗБЕРЕЖЕННЯ ПОЗИЦІЙ
+     ================================================= */
+
+  function collectPositionsFromNodes() {
+    Object.keys(nodePositions).forEach((id) => {
+      const np = nodePositions[id];
+      if (!np) return;
+      savedPositions[id] = {
+        x: np.x,
+        y: np.y
+      };
+    });
+  }
+
+  let saveTimer = null;
+  function savePositionsDebounced() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+    }
+    saveTimer = setTimeout(savePositions, 500);
+  }
+
+  function savePositions() {
+    const payload = {
+      positions: savedPositions
+    };
+
+    try {
+      fetch("/admin/dev-map/positions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        credentials: "same-origin"
+      }).then((res) => {
+        if (!res.ok) {
+          console.warn("DEV_MAP: save positions failed", res.status);
+        }
+      }).catch((err) => {
+        console.warn("DEV_MAP: save positions error", err);
+      });
+    } catch (e) {
+      console.warn("DEV_MAP: fetch not available", e);
+    }
+  }
+
+  /* =================================================
      ЗАПУСК РЕНДЕРА
      ================================================= */
 
-  // стартова позиція — центр по ширині wrapper
+  // стартова позиція — центр по ширині wrapper (якщо у root нема pos)
   const rect = wrapper.getBoundingClientRect();
-  const startX = rect.width / 2;
-  const startY = 20;
+  let startX = rect.width / 2;
+  let startY = 20;
+
+  if (tree.pos && typeof tree.pos.x === "number" && typeof tree.pos.y === "number") {
+    startX = tree.pos.x;
+    startY = tree.pos.y;
+  }
 
   renderTree(tree, startX, startY);
   repositionEdges();
