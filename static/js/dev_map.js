@@ -252,6 +252,12 @@
     walk(root);
   }
 
+  // ==== ДОДАТКОВО: оновлення всіх стрілок ==================================
+
+  function repositionAllEdges() {
+    edges.forEach(repositionEdge);
+  }
+
   // ==== ПРАВА ПАНЕЛЬ =======================================================
 
   function showDetails(node) {
@@ -277,7 +283,12 @@
       lines.push("- Що треба змінити / додати:");
       lines.push("- Що вже є в цьому файлі:");
 
-      detailAiText.value = lines.join("\n");
+      // Працює і з <textarea>, і з <pre>
+      if ("value" in detailAiText) {
+        detailAiText.value = lines.join("\n");
+      } else {
+        detailAiText.textContent = lines.join("\n");
+      }
     }
   }
 
@@ -388,6 +399,70 @@
   }
 
   wrapper.addEventListener("mousedown", onPanMouseDown);
+
+  // ---- Drag окремих вузлів (кнопок) ---------------------------------------
+
+  let draggingNode = null;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let nodeStartX = 0;
+  let nodeStartY = 0;
+
+  function onNodeMouseDown(e) {
+    // тільки ЛКМ
+    if (e.button !== 0) return;
+
+    const el = e.target.closest(".dm-node");
+    if (!el) return;
+
+    const id = el.dataset.id;
+    const info = nodePositions[id];
+    if (!info) return;
+
+    draggingNode = info;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    nodeStartX = info.x;
+    nodeStartY = info.y;
+
+    // щоб не виділявся текст
+    e.preventDefault();
+
+    document.addEventListener("mousemove", onNodeMouseMove);
+    document.addEventListener("mouseup", onNodeMouseUp);
+  }
+
+  function onNodeMouseMove(e) {
+    if (!draggingNode) return;
+
+    const dx = (e.clientX - dragStartX) / currentScale;
+    const dy = (e.clientY - dragStartY) / currentScale;
+
+    let newX = nodeStartX + dx;
+    let newY = nodeStartY + dy;
+
+    const MIN_Y = GAP_Y * 0.5;
+    if (newY < MIN_Y) newY = MIN_Y;
+
+    draggingNode.x = newX;
+    draggingNode.y = newY;
+
+    draggingNode.el.style.left = newX + "px";
+    draggingNode.el.style.top = newY + "px";
+
+    repositionAllEdges();
+  }
+
+  function onNodeMouseUp() {
+    if (!draggingNode) return;
+
+    draggingNode = null;
+    document.removeEventListener("mousemove", onNodeMouseMove);
+    document.removeEventListener("mouseup", onNodeMouseUp);
+  }
+
+  // Вішаємо drag на весь canvas — він сам знаходить .dm-node
+  canvas.addEventListener("mousedown", onNodeMouseDown);
 
   // ==== СТАРТ =============================================================
 
