@@ -26,7 +26,7 @@ from sqlalchemy import text
 # blueprints з окремих модулів
 from core_pages import bp as core_bp      # 🌟 головні сторінки, /media, /donate, /lang…
 from ads import bp as ads_bp              # 🌟 банер TOP-1 і /ad/*
-from dev_bp import dev_bp                 # 🌟 dev-інструменти (/admin/dev-issues)
+from dev_bp import dev_bp                 # 🌟 dev-інструменти (/admin/dev-issues, /admin/dev-map)
 
 # === worker (опціонально) ===
 try:
@@ -399,7 +399,7 @@ def create_app():
 
     app.register_blueprint(core_bp)  # /, /documents, /photo, /media, /donate, /lang…
     app.register_blueprint(ads_bp)   # банери /ad/* + banner-admin
-    app.register_blueprint(dev_bp)   # /admin/dev-issues — dev-інструменти
+    app.register_blueprint(dev_bp)   # /admin/dev-issues, /admin/dev-map — dev-інструменти
 
     # окремі API-blueprints
     try:
