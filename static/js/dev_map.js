@@ -1,395 +1,363 @@
-/* ==========================================================
-   DEV MAP — Глобальна карта файлів Proofly
-   Рендер вузлів, стрілок, масштаб, панорамування, деталі,
-   перетягування окремих вузлів + автозбереження позицій
-   ========================================================== */
+// static/js/dev_map.js
+// Dev Map — автоматичне дерево файлів без перетягування.
+// Беремо window.__DEV_TREE__ із бекенду і малюємо акуратне дерево:
+// root зверху, діти нижче. Орфани (непідключені файли) йдуть окремою гілкою.
 
 (function () {
-  const tree = window.__DEV_TREE__ || null;
+  const tree = window.__DEV_TREE__;
   if (!tree) {
-    console.error("DEV_MAP: no tree data");
+    console.warn("Dev Map: __DEV_TREE__ is empty");
     return;
   }
 
-  const canvas = document.getElementById("devmap-canvas");
   const wrapper = document.getElementById("devmap-wrapper");
+  const canvas = document.getElementById("devmap-canvas");
 
-  if (!canvas || !wrapper) {
-    console.error("DEV_MAP: canvas or wrapper not found");
+  if (!wrapper || !canvas) {
+    console.warn("Dev Map: wrapper/canvas not found");
     return;
   }
 
   // Права панель
-  const detail_title = document.getElementById("dm-detail-title");
-  const detail_path = document.getElementById("dm-detail-path");
-  const detail_type = document.getElementById("dm-detail-type");
-  const detail_feature = document.getElementById("dm-detail-feature");
-  const detail_status = document.getElementById("dm-detail-status-text");
-  const detail_ai = document.getElementById("dm-detail-ai-text");
+  const detailTitle = document.getElementById("dm-detail-title");
+  const detailPath = document.getElementById("dm-detail-path");
+  const detailType = document.getElementById("dm-detail-type");
+  const detailFeature = document.getElementById("dm-detail-feature");
+  const detailStatus = document.getElementById("dm-detail-status-text");
+  const detailAiText = document.getElementById("dm-detail-ai-text");
 
-  // Масштаб та переміщення ВСЬОГО полотна
-  let scale = 1;
-  let offsetX = 50;
-  let offsetY = 50;
-  let panDragging = false;
-  let panStartX = 0;
-  let panStartY = 0;
-
-  // Дані по вузлах та стрілках
-  const nodePositions = {};        // id → {x,y,width,height,node,el}
-  const edges = [];                // {fromId,toId,svg,line}
-  let selectedNodeEl = null;
-
-  // Позиції для збереження на бек
-  const savedPositions = {};       // id → {x,y}
-
-  /* ===========================
-     МАСШТАБУВАННЯ ВСІЄЇ КАРТИ
-     =========================== */
-  wrapper.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    const zoomSpeed = 0.08;
-    scale += e.deltaY < 0 ? zoomSpeed : -zoomSpeed;
-    scale = Math.max(0.3, Math.min(scale, 2.5));
-    updateTransform();
-  });
-
-  /* Перетягування ВСІЄЇ карти (фон) */
-  wrapper.addEventListener("mousedown", (e) => {
-    // Якщо клікнули по вузлу – перетягування вузла обробляється окремо
-    if (e.target.classList.contains("dm-node")) return;
-    panDragging = true;
-    panStartX = e.clientX;
-    panStartY = e.clientY;
-  });
-
-  window.addEventListener("mouseup", () => {
-    panDragging = false;
-    if (draggingNode) {
-      // коли відпускаємо вузол — зберігаємо всі позиції
-      collectPositionsFromNodes();
-      savePositionsDebounced();
-    }
-    draggingNode = null;
-  });
-
-  window.addEventListener("mousemove", (e) => {
-    if (panDragging) {
-      offsetX += e.clientX - panStartX;
-      offsetY += e.clientY - panStartY;
-      panStartX = e.clientX;
-      panStartY = e.clientY;
-      updateTransform();
-    }
-    if (draggingNode) {
-      dragNodeMove(e);
-    }
-  });
-
-  function updateTransform() {
-    canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-  }
-
-  /* Кнопки масштабування */
-  const btnIn = document.getElementById("dm-zoom-in");
-  const btnOut = document.getElementById("dm-zoom-out");
-  const btnReset = document.getElementById("dm-zoom-reset");
+  // Кнопки зуму
+  const btnZoomIn = document.getElementById("dm-zoom-in");
+  const btnZoomOut = document.getElementById("dm-zoom-out");
+  const btnZoomReset = document.getElementById("dm-zoom-reset");
   const btnCenter = document.getElementById("dm-center");
 
-  btnIn && (btnIn.onclick = () => {
-    scale = Math.min(2.5, scale + 0.1);
-    updateTransform();
-  });
+  // Параметри лейауту дерева
+  const NODE_WIDTH = 160;   // умовна ширина ноди
+  const NODE_HEIGHT = 46;   // умовна висота (для розрахунку відступів по Y)
+  const GAP_X = 40;         // горизонтальний відступ між нодами
+  const GAP_Y = 80;         // вертикальний відступ між рівнями
 
-  btnOut && (btnOut.onclick = () => {
-    scale = Math.max(0.3, scale - 0.1);
-    updateTransform();
-  });
+  // Масштаб
+  let currentScale = 1;
+  const MIN_SCALE = 0.3;
+  const MAX_SCALE = 2.0;
+  const SCALE_STEP = 0.1;
 
-  btnReset && (btnReset.onclick = () => {
-    scale = 1;
-    updateTransform();
-  });
+  // Зібрані DOM-ноди і позиції
+  const nodePositions = {};  // id -> { x, y, width, height, el, node }
+  const edges = [];          // { fromId, toId, el, path }
 
-  btnCenter && (btnCenter.onclick = () => {
-    offsetX = 50;
-    offsetY = 50;
-    scale = 1;
-    updateTransform();
-  });
+  // ======================= АВТО-ЛЕЙАУТ ДЕРЕВА =============================
 
-  /* Клік по фону — скинути вибір */
-  wrapper.addEventListener("click", (e) => {
-    if (e.target.classList.contains("dm-node")) return;
-    if (selectedNodeEl) {
-      selectedNodeEl.classList.remove("dm-node-active");
-      selectedNodeEl = null;
-    }
-    if (detail_title) detail_title.textContent = "Вибери файл на карті";
-    if (detail_path) detail_path.textContent = "—";
-    if (detail_type) detail_type.textContent = "—";
-    if (detail_feature) detail_feature.textContent = "—";
-    if (detail_status) detail_status.textContent = "—";
-    if (detail_ai) detail_ai.textContent = "";
-  });
+  // 1) Обчислюємо _depth і "логічну" координату _x
+  function computeLayout(root) {
+    let leafIndex = 0;
 
-  /* =================================================
-     РЕНДЕР ДЕРЕВА — РЕКУРСИВНО
-     ================================================= */
+    function dfs(node, depth) {
+      node._depth = depth;
 
-  function renderTree(root, x, y) {
-    // Якщо є заздалегідь збережена позиція node.pos — використовуємо її
-    if (root.pos && typeof root.pos.x === "number" && typeof root.pos.y === "number") {
-      x = root.pos.x;
-      y = root.pos.y;
+      const children = Array.isArray(node.children) ? node.children : [];
+
+      if (!children.length) {
+        // лист
+        node._x = leafIndex;
+        leafIndex += 1;
+      } else {
+        children.forEach(child => dfs(child, depth + 1));
+
+        // центримо батька між дітьми
+        let minX = children[0]._x;
+        let maxX = children[0]._x;
+        for (let i = 1; i < children.length; i++) {
+          if (children[i]._x < minX) minX = children[i]._x;
+          if (children[i]._x > maxX) maxX = children[i]._x;
+        }
+        node._x = (minX + maxX) / 2;
+      }
     }
 
-    createNode(root, x, y);
-
-    const children = root.children || [];
-    const gapY = 150;
-    const gapX = 250;
-
-    let childX = x - ((children.length - 1) * gapX) / 2;
-
-    children.forEach((child) => {
-      renderTree(child, childX, y + gapY);
-      createEdge(root.id, child.id);
-      childX += gapX;
-    });
+    dfs(root, 0);
   }
 
-  /* Створити вузол */
-  let draggingNode = null;
-  let nodeStartX = 0;
-  let nodeStartY = 0;
-  let mouseStartX = 0;
-  let mouseStartY = 0;
+  // 2) Перетворюємо логічну _x / _depth у піксельні x / y
+  function assignPixelPositions(root) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let maxDepth = 0;
 
-  function createNode(node, x, y) {
-    const el = document.createElement("div");
-    el.className = `dm-node dm-${node.status}`;
-    el.style.left = x + "px";
-    el.style.top = y + "px";
+    function visit(node) {
+      const x = node._x * (NODE_WIDTH + GAP_X);
+      const y = node._depth * (NODE_HEIGHT + GAP_Y);
 
-    // коротке ім’я для відображення на карті (basename),
-    // але повний шлях лишається у node.label і показується справа
-    if (typeof node.label === "string") {
-      const parts = node.label.split("/");
-      const shortName = parts[parts.length - 1] || node.label;
-      el.textContent = shortName;
-    } else {
-      el.textContent = String(node.label || node.id || "node");
+      node._px = x;
+      node._py = y;
+
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (node._depth > maxDepth) maxDepth = node._depth;
+
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach(visit);
     }
 
+    visit(root);
+
+    // Зсунути все, щоб не було від'ємних x
+    const shiftX = minX < 0 ? -minX + GAP_X : GAP_X;
+    const shiftY = GAP_Y;
+
+    function applyShift(node) {
+      node.x = node._px + shiftX;
+      node.y = node._py + shiftY;
+
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach(applyShift);
+    }
+
+    applyShift(root);
+
+    // Розмір canvas
+    const width = (maxX - minX) + 2 * GAP_X + NODE_WIDTH;
+    const height = (maxDepth + 1) * (NODE_HEIGHT + GAP_Y) + 2 * GAP_Y;
+
+    canvas.style.width = Math.max(width, wrapper.clientWidth) + "px";
+    canvas.style.height = Math.max(height, wrapper.clientHeight) + "px";
+  }
+
+  // ======================= РЕНДЕР НОД І СТРІЛОК ===========================
+
+  function createNode(node) {
+    const el = document.createElement("div");
+    el.classList.add("dm-node");
+
+    // статус як клас
+    const status = node.status || "ok";
+    el.classList.add("dm-" + status);
+
     el.dataset.id = node.id;
+    el.textContent = node.label || node.path || "???";
 
-    canvas.appendChild(el);
+    el.style.position = "absolute";
+    el.style.left = node.x + "px";
+    el.style.top = node.y + "px";
 
-    nodePositions[node.id] = {
-      x: x,
-      y: y,
-      width: el.offsetWidth || 120,
-      height: el.offsetHeight || 32,
-      node: node,
-      el: el
-    };
-
-    // одразу кладемо в локальну мапу для збереження
-    savedPositions[node.id] = { x: x, y: y };
-
-    // Клік → деталі
-    el.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (selectedNodeEl && selectedNodeEl !== el) {
-        selectedNodeEl.classList.remove("dm-node-active");
-      }
-      selectedNodeEl = el;
-      el.classList.add("dm-node-active");
+    el.addEventListener("click", () => {
+      setActiveNode(node.id);
       showDetails(node);
     });
 
-    // Перетягування конкретного вузла
-    el.addEventListener("mousedown", (e) => {
-      e.stopPropagation(); // не запускаємо панорамування
-      draggingNode = nodePositions[node.id];
-      nodeStartX = draggingNode.x;
-      nodeStartY = draggingNode.y;
-      mouseStartX = e.clientX;
-      mouseStartY = e.clientY;
-    });
+    canvas.appendChild(el);
+
+    const rect = el.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+
+    const width = rect.width;
+    const height = rect.height;
+
+    nodePositions[node.id] = {
+      x: node.x,
+      y: node.y,
+      width,
+      height,
+      el,
+      node
+    };
   }
 
-  function dragNodeMove(e) {
-    const dx = (e.clientX - mouseStartX) / scale;
-    const dy = (e.clientY - mouseStartY) / scale;
-
-    draggingNode.x = nodeStartX + dx;
-    draggingNode.y = nodeStartY + dy;
-
-    const el = draggingNode.el;
-    el.style.left = draggingNode.x + "px";
-    el.style.top = draggingNode.y + "px";
-
-    // оновлюємо локальну мапу позицій
-    if (draggingNode.node && draggingNode.node.id) {
-      savedPositions[draggingNode.node.id] = {
-        x: draggingNode.x,
-        y: draggingNode.y
-      };
+  function renderNodes(root) {
+    function walk(node) {
+      createNode(node);
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach(walk);
     }
-
-    repositionEdges();
+    walk(root);
   }
 
-  /* Малювання стрілки (зберігаємо, щоб оновлювати) */
+  // --- Стрілки -------------------------------------------------------------
+
+  const NODE_MARGIN = 8; // щоб лінії не входили усередину прямокутників
+
   function createEdge(fromId, toId) {
+    const from = nodePositions[fromId];
+    const to = nodePositions[toId];
+    if (!from || !to) return;
+
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.classList.add("dm-edge");
+    svg.style.position = "absolute";
 
-    const line = document.createElementNS(svgNS, "line");
-    svg.appendChild(line);
+    const path = document.createElementNS(svgNS, "path");
+    svg.appendChild(path);
 
     canvas.appendChild(svg);
 
-    edges.push({ fromId, toId, svg, line });
-    repositionEdge(edges[edges.length - 1]);
-  }
-
-  function repositionEdges() {
-    edges.forEach(repositionEdge);
+    const edge = { fromId, toId, el: svg, path };
+    edges.push(edge);
+    repositionEdge(edge);
   }
 
   function repositionEdge(edge) {
-    const p1 = nodePositions[edge.fromId];
-    const p2 = nodePositions[edge.toId];
-    if (!p1 || !p2) return;
+    const from = nodePositions[edge.fromId];
+    const to = nodePositions[edge.toId];
+    if (!from || !to) return;
 
-    const x1 = p1.x + p1.width / 2;
-    const y1 = p1.y + p1.height;
-    const x2 = p2.x + p2.width / 2;
-    const y2 = p2.y;
+    const x1 = from.x + from.width / 2;
+    const y1 = from.y + from.height;
+    const x2 = to.x + to.width / 2;
+    const y2 = to.y;
 
-    const left = Math.min(x1, x2);
-    const top = Math.min(y1, y2);
-    const width = Math.abs(x2 - x1);
-    const height = Math.abs(y2 - y1);
+    const startX = x1;
+    const startY = y1 + NODE_MARGIN;
+    const endX = x2;
+    const endY = y2 - NODE_MARGIN;
 
-    const svg = edge.svg;
-    const line = edge.line;
+    const pad = 12;
+    const left = Math.min(startX, endX) - pad;
+    const top = Math.min(startY, endY) - pad;
+    const right = Math.max(startX, endX) + pad;
+    const bottom = Math.max(startY, endY) + pad;
+    const width = right - left;
+    const height = bottom - top;
 
-    svg.style.left = left + "px";
-    svg.style.top = top + "px";
-    svg.style.width = width + "px";
-    svg.style.height = height + "px";
+    edge.el.style.left = left + "px";
+    edge.el.style.top = top + "px";
+    edge.el.setAttribute("width", width);
+    edge.el.setAttribute("height", height);
 
-    line.setAttribute("x1", x1 < x2 ? 0 : width);
-    line.setAttribute("y1", y1 < y2 ? 0 : height);
-    line.setAttribute("x2", x2 < x1 ? 0 : width);
-    line.setAttribute("y2", y2 < y1 ? 0 : height);
+    const sx = startX - left;
+    const sy = startY - top;
+    const ex = endX - left;
+    const ey = endY - top;
+
+    // Легка дуга
+    const mx = (sx + ex) / 2;
+    const my = (sy + ey) / 2 - 30;
+
+    edge.path.setAttribute("d", `M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`);
   }
 
-  /* =================================================
-     ПРАВА ПАНЕЛЬ — деталі вузла
-     ================================================= */
+  function renderEdges(root) {
+    function walk(node) {
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach(child => {
+        createEdge(node.id, child.id);
+        walk(child);
+      });
+    }
+    walk(root);
+  }
+
+  // ======================= ПРАВА ПАНЕЛЬ ====================================
 
   function showDetails(node) {
-    if (detail_title) detail_title.textContent = node.label || node.id;
-    if (detail_path) detail_path.textContent = node.label || node.id;
-    if (detail_type) detail_type.textContent = node.type || "—";
-    if (detail_feature) detail_feature.textContent = node.feature || "(немає)";
-    if (detail_status) {
-      detail_status.textContent =
-        node.status === "ok"
-          ? "🟢 Все ок"
-          : node.status === "fix"
-          ? "🔵 Потрібна правка"
-          : node.status === "error"
-          ? "🔴 Проблема"
-          : node.status === "orphan"
-          ? "⚪ Не підключено"
-          : String(node.status || "—");
+    if (!node) return;
+
+    if (detailTitle) detailTitle.textContent = node.label || node.path || node.id;
+    if (detailPath) detailPath.textContent = node.path || "";
+    if (detailType) detailType.textContent = node.type || "";
+    if (detailFeature) detailFeature.textContent = node.feature || "";
+    if (detailStatus) detailStatus.textContent = node.status || "ok";
+
+    if (detailAiText) {
+      const lines = [];
+      lines.push(`Файл: ${node.path || node.label || node.id}`);
+      lines.push(`Тип: ${node.type || "unknown"}`);
+      lines.push(`Статус: ${node.status || "ok"}`);
+      if (node.feature) {
+        lines.push(`Фіча: ${node.feature}`);
+      }
+      if (node.notes) {
+        lines.push(`Нотатки: ${node.notes}`);
+      }
+      lines.push("");
+      lines.push("Опиши тут, що треба зробити з цим файлом, і кинь цей текст в чат ChatGPT:");
+      lines.push("");
+      lines.push("- Поточна проблема / задача:");
+      lines.push("- Що треба змінити / додати:");
+      lines.push("- Що вже є в цьому файлі:");
+
+      detailAiText.value = lines.join("\n");
     }
-
-    const aiText =
-`Файл: ${node.label || node.id}
-Тип: ${node.type || "—"}
-Статус: ${node.status || "—"}
-
-Опис проблеми / правки:
-(впиши тут свої слова і кинь у чат)
-
-Додаткова інформація:
-${node.notes || "(немає)"} 
-`;
-
-    if (detail_ai) detail_ai.textContent = aiText;
   }
 
-  /* =================================================
-     АВТОЗБЕРЕЖЕННЯ ПОЗИЦІЙ
-     ================================================= */
-
-  function collectPositionsFromNodes() {
-    Object.keys(nodePositions).forEach((id) => {
-      const np = nodePositions[id];
-      if (!np) return;
-      savedPositions[id] = {
-        x: np.x,
-        y: np.y
-      };
+  function setActiveNode(nodeId) {
+    Object.values(nodePositions).forEach(info => {
+      info.el.classList.remove("dm-node-active");
     });
-  }
-
-  let saveTimer = null;
-  function savePositionsDebounced() {
-    if (saveTimer) {
-      clearTimeout(saveTimer);
-    }
-    saveTimer = setTimeout(savePositions, 500);
-  }
-
-  function savePositions() {
-    const payload = {
-      positions: savedPositions
-    };
-
-    try {
-      fetch("/admin/dev-map/positions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload),
-        credentials: "same-origin"
-      }).then((res) => {
-        if (!res.ok) {
-          console.warn("DEV_MAP: save positions failed", res.status);
-        }
-      }).catch((err) => {
-        console.warn("DEV_MAP: save positions error", err);
-      });
-    } catch (e) {
-      console.warn("DEV_MAP: fetch not available", e);
+    const info = nodePositions[nodeId];
+    if (info) {
+      info.el.classList.add("dm-node-active");
     }
   }
 
-  /* =================================================
-     ЗАПУСК РЕНДЕРА
-     ================================================= */
+  // ======================= ЗУМ / ЦЕНТРУВАННЯ ===============================
 
-  // стартова позиція — центр по ширині wrapper (якщо у root нема pos)
-  const rect = wrapper.getBoundingClientRect();
-  let startX = rect.width / 2;
-  let startY = 20;
-
-  if (tree.pos && typeof tree.pos.x === "number" && typeof tree.pos.y === "number") {
-    startX = tree.pos.x;
-    startY = tree.pos.y;
+  function applyScale() {
+    canvas.style.transformOrigin = "0 0";
+    canvas.style.transform = `scale(${currentScale})`;
   }
 
-  renderTree(tree, startX, startY);
-  repositionEdges();
-  updateTransform();
+  function zoomIn() {
+    currentScale = Math.min(MAX_SCALE, currentScale + SCALE_STEP);
+    applyScale();
+  }
+
+  function zoomOut() {
+    currentScale = Math.max(MIN_SCALE, currentScale - SCALE_STEP);
+    applyScale();
+  }
+
+  function zoomReset() {
+    currentScale = 1;
+    applyScale();
+  }
+
+  function centerView() {
+    // Центруємо по ширині/висоті всередині wrapper
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width * currentScale;
+    const h = rect.height * currentScale;
+
+    const cw = wrapper.clientWidth;
+    const ch = wrapper.clientHeight;
+
+    wrapper.scrollLeft = Math.max(0, (w - cw) / 2);
+    wrapper.scrollTop = Math.max(0, (h - ch) / 2);
+  }
+
+  if (btnZoomIn) btnZoomIn.addEventListener("click", zoomIn);
+  if (btnZoomOut) btnZoomOut.addEventListener("click", zoomOut);
+  if (btnZoomReset) btnZoomReset.addEventListener("click", () => {
+    zoomReset();
+    centerView();
+  });
+  if (btnCenter) btnCenter.addEventListener("click", centerView);
+
+  // ======================= СТАРТ ===========================================
+
+  function init() {
+    // 1) рахуємо лейаут
+    computeLayout(tree);
+    assignPixelPositions(tree);
+
+    // 2) рендер нод
+    renderNodes(tree);
+
+    // 3) рендер стрілок
+    renderEdges(tree);
+
+    // 4) скейл 1 і центрування
+    applyScale();
+    centerView();
+
+    // 5) по дефолту активуємо root
+    if (tree.id) {
+      setActiveNode(tree.id);
+      showDetails(tree);
+    }
+  }
+
+  init();
 })();
