@@ -64,7 +64,7 @@
 }
 
 /* Полотно */
-.devmap-wrapper {
+#devmap-wrapper {
   width: 100%;
   height: 650px;
   overflow: auto; /* скрол і по X, і по Y */
@@ -77,12 +77,12 @@
   cursor: grab;
 }
 
-.devmap-wrapper:active {
+#devmap-wrapper:active {
   cursor: grabbing;
 }
 
 /* легка "сітка" як у редакторі */
-.devmap-wrapper::before {
+#devmap-wrapper::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -95,7 +95,7 @@
   mix-blend-mode: screen;
 }
 
-.devmap-canvas {
+#devmap-canvas {
   position: absolute;
   top: 0;
   left: 0;
@@ -250,19 +250,19 @@
 
 /* Скролбар */
 .devmap-detail::-webkit-scrollbar,
-.devmap-wrapper::-webkit-scrollbar {
+#devmap-wrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 .devmap-detail::-webkit-scrollbar-thumb,
-.devmap-wrapper::-webkit-scrollbar-thumb {
+#devmap-wrapper::-webkit-scrollbar-thumb {
   background: #303748;
   border-radius: 4px;
 }
 
 .devmap-detail::-webkit-scrollbar-track,
-.devmap-wrapper::-webkit-scrollbar-track {
+#devmap-wrapper::-webkit-scrollbar-track {
   background: #12151d;
 }
 
@@ -281,7 +281,7 @@
     margin-top: 12px;
   }
 
-  .devmap-wrapper {
+  #devmap-wrapper {
     height: 420px;
   }
 }
