@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dev Map{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_map.css') }}">
+
+<h1 class="devmap-title">🗺 Dev Map — карта файлів і підключень</h1>
+<p class="devmap-subtitle">
+  Масштабуй колесиком миші, перетягуй карту, клікай на будь-який файл — справа з’явиться детальна інформація.
+</p>
+
+<div class="devmap-layout">
+  <!-- Ліва частина: полотно з вузлами та стрілками -->
+  <div class="devmap-left">
+    <div class="devmap-toolbar">
+      <button type="button" id="dm-zoom-out" class="dm-btn">−</button>
+      <button type="button" id="dm-zoom-reset" class="dm-btn">100%</button>
+      <button type="button" id="dm-zoom-in" class="dm-btn">+</button>
+      <button type="button" id="dm-center" class="dm-btn">Центр</button>
+    </div>
+
+    <div id="devmap-wrapper" class="devmap-wrapper">
+      <!-- Весь граф буде рендеритись сюди -->
+      <div id="devmap-canvas" class="devmap-canvas"></div>
+    </div>
+  </div>
+
+  <!-- Права частина: деталі вибраного файлу -->
+  <aside class="devmap-detail" id="devmap-detail">
+    <h2 id="dm-detail-title">Вибери файл на карті</h2>
+    <div class="dm-detail-status" id="dm-detail-status"></div>
+
+    <div class="dm-detail-block">
+      <div class="dm-detail-label">Шлях файлу:</div>
+      <div class="dm-detail-value" id="dm-detail-path">—</div>
+    </div>
+
+    <div class="dm-detail-block">
+      <div class="dm-detail-label">Тип вузла:</div>
+      <div class="dm-detail-value" id="dm-detail-type">—</div>
+    </div>
+
+    <div class="dm-detail-block">
+      <div class="dm-detail-label">Фіча / група:</div>
+      <div class="dm-detail-value" id="dm-detail-feature">—</div>
+    </div>
+
+    <div class="dm-detail-block">
+      <div class="dm-detail-label">Статус:</div>
+      <div class="dm-detail-value" id="dm-detail-status-text">—</div>
+    </div>
+
+    <div class="dm-detail-block">
+      <div class="dm-detail-label">Нотатки / проблема:</div>
+      <textarea id="dm-detail-notes" class="dm-notes" placeholder="Опиши тут проблему або що треба доробити…"></textarea>
+    </div>
+
+    <div class="dm-detail-block">
+      <div class="dm-detail-label">Текст для AI (готовий до копіювання):</div>
+      <pre id="dm-detail-ai-text" class="dm-ai-text"></pre>
+    </div>
+  </aside>
+</div>
+
+<script>
+  // Передаємо дерево вузлів з Flask у JS
+  window.__DEV_TREE__ = {{ tree|tojson|safe }};
+</script>
+<script src="{{ url_for('static', filename='js/dev_map.js') }}"></script>
+
+{% endblock %}
