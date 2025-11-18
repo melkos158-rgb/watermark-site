@@ -184,10 +184,31 @@ async function loadPage(page = 1) {
 }
 
 function renderItemCard(it) {
-  const priceLabel =
-    it.is_free || !it.price_cents
-      ? "Безкоштовно"
-      : (it.price_cents / 100).toFixed(2) + " zł";
+  // 👇 Нормалізація шляху до детальної сторінки:
+  // якщо бекенд дає slug — використовуємо його,
+  // якщо ні — падаємо назад на id.
+  const id = it.id;
+  const slugOrId = it.slug || id;
+  const detailBase = window.MARKET_DETAIL_BASE || "/item/"; // дефолт — /item/<id>
+  const detailHref = detailBase + encodeURIComponent(slugOrId);
+
+  // 👇 Нормалізація ціни:
+  //  • якщо є price_cents — використовуємо
+  //  • якщо є price (у PLN) — конвертуємо в центи
+  let rawPriceCents;
+  if (typeof it.price_cents === "number") {
+    rawPriceCents = it.price_cents;
+  } else if (typeof it.price === "number") {
+    rawPriceCents = Math.round(it.price * 100);
+  } else {
+    rawPriceCents = 0;
+  }
+
+  const isFree = it.is_free || !rawPriceCents;
+
+  const priceLabel = isFree
+    ? "Безкоштовно"
+    : (rawPriceCents / 100).toFixed(2) + " zł";
 
   const rating =
     typeof it.rating === "number" ? it.rating.toFixed(1) : "0.0";
@@ -195,9 +216,7 @@ function renderItemCard(it) {
   const downloads = it.downloads || 0;
 
   return `
-<a class="market-item-card" href="/market/${encodeURIComponent(
-    it.slug
-  )}" data-item-id="${it.id}">
+<a class="market-item-card" href="${detailHref}" data-item-id="${id}">
   <div class="thumb">
     ${
       it.cover_url
@@ -206,7 +225,7 @@ function renderItemCard(it) {
     }
     <button type="button"
             class="fav ${it.is_fav ? "is-active" : ""}"
-            data-fav="${it.id}">
+            data-fav="${id}">
       ${it.is_fav ? "★" : "☆"}
     </button>
   </div>
