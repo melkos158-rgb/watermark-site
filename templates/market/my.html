@@ -33,7 +33,7 @@
         ➕ Додати нову модель
       </a>
 
-      <a href="{{ url_for('profile.profile_page') }}"
+      <a href="/profile"
          class="btn btn-secondary">
         👤 Мій профіль
       </a>
@@ -114,7 +114,7 @@
 
   {# ===================== МОДАЛКА РЕДАГУВАННЯ ОГОЛОШЕННЯ ===================== #}
   <div id="my-edit-backdrop" class="modal-backdrop" style="display:none;"></div>
-  <div id="my-edit-modal" class="modal" style="display:none;">
+  <div id="my-edit-modal" class="modal" style="display:none%;">
     <div class="modal-inner">
       <div class="modal-header">
         <h2 id="my-edit-title">Редагувати оголошення</h2>
@@ -222,7 +222,7 @@
   .sidebar-title{margin:0 0 12px;font-size:15px}
   .sidebar-block{margin-bottom:14px}
   .sidebar-block .lbl{display:block;margin-bottom:4px;font-size:12px;color:#9ca3af}
-  .inp{width:100%;background:#020617;border-radius:10px;border:1px solid #111827;padding:8px 10px;font-size:13px;color:#e5e7eb;outline:none}
+  .inp{width:100%;background:#020617;border-radius:10px;border:1px solid:#111827;padding:8px 10px;font-size:13px;color:#e5e7eb;outline:none}
   .inp:focus{border-color:#6366f1}
   .chips{display:flex;gap:6px;flex-wrap:wrap}
   .chip{border-radius:999px;border:1px solid #111827;background:#020617;color:#9ca3af;font-size:12px;padding:5px 10px;cursor:pointer}
@@ -281,5 +281,5 @@
   document.body.dataset.marketPage = "my";
 </script>
 <script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='market/js/market_listeners.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/market_listeners.js') }}"></script>
 {% endblock %}
