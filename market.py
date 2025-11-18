@@ -199,7 +199,11 @@ def _inject_market_categories():
 
 @bp.get("/market")
 def page_market():
-    # ✅ рендеримо новий список маркету
+    # якщо в URL ?owner=me / my / mine — показуємо сторінку "Мої оголошення"
+    owner = (request.args.get("owner") or "").strip().lower()
+    if owner in ("me", "my", "mine"):
+        return render_template("market/my.html")
+    # ✅ рендеримо новий список маркету (всі моделі)
     return render_template("market/index.html")
 
 
