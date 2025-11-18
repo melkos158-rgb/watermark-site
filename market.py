@@ -210,6 +210,12 @@ def page_market_mine():
     return render_template("market_mine.html")
 
 
+# 🔥 НОВИЙ РОУТ: сторінка "Мої оголошення" (templates/market/my.html)
+@bp.get("/market/my")
+def page_market_my():
+    return render_template("market/my.html")
+
+
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
     # ✅ беремо дані й робимо невеличкий бридж під новий detail.html
@@ -554,6 +560,125 @@ def api_item_delete(item_id: int):
             text(f"DELETE FROM {ITEMS_TBL} WHERE id = :id AND user_id = :uid"),
             {"id": item_id, "uid": uid}
         )
+        db.session.commit()
+        if res.rowcount == 0:
+            return jsonify({"ok": False, "error": "not_found_or_forbidden"}), 403
+        return jsonify({"ok": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
+
+
+# 🔥 НОВИЙ: API для редагування оголошення
+@bp.post("/api/item/<int:item_id>/update")
+def api_item_update(item_id: int):
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    # Підтримуємо і JSON, і form-data (без файлів, файли йдуть через /api/upload)
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    else:
+        data = request.form or {}
+
+    fields: Dict[str, Any] = {}
+
+    if "title" in data:
+        fields["title"] = (data.get("title") or "").strip()
+
+    if "desc" in data or "description" in data:
+        fields['"description"'] = (data.get("desc") or data.get("description") or "").strip()
+
+    if "price" in data:
+        fields["price"] = _parse_int(data.get("price"), 0)
+
+    if "tags" in data:
+        tags_val = data.get("tags")
+        if isinstance(tags_val, list):
+            tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
+        else:
+            try:
+                # якщо прийшов JSON-рядок
+                val = json.loads(tags_val) if isinstance(tags_val, str) and tags_val.strip().startswith("[") else tags_val
+            except Exception:
+                val = tags_val
+            if isinstance(val, list):
+                tags_str = ",".join([str(t).strip() for t in val if str(t).strip()])
+            else:
+                tags_str = str(val or "")
+        fields["tags"] = tags_str
+
+    if "cover" in data or "cover_url" in data:
+        cv = (data.get("cover_url") or data.get("cover") or "").strip()
+        fields["cover_url"] = cv
+
+    # галерея картинок (масив -> JSON)
+    if "gallery_urls" in data or "photos" in data:
+        g_val = data.get("gallery_urls") or data.get("photos")
+        if isinstance(g_val, str):
+            try:
+                g_val = json.loads(g_val)
+            except Exception:
+                g_val = [g_val]
+        if not isinstance(g_val, list):
+            g_val = []
+        g_val = [str(x) for x in g_val if x]
+        fields["gallery_urls"] = json_dumps_safe(g_val)
+
+    # основний STL
+    if "stl_main_url" in data or "url" in data or "file_url" in data:
+        fields["stl_main_url"] = (data.get("stl_main_url") or data.get("url") or data.get("file_url") or "").strip()
+
+    # додаткові STL
+    if "stl_extra_urls" in data or "stl_files" in data:
+        s_val = data.get("stl_extra_urls") or data.get("stl_files")
+        if isinstance(s_val, str):
+            try:
+                s_val = json.loads(s_val)
+            except Exception:
+                s_val = [s_val]
+        if not isinstance(s_val, list):
+            s_val = []
+        s_val = [str(x) for x in s_val if x]
+        fields["stl_extra_urls"] = json_dumps_safe(s_val)
+
+    if "zip_url" in data:
+        fields["zip_url"] = (data.get("zip_url") or "").strip()
+
+    if "format" in data:
+        fields["format"] = (data.get("format") or "stl").strip().lower()
+
+    if not fields:
+        return jsonify({"ok": False, "error": "no_fields"}), 400
+
+    dialect = db.session.get_bind().dialect.name
+    set_clauses = []
+    params: Dict[str, Any] = {"id": item_id, "uid": uid}
+
+    for col, val in fields.items():
+        # колонки типу "description" вже з лапками в ключі
+        if col.startswith('"') and col.endswith('"'):
+            key = col.strip('"')
+            set_clauses.append(f'"{key}" = :{key}')
+            params[key] = val
+        else:
+            set_clauses.append(f"{col} = :{col}")
+            params[col] = val
+
+    if dialect == "postgresql":
+        set_clauses.append("updated_at = NOW()")
+    else:
+        set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+
+    sql = f"""
+        UPDATE {ITEMS_TBL}
+        SET {", ".join(set_clauses)}
+        WHERE id = :id AND user_id = :uid
+    """
+
+    try:
+        res = db.session.execute(text(sql), params)
         db.session.commit()
         if res.rowcount == 0:
             return jsonify({"ok": False, "error": "not_found_or_forbidden"}), 403
