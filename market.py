@@ -22,7 +22,6 @@ from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
 
 # ✅ Cloudinary (хмарне зберігання)
-# Працює, якщо в ENV є CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud_name>
 try:
     import cloudinary
     import cloudinary.uploader
@@ -36,7 +35,6 @@ except Exception:
 
 # ✅ беремо db та модель з models.py
 from models import db, MarketItem
-# якщо User у тебе лишається в db.py — імпортуємо тільки його звідти
 from db import User
 
 # ✅ категорії з нового market-модуля
@@ -47,11 +45,9 @@ except Exception:
 
 bp = Blueprint("market", __name__)
 
-# ✅ назву таблиці тепер беремо з моделі (fallback на "items" якщо що)
 ITEMS_TBL = getattr(MarketItem, "__tablename__", "items") or "items"
 USERS_TBL = getattr(User, "__tablename__", "users") or "users"
 
-# логічний шлях; фізично пишемо у app/static/... всередині _save_upload
 UPLOAD_DIR = os.path.join("static", "market_uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -90,10 +86,6 @@ def _normalize_sort(value: Optional[str]) -> str:
 
 
 def _local_media_exists(media_url: str) -> bool:
-    """
-    Приймає як новий шлях (/media/...), так і старий (/static/market_uploads/...).
-    Перевіряє, чи файл є в static/market_uploads/...
-    """
     if not media_url:
         return False
 
@@ -110,13 +102,6 @@ def _local_media_exists(media_url: str) -> bool:
 
 
 def _normalize_cover_url(url: Optional[str]) -> str:
-    """
-    Повертає валідний URL обкладинки:
-    - http(s)/data: — як є
-    - /media/... — ДОВІРЯЄМО (без перевірок)
-    - /static/market_uploads/... — одразу переписуємо в /media/... (без перевірок)
-    - інакше — плейсхолдер
-    """
     u = (url or "").strip()
     if not u:
         return COVER_PLACEHOLDER
@@ -124,11 +109,9 @@ def _normalize_cover_url(url: Optional[str]) -> str:
     if u.startswith(("http://", "https://", "data:")):
         return u
 
-    # ✅ довіряємо опублікованим локальним медіашляхам
     if u.startswith("/media/"):
         return u
 
-    # ✅ старі шляхи відразу транслюємо у /media/ без перевірки існування
     if u.startswith("/static/market_uploads/"):
         rest = u[len("/static/market_uploads/") :].lstrip("/")
         return f"/media/{rest}"
@@ -193,13 +176,8 @@ def json_dumps_safe(obj) -> str:
         return "[]"
 
 
-# ───────────────────────────── NEW: категорії в g ─────────────────────────────
 @bp.before_app_request
 def _inject_market_categories():
-    """
-    Підкидаємо g.market_categories на сторінках маркету,
-    щоб друга шапка мала список категорій без зайвих запитів у в’юшках.
-    """
     p = request.path or ""
     if not (p.startswith("/market") or p.startswith("/api/market")):
         return
@@ -212,26 +190,19 @@ def _inject_market_categories():
     g.market_categories = cats
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-
-
 @bp.get("/market")
 def page_market():
-    # якщо в URL ?owner=me / my / mine — показуємо сторінку "Мої оголошення"
     owner = (request.args.get("owner") or "").strip().lower()
     if owner in ("me", "my", "mine"):
         return render_template("market/my.html")
-    # ✅ рендеримо новий список маркету (всі моделі)
     return render_template("market/index.html")
 
 
 @bp.get("/market/mine")
 def page_market_mine():
-    # старий шлях, залишаємо як є (якщо шаблон є)
     return render_template("market_mine.html")
 
 
-# 🔥 НОВИЙ РОУТ: сторінка "Мої оголошення" (templates/market/my.html)
 @bp.get("/market/my")
 def page_market_my():
     return render_template("market/my.html")
@@ -239,21 +210,18 @@ def page_market_my():
 
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
-    # ✅ беремо дані й робимо невеличкий бридж під новий detail.html
     it = _fetch_item_with_author(item_id)
     if not it:
         return render_template("item.html", item=None), 404
 
-    d = dict(it)  # копія
+    d = dict(it)
 
-    # owner-об’єкт для шаблону
     d["owner"] = {
         "name": d.get("author_name") or "-",
         "avatar_url": d.get("author_avatar") or "/static/img/user.jpg",
         "bio": d.get("author_bio") or "3D-дизайнер",
     }
 
-    # відповідність полів ціни/безкоштовності
     if "price_cents" not in d:
         try:
             price_pln = float(d.get("price") or 0)
@@ -262,26 +230,20 @@ def page_item(item_id: int):
             d["price_cents"] = 0
     d["is_free"] = bool(d.get("is_free")) or (int(d.get("price_cents") or 0) == 0)
 
-    # головний файл (для data-src)
     d["main_model_url"] = d.get("stl_main_url") or d.get("url")
 
-    # обкладинка узгоджена
     d["cover_url"] = _normalize_cover_url(d.get("cover_url") or d.get("cover"))
 
     return render_template("market/detail.html", item=d)
 
 
-# 🔧 сторінка завантаження (старий шлях /upload)
 @bp.get("/upload")
 def page_upload():
-    # використовуємо вже існуючий шаблон templates/upload.html
     return render_template("upload.html")
 
 
-# 🔧 додатковий шлях /market/upload, щоб працювали лінки з маркету
 @bp.get("/market/upload")
 def page_market_upload():
-    # теж рендеримо той самий upload.html
     return render_template("upload.html")
 
 
@@ -292,7 +254,6 @@ def page_edit_item(item_id: int):
 
 @bp.get("/api/items")
 def api_items():
-    # ✅ звичайний strip() без експериментів із trim
     q = (request.args.get("q") or "").strip().lower()
     free = _normalize_free(request.args.get("free"))
     sort = _normalize_sort(request.args.get("sort"))
@@ -401,11 +362,10 @@ def api_items():
                 d.setdefault("downloads", 0)
                 items.append(d)
 
-    # 🔧 Пост-обробка: валідний cover і сумісність із фронтом
     for it in items:
         c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
         it["cover"] = c
-        it["cover_url"] = c  # 👈 фронт може читати саме це поле
+        it["cover_url"] = c
 
     return jsonify(
         {
@@ -418,7 +378,6 @@ def api_items():
     )
 
 
-# ✅ СТАРИЙ ШЛЯХ ДЛЯ СУМІСНОСТІ: /api/market/items
 @bp.get("/api/market/items")
 def api_items_compat():
     return api_items()
@@ -434,6 +393,10 @@ def api_my_items():
     per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
     offset = (page - 1) * per_page
 
+    # 🔥 тут головний фокус: беремо моделі, де user_id = uid
+    # АБО user_id IS NULL / 0 (старі оголошення без власника)
+    where_clause = "WHERE (user_id = :uid OR user_id IS NULL OR user_id = 0)"
+
     sql_new = f"""
         SELECT id, title, price, tags,
                COALESCE(cover_url, '') AS cover,
@@ -442,7 +405,7 @@ def api_my_items():
                stl_main_url AS url,
                format, user_id, created_at
         FROM {ITEMS_TBL}
-        WHERE user_id = :uid
+        {where_clause}
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset
     """
@@ -452,7 +415,7 @@ def api_my_items():
                stl_main_url AS url,
                user_id, created_at
         FROM {ITEMS_TBL}
-        WHERE user_id = :uid
+        {where_clause}
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset
     """
@@ -462,10 +425,11 @@ def api_my_items():
                COALESCE(file_url,'') AS url,
                user_id, created_at
         FROM {ITEMS_TBL}
-        WHERE user_id = :uid
+        {where_clause}
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset
     """
+
     try:
         rows = db.session.execute(
             text(sql_new),
@@ -474,7 +438,9 @@ def api_my_items():
         items = [_row_to_dict(r) for r in rows]
         total = (
             db.session.execute(
-                text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                text(
+                    f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"
+                ),
                 {"uid": uid},
             ).scalar()
             or 0
@@ -494,40 +460,43 @@ def api_my_items():
                 items.append(d)
             total = (
                 db.session.execute(
-                    text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                    text(
+                        f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"
+                    ),
                     {"uid": uid},
                 ).scalar()
                 or 0
             )
         except sa_exc.ProgrammingError:
             db.session.rollback()
-            rows = db.session.execute(
-                text(sql_legacy),
-                {"uid": uid, "limit": per_page, "offset": offset},
-            ).fetchall()
-            items = []
-            for r in rows:
-                d = _row_to_dict(r)
-                d.setdefault("rating", 0)
-                d.setdefault("downloads", 0)
-                items.append(d)
-            total = (
-                db.session.execute(
-                    text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
-                    {"uid": uid},
-                ).scalar()
-                or 0
-            )
-
-    # 🔁 Fallback: якщо у БД поки не проставлені user_id і total == 0,
-    # показуємо загальний список /api/items, щоб не було пусто.
-    if not total:
-        return api_items()
+            try:
+                rows = db.session.execute(
+                    text(sql_legacy),
+                    {"uid": uid, "limit": per_page, "offset": offset},
+                ).fetchall()
+                items = []
+                for r in rows:
+                    d = _row_to_dict(r)
+                    d.setdefault("rating", 0)
+                    d.setdefault("downloads", 0)
+                    items.append(d)
+                total = (
+                    db.session.execute(
+                        text(
+                            f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"
+                        ),
+                        {"uid": uid},
+                    ).scalar()
+                    or 0
+                )
+            except sa_exc.ProgrammingError:
+                # якщо взагалі все погано з колонкою user_id — просто віддаємо всі моделі
+                return api_items()
 
     for it in items:
         c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
         it["cover"] = c
-        it["cover_url"] = c  # 👈 сумісність
+        it["cover_url"] = c
 
     return jsonify(
         {
@@ -540,7 +509,6 @@ def api_my_items():
     )
 
 
-# ✅ СТАРИЙ ШЛЯХ ДЛЯ СУМІСНОСТІ: /api/market/my-items
 @bp.get("/api/market/my-items")
 def api_my_items_compat():
     return api_my_items()
@@ -617,14 +585,12 @@ def api_item_delete(item_id: int):
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
 
-# 🔥 НОВИЙ: API для редагування оголошення
 @bp.post("/api/item/<int:item_id>/update")
 def api_item_update(item_id: int):
     uid = _parse_int(session.get("user_id"), 0)
     if not uid:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
 
-    # Підтримуємо і JSON, і form-data (без файлів, файли йдуть через /api/upload)
     if request.is_json:
         data = request.get_json(silent=True) or {}
     else:
@@ -647,7 +613,6 @@ def api_item_update(item_id: int):
             tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
         else:
             try:
-                # якщо прийшов JSON-рядок
                 val = (
                     json.loads(tags_val)
                     if isinstance(tags_val, str) and tags_val.strip().startswith("[")
@@ -665,7 +630,6 @@ def api_item_update(item_id: int):
         cv = (data.get("cover_url") or data.get("cover") or "").strip()
         fields["cover_url"] = cv
 
-    # галерея картинок (масив -> JSON)
     if "gallery_urls" in data or "photos" in data:
         g_val = data.get("gallery_urls") or data.get("photos")
         if isinstance(g_val, str):
@@ -678,13 +642,11 @@ def api_item_update(item_id: int):
         g_val = [str(x) for x in g_val if x]
         fields["gallery_urls"] = json_dumps_safe(g_val)
 
-    # основний STL
     if "stl_main_url" in data or "url" in data or "file_url" in data:
         fields["stl_main_url"] = (
             data.get("stl_main_url") or data.get("url") or data.get("file_url") or ""
         ).strip()
 
-    # додаткові STL
     if "stl_extra_urls" in data or "stl_files" in data:
         s_val = data.get("stl_extra_urls") or data.get("stl_files")
         if isinstance(s_val, str):
@@ -711,7 +673,6 @@ def api_item_update(item_id: int):
     params: Dict[str, Any] = {"id": item_id, "uid": uid}
 
     for col, val in fields.items():
-        # колонки типу "description" вже з лапками в ключі
         if col.startswith('"') and col.endswith('"'):
             key = col.strip('"')
             set_clauses.append(f'"{key}" = :{key}')
@@ -766,12 +727,16 @@ def api_upload():
         uid = _parse_int(session.get("user_id"), 0)
 
         if not file_url and "stl_file" in files:
-            saved = _save_upload(files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT)
+            saved = _save_upload(
+                files["stl_file"], f"user_{uid}/models", ALLOWED_MODEL_EXT
+            )
             if saved:
                 file_url = saved
 
         if not zip_url and "zip_file" in files:
-            saved_zip = _save_upload(files["zip_file"], f"user_{uid}/zips", ALLOWED_ARCHIVE_EXT)
+            saved_zip = _save_upload(
+                files["zip_file"], f"user_{uid}/zips", ALLOWED_ARCHIVE_EXT
+            )
             if saved_zip:
                 zip_url = saved_zip
 
@@ -786,7 +751,9 @@ def api_upload():
         images = []
 
         if not cover and "cover_file" in files:
-            saved = _save_upload(files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT)
+            saved = _save_upload(
+                files["cover_file"], f"user_{uid}/covers", ALLOWED_IMAGE_EXT
+            )
             if saved:
                 cover = saved
 
@@ -796,7 +763,9 @@ def api_upload():
                 if saved:
                     images.append(saved)
 
-        user_id = _parse_int(form.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
+        user_id = _parse_int(form.get("user_id"), 0) or _parse_int(
+            session.get("user_id"), 0
+        )
     else:
         data = request.get_json(silent=True) or {}
         title = (data.get("title") or "").strip()
@@ -807,7 +776,9 @@ def api_upload():
         zip_url = (data.get("zip_url") or "").strip()
         cover = (data.get("cover") or data.get("cover_url") or "").strip()
         tags_val = data.get("tags") or ""
-        user_id = _parse_int(data.get("user_id"), 0) or _parse_int(session.get("user_id"), 0)
+        user_id = _parse_int(data.get("user_id"), 0) or _parse_int(
+            session.get("user_id"), 0
+        )
         photos_data = data.get("photos")
         if isinstance(photos_data, dict):
             images = list(photos_data.get("images", []))
@@ -974,7 +945,6 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d["photos"] = images[:5]
     d["stl_files"] = stl_files[:5]
 
-    # 🔧 Нормалізуємо cover + віддзеркалюємо у cover_url для фронта
     c = _normalize_cover_url(d.get("cover") or d.get("cover_url"))
     d["cover"] = c
     d["cover_url"] = c
@@ -1036,7 +1006,6 @@ def _static_market_uploads_fallback():
         abort(404)
 
 
-# ✅ Публічний роут для медіа
 @bp.get("/media/<path:fname>")
 @bp.get("/market/media/<path:fname>")
 @bp.get("/static/market_uploads/media/<path:fname>")
@@ -1045,7 +1014,6 @@ def market_media(fname: str):
     base_dir = os.path.join(current_app.root_path, "static", "market_uploads")
     abs_path = os.path.join(base_dir, safe)
     if not os.path.isfile(abs_path):
-        # якщо просили зображення — віддаємо плейсхолдер замість 404
         low = safe.lower()
         if low.endswith((".jpg", ".jpeg", ".png", ".webp")):
             return current_app.send_static_file("img/placeholder_stl.jpg")
