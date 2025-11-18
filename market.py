@@ -209,8 +209,7 @@ def page_market():
 
 @bp.get("/market/mine")
 def page_market_mine():
-    # якщо є новий шаблон — можна відрендерити тут;
-    # інакше залишаємо як було
+    # старий шлях, залишаємо як є (якщо шаблон є)
     return render_template("market_mine.html")
 
 
@@ -275,7 +274,7 @@ def page_edit_item(item_id: int):
 
 @bp.get("/api/items")
 def api_items():
-    q = (request.args.get("q") or "").strip().lower()
+    q = (request.args.get("q") or "").trim().lower() if hasattr(str, "trim") else (request.args.get("q") or "").strip().lower()
     free = _normalize_free(request.args.get("free"))
     sort = _normalize_sort(request.args.get("sort"))
     page = max(1, _parse_int(request.args.get("page"), 1))
@@ -388,9 +387,6 @@ def api_items():
         c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
         it["cover"] = c
         it["cover_url"] = c  # 👈 фронт може читати саме це поле
-        # 🔥 slug fallback, щоб у фронті не було undefined
-        if not it.get("slug"):
-            it["slug"] = str(it.get("id") or "")
 
     return jsonify({
         "items": items,
@@ -493,13 +489,15 @@ def api_my_items():
                 {"uid": uid}
             ).scalar() or 0
 
+    # 🔁 Fallback: якщо у БД поки не проставлені user_id і total == 0,
+    # показуємо загальний список /api/items, щоб не було пусто.
+    if not total:
+        return api_items()
+
     for it in items:
         c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
         it["cover"] = c
         it["cover_url"] = c  # 👈 сумісність
-        # 🔥 slug fallback
-        if not it.get("slug"):
-            it["slug"] = str(it.get("id") or "")
 
     return jsonify({
         "items": items,
