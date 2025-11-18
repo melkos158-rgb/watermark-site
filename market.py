@@ -388,6 +388,9 @@ def api_items():
         c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
         it["cover"] = c
         it["cover_url"] = c  # 👈 фронт може читати саме це поле
+        # 🔥 slug fallback, щоб у фронті не було undefined
+        if not it.get("slug"):
+            it["slug"] = str(it.get("id") or "")
 
     return jsonify({
         "items": items,
@@ -494,6 +497,9 @@ def api_my_items():
         c = _normalize_cover_url(it.get("cover") or it.get("cover_url"))
         it["cover"] = c
         it["cover_url"] = c  # 👈 сумісність
+        # 🔥 slug fallback
+        if not it.get("slug"):
+            it["slug"] = str(it.get("id") or "")
 
     return jsonify({
         "items": items,
