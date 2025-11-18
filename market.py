@@ -5,7 +5,18 @@ import shutil
 import uuid
 from typing import Any, Dict, Optional
 
-from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort, redirect, g
+from flask import (
+    Blueprint,
+    render_template,
+    jsonify,
+    request,
+    session,
+    current_app,
+    send_from_directory,
+    abort,
+    redirect,
+    g,
+)
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
@@ -15,6 +26,7 @@ from werkzeug.utils import secure_filename
 try:
     import cloudinary
     import cloudinary.uploader
+
     _CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
     if _CLOUDINARY_URL:
         cloudinary.config(cloudinary_url=_CLOUDINARY_URL)
@@ -87,9 +99,9 @@ def _local_media_exists(media_url: str) -> bool:
 
     rel = None
     if media_url.startswith("/media/"):
-        rel = media_url[len("/media/"):].lstrip("/")
+        rel = media_url[len("/media/") :].lstrip("/")
     elif media_url.startswith("/static/market_uploads/"):
-        rel = media_url[len("/static/market_uploads/"):].lstrip("/")
+        rel = media_url[len("/static/market_uploads/") :].lstrip("/")
     else:
         return False
 
@@ -118,7 +130,7 @@ def _normalize_cover_url(url: Optional[str]) -> str:
 
     # ✅ старі шляхи відразу транслюємо у /media/ без перевірки існування
     if u.startswith("/static/market_uploads/"):
-        rest = u[len("/static/market_uploads/"):].lstrip("/")
+        rest = u[len("/static/market_uploads/") :].lstrip("/")
         return f"/media/{rest}"
 
     return COVER_PLACEHOLDER
@@ -140,21 +152,25 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
             folder = f"proofly/market/{subdir}".replace("\\", "/")
             if ext in ALLOWED_IMAGE_EXT:
                 res = cloudinary.uploader.upload(
-                    file_storage, folder=folder,
-                    public_id=os.path.splitext(unique_name)[0]
+                    file_storage,
+                    folder=folder,
+                    public_id=os.path.splitext(unique_name)[0],
                 )
             else:
                 res = cloudinary.uploader.upload(
-                    file_storage, folder=folder,
+                    file_storage,
+                    folder=folder,
                     resource_type="raw",
-                    public_id=os.path.splitext(unique_name)[0]
+                    public_id=os.path.splitext(unique_name)[0],
                 )
             url = res.get("secure_url") or res.get("url")
             if url:
                 return url
         except Exception as _e:
             try:
-                current_app.logger.warning(f"Cloudinary upload failed, fallback to local: {type(_e).__name__}: {_e}")
+                current_app.logger.warning(
+                    f"Cloudinary upload failed, fallback to local: {type(_e).__name__}: {_e}"
+                )
             except Exception:
                 pass
 
@@ -194,6 +210,8 @@ def _inject_market_categories():
         except Exception:
             cats = []
     g.market_categories = cats
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -274,7 +292,8 @@ def page_edit_item(item_id: int):
 
 @bp.get("/api/items")
 def api_items():
-    q = (request.args.get("q") or "").trim().lower() if hasattr(str, "trim") else (request.args.get("q") or "").strip().lower()
+    # ✅ звичайний strip() без експериментів із trim
+    q = (request.args.get("q") or "").strip().lower()
     free = _normalize_free(request.args.get("free"))
     sort = _normalize_sort(request.args.get("sort"))
     page = max(1, _parse_int(request.args.get("page"), 1))
@@ -353,7 +372,7 @@ def api_items():
     try:
         rows = db.session.execute(
             text(sql_new),
-            {**params, "limit": per_page, "offset": offset}
+            {**params, "limit": per_page, "offset": offset},
         ).fetchall()
         items = [_row_to_dict(r) for r in rows]
     except sa_exc.ProgrammingError:
@@ -361,7 +380,7 @@ def api_items():
         try:
             rows = db.session.execute(
                 text(sql_new_min),
-                {**params, "limit": per_page, "offset": offset}
+                {**params, "limit": per_page, "offset": offset},
             ).fetchall()
             items = []
             for r in rows:
@@ -373,7 +392,7 @@ def api_items():
             db.session.rollback()
             rows = db.session.execute(
                 text(sql_legacy),
-                {**params, "limit": per_page, "offset": offset}
+                {**params, "limit": per_page, "offset": offset},
             ).fetchall()
             items = []
             for r in rows:
@@ -388,13 +407,15 @@ def api_items():
         it["cover"] = c
         it["cover_url"] = c  # 👈 фронт може читати саме це поле
 
-    return jsonify({
-        "items": items,
-        "page": page,
-        "per_page": per_page,
-        "pages": math.ceil(total / per_page) if per_page else 1,
-        "total": total
-    })
+    return jsonify(
+        {
+            "items": items,
+            "page": page,
+            "per_page": per_page,
+            "pages": math.ceil(total / per_page) if per_page else 1,
+            "total": total,
+        }
+    )
 
 
 # ✅ СТАРИЙ ШЛЯХ ДЛЯ СУМІСНОСТІ: /api/market/items
@@ -448,19 +469,22 @@ def api_my_items():
     try:
         rows = db.session.execute(
             text(sql_new),
-            {"uid": uid, "limit": per_page, "offset": offset}
+            {"uid": uid, "limit": per_page, "offset": offset},
         ).fetchall()
         items = [_row_to_dict(r) for r in rows]
-        total = db.session.execute(
-            text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
-            {"uid": uid}
-        ).scalar() or 0
+        total = (
+            db.session.execute(
+                text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                {"uid": uid},
+            ).scalar()
+            or 0
+        )
     except sa_exc.ProgrammingError:
         db.session.rollback()
         try:
             rows = db.session.execute(
                 text(sql_new_min),
-                {"uid": uid, "limit": per_page, "offset": offset}
+                {"uid": uid, "limit": per_page, "offset": offset},
             ).fetchall()
             items = []
             for r in rows:
@@ -468,15 +492,18 @@ def api_my_items():
                 d.setdefault("rating", 0)
                 d.setdefault("downloads", 0)
                 items.append(d)
-            total = db.session.execute(
-                text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
-                {"uid": uid}
-            ).scalar() or 0
+            total = (
+                db.session.execute(
+                    text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                    {"uid": uid},
+                ).scalar()
+                or 0
+            )
         except sa_exc.ProgrammingError:
             db.session.rollback()
             rows = db.session.execute(
                 text(sql_legacy),
-                {"uid": uid, "limit": per_page, "offset": offset}
+                {"uid": uid, "limit": per_page, "offset": offset},
             ).fetchall()
             items = []
             for r in rows:
@@ -484,10 +511,13 @@ def api_my_items():
                 d.setdefault("rating", 0)
                 d.setdefault("downloads", 0)
                 items.append(d)
-            total = db.session.execute(
-                text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
-                {"uid": uid}
-            ).scalar() or 0
+            total = (
+                db.session.execute(
+                    text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                    {"uid": uid},
+                ).scalar()
+                or 0
+            )
 
     # 🔁 Fallback: якщо у БД поки не проставлені user_id і total == 0,
     # показуємо загальний список /api/items, щоб не було пусто.
@@ -499,13 +529,15 @@ def api_my_items():
         it["cover"] = c
         it["cover_url"] = c  # 👈 сумісність
 
-    return jsonify({
-        "items": items,
-        "page": page,
-        "per_page": per_page,
-        "pages": math.ceil(total / per_page) if per_page else 1,
-        "total": total
-    })
+    return jsonify(
+        {
+            "items": items,
+            "page": page,
+            "per_page": per_page,
+            "pages": math.ceil(total / per_page) if per_page else 1,
+            "total": total,
+        }
+    )
 
 
 # ✅ СТАРИЙ ШЛЯХ ДЛЯ СУМІСНОСТІ: /api/market/my-items
@@ -528,19 +560,23 @@ def api_item_download(item_id: int):
     try:
         if dialect == "postgresql":
             upd = db.session.execute(
-                text(f"""UPDATE {ITEMS_TBL}
+                text(
+                    f"""UPDATE {ITEMS_TBL}
                          SET downloads = COALESCE(downloads,0) + 1,
                              updated_at = NOW()
-                         WHERE id = :id"""),
-                {"id": item_id}
+                         WHERE id = :id"""
+                ),
+                {"id": item_id},
             )
         else:
             upd = db.session.execute(
-                text(f"""UPDATE {ITEMS_TBL}
+                text(
+                    f"""UPDATE {ITEMS_TBL}
                          SET downloads = COALESCE(downloads,0) + 1,
                              updated_at = CURRENT_TIMESTAMP
-                         WHERE id = :id"""),
-                {"id": item_id}
+                         WHERE id = :id"""
+                ),
+                {"id": item_id},
             )
         db.session.commit()
         if upd.rowcount == 0:
@@ -549,8 +585,12 @@ def api_item_download(item_id: int):
         db.session.rollback()
         try:
             db.session.execute(
-                text(f"UPDATE {ITEMS_TBL} SET updated_at = { 'NOW()' if dialect=='postgresql' else 'CURRENT_TIMESTAMP' } WHERE id = :id"),
-                {"id": item_id}
+                text(
+                    f"UPDATE {ITEMS_TBL} SET updated_at = "
+                    f"{'NOW()' if dialect=='postgresql' else 'CURRENT_TIMESTAMP'} "
+                    "WHERE id = :id"
+                ),
+                {"id": item_id},
             )
             db.session.commit()
         except Exception:
@@ -566,7 +606,7 @@ def api_item_delete(item_id: int):
     try:
         res = db.session.execute(
             text(f"DELETE FROM {ITEMS_TBL} WHERE id = :id AND user_id = :uid"),
-            {"id": item_id, "uid": uid}
+            {"id": item_id, "uid": uid},
         )
         db.session.commit()
         if res.rowcount == 0:
@@ -608,7 +648,11 @@ def api_item_update(item_id: int):
         else:
             try:
                 # якщо прийшов JSON-рядок
-                val = json.loads(tags_val) if isinstance(tags_val, str) and tags_val.strip().startswith("[") else tags_val
+                val = (
+                    json.loads(tags_val)
+                    if isinstance(tags_val, str) and tags_val.strip().startswith("[")
+                    else tags_val
+                )
             except Exception:
                 val = tags_val
             if isinstance(val, list):
@@ -636,7 +680,9 @@ def api_item_update(item_id: int):
 
     # основний STL
     if "stl_main_url" in data or "url" in data or "file_url" in data:
-        fields["stl_main_url"] = (data.get("stl_main_url") or data.get("url") or data.get("file_url") or "").strip()
+        fields["stl_main_url"] = (
+            data.get("stl_main_url") or data.get("url") or data.get("file_url") or ""
+        ).strip()
 
     # додаткові STL
     if "stl_extra_urls" in data or "stl_files" in data:
@@ -837,7 +883,7 @@ def api_upload():
             "zip_url": zip_url,
             "format": fmt,
             "user_id": user_id,
-        }
+        },
     )
     if dialect == "postgresql":
         new_id = _row_to_dict(row.fetchone())["id"]
@@ -865,7 +911,9 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
         row = db.session.execute(text(sql_primary), {"id": item_id}).fetchone()
     except sa_exc.ProgrammingError:
         db.session.rollback()
-        row = db.session.execute(text(f"""
+        row = db.session.execute(
+            text(
+                f"""
           SELECT i.*,
                  u.name AS author_name,
                  u.email AS author_email,
@@ -873,7 +921,10 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
           FROM {ITEMS_TBL} i
           LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
           WHERE i.id = :id
-        """), {"id": item_id}).fetchone()
+        """
+            ),
+            {"id": item_id},
+        ).fetchone()
 
     if not row:
         return None
