@@ -48,6 +48,35 @@
   const nodePositions = {};  // id -> { x, y, width, height, el, node }
   const edges = [];          // { fromId, toId, el, path }
 
+  // Збережені позиції для бекенда
+  const savedPositions = {}; // id -> { x, y }
+  let saveTimer = null;
+
+  function scheduleSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePositions, 600);
+  }
+
+  function savePositions() {
+    if (!Object.keys(savedPositions).length) return;
+
+    const payload = { positions: savedPositions };
+
+    fetch("/admin/dev-map/positions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          console.warn("Dev Map: failed to save positions", res.status);
+        }
+      })
+      .catch((err) => {
+        console.warn("Dev Map: error saving positions", err);
+      });
+  }
+
   // ==== АВТО-ЛЕЙАУТ ДЕРЕВА =================================================
   // Класичний tree-layout:
   //  - листи отримують послідовні X
@@ -116,12 +145,19 @@
     }
 
     applyShift(root);
+  }
 
-    const width = (maxX - minX) + 2 * GAP_X + NODE_WIDTH;
-    const height = (maxDepth + 1) * (NODE_HEIGHT + GAP_Y) + 3 * GAP_Y;
-
-    canvas.style.width = Math.max(width, wrapper.clientWidth) + "px";
-    canvas.style.height = Math.max(height, wrapper.clientHeight) + "px";
+  // Після автолейауту — якщо з бекенду прийшли pos.x / pos.y, підставляємо їх
+  function applySavedPositionsFromTree(root) {
+    function walk(node) {
+      if (node.pos && typeof node.pos.x === "number" && typeof node.pos.y === "number") {
+        node.x = node.pos.x;
+        node.y = node.pos.y;
+      }
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach(walk);
+    }
+    walk(root);
   }
 
   // ==== РЕНДЕР НОД І СТРІЛОК ===============================================
@@ -159,6 +195,9 @@
       el,
       node
     };
+
+    // зберігаємо поточну позицію в кеш (щоб відправити на бекенд при зміні)
+    savedPositions[node.id] = { x: node.x, y: node.y };
   }
 
   function renderNodes(root) {
@@ -252,8 +291,7 @@
     walk(root);
   }
 
-  // ==== ДОДАТКОВО: оновлення всіх стрілок ==================================
-
+  // Додатково: оновити всі стрілки
   function repositionAllEdges() {
     edges.forEach(repositionEdge);
   }
@@ -283,7 +321,6 @@
       lines.push("- Що треба змінити / додати:");
       lines.push("- Що вже є в цьому файлі:");
 
-      // Працює і з <textarea>, і з <pre>
       if ("value" in detailAiText) {
         detailAiText.value = lines.join("\n");
       } else {
@@ -450,7 +487,12 @@
     draggingNode.el.style.left = newX + "px";
     draggingNode.el.style.top = newY + "px";
 
+    // оновлюємо кеш позицій і відправку
+    const id = draggingNode.node.id;
+    savedPositions[id] = { x: newX, y: newY };
+
     repositionAllEdges();
+    scheduleSave();
   }
 
   function onNodeMouseUp() {
@@ -461,7 +503,7 @@
     document.removeEventListener("mouseup", onNodeMouseUp);
   }
 
-  // Вішаємо drag на весь canvas — він сам знаходить .dm-node
+  // вішаємо drag для нод
   canvas.addEventListener("mousedown", onNodeMouseDown);
 
   // ==== СТАРТ =============================================================
@@ -469,6 +511,9 @@
   function init() {
     computeLayout(tree);
     assignPixelPositions(tree);
+
+    // якщо бекенд вже підсунув pos.x / pos.y — підставляємо
+    applySavedPositionsFromTree(tree);
 
     renderNodes(tree);
     renderEdges(tree);
