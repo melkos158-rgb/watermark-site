@@ -10,7 +10,10 @@ import {
   toggleFavorite,
 } from "./api.js";
 
-const PAGE_TYPE = document.body.dataset.marketPage || "list";
+// якщо body не має data-market-page, пробуємо визначити по DOM
+const PAGE_TYPE =
+  document.body.dataset.marketPage ||
+  (document.getElementById("my-grid") ? "my" : "list");
 
 // кореневі елементи (якщо є)
 const ROOT = document.querySelector("[data-market-root]") || document.body;
@@ -39,11 +42,15 @@ function setNotice(text, kind = "") {
 }
 
 function buildStateFromDOM() {
-  const qInput = document.getElementById("q");
+  // пошук
+  const qInput =
+    document.getElementById("q") || document.getElementById("my-search");
   if (qInput) state.q = qInput.value.trim();
 
   // селекти (якщо є)
-  const sortSelect = document.querySelector("[data-filter-sort]");
+  const sortSelect =
+    document.querySelector("[data-filter-sort]") ||
+    document.getElementById("my-sort");
   if (sortSelect && sortSelect.value) {
     state.sort = sortSelect.value;
   }
@@ -56,6 +63,18 @@ function buildStateFromDOM() {
     else state.free = null;
   }
 
+  // чіпси "усі / free / paid" на my.html
+  const freeGroup = document.getElementById("my-free-filter");
+  if (freeGroup) {
+    const active = freeGroup.querySelector(".chip.active");
+    if (active) {
+      const v = active.dataset.free || "all";
+      if (v === "free") state.free = 1;
+      else if (v === "paid") state.free = 0;
+      else state.free = null;
+    }
+  }
+
   // активна категорія (кнопки з data-filter-category)
   const activeCat = document.querySelector(
     "[data-filter-category].is-active, [data-filter-category].active"
@@ -66,9 +85,16 @@ function buildStateFromDOM() {
 }
 
 async function loadPage(page = 1) {
-  const grid = document.querySelector("[data-market-grid]");
-  const pag = document.querySelector("[data-market-pagination]");
+  const grid =
+    document.querySelector("[data-market-grid]") ||
+    document.getElementById("my-grid");
+  const pag =
+    document.querySelector("[data-market-pagination]") ||
+    document.getElementById("my-pagination");
   if (!grid) return;
+
+  const emptyBlock = document.getElementById("my-empty");
+  const counterText = document.getElementById("my-counter-text");
 
   state.page = page;
   buildStateFromDOM();
@@ -77,6 +103,7 @@ async function loadPage(page = 1) {
   grid.dataset.loading = "1";
   grid.innerHTML = `<div class="market-grid-loading">Завантаження моделей…</div>`;
   if (pag) pag.innerHTML = "";
+  if (emptyBlock) emptyBlock.style.display = "none";
 
   const params = {
     q: state.q || undefined,
@@ -114,20 +141,34 @@ async function loadPage(page = 1) {
   grid.dataset.loading = "0";
 
   const items = (resp && resp.items) || [];
+  const total = resp && typeof resp.total === "number" ? resp.total : items.length;
+
   if (!items.length) {
     grid.innerHTML =
       `<div class="market-grid-empty">` +
       `Поки що немає моделей за цим запитом.` +
       `</div>`;
     setNotice("Поки що немає моделей за цим запитом.", "");
+    if (PAGE_TYPE === "my" && emptyBlock) {
+      emptyBlock.style.display = "";
+    }
   } else {
     grid.innerHTML = items.map(renderItemCard).join("");
     setNotice("", "");
+    if (PAGE_TYPE === "my" && emptyBlock) {
+      emptyBlock.style.display = "none";
+    }
+  }
+
+  // текст лічильника на my.html
+  if (PAGE_TYPE === "my" && counterText) {
+    const t = total === 1 ? "Знайдено 1 оголошення" : `Знайдено ${total} оголошень`;
+    counterText.textContent = t;
   }
 
   bindFavButtons(grid);
 
-  if (pag) {
+  if (pag && resp) {
     pag.innerHTML = renderPagination(resp.page, resp.pages);
     pag.querySelectorAll("[data-page]").forEach((btn) => {
       btn.addEventListener("click", (ev) => {
@@ -246,8 +287,11 @@ function bindFavButtons(root) {
 }
 
 function bindUI() {
-  const searchInput = document.getElementById("q");
-  const searchBtn = document.getElementById("btn-search");
+  // глобальний пошук (index.html) або локальний (my.html)
+  const searchInput =
+    document.getElementById("q") || document.getElementById("my-search");
+  const searchBtn =
+    document.getElementById("btn-search") || document.getElementById("my-refresh");
 
   if (searchInput) {
     searchInput.addEventListener("keydown", (e) => {
@@ -261,6 +305,28 @@ function bindUI() {
   if (searchBtn) {
     searchBtn.addEventListener("click", (e) => {
       e.preventDefault();
+      loadPage(1);
+    });
+  }
+
+  // селект сортування на my.html
+  const mySort = document.getElementById("my-sort");
+  if (mySort) {
+    mySort.addEventListener("change", () => {
+      state.sort = mySort.value || "new";
+      loadPage(1);
+    });
+  }
+
+  // чіпси "усі / free / paid" на my.html
+  const myFreeGroup = document.getElementById("my-free-filter");
+  if (myFreeGroup) {
+    myFreeGroup.addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      myFreeGroup
+        .querySelectorAll(".chip")
+        .forEach((c) => c.classList.toggle("active", c === chip));
       loadPage(1);
     });
   }
