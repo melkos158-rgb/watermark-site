@@ -3,7 +3,7 @@
 {% block title %}Мої оголошення — Proofly STL Market{% endblock %}
 
 {% block content %}
-<div class="market-page my-market-page">
+<div class="market-page my-market-page" data-market-root data-market-page="my">
   <!-- Верхній бар сторінки -->
   <div class="market-topbar">
     <div class="left">
@@ -33,7 +33,7 @@
         ➕ Додати нову модель
       </a>
 
-      <a href="{{ url_for('profile.profile_page') if 'profile.profile_page' in current_app.view_functions else '#' }}"
+      <a href="{{ url_for('profile.profile_page') }}"
          class="btn btn-secondary">
         👤 Мій профіль
       </a>
@@ -47,7 +47,7 @@
 
       <div class="sidebar-block">
         <label for="my-sort" class="lbl">Сортувати</label>
-        <select id="my-sort" class="inp">
+        <select id="my-sort" class="inp" data-filter-sort>
           <option value="new" selected>Нові спочатку</option>
           <option value="downloads">За завантаженнями</option>
           <option value="price_asc">Ціна: від дешевих</option>
@@ -58,9 +58,9 @@
       <div class="sidebar-block">
         <label class="lbl">Тип</label>
         <div class="chips" id="my-free-filter">
-          <button data-free="all" class="chip active">Усі</button>
-          <button data-free="free" class="chip">Безкоштовні</button>
-          <button data-free="paid" class="chip">Платні</button>
+          <button data-show="all" class="chip active">Усі</button>
+          <button data-show="free" class="chip">Безкоштовні</button>
+          <button data-show="paid" class="chip">Платні</button>
         </div>
       </div>
 
@@ -85,6 +85,9 @@
         </div>
       </div>
 
+      <!-- notice для market.js -->
+      <div class="market-notice" data-market-notice style="display:none;"></div>
+
       <!-- Порожній стан -->
       <div id="my-empty" class="my-empty" style="display:none;">
         <div class="icon">📭</div>
@@ -96,12 +99,12 @@
       </div>
 
       <!-- Грід моїх моделей -->
-      <div id="my-grid" class="market-grid" data-mode="my">
+      <div id="my-grid" class="market-grid" data-market-grid>
         {# Карточки підставляє JS через API /api/my/items #}
       </div>
 
       <!-- Пагінація -->
-      <div id="my-pagination" class="pagination" style="display:none;">
+      <div id="my-pagination" class="pagination" data-market-pagination style="display:none;">
         <button class="btn btn-ghost" id="my-prev">⟵ Попередня</button>
         <span id="my-page-label">1 / 1</span>
         <button class="btn btn-ghost" id="my-next">Наступна ⟶</button>
@@ -269,12 +272,14 @@
 <script>
   window.MARKET_MY_CONFIG = {
     apiList: "{{ url_for('market.api_my_items') }}",
-    apiItem: "{{ url_for('market.api_item', item_id=0)[:-1] }}", // зріз 0->"" дає базовий шлях /api/item/
+    apiItem: "{{ url_for('market.api_item', item_id=0)[:-1] }}", // базовий шлях /api/item/
     apiDelete: "/api/item/",   // + id + "/delete"
     apiUpdate: "/api/item/",   // + id + "/update"
     pageSize: 24
   };
+  // підкаже market.js що це "my"-сторінка
+  document.body.dataset.marketPage = "my";
 </script>
-<script src="{{ url_for('static', filename='market/js/market.js') }}"></script>
-<script src="{{ url_for('static', filename='market/js/market_listeners.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='market/js/market_listeners.js') }}"></script>
 {% endblock %}
