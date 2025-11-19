@@ -33,16 +33,15 @@
         ➕ Додати нову модель
       </a>
 
-      <a href="/profile"
-         class="btn btn-secondary">
+      <a href="/profile" class="btn btn-secondary">
         👤 Мій профіль
       </a>
     </div>
   </div>
 
-  <!-- TOP: пошук + фільтри + карусель вибраної моделі -->
+  <!-- 🔝 ТОП: Пошук + карусель вибраної моделі -->
   <section class="my-top">
-    <!-- Пошук + лічильник -->
+    <!-- Пошук -->
     <div class="my-search-row">
       <div class="search-bar">
         <input
@@ -52,80 +51,51 @@
           placeholder="Пошук по моїх моделях: dragon, stand, toy…">
         <button id="my-search-btn" class="search-btn" type="button">🔍</button>
       </div>
-      <div class="my-counter">
-        <span id="my-counter-text">Знайдено 0 оголошень</span>
-      </div>
     </div>
 
-    <!-- Фільтри (те саме, що було в sidebar, але компактно) -->
-    <div class="my-filters-row">
-      <div class="filter-block">
-        <label for="my-sort" class="lbl">Сортувати</label>
-        <select id="my-sort" class="inp" data-filter-sort>
-          <option value="new" selected>Нові спочатку</option>
-          <option value="downloads">За завантаженнями</option>
-          <option value="price_asc">Ціна: від дешевих</option>
-          <option value="price_desc">Ціна: від дорогих</option>
-        </select>
-      </div>
-
-      <div class="filter-block">
-        <label class="lbl">Тип</label>
-        <div class="chips" id="my-free-filter">
-          <button data-free="all"  data-show="all"  class="chip active">Усі</button>
-          <button data-free="free" data-show="free" class="chip">Безкоштовні</button>
-          <button data-free="paid" data-show="paid" class="chip">Платні</button>
-        </div>
-      </div>
-
-      <div class="filter-hint">
-        <span>ℹ Натисни по картці знизу, щоб вибрати модель для редагування.</span>
-      </div>
-    </div>
-
-    <!-- Карусель вибраної моделі -->
+    <!-- Карусель 3D -->
     <div class="my-focus-row" id="my-focus" data-my-focus>
-      <button type="button" class="nav-arrow" id="my-prev">
-        ⬅
-      </button>
+      <!-- Лівий прев’ю -->
+      <button type="button" class="nav-arrow" id="my-prev">⬅</button>
 
-      <div class="my-focus-card">
-        <div class="focus-thumb">
-          <img id="my-focus-cover" src="/static/img/placeholder_stl.jpg" alt="Вибрана модель">
-        </div>
-
-        <div class="focus-info">
-          <div class="focus-title" id="my-focus-title">
-            Вибери модель знизу, щоб редагувати
+      <div class="my-focus-wrapper">
+        <div class="my-focus-strip">
+          <div class="my-focus-side left">
+            <div class="side-thumb">
+              <img id="my-focus-prev" src="/static/img/placeholder_stl.jpg" alt="Попередня модель">
+            </div>
           </div>
-          <div class="focus-meta">
-            <span id="my-focus-price">—</span>
-            <span class="dot">•</span>
-            <span id="my-focus-downloads">0 завантажень</span>
-            <span class="dot">•</span>
-            <span id="my-focus-status">Статус: —</span>
+
+          <div class="my-focus-main">
+            <div class="focus-thumb">
+              <img id="my-focus-cover" src="/static/img/placeholder_stl.jpg" alt="Вибрана модель">
+            </div>
+            <button
+              type="button"
+              class="btn btn-primary focus-edit-btn"
+              id="my-focus-edit"
+              disabled>
+              ✏️ Редагувати
+            </button>
+          </div>
+
+          <div class="my-focus-side right">
+            <div class="side-thumb">
+              <img id="my-focus-next" src="/static/img/placeholder_stl.jpg" alt="Наступна модель">
+            </div>
           </div>
         </div>
-
-        <button
-          type="button"
-          class="btn btn-primary big focus-edit-btn"
-          id="my-focus-edit"
-          disabled>
-          ✏️ Редагувати
-        </button>
       </div>
 
-      <button type="button" class="nav-arrow" id="my-next">
-        ➡
-      </button>
+      <!-- Правий прев’ю -->
+      <button type="button" class="nav-arrow" id="my-next">➡</button>
     </div>
   </section>
 
   <!-- notice для market.js -->
   <div class="market-notice" data-market-notice style="display:none;"></div>
 
-  <!-- НИЗ: сітка моїх оголошень -->
+  <!-- 🔻 НИЗ: “Мої оголошення” + фільтри + грід -->
   <section class="my-grid-section">
     <!-- Порожній стан -->
     <div id="my-empty" class="my-empty" style="display:none;">
@@ -138,6 +108,33 @@
     </div>
 
     <h2 class="my-grid-title">Усі мої оголошення</h2>
+
+    <!-- Тулбар над грідом (лічильник + сортування + тип) -->
+    <div class="my-toolbar">
+      <div class="left">
+        <span id="my-counter-text">Знайдено 0 оголошень</span>
+      </div>
+      <div class="right">
+        <div class="toolbar-group">
+          <label for="my-sort" class="lbl small">Сортувати</label>
+          <select id="my-sort" class="inp small" data-filter-sort>
+            <option value="new" selected>Нові спочатку</option>
+            <option value="downloads">За завантаженнями</option>
+            <option value="price_asc">Ціна: від дешевих</option>
+            <option value="price_desc">Ціна: від дорогих</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <label class="lbl small">Тип</label>
+          <div class="chips" id="my-free-filter">
+            <button data-free="all"  data-show="all"  class="chip active">Усі</button>
+            <button data-free="free" data-show="free" class="chip">Безкоштовні</button>
+            <button data-free="paid" data-show="paid" class="chip">Платні</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Грід моїх моделей -->
     <div id="my-grid" class="market-grid my-grid" data-market-grid>
@@ -256,7 +253,6 @@
     margin-bottom:20px;
     align-items:flex-start;
   }
-
   .market-h1{margin:0;font-size:26px}
   .market-sub{margin:6px 0 14px;color:#9ca3af;font-size:14px}
 
@@ -286,25 +282,19 @@
   }
   .btn.big{padding:10px 18px;font-size:14px}
 
-  /* TOP SECTION */
+  /* ============ TOP ============ */
   .my-top{
     background:#050816;
     border-radius:16px;
     border:1px solid #111827;
     padding:16px 14px 18px;
-    margin-bottom:22px;
+    margin-bottom:24px;
   }
 
   .my-search-row{
-    display:flex;
-    flex-wrap:wrap;
-    gap:12px;
-    align-items:center;
-    margin-bottom:12px;
+    margin-bottom:16px;
   }
-
   .search-bar{
-    flex:1 1 260px;
     display:flex;
     align-items:stretch;
     gap:6px;
@@ -323,29 +313,142 @@
   }
   .search-btn:hover{filter:brightness(1.1)}
 
-  .my-counter{
+  .inp{
+    width:100%;
+    background:#020617;
+    border-radius:10px;
+    border:1px solid:#111827;
+    padding:8px 10px;
+    font-size:13px;
+    color:#e5e7eb;
+    outline:none;
+  }
+  .inp:focus{border-color:#6366f1}
+
+  /* Карусель */
+  .my-focus-row{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+  }
+
+  .nav-arrow{
+    border-radius:999px;
+    border:1px solid #111827;
+    background:#020617;
+    color:#e5e7eb;
+    width:38px;
+    height:38px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    font-size:18px;
+  }
+  .nav-arrow:hover{filter:brightness(1.1)}
+
+  .my-focus-wrapper{
+    flex:0 1 520px;
+  }
+
+  .my-focus-strip{
+    display:grid;
+    grid-template-columns:140px minmax(0,1fr) 140px;
+    gap:14px;
+    align-items:center;
+  }
+
+  .my-focus-side{
+    border-radius:14px;
+    border:1px solid #111827;
+    background:#020617;
+    padding:6px;
+  }
+  .my-focus-side .side-thumb{
+    width:100%;
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .my-focus-side img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    display:block;
+  }
+
+  .my-focus-main{
+    border-radius:16px;
+    border:1px solid #111827;
+    background:#020617;
+    padding:10px 10px 12px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+
+  .focus-thumb{
+    width:100%;
+    aspect-ratio:1/1;
+    border-radius:12px;
+    border:1px solid #111827;
+    background:#020617;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow:hidden;
+  }
+  #my-focus-cover{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    display:block;
+  }
+
+  .focus-edit-btn{
+    margin-top:2px;
+    width:100%;
+    justify-content:center;
+  }
+
+  /* ============ GRID ============ */
+  .my-grid-section{
+    min-height:260px;
+  }
+
+  .my-grid-title{
+    margin:0 0 10px;
+    font-size:18px;
+  }
+
+  .my-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:10px;
+    margin-bottom:10px;
     font-size:13px;
     color:#9ca3af;
-    white-space:nowrap;
   }
 
-  .my-filters-row{
+  .toolbar-group{
     display:flex;
-    flex-wrap:wrap;
-    gap:12px;
-    align-items:flex-end;
-    margin-bottom:16px;
+    flex-direction:column;
+    gap:4px;
+    min-width:160px;
   }
 
-  .filter-block{
-    min-width:180px;
-    max-width:260px;
-  }
-  .filter-block .lbl{
-    display:block;
-    margin-bottom:4px;
-    font-size:12px;
+  .lbl.small{
+    font-size:11px;
     color:#9ca3af;
+  }
+  .inp.small{
+    padding:6px 9px;
+    font-size:12px;
   }
 
   .chips{
@@ -368,98 +471,6 @@
     border-color:#4f46e5;
   }
 
-  .filter-hint{
-    flex:1 1 auto;
-    font-size:12px;
-    color:#6b7280;
-  }
-
-  /* Focus carousel */
-  .my-focus-row{
-    display:grid;
-    grid-template-columns:auto minmax(0,1fr) auto;
-    gap:14px;
-    align-items:center;
-  }
-
-  .nav-arrow{
-    border-radius:999px;
-    border:1px solid #111827;
-    background:#020617;
-    color:#e5e7eb;
-    width:38px;
-    height:38px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    font-size:18px;
-  }
-  .nav-arrow:hover{filter:brightness(1.1)}
-
-  .my-focus-card{
-    background:#020617;
-    border-radius:16px;
-    border:1px solid #111827;
-    padding:12px;
-    display:grid;
-    grid-template-columns:160px minmax(0,1fr) auto;
-    gap:12px;
-    align-items:center;
-  }
-
-  .focus-thumb{
-    border-radius:12px;
-    overflow:hidden;
-    background:#020617;
-    border:1px solid #111827;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    min-height:120px;
-  }
-  .focus-thumb img{
-    max-width:100%;
-    max-height:160px;
-    object-fit:contain;
-    display:block;
-  }
-
-  .focus-info{
-    min-width:0;
-  }
-  .focus-title{
-    font-size:15px;
-    font-weight:600;
-    margin-bottom:4px;
-  }
-  .focus-meta{
-    font-size:13px;
-    color:#9ca3af;
-    display:flex;
-    flex-wrap:wrap;
-    gap:4px;
-    align-items:center;
-  }
-  .focus-meta .dot{
-    opacity:.5;
-  }
-
-  .focus-edit-btn{
-    align-self:flex-end;
-    white-space:nowrap;
-  }
-
-  /* GRID SECTION */
-  .my-grid-section{
-    min-height:260px;
-  }
-
-  .my-grid-title{
-    margin:0 0 8px;
-    font-size:18px;
-  }
-
   .my-empty{
     text-align:center;
     padding:40px 10px;
@@ -480,7 +491,7 @@
     margin-top:6px;
   }
 
-  /* Фікс картинок у моїх оголошеннях */
+  /* Фікс картинок у гріді */
   .my-market-page #my-grid img{
     max-width:100%;
     height:auto;
@@ -492,7 +503,7 @@
     background:#020617;
   }
 
-  /* виділена картка (JS може додати клас .selected) */
+  /* selected-картка (JS може додати .selected) */
   .my-grid .card.selected{
     border-color:#4f46e5;
     box-shadow:0 0 0 1px #4f46e5;
@@ -508,7 +519,7 @@
     color:#9ca3af;
   }
 
-  /* MODAL */
+  /* ============ MODAL ============ */
   .modal-backdrop{
     position:fixed;
     inset:0;
@@ -559,18 +570,6 @@
     font-size:12px;
     color:#9ca3af;
   }
-
-  .inp{
-    width:100%;
-    background:#020617;
-    border-radius:10px;
-    border:1px solid:#111827;
-    padding:8px 10px;
-    font-size:13px;
-    color:#e5e7eb;
-    outline:none;
-  }
-  .inp:focus{border-color:#6366f1}
   textarea.inp{resize:vertical;min-height:70px}
 
   .preview-wrap{
@@ -653,16 +652,11 @@
       justify-content:flex-start;
     }
 
-    .my-focus-card{
+    .my-focus-strip{
       grid-template-columns:1fr;
     }
     .my-focus-row{
-      grid-template-columns:1fr;
-    }
-    .nav-arrow{
-      order:-1;
-      margin-bottom:6px;
-      justify-self:flex-start;
+      flex-direction:column;
     }
   }
 </style>
