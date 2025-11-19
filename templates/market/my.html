@@ -227,11 +227,24 @@
   .sidebar-block.hint{font-size:12px;color:#9ca3af;background:#020617;border-radius:10px;padding:8px 10px;border:1px dashed #111827}
   .market-main{min-height:260px}
   .my-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;color:#9ca3af}
-  .my-empty{text-align:center;padding:40px 10px;border-radius:14px;background:#020617;border:1px dashed #1f2933;margin-top:10px}
+  .my-empty{textанк-center;padding:40px 10px;border-radius:14px;background:#020617;border:1px dashed #1f2933;margin-top:10px}
   .my-empty .icon{font-size:30px;margin-bottom:8px}
   .my-empty h2{margin:0 0 6px;font-size:18px}
   .my-empty p{margin:0 0 12px;color:#9ca3af;font-size:13px}
   .market-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:10px}
+
+  /* 🔥 ФІКС КАРТИНОК У МОЇХ ОГОЛОШЕННЯХ */
+  .my-market-page #my-grid img{
+    max-width:100%;
+    height:auto;
+    max-height:260px;          /* щоб не були гігантські */
+    object-fit:contain;        /* не ріже, не тягне */
+    border-radius:10px;
+    display:block;
+    margin:0 auto;
+    background:#020617;
+  }
+
   .pagination{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:18px;font-size:13px;color:#9ca3af}
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60}
   .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:70}
@@ -244,7 +257,7 @@
   .form-row .lbl{display:block;margin-bottom:4px;font-size:12px;color:#9ca3af}
   textarea.inp{resize:vertical;min-height:70px}
   .preview-wrap{display:flex;flex-direction:column;gap:6px}
-  .cover-preview{border-radius:10px;overflow:hidden;border:1px solid #111827;background:#020617;display:flex;align-items:center;justify-content:center;min-height:110px}
+  .cover-preview{border-radius:10px;overflow:hidden;border:1px solid:#111827;background:#020617;display:flex;align-items:center;justify-content:center;min-height:110px}
   .cover-preview img{max-width:100%;max-height:180px;display:block}
   .hint-small{margin-top:4px;font-size:11px;color:#6b7280}
   .footer-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px}
