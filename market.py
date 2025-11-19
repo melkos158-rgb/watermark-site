@@ -436,7 +436,7 @@ def api_my_items():
     sql_new_min = f"""
         SELECT id, title, price, tags,
                COALESCE(cover_url, '') AS cover,
-               stl_main_url AS url,
+               stl_main_url As url,
                user_id, created_at
         FROM {ITEMS_TBL}
         {where_clause}
@@ -855,6 +855,12 @@ def api_upload():
 
     db.session.commit()
     return jsonify({"ok": True, "id": int(new_id)})
+
+
+# ✅ Сумісність з фронтом: /api/market/upload (BASE="/api/market" у api.js)
+@bp.post("/api/market/upload")
+def api_upload_compat():
+    return api_upload()
 
 
 def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
