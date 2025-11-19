@@ -1,6 +1,6 @@
 // static/market/js/market.js
 // Головна логіка сторінки STL Market:
-// - тягнемо список моделей з /api/market/items або /api/market/my
+// - тягнемо список моделей з /api/market/items або /api/my/items
 // - реагуємо на пошук, кнопки фільтрів, пагінацію
 // - рендеримо грід карток
 
@@ -68,7 +68,8 @@ function buildStateFromDOM() {
   if (freeGroup) {
     const active = freeGroup.querySelector(".chip.active");
     if (active) {
-      const v = active.dataset.free || "all";
+      // 🔧 у верстці data-show="all|free|paid"
+      const v = active.dataset.show || active.dataset.free || "all";
       if (v === "free") state.free = 1;
       else if (v === "paid") state.free = 0;
       else state.free = null;
@@ -140,8 +141,26 @@ async function loadPage(page = 1) {
 
   grid.dataset.loading = "0";
 
-  const items = (resp && resp.items) || [];
-  const total = resp && typeof resp.total === "number" ? resp.total : items.length;
+  // 🔧 Підтримка двох форматів відповіді:
+  //  1) { items: [...], total, page, pages }
+  //  2) просто масив: [...]
+  let items;
+  let total;
+
+  if (Array.isArray(resp)) {
+    items = resp;
+    total = resp.length;
+    // щоб пагінація нижче не впала — емулюємо об'єкт
+    resp = {
+      items,
+      total,
+      page: state.page,
+      pages: 1,
+    };
+  } else {
+    items = (resp && resp.items) || [];
+    total = resp && typeof resp.total === "number" ? resp.total : items.length;
+  }
 
   if (!items.length) {
     grid.innerHTML =
