@@ -105,7 +105,9 @@ export function fetchItemDetail(slug) {
  * Моделі поточного користувача ("Мої оголошення").
  */
 export function fetchMyItems(params = {}) {
-  return apiRequest("/my", { method: "GET", params });
+  // 🔧 тут була помилка: "/my" → правильно "/my-items",
+  // бо бекенд дає /api/market/my-items (compat до /api/my/items)
+  return apiRequest("/my-items", { method: "GET", params });
 }
 
 /**
