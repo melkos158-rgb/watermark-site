@@ -529,7 +529,7 @@ def api_item(item_id: int):
     return jsonify(it)
 
 
-@bp.post("/api/item/<int)item_id>/download")
+@bp.post("/api/item/<int:item_id>/download")
 def api_item_download(item_id: int):
     dialect = db.session.get_bind().dialect.name
     try:
