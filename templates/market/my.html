@@ -43,52 +43,38 @@
   <section class="my-top">
     <!-- Пошук -->
     <div class="my-search-row">
-      <div class="search-bar">
-        <input
-          type="text"
-          id="my-search"
-          class="inp"
-          placeholder="Пошук по моїх моделях: dragon, stand, toy…">
-        <button id="my-search-btn" class="search-btn" type="button">🔍</button>
-      </div>
+      <input
+        type="text"
+        id="my-search"
+        class="top-search"
+        placeholder="Пошук по моїх моделях...">
+      <button id="btn-search" class="top-search-btn" type="button">🔍</button>
     </div>
 
-    <!-- Карусель 3D -->
-    <div class="my-focus-row" id="my-focus" data-my-focus>
-      <!-- Лівий прев’ю -->
-      <button type="button" class="nav-arrow" id="my-prev">⬅</button>
+    <!-- Карусель 3D як на макеті -->
+    <div class="carousel" id="my-focus" data-my-focus>
+      <button type="button" class="arrow" id="my-prev">◀</button>
 
-      <div class="my-focus-wrapper">
-        <div class="my-focus-strip">
-          <div class="my-focus-side left">
-            <div class="side-thumb">
-              <img id="my-focus-prev" src="/static/img/placeholder_stl.jpg" alt="Попередня модель">
-            </div>
-          </div>
-
-          <div class="my-focus-main">
-            <div class="focus-thumb">
-              <img id="my-focus-cover" src="/static/img/placeholder_stl.jpg" alt="Вибрана модель">
-            </div>
-            <button
-              type="button"
-              class="btn btn-primary focus-edit-btn"
-              id="my-focus-edit"
-              disabled>
-              ✏️ Редагувати
-            </button>
-          </div>
-
-          <div class="my-focus-side right">
-            <div class="side-thumb">
-              <img id="my-focus-next" src="/static/img/placeholder_stl.jpg" alt="Наступна модель">
-            </div>
-          </div>
-        </div>
+      <div class="thumb small">
+        <img id="my-focus-prev" src="/static/img/placeholder_stl.jpg" alt="Попередня модель">
       </div>
 
-      <!-- Правий прев’ю -->
-      <button type="button" class="nav-arrow" id="my-next">➡</button>
+      <div class="thumb large">
+        <img id="my-focus-cover" src="/static/img/placeholder_stl.jpg" alt="Вибрана модель">
+        <button
+          type="button"
+          class="edit-btn"
+          id="my-focus-edit"
+          disabled>
+          Редагувати
+        </button>
+      </div>
+
+      <div class="thumb small">
+        <img id="my-focus-next" src="/static/img/placeholder_stl.jpg" alt="Наступна модель">
+      </div>
+
+      <button type="button" class="arrow" id="my-next">▶</button>
     </div>
   </section>
 
@@ -107,7 +93,7 @@
       </a>
     </div>
 
-    <h2 class="my-grid-title">Усі мої оголошення</h2>
+    <h2 class="my-grid-title">Мої оголошення</h2>
 
     <!-- Тулбар над грідом (лічильник + сортування + тип) -->
     <div class="my-toolbar">
@@ -138,7 +124,7 @@
 
     <!-- Грід моїх моделей -->
     <div id="my-grid" class="market-grid my-grid" data-market-grid>
-      {# Карточки підставляє JS через API /api/my/items #}
+      {# Карточки підставляє JS через API /api/my/items як .my-card #}
     </div>
 
     <!-- Пагінація (JS сам малює кнопки) -->
@@ -282,156 +268,119 @@
   }
   .btn.big{padding:10px 18px;font-size:14px}
 
-  /* ============ TOP ============ */
+  /* ===== TOP: пошук + карусель (як на схемі) ===== */
+
   .my-top{
-    background:#050816;
-    border-radius:16px;
-    border:1px solid #111827;
-    padding:16px 14px 18px;
-    margin-bottom:24px;
+    margin-bottom:32px;
   }
 
   .my-search-row{
-    margin-bottom:16px;
-  }
-  .search-bar{
     display:flex;
-    align-items:stretch;
-    gap:6px;
+    justify-content:center;
+    gap:8px;
+    margin-bottom:22px;
   }
-  .search-bar .inp{
-    flex:1;
-  }
-  .search-btn{
+
+  .top-search{
+    width:60%;
+    max-width:420px;
+    padding:10px 14px;
     border-radius:10px;
-    border:1px solid #111827;
+    border:1px solid #1f2937;
+    background:#0f1117;
+    color:#e5e7eb;
+    font-size:16px;
+    outline:none;
+  }
+  .top-search:focus{border-color:#6366f1}
+
+  .top-search-btn{
+    border-radius:10px;
+    border:1px solid #1f2937;
     background:#111827;
     color:#e5e7eb;
     padding:0 12px;
     cursor:pointer;
-    font-size:16px;
-  }
-  .search-btn:hover{filter:brightness(1.1)}
-
-  .inp{
-    width:100%;
-    background:#020617;
-    border-radius:10px;
-    border:1px solid:#111827;
-    padding:8px 10px;
-    font-size:13px;
-    color:#e5e7eb;
-    outline:none;
-  }
-  .inp:focus{border-color:#6366f1}
-
-  /* Карусель */
-  .my-focus-row{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:16px;
-  }
-
-  .nav-arrow{
-    border-radius:999px;
-    border:1px solid #111827;
-    background:#020617;
-    color:#e5e7eb;
-    width:38px;
-    height:38px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
     font-size:18px;
   }
-  .nav-arrow:hover{filter:brightness(1.1)}
+  .top-search-btn:hover{filter:brightness(1.1)}
 
-  .my-focus-wrapper{
-    flex:0 1 520px;
-  }
-
-  .my-focus-strip{
-    display:grid;
-    grid-template-columns:140px minmax(0,1fr) 140px;
-    gap:14px;
-    align-items:center;
-  }
-
-  .my-focus-side{
-    border-radius:14px;
-    border:1px solid #111827;
-    background:#020617;
-    padding:6px;
-  }
-  .my-focus-side .side-thumb{
-    width:100%;
-    aspect-ratio:1/1;
+  .carousel{
     display:flex;
     align-items:center;
     justify-content:center;
+    gap:18px;
+  }
+
+  .arrow{
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    border:1px solid #1f2937;
+    background:#0f1117;
+    font-size:20px;
+    color:#e5e7eb;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .arrow:hover{background:#1f2937}
+
+  .thumb{
+    background:#0f1117;
+    border:2px solid #1f2937;
+    border-radius:12px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
     overflow:hidden;
   }
-  .my-focus-side img{
+
+  .thumb.small{
+    width:150px;
+    height:150px;
+  }
+  .thumb.large{
+    width:300px;
+    height:300px;
+    flex-direction:column;
+    padding-bottom:8px;
+  }
+
+  .thumb img{
     max-width:100%;
     max-height:100%;
     object-fit:contain;
     display:block;
   }
 
-  .my-focus-main{
-    border-radius:16px;
-    border:1px solid #111827;
-    background:#020617;
-    padding:10px 10px 12px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
+  .edit-btn{
+    margin-top:8px;
+    width:90%;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #6366f1;
+    background:#4f46e5;
+    color:#f9fafb;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .edit-btn:disabled{
+    opacity:.5;
+    cursor:default;
   }
 
-  .focus-thumb{
-    width:100%;
-    border-radius:12px;
-    border:1px solid #111827;
-    background:#020617;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    overflow:hidden;
-  }
+  /* ===== Низ: грід ===== */
 
-  /* 🔧 обмежуємо висоту превʼю вгорі, щоб не було гігантського "No image" */
-  #my-focus-cover,
-  #my-focus-prev,
-  #my-focus-next{
-    max-width:100%;
-    max-height:240px;
-    object-fit:contain;
-    display:block;
-    margin:0 auto;
-  }
-  .my-focus-main,
-  .my-focus-side .side-thumb{
-    max-height:240px;
-    overflow:hidden;
-  }
-
-  .focus-edit-btn{
-    margin-top:2px;
-    width:100%;
-    justify-content:center;
-  }
-
-  /* ============ GRID ============ */
   .my-grid-section{
     min-height:260px;
   }
 
   .my-grid-title{
-    margin:0 0 10px;
-    font-size:18px;
+    text-align:center;
+    margin:0 0 16px;
+    font-size:26px;
   }
 
   .my-toolbar{
@@ -455,6 +404,7 @@
     font-size:11px;
     color:#9ca3af;
   }
+
   .inp.small{
     padding:6px 9px;
     font-size:12px;
@@ -493,14 +443,15 @@
   .my-empty h2{margin:0 0 6px;font-size:18px}
   .my-empty p{margin:0 0 12px;color:#9ca3af;font-size:13px}
 
+  /* грід квадратних плиток */
   .market-grid{
     display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
-    gap:14px;
+    grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+    gap:18px;
     margin-top:6px;
   }
 
-  /* 🔹 Маленькі плитки моїх оголошень (рендеряться з market.js як .my-card) */
+  /* плитки, які рендерить market.js як .my-card */
   .my-card{
     background:#050816;
     border:1px solid #111827;
@@ -527,6 +478,10 @@
     object-fit:contain;
     display:block;
   }
+  .my-card-placeholder{
+    font-size:14px;
+    color:#6b7280;
+  }
   .my-card-body{
     display:flex;
     flex-direction:column;
@@ -546,15 +501,7 @@
     font-size:12px;
     color:#9ca3af;
   }
-  .my-card-price{
-    font-weight:500;
-  }
-  .my-card-downloads{
-    opacity:.9;
-  }
 
-  /* selected-картка (JS може додати .selected) */
-  .my-grid .card.selected,
   .my-card.selected{
     border-color:#4f46e5;
     box-shadow:0 0 0 1px #4f46e5;
@@ -570,7 +517,8 @@
     color:#9ca3af;
   }
 
-  /* ============ MODAL ============ */
+  /* ===== Модалка ===== */
+
   .modal-backdrop{
     position:fixed;
     inset:0;
@@ -621,6 +569,17 @@
     font-size:12px;
     color:#9ca3af;
   }
+  .inp{
+    width:100%;
+    background:#020617;
+    border-radius:10px;
+    border:1px solid:#111827;
+    padding:8px 10px;
+    font-size:13px;
+    color:#e5e7eb;
+    outline:none;
+  }
+  .inp:focus{border-color:#6366f1}
   textarea.inp{resize:vertical;min-height:70px}
 
   .preview-wrap{
@@ -703,10 +662,7 @@
       justify-content:flex-start;
     }
 
-    .my-focus-strip{
-      grid-template-columns:1fr;
-    }
-    .my-focus-row{
+    .carousel{
       flex-direction:column;
     }
   }
