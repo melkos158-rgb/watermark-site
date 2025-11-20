@@ -46,35 +46,35 @@
       <input
         type="text"
         id="my-search"
-        class="top-search"
+        class="my-search-input"
         placeholder="Пошук по моїх моделях...">
-      <button id="btn-search" class="top-search-btn" type="button">🔍</button>
+      <button id="btn-search" class="my-search-btn" type="button">🔍</button>
     </div>
 
     <!-- Карусель 3D як на макеті -->
-    <div class="carousel" id="my-focus" data-my-focus>
-      <button type="button" class="arrow" id="my-prev">◀</button>
+    <div class="my-carousel" id="my-focus" data-my-focus>
+      <button type="button" class="my-arrow" id="my-prev">◀</button>
 
-      <div class="thumb small">
+      <div class="my-thumb my-thumb-side">
         <img id="my-focus-prev" src="/static/img/placeholder_stl.jpg" alt="Попередня модель">
       </div>
 
-      <div class="thumb large">
+      <div class="my-thumb my-thumb-main">
         <img id="my-focus-cover" src="/static/img/placeholder_stl.jpg" alt="Вибрана модель">
         <button
           type="button"
-          class="edit-btn"
+          class="my-edit-btn"
           id="my-focus-edit"
           disabled>
           Редагувати
         </button>
       </div>
 
-      <div class="thumb small">
+      <div class="my-thumb my-thumb-side">
         <img id="my-focus-next" src="/static/img/placeholder_stl.jpg" alt="Наступна модель">
       </div>
 
-      <button type="button" class="arrow" id="my-next">▶</button>
+      <button type="button" class="my-arrow" id="my-next">▶</button>
     </div>
   </section>
 
@@ -124,7 +124,7 @@
 
     <!-- Грід моїх моделей -->
     <div id="my-grid" class="market-grid my-grid" data-market-grid>
-      {# Карточки підставляє JS через API /api/my/items як .my-card #}
+      {# Карточки підставляє JS через API /api/my/items #}
     </div>
 
     <!-- Пагінація (JS сам малює кнопки) -->
@@ -277,11 +277,12 @@
   .my-search-row{
     display:flex;
     justify-content:center;
+    align-items:center;
     gap:8px;
     margin-bottom:22px;
   }
 
-  .top-search{
+  .my-search-input{
     width:60%;
     max-width:420px;
     padding:10px 14px;
@@ -292,9 +293,9 @@
     font-size:16px;
     outline:none;
   }
-  .top-search:focus{border-color:#6366f1}
+  .my-search-input:focus{border-color:#6366f1}
 
-  .top-search-btn{
+  .my-search-btn{
     border-radius:10px;
     border:1px solid #1f2937;
     background:#111827;
@@ -303,16 +304,20 @@
     cursor:pointer;
     font-size:18px;
   }
-  .top-search-btn:hover{filter:brightness(1.1)}
+  .my-search-btn:hover{filter:brightness(1.1)}
 
-  .carousel{
+  .my-carousel{
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     justify-content:center;
     gap:18px;
+    padding:18px;
+    border-radius:16px;
+    border:1px solid #111827;
+    background:#050816;
   }
 
-  .arrow{
+  .my-arrow{
     width:46px;
     height:46px;
     border-radius:50%;
@@ -324,10 +329,11 @@
     display:flex;
     align-items:center;
     justify-content:center;
+    flex-shrink:0;
   }
-  .arrow:hover{background:#1f2937}
+  .my-arrow:hover{background:#1f2937}
 
-  .thumb{
+  .my-thumb{
     background:#0f1117;
     border:2px solid #1f2937;
     border-radius:12px;
@@ -337,25 +343,25 @@
     overflow:hidden;
   }
 
-  .thumb.small{
+  .my-thumb-side{
     width:150px;
     height:150px;
   }
-  .thumb.large{
+  .my-thumb-main{
     width:300px;
     height:300px;
     flex-direction:column;
     padding-bottom:8px;
   }
 
-  .thumb img{
+  .my-thumb img{
     max-width:100%;
     max-height:100%;
     object-fit:contain;
     display:block;
   }
 
-  .edit-btn{
+  .my-edit-btn{
     margin-top:8px;
     width:90%;
     padding:10px;
@@ -366,9 +372,16 @@
     font-size:16px;
     cursor:pointer;
   }
-  .edit-btn:disabled{
+  .my-edit-btn:disabled{
     opacity:.5;
     cursor:default;
+  }
+
+  /* глобальний фікс: ніяких гігантських картинок */
+  .my-market-page img{
+    max-height:320px;
+    height:auto;
+    object-fit:contain;
   }
 
   /* ===== Низ: грід ===== */
@@ -449,62 +462,6 @@
     grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
     gap:18px;
     margin-top:6px;
-  }
-
-  /* плитки, які рендерить market.js як .my-card */
-  .my-card{
-    background:#050816;
-    border:1px solid #111827;
-    border-radius:12px;
-    padding:8px;
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-    cursor:pointer;
-  }
-  .my-card-thumb{
-    width:100%;
-    aspect-ratio:1/1;
-    border-radius:8px;
-    background:#020617;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    overflow:hidden;
-  }
-  .my-card-thumb img{
-    width:100%;
-    height:100%;
-    object-fit:contain;
-    display:block;
-  }
-  .my-card-placeholder{
-    font-size:14px;
-    color:#6b7280;
-  }
-  .my-card-body{
-    display:flex;
-    flex-direction:column;
-    gap:2px;
-  }
-  .my-card-title{
-    font-size:13px;
-    font-weight:600;
-    color:#e5e7eb;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  .my-card-meta{
-    display:flex;
-    justify-content:space-between;
-    font-size:12px;
-    color:#9ca3af;
-  }
-
-  .my-card.selected{
-    border-color:#4f46e5;
-    box-shadow:0 0 0 1px #4f46e5;
   }
 
   .pagination{
@@ -662,7 +619,7 @@
       justify-content:flex-start;
     }
 
-    .carousel{
+    .my-carousel{
       flex-direction:column;
     }
   }
