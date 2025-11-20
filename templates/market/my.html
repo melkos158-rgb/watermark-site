@@ -5,8 +5,22 @@
 {% block content %}
 <!-- Повна ширина пошуку зверху -->
 <section id="my-search-section" class="my-search-section">
-  <form id="my-search-form" class="my-search-form" action="{{ url_for('search') }}" method="get" role="search" aria-label="Пошук оголошень">
-    <input id="search-input" name="q" type="search" placeholder="Пошук..." value="{{ request.args.get('q', '') }}" aria-label="Поле пошуку" />
+  <form
+    id="my-search-form"
+    class="my-search-form"
+    action=""
+    method="get"
+    role="search"
+    aria-label="Пошук оголошень"
+  >
+    <input
+      id="search-input"
+      name="q"
+      type="search"
+      placeholder="Пошук..."
+      value="{{ request.args.get('q', '') }}"
+      aria-label="Поле пошуку"
+    />
     <button type="submit" id="search-submit" class="btn btn-primary">Шукати</button>
   </form>
 </section>
