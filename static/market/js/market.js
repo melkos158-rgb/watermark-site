@@ -225,23 +225,27 @@ function renderMyItemCard(it) {
 
   const downloads = it.downloads || 0;
 
+  // 🔧 ВАЖЛИВО:
+  // - використовуємо структуру .market-card + .market-card-img, .market-card-body
+  // - це підхоплює стилі з static/css/market_cards.css
+  // - елементи стають квадратними плитками у кілька колонок, а не одним великим стовпчиком
   return `
-<div class="my-card" data-item-id="${id}">
-  <div class="my-card-thumb">
+<article class="market-card my-card" data-item-id="${id}">
+  <div class="market-card-img">
     ${
       it.cover_url
         ? `<img src="${it.cover_url}" loading="lazy" alt="${escapeHtml(it.title)}">`
-        : `<div class="my-card-placeholder">STL</div>`
+        : `<div class="market-card-placeholder">STL</div>`
     }
   </div>
-  <div class="my-card-body">
-    <div class="my-card-title">${escapeHtml(it.title)}</div>
-    <div class="my-card-meta">
-      <span class="my-card-price">${priceLabel}</span>
-      <span class="my-card-downloads">⬇ ${downloads}</span>
+  <div class="market-card-body">
+    <div class="market-card-title">${escapeHtml(it.title)}</div>
+    <div class="market-card-price">
+      <span class="price-main">${priceLabel}</span>
+      <span class="market-card-downloads">⬇ ${downloads}</span>
     </div>
   </div>
-</div>`;
+</article>`;
 }
 
 function renderItemCard(it) {
