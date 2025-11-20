@@ -84,6 +84,607 @@
   <!-- 🔻 НИЗ: “Мої оголошення” + фільтри + грід -->
   <section class="my-grid-section">
     <!-- Порожній стан -->
+    <div id="my-empty" class="my-empty" style="display:none%;">
+      <div class="icon">📭</div>
+      <h2>У тебе ще немає оголошень</h2>
+      <p>Завантаж першу модель, налаштуй ціну та обкладинку, і вона відразу з’явиться тут.</p>
+      <a href="{{ url_for('market.page_market_upload') }}" class="btn btn-primary">
+        ➕ Додати першу модель
+      </a>
+    </div>
+
+    <h2 class="my-grid-title">Мої оголошення</h2>
+
+    <!-- Тулбар над грідом (лічильник + сортування + тип) -->
+    <div class="my-toolbar">
+      <div class="left">
+        <span id="my-counter-text">Знайдено 0 оголошень</span>
+      </div>
+      <div class="right">
+        <div class="toolbar-group">
+          <label for="my-sort" class="lbl small">Сортувати</label>
+          <select id="my-sort" class="inp small" data-filter-sort>
+            <option value="new" selected>Нові спочатку</option>
+            <option value="downloads">За завантаженнями</option>
+            <option value="price_asc">Ціна: від дешевих</option>
+            <option value="price_desc">Ціна: від дорогих</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <label class="lbl small">Тип</label>
+          <div class="chips" id="my-free-filter">
+            <button data-free="all"  data-show="all"  class="chip active">Усі</button>
+            <button data-free="free" data-show="free" class="chip">Безкоштовні</button>
+            <button data-free="paid" data-show="paid" class="chip">Платні</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Грід моїх моделей -->
+    <div id="my-grid" class="market-grid my-grid" data-market-grid>
+      {# Карточки підставляє JS через API /api/my/items #}
+    </div>
+
+    <!-- Пагінація (JS сам малює кнопки) -->
+    <div id="my-pagination" class="pagination" data-market-pagination></div>
+  </section>
+
+  {# ===================== МОДАЛКА РЕДАГУВАННЯ ОГОЛОШЕННЯ ===================== #}
+  <div id="my-edit-backdrop" class="modal-backdrop" style="display:none;"></div>
+  <div id="my-edit-modal" class="modal" style="display:none;">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h2 id="my-edit-title">Редагувати оголошення</h2>
+        <button type="button" class="modal-close" id="my-edit-close">✕</button>
+      </div>
+
+      <form id="my-edit-form">
+        <input type="hidden" id="my-edit-id">
+
+        <div class="form-row">
+          <label class="lbl" for="my-edit-name">Назва моделі</label>
+          <input type="text" id="my-edit-name" class="inp" placeholder="Наприклад: Dragon Guardian V2">
+        </div>
+
+        <div class="form-row two">
+          <div>
+            <label class="lbl" for="my-edit-price">Ціна (PLN)</label>
+            <input type="number" step="1" min="0" id="my-edit-price" class="inp" placeholder="0 = безкоштовно">
+          </div>
+          <div>
+            <label class="lbl" for="my-edit-format">Формат</label>
+            <select id="my-edit-format" class="inp">
+              <option value="stl">STL</option>
+              <option value="obj">OBJ</option>
+              <option value="gltf">GLTF</option>
+              <option value="glb">GLB</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="lbl" for="my-edit-tags">Теги (через кому)</label>
+          <input type="text" id="my-edit-tags" class="inp" placeholder="dragon, fantasy, statue…">
+        </div>
+
+        <div class="form-row">
+          <label class="lbl" for="my-edit-desc">Опис</label>
+          <textarea id="my-edit-desc" class="inp" rows="4"
+                    placeholder="Коротко опиши модель, розмір, рекомендовані налаштування друку..."></textarea>
+        </div>
+
+        <div class="form-row two">
+          <div>
+            <label class="lbl" for="my-edit-cover">Обкладинка (URL)</label>
+            <input type="text" id="my-edit-cover" class="inp" placeholder="/media/user_xxx/covers/cover.jpg">
+            <p class="hint-small">Змінити картинку можна через перевантаження моделі або окремий аплоад.</p>
+          </div>
+          <div class="preview-wrap">
+            <span class="lbl">Попередній перегляд</span>
+            <div class="cover-preview">
+              <img id="my-edit-cover-preview" src="/static/img/placeholder_stl.jpg" alt="Cover preview">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="lbl" for="my-edit-main-url">Основний STL / файл</label>
+          <input type="text" id="my-edit-main-url" class="inp" placeholder="/media/user_xxx/models/model.stl">
+        </div>
+
+        <div class="form-row">
+          <label class="lbl" for="my-edit-extra-urls">Додаткові файли (JSON масив або список через Enter)</label>
+          <textarea id="my-edit-extra-urls" class="inp" rows="3"
+                    placeholder='["/media/.../support.stl","/media/.../alt_pose.stl"]'></textarea>
+        </div>
+
+        <div class="form-row footer-row">
+          <div class="left">
+            <button type="button" class="btn btn-danger-outline" id="my-edit-delete">
+              🗑 Видалити оголошення
+            </button>
+          </div>
+          <div class="right">
+            <button type="button" class="btn btn-ghost" id="my-edit-cancel">Скасувати</button>
+            <button type="submit" class="btn btn-primary" id="my-edit-save">
+              💾 Зберегти зміни
+            </button>
+          </div>
+        </div>
+
+        <div class="form-row" id="my-edit-status" style="display:none;">
+          <p class="status-text"></p>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+{# такі самі стилі карток, як на головній сторінці маркету #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/market_cards.css') }}">
+<style>
+  .my-market-page{
+    max-width:1200px;
+    margin:0 auto;
+    padding:24px 16px 40px;
+  }
+
+  .market-topbar{
+    display:flex;
+    justify-content:space-between;
+    gap:24px;
+    margin-bottom:20px;
+    align-items:flex-start;
+  }
+  .market-h1{margin:0;font-size:26px}
+  .market-sub{margin:6px 0 14px;color:#9ca3af;font-size:14px}
+
+  .market-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .market-badges .badge{
+    background:#111827;
+    border:1px solid #1f2933;
+    border-radius:999px;
+    padding:6px 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+  }
+  .badge-label{color:#9ca3af}
+  .badge-value{color:#e5e7eb;font-weight:600}
+
+  .market-topbar .right{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    justify-content:flex-end;
+  }
+  .btn.big{padding:10px 18px;font-size:14px}
+
+  /* ===== TOP: пошук + карусель (як на схемі) ===== */
+
+  .my-top{
+    margin-bottom:32px;
+  }
+
+  .my-search-row{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:8px;
+    margin-bottom:22px;
+  }
+
+  .my-search-input{
+    width:60%;
+    max-width:420px;
+    padding:10px 14px;
+    border-radius:10px;
+    border:1px solid #1f2937;
+    background:#0f1117;
+    color:#e5e7eb;
+    font-size:16px;
+    outline:none;
+  }
+  .my-search-input:focus{border-color:#6366f1}
+
+  .my-search-btn{
+    border-radius:10px;
+    border:1px solid #1f2937;
+    background:#111827;
+    color:#e5e7eb;
+    padding:0 12px;
+    cursor:pointer;
+    font-size:18px;
+  }
+  .my-search-btn:hover{filter:brightness(1.1)}
+
+  .my-carousel{
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    gap:18px;
+    padding:18px;
+    border-radius:16px;
+    border:1px solid #111827;
+    background:#050816;
+  }
+
+  .my-arrow{
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    border:1px solid #1f2937;
+    background:#0f1117;
+    font-size:20px;
+    color:#e5e7eb;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .my-arrow:hover{background:#1f2937}
+
+  .my-thumb{
+    background:#0f1117;
+    border:2px solid #1f2937;
+    border-radius:12px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow:hidden;
+  }
+
+  .my-thumb-side{
+    width:150px;
+    height:150px;
+  }
+  .my-thumb-main{
+    width:300px;
+    height:300px;
+    flex-direction:column;
+    padding-bottom:8px;
+  }
+
+  .my-thumb img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    display:block;
+  }
+
+  .my-edit-btn{
+    margin-top:8px;
+    width:90%;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #6366f1;
+    background:#4f46e5;
+    color:#f9fafb;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .my-edit-btn:disabled{
+    opacity:.5;
+    cursor:default;
+  }
+
+  /* ===== Низ: грід ===== */
+
+  .my-grid-section{
+    min-height:260px;
+  }
+
+  .my-grid-title{
+    text-align:center;
+    margin:0 0 16px;
+    font-size:26px;
+  }
+
+  .my-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:10px;
+    margin-bottom:10px;
+    font-size:13px;
+    color:#9ca3af;
+  }
+
+  .toolbar-group{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    min-width:160px;
+  }
+
+  .lbl.small{
+    font-size:11px;
+    color:#9ca3af;
+  }
+
+  .inp.small{
+    padding:6px 9px;
+    font-size:12px;
+  }
+
+  .chips{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .chip{
+    border-radius:999px;
+    border:1px solid #111827;
+    background:#020617;
+    color:#9ca3af;
+    font-size:12px;
+    padding:5px 10px;
+    cursor:pointer;
+  }
+  .chip.active{
+    background:#4f46e5;
+    color:#f9fafb;
+    border-color:#4f46e5;
+  }
+
+  .my-empty{
+    text-align:center;
+    padding:40px 10px;
+    border-radius:14px;
+    background:#020617;
+    border:1px dashed #1f2933;
+    margin-top:10px;
+    margin-bottom:16px;
+  }
+  .my-empty .icon{font-size:30px;margin-bottom:8px}
+  .my-empty h2{margin:0 0 6px;font-size:18px}
+  .my-empty p{margin:0 0 12px;color:#9ca3af;font-size:13px}
+
+  /* грід для моїх оголошень: гарантуємо сітку 3–6 колонок */
+  .market-grid.my-grid{
+    display:grid;
+    gap:18px;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    margin-top:6px;
+  }
+
+  .pagination{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    margin-top:18px;
+    font-size:13px;
+    color:#9ca3af;
+  }
+
+  /* ===== Модалка ===== */
+
+  .modal-backdrop{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.6);
+    z-index:60;
+  }
+  .modal{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:70;
+  }
+  .modal-inner{
+    width:100%;
+    max-width:640px;
+    background:#020617;
+    border-radius:16px;
+    border:1px solid:#1f2933;
+    padding:18px 18px 16px;
+    box-shadow:0 18px 40px rgba(0,0,0,.75);
+  }
+  .modal-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  .modal-header h2{margin:0;font-size:18px}
+  .modal-close{
+    border:none;
+    background:transparent;
+    color:#9ca3af;
+    font-size:18px;
+    cursor:pointer;
+  }
+
+  .form-row{margin-bottom:12px}
+  .form-row.two{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .form-row .lbl{
+    display:block;
+    margin-bottom:4px;
+    font-size:12px;
+    color:#9ca3af;
+  }
+  .inp{
+    width:100%;
+    background:#020617;
+    border-radius:10px;
+    border:1px solid:#111827;
+    padding:8px 10px;
+    font-size:13px;
+    color:#e5e7eb;
+    outline:none;
+  }
+  .inp:focus{border-color:#6366f1}
+  textarea.inp{resize:vertical;min-height:70px}
+
+  .preview-wrap{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .cover-preview{
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid:#111827;
+    background:#020617;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:110px;
+  }
+  .cover-preview img{
+    max-width:100%;
+    max-height:180px;
+    display:block;
+  }
+
+  .hint-small{
+    margin-top:4px;
+    font-size:11px;
+    color:#6b7280;
+  }
+
+  .footer-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    margin-top:4px;
+  }
+
+  .status-text{font-size:13px}
+
+  .btn{
+    border-radius:999px;
+    border:1px solid #1f2933;
+    background:#020617;
+    color:#e5e7eb;
+    font-size:13px;
+    padding:6px 12px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    text-decoration:none;
+  }
+  .btn-primary{
+    background:#4f46e5;
+    border-color:#4f46e5;
+    color:#f9fafb;
+  }
+  .btn-secondary{
+    background:#111827;
+    border-color:#1f2933;
+  }
+  .btn-ghost{
+    background:transparent;
+    border-color:#1f2933;
+    color:#9ca3af;
+  }
+  .btn-danger-outline{
+    background:transparent;
+    border-color:#ef4444;
+    color:#fca5a5;
+  }
+  .btn:hover{filter:brightness(1.05)}
+  .btn:active{transform:scale(.98)}
+
+  @media (max-width:900px){
+    .market-topbar{
+      flex-direction:column;
+    }
+    .market-topbar .right{
+      justify-content:flex-start;
+    }
+
+    .my-carousel{
+      flex-direction:column;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  window.MARKET_MY_CONFIG = {
+    apiList: "{{ url_for('market.api_my_items') }}",
+    apiItem: "{{ url_for('market.api_item', item_id=0)[:-1] }}", // базовий шлях /api/item/
+    apiDelete: "/api/item/",   // + id + "/delete"
+    apiUpdate: "/api/item/",   // + id + "/update"
+    pageSize: 24
+  };
+  document.body.dataset.marketPage = "my";
+</script>
+<script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/market_listeners.js') }}"></script>
+{% endblock %}        👤 Мій профіль
+      </a>
+    </div>
+  </div>
+
+  <!-- 🔝 ТОП: Пошук + карусель вибраної моделі -->
+  <section class="my-top">
+    <!-- Пошук -->
+    <div class="my-search-row">
+      <input
+        type="text"
+        id="my-search"
+        class="my-search-input"
+        placeholder="Пошук по моїх моделях...">
+      <button id="btn-search" class="my-search-btn" type="button">🔍</button>
+    </div>
+
+    <!-- Карусель 3D як на макеті -->
+    <div class="my-carousel" id="my-focus" data-my-focus>
+      <button type="button" class="my-arrow" id="my-prev">◀</button>
+
+      <div class="my-thumb my-thumb-side">
+        <img id="my-focus-prev" src="/static/img/placeholder_stl.jpg" alt="Попередня модель">
+      </div>
+
+      <div class="my-thumb my-thumb-main">
+        <img id="my-focus-cover" src="/static/img/placeholder_stl.jpg" alt="Вибрана модель">
+        <button
+          type="button"
+          class="my-edit-btn"
+          id="my-focus-edit"
+          disabled>
+          Редагувати
+        </button>
+      </div>
+
+      <div class="my-thumb my-thumb-side">
+        <img id="my-focus-next" src="/static/img/placeholder_stl.jpg" alt="Наступна модель">
+      </div>
+
+      <button type="button" class="my-arrow" id="my-next">▶</button>
+    </div>
+  </section>
+
+  <!-- notice для market.js -->
+  <div class="market-notice" data-market-notice style="display:none;"></div>
+
+  <!-- 🔻 НИЗ: “Мої оголошення” + фільтри + грід -->
+  <section class="my-grid-section">
+    <!-- Порожній стан -->
     <div id="my-empty" class="my-empty" style="display:none;">
       <div class="icon">📭</div>
       <h2>У тебе ще немає оголошень</h2>
