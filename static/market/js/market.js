@@ -202,7 +202,54 @@ async function loadPage(page = 1) {
   }
 }
 
+/**
+ * Маленька плитка для сторінки "Мої оголошення"
+ */
+function renderMyItemCard(it) {
+  const id = it.id;
+
+  // Нормалізація ціни
+  let rawPriceCents;
+  if (typeof it.price_cents === "number") {
+    rawPriceCents = it.price_cents;
+  } else if (typeof it.price === "number") {
+    rawPriceCents = Math.round(it.price * 100);
+  } else {
+    rawPriceCents = 0;
+  }
+
+  const isFree = it.is_free || !rawPriceCents;
+  const priceLabel = isFree
+    ? "Безкоштовно"
+    : (rawPriceCents / 100).toFixed(2) + " zł";
+
+  const downloads = it.downloads || 0;
+
+  return `
+<div class="my-card" data-item-id="${id}">
+  <div class="my-card-thumb">
+    ${
+      it.cover_url
+        ? `<img src="${it.cover_url}" loading="lazy" alt="${escapeHtml(it.title)}">`
+        : `<div class="my-card-placeholder">STL</div>`
+    }
+  </div>
+  <div class="my-card-body">
+    <div class="my-card-title">${escapeHtml(it.title)}</div>
+    <div class="my-card-meta">
+      <span class="my-card-price">${priceLabel}</span>
+      <span class="my-card-downloads">⬇ ${downloads}</span>
+    </div>
+  </div>
+</div>`;
+}
+
 function renderItemCard(it) {
+  // 🔥 окрема верстка для сторінки "Мої оголошення"
+  if (PAGE_TYPE === "my") {
+    return renderMyItemCard(it);
+  }
+
   // 👇 Нормалізація шляху до детальної сторінки:
   // якщо бекенд дає slug — використовуємо його,
   // якщо ні — падаємо назад на id.
