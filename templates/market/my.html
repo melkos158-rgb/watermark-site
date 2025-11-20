@@ -393,7 +393,6 @@
 
   .focus-thumb{
     width:100%;
-    aspect-ratio:1/1;
     border-radius:12px;
     border:1px solid #111827;
     background:#020617;
@@ -402,11 +401,21 @@
     align-items:center;
     overflow:hidden;
   }
-  #my-focus-cover{
+
+  /* 🔧 обмежуємо висоту превʼю вгорі, щоб не було гігантського "No image" */
+  #my-focus-cover,
+  #my-focus-prev,
+  #my-focus-next{
     max-width:100%;
-    max-height:100%;
+    max-height:240px;
     object-fit:contain;
     display:block;
+    margin:0 auto;
+  }
+  .my-focus-main,
+  .my-focus-side .side-thumb{
+    max-height:240px;
+    overflow:hidden;
   }
 
   .focus-edit-btn{
@@ -491,20 +500,62 @@
     margin-top:6px;
   }
 
-  /* Фікс картинок у гріді */
-  .my-market-page #my-grid img{
-    max-width:100%;
-    height:auto;
-    max-height:260px;
-    object-fit:contain;
-    border-radius:10px;
-    display:block;
-    margin:0 auto;
+  /* 🔹 Маленькі плитки моїх оголошень (рендеряться з market.js як .my-card) */
+  .my-card{
+    background:#050816;
+    border:1px solid #111827;
+    border-radius:12px;
+    padding:8px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    cursor:pointer;
+  }
+  .my-card-thumb{
+    width:100%;
+    aspect-ratio:1/1;
+    border-radius:8px;
     background:#020617;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .my-card-thumb img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+  }
+  .my-card-body{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .my-card-title{
+    font-size:13px;
+    font-weight:600;
+    color:#e5e7eb;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .my-card-meta{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    color:#9ca3af;
+  }
+  .my-card-price{
+    font-weight:500;
+  }
+  .my-card-downloads{
+    opacity:.9;
   }
 
   /* selected-картка (JS може додати .selected) */
-  .my-grid .card.selected{
+  .my-grid .card.selected,
+  .my-card.selected{
     border-color:#4f46e5;
     box-shadow:0 0 0 1px #4f46e5;
   }
