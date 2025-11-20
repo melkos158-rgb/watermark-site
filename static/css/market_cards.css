@@ -287,3 +287,21 @@
     font-size: 14px;
   }
 }
+/* Супер-жорсткий фікс: на сторінці "Мої оголошення"
+   ЖОДНЕ зображення не може бути вище 260px */
+.my-market-page img {
+  max-height: 260px !important;
+  max-width: 100%;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block;
+}
+
+/* Якщо це не <img>, а блок з плейсхолдером */
+.my-market-page .viewer,
+.my-market-page .thumb,
+.my-market-page .stl-viewer,
+.my-market-page [class*="placeholder"] {
+  max-height: 260px !important;
+  overflow: hidden !important;
+}
