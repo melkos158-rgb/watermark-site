@@ -22,94 +22,70 @@
     </form>
   </section>
 
-  {# Змінна з моделями власника. Підтягуємо з різних можливих назв. #}
-  {% set items =
-        my_items if my_items is defined else
-        user_items if user_items is defined else
-        models if models is defined else
-        listings if listings is defined else
-        market_items if market_items is defined else
-        items if items is defined else [] %}
+  <!-- 🎞 Карусель з 3D-превʼю (контейнер, дані підтягуємо з JS) -->
+  <section id="my-carousel" class="my-carousel" data-items-count="0">
+    <button class="mc-arrow mc-arrow-left" type="button" data-dir="prev" aria-label="Попередня модель">
+      ‹
+    </button>
 
-  <!-- 🎞 Карусель з 3D-превʼю -->
-  <section id="my-carousel" class="my-carousel"
-           data-items-count="{{ items|length }}">
-    {% if items %}
-      <button class="mc-arrow mc-arrow-left" type="button" data-dir="prev" aria-label="Попередня модель">
-        ‹
-      </button>
-
-      <div class="mc-strip">
-        <!-- Ліве маленьке превʼю -->
-        <div class="mc-card mc-card-side" id="mc-left-card">
-          <div class="mc-thumb" data-role="thumb"></div>
-          <div class="mc-title" data-role="title"></div>
-        </div>
-
-        <!-- Центральне велике превʼю -->
-        <div class="mc-card mc-card-main" id="mc-main-card">
-          <div class="mc-thumb" data-role="thumb"></div>
-          <div class="mc-title" data-role="title"></div>
-          <a id="mc-edit-btn"
-             class="mc-edit-btn"
-             href="#"
-             aria-label="Редагувати оголошення">
-            Редагувати
-          </a>
-        </div>
-
-        <!-- Праве маленьке превʼю -->
-        <div class="mc-card mc-card-side" id="mc-right-card">
-          <div class="mc-thumb" data-role="thumb"></div>
-          <div class="mc-title" data-role="title"></div>
-        </div>
+    <div class="mc-strip">
+      <!-- Ліве маленьке превʼю -->
+      <div class="mc-card mc-card-side" id="mc-left-card">
+        <div class="mc-thumb" data-role="thumb"></div>
+        <div class="mc-title" data-role="title"></div>
       </div>
 
-      <button class="mc-arrow mc-arrow-right" type="button" data-dir="next" aria-label="Наступна модель">
-        ›
-      </button>
-
-      {# JSON з даними про моделі для JS #}
-      <script id="my-carousel-data" type="application/json">
-        {{ items|map(attribute="to_dict")|list|tojson }}
-      </script>
-
-    {% else %}
-      <div class="mc-empty">
-        У тебе ще немає оголошень. Додай першу модель, щоб побачити карусель 😎
+      <!-- Центральне велике превʼю -->
+      <div class="mc-card mc-card-main" id="mc-main-card">
+        <div class="mc-thumb" data-role="thumb"></div>
+        <div class="mc-title" data-role="title"></div>
+        <a id="mc-edit-btn"
+           class="mc-edit-btn"
+           href="#"
+           aria-label="Редагувати оголошення">
+          Редагувати
+        </a>
       </div>
-    {% endif %}
+
+      <!-- Праве маленьке превʼю -->
+      <div class="mc-card mc-card-side" id="mc-right-card">
+        <div class="mc-thumb" data-role="thumb"></div>
+        <div class="mc-title" data-role="title"></div>
+      </div>
+    </div>
+
+    <button class="mc-arrow mc-arrow-right" type="button" data-dir="next" aria-label="Наступна модель">
+      ›
+    </button>
+
+    <div class="mc-empty" id="mc-empty">
+      У тебе ще немає оголошень. Додай першу модель, щоб побачити карусель 😎
+    </div>
   </section>
 
   <!-- 🧱 Грід «Мої оголошення» -->
   <section class="my-grid-section">
     <h2 class="my-grid-title">Мої оголошення</h2>
 
-    {% if items %}
-      <div class="my-grid">
-        {% for item in items %}
-          <article class="my-grid-item"
-                   data-item-index="{{ loop.index0 }}"
-                   data-item-id="{{ item.id }}">
-            <a class="my-grid-thumb-link"
-               href="{{ url_for('market.item_page', item_id=item.id) }}"
-               title="{{ item.title }}">
-              <div class="my-grid-thumb"
-                   style="background-image: url('{{ item.cover_url or item.preview_url or url_for('static', filename='img/placeholder.png') }}');">
-              </div>
-            </a>
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="my-grid-empty">
-        Поки що немає моделей. Як тільки додаси — вони зʼявляться тут у вигляді сітки.
-      </p>
-    {% endif %}
+    <div class="my-grid" id="my-grid">
+      {# JS вставить сюди карти оголошень #}
+    </div>
+
+    <p class="my-grid-empty" id="my-grid-empty">
+      Поки що немає моделей. Як тільки додаси — вони зʼявляться тут у вигляді сітки.
+    </p>
   </section>
 </div>
 
-{# Підключаємо JS для каруселі #}
+{# Підключаємо зовнішній JS/CSS, як і було #}
 <script src="{{ url_for('static', filename='js/market_my.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/market_my.css') }}">
+
+{# Додатковий inline-скрипт: базові дані, які може використати JS #}
+<script>
+  window.PROOFLY_MY_MARKET = window.PROOFLY_MY_MARKET || {};
+  window.PROOFLY_MY_MARKET.apiMyUrl = "/api/market/my";
+  window.PROOFLY_MY_MARKET.itemEditBase = "/market/edit/";
+  window.PROOFLY_MY_MARKET.itemPublicBase = "/market/item/";
+</script>
 {% endblock %}
