@@ -9,7 +9,7 @@
   <section class="my-search-section">
     <form id="my-search-form"
           class="my-search-form"
-          action="{{ url_for('market.market') }}"
+          action="{{ url_for('market.page_market', owner=request.args.get('owner', 'me')) }}"
           method="get"
           role="search"
           aria-label="Пошук по моїх моделях">
