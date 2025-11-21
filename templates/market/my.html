@@ -1,213 +1,109 @@
 {% extends "base.html" %}
 
-{% block title %}Мої оголошення{% endblock %}
+{% block title %}Мої оголошення — Proofly STL Market{% endblock %}
 
 {% block content %}
-<!-- Повна ширина пошуку зверху -->
-<section id="my-search-section" class="my-search-section">
-  <form
-    id="my-search-form"
-    class="my-search-form"
-    action=""
-    method="get"
-    role="search"
-    aria-label="Пошук оголошень"
-  >
-    <input
-      id="search-input"
-      name="q"
-      type="search"
-      placeholder="Пошук..."
-      value="{{ request.args.get('q', '') }}"
-      aria-label="Поле пошуку"
-    />
-    <button type="submit" id="search-submit" class="btn btn-primary">Шукати</button>
-  </form>
-</section>
+<div class="market-page my-market-page" data-market-root data-market-page="my">
 
-<!-- Перегляд-прев'ю (карусель-стиль) -->
-<section id="preview-carousel" class="preview-carousel" aria-label="Перегляд прев'ю оголошень">
-  <div class="preview-controls" id="preview-controls">
+  <!-- 🔍 Пошук зверху -->
+  <section class="my-search-section">
+    <form id="my-search-form"
+          class="my-search-form"
+          action="{{ url_for('market.market') }}"
+          method="get"
+          role="search"
+          aria-label="Пошук по моїх моделях">
+      <input id="my-search-input"
+             type="search"
+             name="q"
+             placeholder="Пошук"
+             value="{{ request.args.get('q', '') }}">
+      <button type="submit">Пошук</button>
+    </form>
+  </section>
 
-    <!-- Кнопка-стрілка вліво -->
-    <button id="preview-prev" class="preview-arrow preview-arrow-left" aria-label="Попереднє прев'ю">
-      &lsaquo;
-    </button>
+  {# Змінна з моделями власника. Назва може бути у тебе інша — підстав свою. #}
+  {% set items = my_items if my_items is defined else items if items is defined else [] %}
 
-    <!-- Малий прев'ю (ліворуч) -->
-    <div class="preview-small preview-left" id="preview-left" role="button" aria-label="Ліве прев'ю" tabindex="0" data-index="0">
-      {% if ads|length > 0 %}
-        {% if ads[0] %}
-          <img src="{{ ads[0].preview_url or ads[0].image_url or url_for('static', filename='img/placeholder-small.png') }}" alt="{{ ads[0].title }}" class="preview-img" />
-        {% endif %}
-      {% else %}
-        <div class="preview-placeholder">Немає прев'ю</div>
-      {% endif %}
-    </div>
+  <!-- 🎞 Карусель з 3D-превʼю -->
+  <section id="my-carousel" class="my-carousel"
+           data-items-count="{{ items|length }}">
+    {% if items %}
+      <button class="mc-arrow mc-arrow-left" type="button" data-dir="prev" aria-label="Попередня модель">
+        ‹
+      </button>
 
-    <!-- Велике центральне прев'ю -->
-    <div class="preview-large preview-center" id="preview-center" role="button" aria-label="Центральне прев'ю" tabindex="0" data-index="1">
-      {% if ads|length > 1 %}
-        {% if ads[1] %}
-          <img src="{{ ads[1].preview_url or ads[1].image_url or url_for('static', filename='img/placeholder-large.png') }}" alt="{{ ads[1].title }}" class="preview-img preview-img-large" />
-        {% endif %}
-      {% elif ads|length == 1 %}
-        <!-- Якщо тільки одна картка — покажемо її в центрі -->
-        {% if ads[0] %}
-          <img src="{{ ads[0].preview_url or ads[0].image_url or url_for('static', filename='img/placeholder-large.png') }}" alt="{{ ads[0].title }}" class="preview-img preview-img-large" />
-        {% endif %}
-      {% else %}
-        <div class="preview-placeholder">Немає прев'ю</div>
-      {% endif %}
+      <div class="mc-strip">
+        <!-- Ліве маленьке превʼю -->
+        <div class="mc-card mc-card-side" id="mc-left-card">
+          <div class="mc-thumb" data-role="thumb"></div>
+          <div class="mc-title" data-role="title"></div>
+        </div>
 
-      <!-- Кнопка Редагувати під центральним прев'ю -->
-      <div class="preview-edit-wrap">
-        {% if ads|length > 1 %}
-          <button id="edit-preview-btn" class="btn btn-edit" type="button" data-ad-id="{{ ads[1].id }}">
+        <!-- Центральне велике превʼю -->
+        <div class="mc-card mc-card-main" id="mc-main-card">
+          <div class="mc-thumb" data-role="thumb"></div>
+          <div class="mc-title" data-role="title"></div>
+          <a id="mc-edit-btn"
+             class="mc-edit-btn"
+             href="#"
+             aria-label="Редагувати оголошення">
             Редагувати
-          </button>
-        {% elif ads|length == 1 %}
-          <button id="edit-preview-btn" class="btn btn-edit" type="button" data-ad-id="{{ ads[0].id }}">
-            Редагувати
-          </button>
-        {% else %}
-          <button id="edit-preview-btn" class="btn btn-edit" type="button" disabled>
-            Редагувати
-          </button>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Малий прев'ю (праворуч) -->
-    <div class="preview-small preview-right" id="preview-right" role="button" aria-label="Праве прев'ю" tabindex="0" data-index="2">
-      {% if ads|length > 2 %}
-        {% if ads[2] %}
-          <img src="{{ ads[2].preview_url or ads[2].image_url or url_for('static', filename='img/placeholder-small.png') }}" alt="{{ ads[2].title }}" class="preview-img" />
-        {% endif %}
-      {% else %}
-        <div class="preview-placeholder">Немає прев'ю</div>
-      {% endif %}
-    </div>
-
-    <!-- Кнопка-стрілка вправо -->
-    <button id="preview-next" class="preview-arrow preview-arrow-right" aria-label="Наступне прев'ю">
-      &rsaquo;
-    </button>
-
-  </div>
-</section>
-
-<!-- Розділ "Мої оголошення" і сітка -->
-<section id="my-ads-section" class="my-ads-section">
-  <h2 id="my-ads-title" class="section-title">Мої оголошення</h2>
-
-  <div id="ads-grid" class="ads-grid" aria-live="polite">
-    {% if ads %}
-      {% for ad in ads %}
-        <article class="ad-card" data-ad-id="{{ ad.id }}" id="ad-{{ ad.id }}">
-          <a class="ad-link" href="{{ ad.url or url_for('ad.view', id=ad.id) }}" title="{{ ad.title }}">
-            <div class="ad-image-wrap">
-              <img class="ad-image" src="{{ ad.preview_url or ad.image_url or url_for('static', filename='img/placeholder-card.png') }}" alt="{{ ad.title }}">
-            </div>
-            <div class="ad-body">
-              <h3 class="ad-title">{{ ad.title }}</h3>
-              <div class="ad-meta">
-                {% if ad.price is defined %}
-                  <span class="ad-price">{{ ad.price }}</span>
-                {% endif %}
-                {% if ad.location is defined %}
-                  <span class="ad-location">{{ ad.location }}</span>
-                {% endif %}
-              </div>
-            </div>
           </a>
+        </div>
 
-          <div class="ad-actions">
-            <button class="btn btn-edit-small" type="button" data-ad-id="{{ ad.id }}">Редагувати</button>
-            <a class="btn btn-view-small" href="{{ ad.url or url_for('ad.view', id=ad.id) }}">Переглянути</a>
-          </div>
-        </article>
-      {% endfor %}
+        <!-- Праве маленьке превʼю -->
+        <div class="mc-card mc-card-side" id="mc-right-card">
+          <div class="mc-thumb" data-role="thumb"></div>
+          <div class="mc-title" data-role="title"></div>
+        </div>
+      </div>
+
+      <button class="mc-arrow mc-arrow-right" type="button" data-dir="next" aria-label="Наступна модель">
+        ›
+      </button>
+
+      {# JSON з даними про моделі для JS #}
+      <script id="my-carousel-data" type="application/json">
+        {{ items|map(attribute="to_dict")|list|tojson }}
+      </script>
+
     {% else %}
-      <div class="no-ads" aria-live="polite">У вас ще немає оголошень.</div>
+      <div class="mc-empty">
+        У тебе ще немає оголошень. Додай першу модель, щоб побачити карусель 😎
+      </div>
     {% endif %}
-  </div>
-</section>
-{% endblock %}
+  </section>
 
-{% block styles %}
-  {{ super() }}
-  <style>
-    .my-search-section { width:100%; padding: 12px 16px; box-sizing:border-box; }
-    .my-search-form { display:flex; gap:8px; width:100%; max-width:1200px; margin:0 auto; }
-    .my-search-form input[type="search"]{ flex:1; padding:10px 12px; font-size:1rem; border-radius:6px; border:1px solid #ddd; }
-    .my-search-form .btn { padding:10px 14px; border-radius:6px; }
+  <!-- 🧱 Грід «Мої оголошення» -->
+  <section class="my-grid-section">
+    <h2 class="my-grid-title">Мої оголошення</h2>
 
-    .preview-carousel { width:100%; margin:18px 0; display:flex; justify-content:center; }
-    .preview-controls { display:flex; align-items:center; gap:12px; width:100%; max-width:1200px; padding:8px; box-sizing:border-box; }
+    {% if items %}
+      <div class="my-grid">
+        {% for item in items %}
+          <article class="my-grid-item"
+                   data-item-index="{{ loop.index0 }}"
+                   data-item-id="{{ item.id }}">
+            <a class="my-grid-thumb-link"
+               href="{{ url_for('market.item_page', item_id=item.id) }}"
+               title="{{ item.title }}">
+              <div class="my-grid-thumb"
+                   style="background-image: url('{{ item.cover_url or item.preview_url or url_for('static', filename='img/placeholder.png') }}');">
+              </div>
+            </a>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="my-grid-empty">
+        Поки що немає моделей. Як тільки додаси — вони зʼявляться тут у вигляді сітки.
+      </p>
+    {% endif %}
+  </section>
+</div>
 
-    .preview-arrow { background:transparent; border:1px solid #ddd; width:44px; height:86px; border-radius:6px; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-    .preview-left, .preview-right { width:120px; height:120px; display:flex; align-items:center; justify-content:center; border:1px solid #eee; border-radius:8px; overflow:hidden; background:#fafafa; }
-    .preview-center { flex:1; height:280px; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #eee; border-radius:8px; overflow:hidden; background:#fff; padding:12px; box-sizing:border-box; max-width:560px; }
-
-    .preview-img { width:100%; height:100%; object-fit:cover; display:block; }
-    .preview-img-large { max-width:100%; max-height:100%; }
-
-    .preview-edit-wrap{ margin-top:8px; }
-    .btn-edit { padding:8px 14px; border-radius:6px; }
-
-    .my-ads-section { width:100%; max-width:1200px; margin:24px auto; padding:0 12px; box-sizing:border-box; }
-    .section-title { margin:0 0 12px 0; font-size:1.25rem; }
-
-    .ads-grid { display:grid; gap:16px; grid-template-columns: repeat(1, 1fr); }
-    @media (min-width: 600px) {
-      .ads-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (min-width: 1000px) {
-      .ads-grid { grid-template-columns: repeat(4, 1fr); }
-    }
-
-    .ad-card { border:1px solid #eee; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; background:#fff; }
-    .ad-link { color:inherit; text-decoration:none; display:block; flex:1; }
-    .ad-image-wrap { width:100%; aspect-ratio: 4/3; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#fafafa; }
-    .ad-image { width:100%; height:100%; object-fit:cover; display:block; }
-    .ad-body { padding:10px; }
-    .ad-title { margin:0 0 6px 0; font-size:1rem; }
-    .ad-meta { font-size:0.9rem; color:#666; display:flex; gap:10px; align-items:center; }
-
-    .ad-actions { display:flex; gap:8px; padding:10px; border-top:1px solid #f5f5f5; align-items:center; justify-content:flex-end; }
-    .btn-edit-small, .btn-view-small { padding:6px 10px; border-radius:6px; border:1px solid #e6e6e6; background:#fff; cursor:pointer; }
-  </style>
-{% endblock %}
-
-{% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/my_ads.js') }}"></script>
-
-  <script>
-    (function () {
-      const prevBtn = document.getElementById('preview-prev');
-      const nextBtn = document.getElementById('preview-next');
-      const editBtn = document.getElementById('edit-preview-btn');
-
-      if (editBtn) {
-        editBtn.addEventListener('click', function () {
-          const adId = this.dataset.adId;
-          if (!adId) return;
-          const card = document.querySelector(`[data-ad-id="${adId}"]`);
-          if (card) {
-            const link = card.querySelector('.ad-link');
-            if (link) { window.location = link.href; }
-          }
-        });
-      }
-
-      if (prevBtn) prevBtn.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('ads:carousel:prev'));
-      });
-      if (nextBtn) nextBtn.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('ads:carousel:next'));
-      });
-    })();
-  </script>
+{# Підключаємо JS для каруселі #}
+<script src="{{ url_for('static', filename='js/market_my.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/market_my.css') }}">
 {% endblock %}
