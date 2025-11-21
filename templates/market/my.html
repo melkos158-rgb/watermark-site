@@ -22,8 +22,14 @@
     </form>
   </section>
 
-  {# Змінна з моделями власника. Назва може бути у тебе інша — підстав свою. #}
-  {% set items = my_items if my_items is defined else items if items is defined else [] %}
+  {# Змінна з моделями власника. Підтягуємо з різних можливих назв. #}
+  {% set items =
+        my_items if my_items is defined else
+        user_items if user_items is defined else
+        models if models is defined else
+        listings if listings is defined else
+        market_items if market_items is defined else
+        items if items is defined else [] %}
 
   <!-- 🎞 Карусель з 3D-превʼю -->
   <section id="my-carousel" class="my-carousel"
