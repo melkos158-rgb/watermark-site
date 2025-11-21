@@ -521,6 +521,12 @@ def api_my_items_compat():
     return api_my_items()
 
 
+# ✅ НОВИЙ ШЛЯХ ДЛЯ "Мої оголошення": /api/market/my
+@bp.get("/api/market/my")
+def api_my_items_my():
+    return api_my_items()
+
+
 @bp.get("/api/item/<int:item_id>")
 def api_item(item_id: int):
     it = _fetch_item_with_author(item_id)
