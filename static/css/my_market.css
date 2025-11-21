@@ -1,592 +1,168 @@
-/* static/market/css/my_market.css
- *
- * Сторінка "Мої оголошення" (market?owner=me)
- * Макет: Пошук → карусель 3D → грід маленьких плиток + модалка редагування
- */
-
-/* ====== БАЗОВЕ ОФОРМЛЕННЯ СТОРІНКИ ====== */
-
 .my-market-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 16px 40px;
+  max-width: 1100px;
+  margin: 24px auto 60px;
+  padding: 0 16px 40px;
 }
 
-.market-topbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 20px;
-  align-items: flex-start;
-}
+/* 🔍 Пошук */
 
-.market-h1 {
-  margin: 0;
-  font-size: 26px;
-}
-
-.market-sub {
-  margin: 6px 0 14px;
-  color: #9ca3af;
-  font-size: 14px;
-}
-
-.market-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.market-badges .badge {
-  background: #111827;
-  border: 1px solid #1f2933;
-  border-radius: 999px;
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.badge-label {
-  color: #9ca3af;
-}
-
-.badge-value {
-  color: #e5e7eb;
-  font-weight: 600;
-}
-
-.market-topbar .right {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.btn.big {
-  padding: 10px 18px;
-  font-size: 14px;
-}
-
-/* ====== TOP: ПОШУК + КАРУСЕЛЬ ====== */
-
-.my-top {
-  background: #050816;
-  border-radius: 16px;
-  border: 1px solid #111827;
-  padding: 16px 14px 18px;
+.my-search-section {
   margin-bottom: 24px;
 }
 
-/* Пошук */
-
-.my-search-row {
-  margin-bottom: 16px;
-}
-
-.search-bar {
+.my-search-form {
   display: flex;
-  align-items: stretch;
-  gap: 6px;
+  gap: 8px;
 }
 
-.search-bar .inp {
+.my-search-form input[type="search"] {
   flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #2b3140;
+  background: #05070d;
+  color: #fff;
 }
 
-.search-btn {
-  border-radius: 10px;
-  border: 1px solid #111827;
-  background: #111827;
-  color: #e5e7eb;
-  padding: 0 12px;
+.my-search-form button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: #fff;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 16px;
 }
 
-.search-btn:hover {
-  filter: brightness(1.1);
-}
+/* 🎞 Карусель */
 
-/* Інпути */
-
-.inp {
-  width: 100%;
-  background: #020617;
-  border-radius: 10px;
-  border: 1px solid #111827;
-  padding: 8px 10px;
-  font-size: 13px;
-  color: #e5e7eb;
-  outline: none;
-}
-
-.inp:focus {
-  border-color: #6366f1;
-}
-
-/* Карусель */
-
-.my-focus-row {
+.my-carousel {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
+  margin-bottom: 32px;
 }
 
-.nav-arrow {
+.my-carousel .mc-arrow {
   border-radius: 999px;
-  border: 1px solid #111827;
-  background: #020617;
-  color: #e5e7eb;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 18px;
-}
-
-.nav-arrow:hover {
-  filter: brightness(1.1);
-}
-
-.my-focus-wrapper {
-  flex: 0 1 520px;
-}
-
-.my-focus-strip {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) 140px;
-  gap: 14px;
-  align-items: center;
-}
-
-/* Бокові 3D превʼю */
-
-.my-focus-side {
-  border-radius: 14px;
-  border: 1px solid #111827;
-  background: #020617;
-  padding: 6px;
-}
-
-.my-focus-side .side-thumb {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-/* Центральний блок */
-
-.my-focus-main {
-  border-radius: 16px;
-  border: 1px solid #111827;
-  background: #020617;
-  padding: 10px 10px 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.focus-thumb {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 12px;
-  border: 1px solid #111827;
-  background: #020617;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-}
-
-/* 🔧 Обмеження розміру превʼю в каруселі */
-
-#my-focus-cover,
-#my-focus-prev,
-#my-focus-next {
-  max-width: 100%;
-  max-height: 240px;
-  object-fit: contain;
-  display: block;
-  margin: 0 auto;
-}
-
-/* Щоб блоки не розтягували сторінку */
-
-.my-focus-main,
-.my-focus-side .side-thumb {
-  max-height: 240px;
-  overflow: hidden;
-}
-
-.focus-edit-btn {
-  margin-top: 2px;
-  width: 100%;
-  justify-content: center;
-}
-
-/* ====== GRID: МОЇ ОГОЛОШЕННЯ ====== */
-
-.my-grid-section {
-  min-height: 260px;
-}
-
-.my-grid-title {
-  margin: 0 0 10px;
-  font-size: 18px;
-}
-
-.my-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 10px;
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: #9ca3af;
-}
-
-.toolbar-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 160px;
-}
-
-.lbl.small {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-.inp.small {
-  padding: 6px 9px;
-  font-size: 12px;
-}
-
-/* Чіпси "Усі / Безкоштовні / Платні" */
-
-.chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.chip {
-  border-radius: 999px;
-  border: 1px solid #111827;
-  background: #020617;
-  color: #9ca3af;
-  font-size: 12px;
-  padding: 5px 10px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #2b3140;
+  background: #05070d;
+  color: #fff;
+  font-size: 24px;
   cursor: pointer;
 }
 
-.chip.active {
-  background: #4f46e5;
-  color: #f9fafb;
-  border-color: #4f46e5;
-}
-
-/* Порожній стан */
-
-.my-empty {
-  text-align: center;
-  padding: 40px 10px;
-  border-radius: 14px;
-  background: #020617;
-  border: 1px dashed #1f2933;
-  margin-top: 10px;
-  margin-bottom: 16px;
-}
-
-.my-empty .icon {
-  font-size: 30px;
-  margin-bottom: 8px;
-}
-
-.my-empty h2 {
-  margin: 0 0 6px;
-  font-size: 18px;
-}
-
-.my-empty p {
-  margin: 0 0 12px;
-  color: #9ca3af;
-  font-size: 13px;
-}
-
-/* Грід плиток */
-
-.market-grid {
+.my-carousel .mc-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 14px;
-  margin-top: 6px;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  max-width: 720px;
 }
 
-/* ====== МАЛЕНЬКІ ПЛИТКИ МОЇХ ОГОЛОШЕНЬ ====== */
-
-.my-card {
-  background: #050816;
-  border: 1px solid #111827;
+.mc-card {
   border-radius: 12px;
+  border: 1px solid #2b3140;
+  background: #05070d;
   padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  cursor: pointer;
+  align-items: stretch;
+  justify-content: space-between;
+  min-height: 120px;
 }
 
-.my-card-thumb {
-  width: 100%;
+.mc-card-side .mc-thumb {
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
-  background: #020617;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
 }
 
-.my-card-thumb img {
+.mc-card-main .mc-thumb {
+  aspect-ratio: 1 / 1;
+}
+
+.mc-thumb {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: #111827;
 }
 
-.my-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.my-card-title {
+.mc-title {
+  margin-top: 6px;
   font-size: 13px;
-  font-weight: 600;
   color: #e5e7eb;
+  text-align: center;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.my-card-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #9ca3af;
+.mc-card-main .mc-title {
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.my-card-price {
-  font-weight: 500;
-}
-
-.my-card-downloads {
-  opacity: .9;
-}
-
-/* Виділена плитка (коли вибрана для каруселі) */
-
-.my-grid .card.selected,
-.my-card.selected {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 1px #4f46e5;
-}
-
-/* Пагінація */
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-top: 18px;
-  font-size: 13px;
-  color: #9ca3af;
-}
-
-/* ====== МОДАЛКА РЕДАГУВАННЯ ====== */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.6);
-  z-index: 60;
-}
-
-.modal {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 70;
-}
-
-.modal-inner {
-  width: 100%;
-  max-width: 640px;
-  background: #020617;
-  border-radius: 16px;
-  border: 1px solid #1f2933;
-  padding: 18px 18px 16px;
-  box-shadow: 0 18px 40px rgba(0,0,0,.75);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.modal-close {
-  border: none;
-  background: transparent;
-  color: #9ca3af;
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.form-row {
-  margin-bottom: 12px;
-}
-
-.form-row.two {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.form-row .lbl {
+.mc-edit-btn {
+  margin-top: 8px;
   display: block;
-  margin-bottom: 4px;
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-textarea.inp {
-  resize: vertical;
-  min-height: 70px;
-}
-
-.preview-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.cover-preview {
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #111827;
-  background: #020617;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 110px;
-}
-
-.cover-preview img {
-  max-width: 100%;
-  max-height: 180px;
-  display: block;
-}
-
-.hint-small {
-  margin-top: 4px;
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.footer-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.status-text {
-  font-size: 13px;
-}
-
-/* Кнопки */
-
-.btn {
-  border-radius: 999px;
-  border: 1px solid #1f2933;
-  background: #020617;
-  color: #e5e7eb;
-  font-size: 13px;
-  padding: 6px 12px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  text-align: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: #fff;
   text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.btn-primary {
-  background: #4f46e5;
-  border-color: #4f46e5;
-  color: #f9fafb;
+/* 🧱 Грід */
+
+.my-grid-section {
+  margin-top: 24px;
 }
 
-.btn-secondary {
-  background: #111827;
-  border-color: #1f2933;
+.my-grid-title {
+  font-size: 22px;
+  margin-bottom: 16px;
 }
 
-.btn-ghost {
-  background: transparent;
-  border-color: #1f2933;
+.my-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.my-grid-item {
+  border-radius: 10px;
+  border: 1px solid #2b3140;
+  background: #05070d;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.my-grid-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background-size: cover;
+  background-position: center;
+}
+
+.my-grid-empty {
   color: #9ca3af;
 }
 
-.btn-danger-outline {
-  background: transparent;
-  border-color: #ef4444;
-  color: #fca5a5;
-}
+/* Mobile */
 
-.btn:hover {
-  filter: brightness(1.05);
-}
-
-.btn:active {
-  transform: scale(.98);
-}
-
-/* ====== ADAPTIVE ====== */
-
-@media (max-width: 900px) {
-  .market-topbar {
-    flex-direction: column;
-  }
-
-  .market-topbar .right {
-    justify-content: flex-start;
-  }
-
-  .my-focus-strip {
+@media (max-width: 768px) {
+  .my-carousel .mc-strip {
     grid-template-columns: 1fr;
   }
-
-  .my-focus-row {
-    flex-direction: column;
+  .mc-card-side {
+    display: none;
   }
 }
