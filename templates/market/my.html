@@ -3,6 +3,21 @@
 {% block title %}Мої оголошення — Proofly STL Market{% endblock %}
 
 {% block content %}
+{# Macro to get thumbnail URL with fallbacks #}
+{% macro get_thumbnail(ad) -%}
+  {%- if ad.thumbnail -%}
+    {{ ad.thumbnail }}
+  {%- elif ad.thumb -%}
+    {{ ad.thumb }}
+  {%- elif ad.image -%}
+    {{ ad.image }}
+  {%- elif ad.cover -%}
+    {{ ad.cover }}
+  {%- else -%}
+    /static/img/placeholder_stl.jpg
+  {%- endif -%}
+{%- endmacro %}
+
 {# Get ads list with fallback chain #}
 {% set ads_list = my_ads if my_ads is defined else (ads if ads is defined else (user_ads if user_ads is defined else [])) %}
 
@@ -18,22 +33,11 @@
       <div class="mc-strip">
         <!-- Server-rendered carousel items (hidden by default, JS will show active ones) -->
         {% for ad in ads_list %}
-          {% if ad.thumbnail %}
-            {% set thumb = ad.thumbnail %}
-          {% elif ad.thumb %}
-            {% set thumb = ad.thumb %}
-          {% elif ad.image %}
-            {% set thumb = ad.image %}
-          {% elif ad.cover %}
-            {% set thumb = ad.cover %}
-          {% else %}
-            {% set thumb = '/static/img/placeholder_stl.jpg' %}
-          {% endif %}
           <div class="mc-carousel-item" data-item-index="{{ loop.index0 }}" data-item-id="{{ ad.id }}" style="display: none;">
-            <img src="{{ thumb }}" alt="{{ ad.title }}" class="mc-item-thumb" />
+            <img src="{{ get_thumbnail(ad) }}" alt="{{ ad.title }}" class="mc-item-thumb" />
             <div class="mc-item-title">{{ ad.title }}</div>
             <div class="mc-item-price">{{ ad.price }} ₴</div>
-            <a href="/ads/{{ ad.id }}/edit" class="mc-item-edit">Редагувати</a>
+            <a href="{{ url_for('market.page_edit_item', item_id=ad.id) }}" class="mc-item-edit">Редагувати</a>
           </div>
         {% endfor %}
 
@@ -68,23 +72,12 @@
 
       <div class="my-grid" id="my-grid">
         {% for ad in ads_list %}
-          {% if ad.thumbnail %}
-            {% set thumb = ad.thumbnail %}
-          {% elif ad.thumb %}
-            {% set thumb = ad.thumb %}
-          {% elif ad.image %}
-            {% set thumb = ad.image %}
-          {% elif ad.cover %}
-            {% set thumb = ad.cover %}
-          {% else %}
-            {% set thumb = '/static/img/placeholder_stl.jpg' %}
-          {% endif %}
           <div class="my-grid-item" data-ad-id="{{ ad.id }}">
-            <div class="my-grid-thumb" style="background-image: url('{{ thumb }}');"></div>
+            <div class="my-grid-thumb" style="background-image: url('{{ get_thumbnail(ad) }}');"></div>
             <div class="my-grid-info">
               <h3 class="my-grid-item-title">{{ ad.title }}</h3>
               <p class="my-grid-item-price">{{ ad.price }} ₴</p>
-              <a href="/ads/{{ ad.id }}/edit" class="my-grid-edit-btn">Редагувати</a>
+              <a href="{{ url_for('market.page_edit_item', item_id=ad.id) }}" class="my-grid-edit-btn">Редагувати</a>
             </div>
           </div>
         {% endfor %}

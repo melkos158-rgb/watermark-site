@@ -133,10 +133,28 @@
       nextBtn.addEventListener('click', goToNext);
     }
 
-    // Keyboard navigation
+    // Keyboard navigation - only when carousel container has focus or is hovered
+    let isCarouselFocused = false;
+
+    carousel.addEventListener('mouseenter', function() {
+      isCarouselFocused = true;
+    });
+
+    carousel.addEventListener('mouseleave', function() {
+      isCarouselFocused = false;
+    });
+
+    carousel.addEventListener('focusin', function() {
+      isCarouselFocused = true;
+    });
+
+    carousel.addEventListener('focusout', function() {
+      isCarouselFocused = false;
+    });
+
     document.addEventListener('keydown', function(e) {
-      // Only handle keyboard if carousel is visible
-      if (!carousel.offsetParent) return;
+      // Only handle keyboard if carousel is focused or hovered
+      if (!isCarouselFocused) return;
       
       if (e.key === 'ArrowLeft' || e.key === 'Left') {
         e.preventDefault();

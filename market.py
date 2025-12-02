@@ -223,8 +223,8 @@ def page_market_my():
     my_ads = []
     
     if uid:
-        # Fetch user's ads from database
-        where_clause = "WHERE (user_id = :uid OR user_id IS NULL OR user_id = 0)"
+        # Fetch user's ads from database (only ads owned by the user)
+        where_clause = "WHERE user_id = :uid"
         sql = f"""
             SELECT id, title, price, tags,
                    COALESCE(cover_url, '') AS cover,
