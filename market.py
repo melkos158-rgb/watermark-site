@@ -218,7 +218,39 @@ def page_market_mine():
 # 🔥 НОВИЙ РОУТ: сторінка "Мої оголошення" (templates/market/my.html)
 @bp.get("/market/my")
 def page_market_my():
-    return render_template("market/my.html")
+    """Render My Ads page with server-side data."""
+    uid = _parse_int(session.get("user_id"), 0)
+    my_ads = []
+    
+    if uid:
+        # Fetch user's ads from database (only ads owned by the user)
+        where_clause = "WHERE user_id = :uid"
+        sql = f"""
+            SELECT id, title, price, tags,
+                   COALESCE(cover_url, '') AS cover,
+                   stl_main_url AS url,
+                   user_id, created_at
+            FROM {ITEMS_TBL}
+            {where_clause}
+            ORDER BY created_at DESC, id DESC
+            LIMIT 100
+        """
+        try:
+            rows = db.session.execute(text(sql), {"uid": uid}).fetchall()
+            my_ads = [_row_to_dict(r) for r in rows]
+            
+            # Normalize cover URLs
+            for ad in my_ads:
+                c = _normalize_cover_url(ad.get("cover") or ad.get("cover_url"))
+                ad["cover"] = c
+                ad["thumbnail"] = c  # Add thumbnail field
+                ad["thumb"] = c
+                ad["image"] = c
+        except Exception:
+            db.session.rollback()
+            my_ads = []
+    
+    return render_template("market/my.html", my_ads=my_ads)
 
 
 @bp.get("/item/<int:item_id>")
