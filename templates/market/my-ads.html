@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Мої оголошення</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/my-ads.css') }}">
+</head>
+<body>
+  <div class="my-ads-page">
+    <div class="my-ads-frame">
+
+      {# Визначаємо список оголошень: my_ads основна, fallback на ads/user_ads #}
+      {% if my_ads is defined %}
+        {% set ads_list = my_ads %}
+      {% elif ads is defined %}
+        {% set ads_list = ads %}
+      {% elif user_ads is defined %}
+        {% set ads_list = user_ads %}
+      {% else %}
+        {% set ads_list = [] %}
+      {% endif %}
+
+      {% macro thumb_url(ad) -%}
+        {% if ad.thumbnail is defined and ad.thumbnail %}
+          {{ ad.thumbnail }}
+        {% elif ad.thumb is defined and ad.thumb %}
+          {{ ad.thumb }}
+        {% elif ad.image is defined and ad.image %}
+          {{ ad.image }}
+        {% elif ad.get is defined and ad.get('thumbnail') %}
+          {{ ad.get('thumbnail') }}
+        {% else %}
+          {{ url_for('static', filename='img/placeholder.png') }}
+        {% endif %}
+      {%- endmacro %}
+
+      {% if ads_list|length == 0 %}
+        <div class="my-ads-empty">Поки ще немає моделей…</div>
+      {% else %}
+        <!-- TOP: Carousel -->
+        <section class="my-ads-top" aria-label="Карусель моделей">
+          <button class="my-ads-arrow left" aria-label="Попереднє оголошення">◀</button>
+
+          <div class="my-ads-carousel" id="myAdsCarousel" data-count="{{ ads_list|length }}">
+            {# Сервер-рендер: всі айтеми, JS робить активний центр #}
+            {% for ad in ads_list %}
+            <div class="carousel-item" data-index="{{ loop.index0 }}" data-ad-id="{{ ad.id }}">
+              <div class="carousel-thumb" style="background-image: url('{{ thumb_url(ad) }}')"></div>
+              <div class="carousel-meta">
+                <div class="carousel-title">{{ ad.title }}</div>
+                {% if ad.price is defined %}
+                <div class="carousel-price">{{ ad.price }}</div>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <button class="my-ads-arrow right" aria-label="Наступне оголошення">▶</button>
+        </section>
+
+        <!-- BOTTOM: Grid (2 rows, responsive) -->
+        <section class="my-ads-grid" aria-label="Галерея оголошень">
+          <div class="my-ads-grid-inner">
+            {% for ad in ads_list %}
+              <article class="ad-card" data-ad-id="{{ ad.id }}">
+                <div class="ad-thumb" role="img" aria-label="Мініатюра {{ ad.title }}" style="background-image: url('{{ thumb_url(ad) }}')"></div>
+                <div class="ad-info">
+                  <div class="ad-title">{{ ad.title }}</div>
+                  <div class="ad-price">{% if ad.price is defined %}{{ ad.price }}{% endif %}</div>
+                </div>
+                <a class="ad-edit" href="{{ url_for('edit_ad', ad_id=ad.id) if 'edit_ad' in globals() else ('/ads/' ~ ad.id ~ '/edit') }}">Редагувати</a>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/my-ads.js') }}"></script>
+</body>
+</html>
