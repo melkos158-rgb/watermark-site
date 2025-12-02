@@ -44,8 +44,8 @@
       <h2 class="my-ads-grid-title">Мої оголошення</h2>
       <div class="my-ads-grid">
         {% for ad in user_ads[:8] %}
-          <article class="my-ads-grid-card" data-ad-id="{{ ad.id }}">
-            <div class="my-ads-grid-card-thumb" style="background-image: url('{{ ad.thumbnail or ad.cover or ad.cover_url or '/static/img/placeholder_stl.jpg' }}')"></div>
+          <article class="my-ads-grid-card" data-ad-id="{{ ad.id }}" data-thumbnail="{{ ad.thumbnail or ad.cover or ad.cover_url or '/static/img/placeholder_stl.jpg' }}">
+            <div class="my-ads-grid-card-thumb"></div>
             <div class="my-ads-grid-card-content">
               <h3 class="my-ads-grid-card-title">{{ ad.title }}</h3>
               <p class="my-ads-grid-card-price">
@@ -74,6 +74,6 @@
 <script src="{{ url_for('static', filename='js/my-ads.js') }}"></script>
 <script>
   // Pass ads data to JavaScript for carousel
-  window.MY_ADS_DATA = {{ user_ads | tojson | safe }};
+  window.MY_ADS_DATA = {{ user_ads | tojson }};
 </script>
 {% endblock %}

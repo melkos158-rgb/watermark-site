@@ -189,6 +189,11 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 }
 
+.my-ads-grid-card-highlighted {
+  border-color: var(--btn, #1a73e8);
+  box-shadow: 0 0 0 2px var(--btn, #1a73e8);
+}
+
 .my-ads-grid-card-thumb {
   width: 100%;
   height: 180px;

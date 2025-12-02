@@ -245,8 +245,11 @@ def page_market_my():
                 d["cover_url"] = c
                 d["thumbnail"] = c  # Add thumbnail alias for template
                 user_ads.append(d)
-        except Exception:
+        except sa_exc.SQLAlchemyError as e:
             db.session.rollback()
+            # Log error but don't crash - just show empty state
+            import logging
+            logging.error(f"Error fetching user ads: {e}")
     
     return render_template("market/my.html", user_ads=user_ads)
 

@@ -112,12 +112,11 @@
   function highlightGridCard(adId) {
     const gridCards = document.querySelectorAll('.my-ads-grid-card');
     gridCards.forEach(card => {
-      if (card.dataset.adId == adId) {
-        card.style.borderColor = 'var(--btn, #1a73e8)';
-        card.style.boxShadow = '0 0 0 2px var(--btn, #1a73e8)';
+      const cardId = parseInt(card.dataset.adId, 10);
+      if (cardId === parseInt(adId, 10)) {
+        card.classList.add('my-ads-grid-card-highlighted');
       } else {
-        card.style.borderColor = '';
-        card.style.boxShadow = '';
+        card.classList.remove('my-ads-grid-card-highlighted');
       }
     });
   }
@@ -157,6 +156,13 @@
   // Allow clicking grid cards to update carousel
   const gridCards = document.querySelectorAll('.my-ads-grid-card');
   gridCards.forEach(card => {
+    // Set background image from data attribute
+    const thumb = card.querySelector('.my-ads-grid-card-thumb');
+    const thumbnailUrl = card.dataset.thumbnail;
+    if (thumb && thumbnailUrl) {
+      thumb.style.backgroundImage = `url('${thumbnailUrl}')`;
+    }
+    
     card.addEventListener('click', function(e) {
       // Don't intercept edit button clicks
       if (e.target.classList.contains('my-ads-grid-card-edit-btn')) {
