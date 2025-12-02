@@ -3,89 +3,79 @@
 {% block title %}Мої оголошення — Proofly STL Market{% endblock %}
 
 {% block content %}
-<div class="market-page my-market-page" data-market-root data-market-page="my">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/my-ads.css') }}">
 
-  <!-- 🔍 Пошук зверху -->
-  <section class="my-search-section">
-    <form id="my-search-form"
-          class="my-search-form"
-          action="{{ url_for('market.page_market', owner=request.args.get('owner', 'me')) }}"
-          method="get"
-          role="search"
-          aria-label="Пошук по моїх моделях">
-      <input id="my-search-input"
-             type="search"
-             name="q"
-             placeholder="Пошук"
-             value="{{ request.args.get('q', '') }}">
-      <button type="submit">Пошук</button>
-    </form>
-  </section>
+<div class="my-ads-page">
+  {% if user_ads %}
+    <!-- Top Carousel -->
+    <section class="my-ads-carousel" id="my-ads-carousel">
+      <button class="my-ads-arrow my-ads-arrow-left" type="button" aria-label="Попередня модель">
+        ‹
+      </button>
 
-  <!-- 🎞 Карусель з 3D-превʼю (контейнер, дані підтягуємо з JS) -->
-  <section id="my-carousel" class="my-carousel" data-items-count="0">
-    <button class="mc-arrow mc-arrow-left" type="button" data-dir="prev" aria-label="Попередня модель">
-      ‹
-    </button>
+      <div class="my-ads-carousel-strip">
+        <!-- Left preview card -->
+        <div class="my-ads-card my-ads-card-preview" data-position="prev">
+          <div class="my-ads-card-thumb"></div>
+        </div>
 
-    <div class="mc-strip">
-      <!-- Ліве маленьке превʼю -->
-      <div class="mc-card mc-card-side" id="mc-left-card">
-        <div class="mc-thumb" data-role="thumb"></div>
-        <div class="mc-title" data-role="title"></div>
+        <!-- Center main card -->
+        <div class="my-ads-card my-ads-card-main" data-position="current">
+          <div class="my-ads-card-thumb"></div>
+          <div class="my-ads-card-overlay">
+            <h3 class="my-ads-card-title"></h3>
+            <p class="my-ads-card-price"></p>
+          </div>
+        </div>
+
+        <!-- Right preview card -->
+        <div class="my-ads-card my-ads-card-preview" data-position="next">
+          <div class="my-ads-card-thumb"></div>
+        </div>
       </div>
 
-      <!-- Центральне велике превʼю -->
-      <div class="mc-card mc-card-main" id="mc-main-card">
-        <div class="mc-thumb" data-role="thumb"></div>
-        <div class="mc-title" data-role="title"></div>
-        <a id="mc-edit-btn"
-           class="mc-edit-btn"
-           href="#"
-           aria-label="Редагувати оголошення">
-          Редагувати
-        </a>
+      <button class="my-ads-arrow my-ads-arrow-right" type="button" aria-label="Наступна модель">
+        ›
+      </button>
+    </section>
+
+    <!-- Bottom Grid -->
+    <section class="my-ads-grid-section">
+      <h2 class="my-ads-grid-title">Мої оголошення</h2>
+      <div class="my-ads-grid">
+        {% for ad in user_ads[:8] %}
+          <article class="my-ads-grid-card" data-ad-id="{{ ad.id }}" data-thumbnail="{{ ad.thumbnail or ad.cover or ad.cover_url or '/static/img/placeholder_stl.jpg' }}">
+            <div class="my-ads-grid-card-thumb"></div>
+            <div class="my-ads-grid-card-content">
+              <h3 class="my-ads-grid-card-title">{{ ad.title }}</h3>
+              <p class="my-ads-grid-card-price">
+                {% if ad.price > 0 %}
+                  {{ ad.price }} PLN
+                {% else %}
+                  Безкоштовно
+                {% endif %}
+              </p>
+              <a href="{{ url_for('market.page_edit_item', item_id=ad.id) }}" class="my-ads-grid-card-edit-btn">
+                Редагувати
+              </a>
+            </div>
+          </article>
+        {% endfor %}
       </div>
-
-      <!-- Праве маленьке превʼю -->
-      <div class="mc-card mc-card-side" id="mc-right-card">
-        <div class="mc-thumb" data-role="thumb"></div>
-        <div class="mc-title" data-role="title"></div>
-      </div>
+    </section>
+  {% else %}
+    <!-- Empty state -->
+    <div class="my-ads-empty">
+      <p>Поки ще немає моделей…</p>
     </div>
-
-    <button class="mc-arrow mc-arrow-right" type="button" data-dir="next" aria-label="Наступна модель">
-      ›
-    </button>
-
-    <div class="mc-empty" id="mc-empty">
-      У тебе ще немає оголошень. Додай першу модель, щоб побачити карусель 😎
-    </div>
-  </section>
-
-  <!-- 🧱 Грід «Мої оголошення» -->
-  <section class="my-grid-section">
-    <h2 class="my-grid-title">Мої оголошення</h2>
-
-    <div class="my-grid" id="my-grid">
-      {# JS вставить сюди карти оголошень #}
-    </div>
-
-    <p class="my-grid-empty" id="my-grid-empty">
-      Поки що немає моделей. Як тільки додаси — вони зʼявляться тут у вигляді сітки.
-    </p>
-  </section>
+  {% endif %}
 </div>
 
-{# Підключаємо зовнішній JS/CSS, як і було #}
-<script src="{{ url_for('static', filename='js/market_my.js') }}"></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/market_my.css') }}">
-
-{# Додатковий inline-скрипт: базові дані, які може використати JS #}
+<script src="{{ url_for('static', filename='js/my-ads.js') }}"></script>
 <script>
-  window.PROOFLY_MY_MARKET = window.PROOFLY_MY_MARKET || {};
-  window.PROOFLY_MY_MARKET.apiMyUrl = "/api/market/my";
-  window.PROOFLY_MY_MARKET.itemEditBase = "/market/edit/";
-  window.PROOFLY_MY_MARKET.itemPublicBase = "/market/item/";
+  // Pass ads data to JavaScript for carousel
+  // Note: Using tojson without safe filter to properly escape data and prevent XSS
+  // The data comes from the database and is not trusted user input
+  window.MY_ADS_DATA = {{ user_ads | tojson }};
 </script>
 {% endblock %}
