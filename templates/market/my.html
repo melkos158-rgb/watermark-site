@@ -74,6 +74,8 @@
 <script src="{{ url_for('static', filename='js/my-ads.js') }}"></script>
 <script>
   // Pass ads data to JavaScript for carousel
+  // Note: Using tojson without safe filter to properly escape data and prevent XSS
+  // The data comes from the database and is not trusted user input
   window.MY_ADS_DATA = {{ user_ads | tojson }};
 </script>
 {% endblock %}

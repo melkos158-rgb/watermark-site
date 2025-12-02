@@ -169,7 +169,7 @@
         return;
       }
       
-      const adId = parseInt(card.dataset.adId);
+      const adId = parseInt(card.dataset.adId, 10);
       const index = adsData.findIndex(ad => ad.id === adId);
       
       if (index !== -1) {
