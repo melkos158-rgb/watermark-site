@@ -31,7 +31,7 @@
         {% elif ad.get is defined and ad.get('thumbnail') %}
           {{ ad.get('thumbnail') }}
         {% else %}
-          {{ url_for('static', filename='img/placeholder.png') }}
+          {{ url_for('static', filename='img/placeholder_stl.jpg') }}
         {% endif %}
       {%- endmacro %}
 
@@ -80,7 +80,7 @@
     </div>
   </div>
 
-  <!-- Виправлене підключення: файл лежить у static/market/js/my-ads.js -->
+  <!-- Підключення JS (файл у static/market/js/) -->
   <script src="{{ url_for('static', filename='market/js/my-ads.js') }}"></script>
 </body>
 </html>
