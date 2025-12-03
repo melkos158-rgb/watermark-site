@@ -14,22 +14,28 @@ document.addEventListener('DOMContentLoaded', function(){
       return;
     }
     
+    // Function to escape CSS string for use in url()
+    function escapeCssString(str) {
+      // Escape backslashes first, then single quotes
+      return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+    
     // Validate URL safety
     try {
       // Handle relative paths
       if (url.startsWith('/')) {
-        element.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+        element.style.backgroundImage = `url('${escapeCssString(url)}')`;
         return;
       }
       // Handle data URIs
       if (url.startsWith('data:image/')) {
-        element.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+        element.style.backgroundImage = `url('${escapeCssString(url)}')`;
         return;
       }
       // Handle absolute URLs - validate they're http/https
       const parsed = new URL(url, window.location.origin);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        element.style.backgroundImage = `url('${parsed.href.replace(/'/g, "\\'")}')`;
+        element.style.backgroundImage = `url('${escapeCssString(parsed.href)}')`;
         return;
       }
     } catch (e) {
