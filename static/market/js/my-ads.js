@@ -7,6 +7,19 @@ document.addEventListener('DOMContentLoaded', function(){
   const gridInner = document.querySelector('.my-ads-grid-inner');
   const emptyMessage = document.querySelector('.my-ads-empty');
 
+  // Function to escape HTML to prevent XSS
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Function to escape CSS URL to prevent CSS injection
+  function escapeCssUrl(url) {
+    // Remove quotes, parentheses, and other potentially dangerous chars
+    return url.replace(/['"\(\)]/g, '');
+  }
+
   // Function to get thumbnail URL with fallback
   function getThumbUrl(item) {
     return item.cover_url || item.cover || item.thumbnail || item.thumb || item.image || '/static/img/placeholder_stl.jpg';
@@ -19,14 +32,31 @@ document.addEventListener('DOMContentLoaded', function(){
     div.setAttribute('data-index', index);
     div.setAttribute('data-ad-id', item.id);
     
-    const thumbUrl = getThumbUrl(item);
-    div.innerHTML = `
-      <div class="carousel-thumb" style="background-image: url('${thumbUrl}')"></div>
-      <div class="carousel-meta">
-        <div class="carousel-title">${item.title || ''}</div>
-        ${item.price !== undefined ? `<div class="carousel-price">${item.price}</div>` : ''}
-      </div>
-    `;
+    const thumbUrl = escapeCssUrl(getThumbUrl(item));
+    const titleText = item.title || '';
+    
+    // Create elements safely without innerHTML
+    const thumbDiv = document.createElement('div');
+    thumbDiv.className = 'carousel-thumb';
+    thumbDiv.style.backgroundImage = `url('${thumbUrl}')`;
+    
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'carousel-meta';
+    
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'carousel-title';
+    titleDiv.textContent = titleText;
+    metaDiv.appendChild(titleDiv);
+    
+    if (item.price !== undefined) {
+      const priceDiv = document.createElement('div');
+      priceDiv.className = 'carousel-price';
+      priceDiv.textContent = item.price;
+      metaDiv.appendChild(priceDiv);
+    }
+    
+    div.appendChild(thumbDiv);
+    div.appendChild(metaDiv);
     return div;
   }
 
@@ -36,15 +66,39 @@ document.addEventListener('DOMContentLoaded', function(){
     article.className = 'ad-card';
     article.setAttribute('data-ad-id', item.id);
     
-    const thumbUrl = getThumbUrl(item);
-    article.innerHTML = `
-      <div class="ad-thumb" role="img" aria-label="Мініатюра ${item.title || ''}" style="background-image: url('${thumbUrl}')"></div>
-      <div class="ad-info">
-        <div class="ad-title">${item.title || ''}</div>
-        <div class="ad-price">${item.price !== undefined ? item.price : ''}</div>
-      </div>
-      <a class="ad-edit" href="/edit/${item.id}">Редагувати</a>
-    `;
+    const thumbUrl = escapeCssUrl(getThumbUrl(item));
+    const titleText = item.title || '';
+    
+    // Create elements safely
+    const thumbDiv = document.createElement('div');
+    thumbDiv.className = 'ad-thumb';
+    thumbDiv.setAttribute('role', 'img');
+    thumbDiv.setAttribute('aria-label', `Мініатюра ${titleText}`);
+    thumbDiv.style.backgroundImage = `url('${thumbUrl}')`;
+    
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'ad-info';
+    
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'ad-title';
+    titleDiv.textContent = titleText;
+    
+    const priceDiv = document.createElement('div');
+    priceDiv.className = 'ad-price';
+    priceDiv.textContent = item.price !== undefined ? item.price : '';
+    
+    infoDiv.appendChild(titleDiv);
+    infoDiv.appendChild(priceDiv);
+    
+    const editLink = document.createElement('a');
+    editLink.className = 'ad-edit';
+    editLink.href = `/edit/${item.id}`;
+    editLink.textContent = 'Редагувати';
+    
+    article.appendChild(thumbDiv);
+    article.appendChild(infoDiv);
+    article.appendChild(editLink);
+    
     return article;
   }
 
@@ -83,6 +137,9 @@ document.addEventListener('DOMContentLoaded', function(){
     initCarousel();
   }
 
+  // Store event handlers to properly remove them
+  let carouselHandlers = null;
+
   // Function to initialize carousel behavior
   function initCarousel() {
     const items = Array.from(carousel.querySelectorAll('.carousel-item'));
@@ -118,24 +175,42 @@ document.addEventListener('DOMContentLoaded', function(){
       items[activeIndex].scrollIntoView({inline:'center', behavior:'smooth'});
     }
 
+    function handleKeydown(e) {
+      if (e.key === 'ArrowLeft') rotateLeft();
+      if (e.key === 'ArrowRight') rotateRight();
+    }
+
+    // Remove previous event listeners if they exist
+    if (carouselHandlers) {
+      if (leftBtn && carouselHandlers.rotateLeft) {
+        leftBtn.removeEventListener('click', carouselHandlers.rotateLeft);
+      }
+      if (rightBtn && carouselHandlers.rotateRight) {
+        rightBtn.removeEventListener('click', carouselHandlers.rotateRight);
+      }
+      if (carouselHandlers.handleKeydown) {
+        carousel.removeEventListener('keydown', carouselHandlers.handleKeydown);
+      }
+    }
+
+    // Store handlers for future cleanup
+    carouselHandlers = {
+      rotateLeft: rotateLeft,
+      rotateRight: rotateRight,
+      handleKeydown: handleKeydown
+    };
+
+    // Add new event listeners
     if (leftBtn) {
-      leftBtn.removeEventListener('click', rotateLeft);
       leftBtn.addEventListener('click', rotateLeft);
     }
     if (rightBtn) {
-      rightBtn.removeEventListener('click', rotateRight);
       rightBtn.addEventListener('click', rotateRight);
     }
 
     // Keyboard navigation
     carousel.setAttribute('tabindex', '0');
-    carousel.removeEventListener('keydown', handleKeydown);
     carousel.addEventListener('keydown', handleKeydown);
-
-    function handleKeydown(e) {
-      if (e.key === 'ArrowLeft') rotateLeft();
-      if (e.key === 'ArrowRight') rotateRight();
-    }
   }
 
   // Check if items are already server-rendered
