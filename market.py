@@ -221,6 +221,11 @@ def page_market_my():
     return render_template("market/my.html")
 
 
+@bp.get('/market/my-ads')
+def page_market_my_ads():
+    return render_template('market/my-ads.html')
+
+
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
     # ✅ беремо дані й робимо невеличкий бридж під новий detail.html
