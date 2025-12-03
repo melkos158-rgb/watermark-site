@@ -215,7 +215,14 @@ def page_market_mine():
     return render_template("market_mine.html")
 
 
-# 🔥 НОВИЙ РОУТ: сторінка "Мої оголошення" (templates/market/my.html)
+# 🔥 НОВИЙ РОУТ: сторінка "Мої оголошення" (новий шаблон templates/market/my-ads.html)
+@bp.get("/market/my-ads")
+def page_market_my_ads():
+    # Повертає шаблон; контент можна підвантажувати по AJAX із /api/my/items
+    return render_template("market/my-ads.html")
+
+
+# 🔥 НОВИЙ РОУТ: сторінка "Мої оголошення" (старий шаблон templates/market/my.html)
 @bp.get("/market/my")
 def page_market_my():
     return render_template("market/my.html")
