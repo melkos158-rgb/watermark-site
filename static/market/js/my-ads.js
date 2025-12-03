@@ -7,22 +7,38 @@ document.addEventListener('DOMContentLoaded', function(){
   const gridInner = document.querySelector('.my-ads-grid-inner');
   const emptyMessage = document.querySelector('.my-ads-empty');
 
-  // Function to escape HTML to prevent XSS
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  // Function to escape CSS URL to prevent CSS injection
-  function escapeCssUrl(url) {
-    // Remove quotes, parentheses, and other potentially dangerous chars
-    return url.replace(/['"\(\)]/g, '');
+  // Function to validate and sanitize URL for CSS background-image
+  function sanitizeImageUrl(url) {
+    if (!url) return '/static/img/placeholder_stl.jpg';
+    
+    // Only allow safe URLs (http/https, data URIs, or relative paths)
+    try {
+      // Handle relative paths
+      if (url.startsWith('/')) {
+        return url;
+      }
+      // Handle data URIs
+      if (url.startsWith('data:image/')) {
+        return url;
+      }
+      // Handle absolute URLs - validate they're http/https
+      const parsed = new URL(url, window.location.origin);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return parsed.href;
+      }
+    } catch (e) {
+      // Invalid URL, use placeholder
+      return '/static/img/placeholder_stl.jpg';
+    }
+    
+    // If we can't validate it safely, use placeholder
+    return '/static/img/placeholder_stl.jpg';
   }
 
   // Function to get thumbnail URL with fallback
   function getThumbUrl(item) {
-    return item.cover_url || item.cover || item.thumbnail || item.thumb || item.image || '/static/img/placeholder_stl.jpg';
+    const url = item.cover_url || item.cover || item.thumbnail || item.thumb || item.image || '/static/img/placeholder_stl.jpg';
+    return sanitizeImageUrl(url);
   }
 
   // Function to create carousel item DOM
@@ -32,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function(){
     div.setAttribute('data-index', index);
     div.setAttribute('data-ad-id', item.id);
     
-    const thumbUrl = escapeCssUrl(getThumbUrl(item));
+    const thumbUrl = getThumbUrl(item);
     const titleText = item.title || '';
     
     // Create elements safely without innerHTML
@@ -66,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function(){
     article.className = 'ad-card';
     article.setAttribute('data-ad-id', item.id);
     
-    const thumbUrl = escapeCssUrl(getThumbUrl(item));
+    const thumbUrl = getThumbUrl(item);
     const titleText = item.title || '';
     
     // Create elements safely
