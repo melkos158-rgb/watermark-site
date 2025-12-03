@@ -7,38 +7,44 @@ document.addEventListener('DOMContentLoaded', function(){
   const gridInner = document.querySelector('.my-ads-grid-inner');
   const emptyMessage = document.querySelector('.my-ads-empty');
 
-  // Function to validate and sanitize URL for CSS background-image
-  function sanitizeImageUrl(url) {
-    if (!url) return '/static/img/placeholder_stl.jpg';
+  // Function to safely set background image on an element
+  function setBackgroundImage(element, url) {
+    if (!url) {
+      element.style.backgroundImage = "url('/static/img/placeholder_stl.jpg')";
+      return;
+    }
     
-    // Only allow safe URLs (http/https, data URIs, or relative paths)
+    // Validate URL safety
     try {
       // Handle relative paths
       if (url.startsWith('/')) {
-        return url;
+        element.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+        return;
       }
       // Handle data URIs
       if (url.startsWith('data:image/')) {
-        return url;
+        element.style.backgroundImage = `url('${url.replace(/'/g, "\\'")}')`;
+        return;
       }
       // Handle absolute URLs - validate they're http/https
       const parsed = new URL(url, window.location.origin);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        return parsed.href;
+        element.style.backgroundImage = `url('${parsed.href.replace(/'/g, "\\'")}')`;
+        return;
       }
     } catch (e) {
       // Invalid URL, use placeholder
-      return '/static/img/placeholder_stl.jpg';
+      element.style.backgroundImage = "url('/static/img/placeholder_stl.jpg')";
+      return;
     }
     
     // If we can't validate it safely, use placeholder
-    return '/static/img/placeholder_stl.jpg';
+    element.style.backgroundImage = "url('/static/img/placeholder_stl.jpg')";
   }
 
   // Function to get thumbnail URL with fallback
   function getThumbUrl(item) {
-    const url = item.cover_url || item.cover || item.thumbnail || item.thumb || item.image || '/static/img/placeholder_stl.jpg';
-    return sanitizeImageUrl(url);
+    return item.cover_url || item.cover || item.thumbnail || item.thumb || item.image || '/static/img/placeholder_stl.jpg';
   }
 
   // Function to create carousel item DOM
@@ -54,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // Create elements safely without innerHTML
     const thumbDiv = document.createElement('div');
     thumbDiv.className = 'carousel-thumb';
-    thumbDiv.style.backgroundImage = `url('${thumbUrl}')`;
+    setBackgroundImage(thumbDiv, thumbUrl);
     
     const metaDiv = document.createElement('div');
     metaDiv.className = 'carousel-meta';
@@ -90,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function(){
     thumbDiv.className = 'ad-thumb';
     thumbDiv.setAttribute('role', 'img');
     thumbDiv.setAttribute('aria-label', `Мініатюра ${titleText}`);
-    thumbDiv.style.backgroundImage = `url('${thumbUrl}')`;
+    setBackgroundImage(thumbDiv, thumbUrl);
     
     const infoDiv = document.createElement('div');
     infoDiv.className = 'ad-info';
