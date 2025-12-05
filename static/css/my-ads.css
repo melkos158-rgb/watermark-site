@@ -38,7 +38,6 @@
   width: min(960px, 100%);
   height: 280px;              /* висота каруселі */
   border-radius: 16px;
-  /* border: 2px solid rgba(255,255,255,0.12); */ /* видиму рамку прибрано */
   background: transparent;    /* прозорий фон */
   display: flex;
   align-items: center;
@@ -98,23 +97,27 @@
   flex-direction: column;
 }
 
-/* Щоб фото повністю поміщалося в рамці (не обрізалося) */
+/* Щоб фото повністю поміщалося в рамці (не обрізалося)
+   Підтримуємо два варіанти рендеру:
+   - background-image на .my-ads-card-thumb → використовуємо background-size: contain
+   - <img> усередині .my-ads-card-thumb → object-fit: contain
+*/
 .my-ads-card-thumb {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #111;
-  object-fit: contain;
-  display: block;
-  height: 100%;
-  background-size: contain;
+  background-color: #111;
+  background-size: contain;      /* показуємо всю картинку без обрізки */
   background-position: center;
   background-repeat: no-repeat;
+  display: block;
+  height: 100%;
+  /* Якщо пізніше вирішиш використовувати <img>, дивись правило нижче */
 }
 
 .my-ads-card-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: contain;            /* для inline <img> — теж не обрізати */
   display: block;
 }
 
@@ -194,11 +197,12 @@
 .my-ads-carousel-thumb {
   width: 100%;
   padding-top: 55%;
-  background-size: contain;
+  background-size: contain;      /* << changed: show full image */
   background-position: center;
   background-repeat: no-repeat;
 }
 
+/* Підтримка inline <img> у каруселі thumb (якщо використовує JS) */
 .my-ads-carousel-thumb img {
   width: 100%;
   height: 100%;
@@ -233,4 +237,48 @@
   text-align: center;
   padding: 32px 12px;
   font-size: 18px;
+}
+
+/* Додаткові невеликі поліпшення */
+/* Зменшимо мінімальну висоту карток на мобільних, якщо треба */
+@media (max-width: 480px) {
+  .my-ads-carousel {
+    height: auto;
+    padding: 8px;
+  }
+  .my-ads-carousel-item {
+    max-height: none;
+  }
+  .my-ads-carousel-thumb {
+    padding-top: 70%;
+  }
+}
+
+/* СТИЛІ ДЛЯ КНОПОК-ІКОН (якщо використовуються) */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  min-width: 40px;
+}
+
+.btn-icon svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+}
+
+/* Доступність: прихований текст для рідерів */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
 }
