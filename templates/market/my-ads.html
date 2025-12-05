@@ -3,85 +3,50 @@
 {% block title %}Мої оголошення{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/my-ads.css') }}">
-<style>
-/* Small tweak */
-.my-ads-frame { box-shadow: none; }
-</style>
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/my-ads.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="my-ads-page">
-  <div class="my-ads-frame">
+<div class="my-ads-page container-xl">
+  <h1 class="my-ads-title">Мої оголошення</h1>
+  <p class="my-ads-subtitle">
+    Тут відображаються всі твої моделі. Додай нову модель — і побачиш її в каруселі та сітці нижче.
+  </p>
 
-    {% if my_ads is defined %}
-      {% set ads_list = my_ads %}
-    {% elif ads is defined %}
-      {% set ads_list = ads %}
-    {% elif user_ads is defined %}
-      {% set ads_list = user_ads %}
-    {% else %}
-      {% set ads_list = [] %}
-    {% endif %}
+  <!-- КАРУСЕЛЬ -->
+  <section class="my-ads-carousel-wrapper">
+    <button class="my-ads-arrow left" type="button" aria-label="Попередня модель">‹</button>
 
-    {% macro thumb_url(ad) -%}
-      {% if ad.thumbnail is defined and ad.thumbnail %}
-        {{ ad.thumbnail }}
-      {% elif ad.thumb is defined and ad.thumb %}
-        {{ ad.thumb }}
-      {% elif ad.cover_url is defined and ad.cover_url %}
-        {{ ad.cover_url }}
-      {% elif ad.image is defined and ad.image %}
-        {{ ad.image }}
-      {% else %}
-        {{ url_for('static', filename='img/placeholder_stl.jpg') }}
-      {% endif %}
-    {%- endmacro %}
+    <div class="my-ads-carousel" id="myAdsCarousel">
+      <!-- JS вставить сюди великі картки; без JS це просто порожня рамка -->
+    </div>
 
-    {% if ads_list|length == 0 %}
-      <div class="my-ads-empty">Поки ще немає моделей…</div>
-    {% else %}
-      <!-- TOP: Carousel -->
-      <section class="my-ads-top" aria-label="Карусель моделей">
-        <button class="my-ads-arrow left" aria-label="Попереднє оголошення">◀</button>
+    <button class="my-ads-arrow right" type="button" aria-label="Наступна модель">›</button>
+  </section>
 
-        <div class="my-ads-carousel" id="myAdsCarousel" data-count="{{ ads_list|length }}">
-          {% for ad in ads_list %}
-            <div class="carousel-item" data-index="{{ loop.index0 }}" data-ad-id="{{ ad.id }}">
-              <div class="carousel-thumb" style="background-image: url('{{ thumb_url(ad) }}')"></div>
-              <div class="carousel-meta">
-                <div class="carousel-title">{{ ad.title }}</div>
-                {% if ad.price is defined %}
-                  <div class="carousel-price">{{ ad.price }}</div>
-                {% endif %}
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-
-        <button class="my-ads-arrow right" aria-label="Наступне оголошення">▶</button>
-      </section>
-
-      <!-- BOTTOM: Grid (2 rows, responsive) -->
-      <section class="my-ads-grid" aria-label="Галерея оголошень">
-        <div class="my-ads-grid-inner">
-          {% for ad in ads_list[:8] %}
-            <article class="ad-card" data-ad-id="{{ ad.id }}">
-              <div class="ad-thumb" role="img" aria-label="Мініатюра {{ ad.title }}" style="background-image: url('{{ thumb_url(ad) }}')"></div>
-              <div class="ad-info">
-                <div class="ad-title">{{ ad.title }}</div>
-                <div class="ad-price">{% if ad.price is defined %}{{ ad.price }}{% endif %}</div>
-              </div>
-              <a class="ad-edit" href="{{ url_for('edit_ad', ad_id=ad.id) if 'edit_ad' in globals() else ('/ads/' ~ ad.id ~ '/edit') }}">Редагувати</a>
-            </article>
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
-
+  <!-- КНОПКА РЕДАГУВАННЯ / ДОДАВАННЯ -->
+  <div class="my-ads-edit-btn-wrapper">
+    <a href="/market/upload" class="btn btn-primary my-ads-edit-btn">
+      Додати / редагувати модель
+    </a>
   </div>
+
+  <!-- ПОВІДОМЛЕННЯ ПРО ПУСТИЙ СТАН (ЗА ДЕФОЛТОМ ВИДИМЕ) -->
+  <p class="my-ads-empty">
+    У тебе ще немає оголошень. Додай першу модель, щоб побачити карусель 😎
+  </p>
+
+  <!-- СІТКА КАРТОК -->
+  <section class="my-ads-grid-wrapper">
+    <div class="my-ads-grid-inner">
+      <!-- JS заповнить grid картками моделей -->
+    </div>
+  </section>
 </div>
 {% endblock %}
+
 {% block scripts %}
-<script src="{{ url_for('static', filename='market/js/my-ads.js') }}"></script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='market/js/my-ads.js') }}"></script>
 {% endblock %}
