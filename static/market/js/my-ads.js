@@ -1,4 +1,4 @@
-// my-ads.js — завантаження даних та інтеграція з каруселлю
+// my-ads.js — load items from /api/my/items?page=1 and inject into carousel + grid
 document.addEventListener('DOMContentLoaded', function(){
   const carousel = document.getElementById('myAdsCarousel');
   const gridInner = document.querySelector('.my-ads-grid-inner');
@@ -93,20 +93,17 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     showEmpty(false);
 
-    // Carousel: append all items
     items.forEach((it, idx) => {
       const cItem = createCarouselItem(it, idx);
       if (carousel) carousel.appendChild(cItem);
     });
 
-    // Grid: limit to 8 items like design (4x2)
     const gridItems = items.slice(0, 8);
     gridItems.forEach(it => {
       const gItem = createGridItem(it);
       if (gridInner) gridInner.appendChild(gItem);
     });
 
-    // Notify other code that items injected
     document.dispatchEvent(new Event('myAds:itemsInjected'));
   }
 
