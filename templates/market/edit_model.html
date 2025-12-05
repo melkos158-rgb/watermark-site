@@ -1,0 +1,65 @@
+{% extends "market/layout.html" %}
+{% block content %}
+<div class="edit-model-wrapper">
+
+  <h2 class="edit-title">Редагувати модель</h2>
+
+  <form action="" method="POST" enctype="multipart/form-data" class="edit-form">
+
+    <!-- Прев'ю -->
+    <div class="edit-preview">
+      <img src="{{ model.preview_url }}" class="preview-img" />
+    </div>
+
+    <!-- Назва -->
+    <label class="edit-label">Назва моделі</label>
+    <input class="edit-input" type="text" name="title" value="{{ model.title }}" required>
+
+    <!-- Ціна -->
+    <label class="edit-label">Ціна (0 = безкоштовно)</label>
+    <input class="edit-input" type="number" name="price" value="{{ model.price }}" min="0">
+
+    <!-- Опис -->
+    <label class="edit-label">Опис моделі</label>
+    <textarea class="edit-textarea" name="description">{{ model.description }}</textarea>
+
+    <!-- Теги -->
+    <label class="edit-label">Теги (через кому)</label>
+    <input class="edit-input" type="text" name="tags" value="{{ model.tags }}">
+
+    <!-- Категорія -->
+    <label class="edit-label">Категорія</label>
+    <select class="edit-input" name="category">
+      {% for cat in categories %}
+        <option value="{{ cat }}" {% if model.category == cat %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+
+    <!-- Фото -->
+    <label class="edit-label">Фото моделі</label>
+    <div class="edit-photos">
+      {% for img in model.images %}
+        <div class="edit-photo-item">
+          <img src="{{ img.url }}" />
+          <input type="checkbox" name="delete_img_{{ img.id }}"> Видалити
+        </div>
+      {% endfor %}
+    </div>
+
+    <label class="edit-label">Додати нові фото</label>
+    <input class="edit-input" type="file" name="new_images" multiple>
+
+    <!-- STL-файл (можна замінити) -->
+    <label class="edit-label">STL-файл (необов'язково заміняти)</label>
+    <input class="edit-input" type="file" name="stl">
+
+    <button class="save-btn" type="submit">💾 Зберегти зміни</button>
+
+  </form>
+
+  <form action="/market/delete/{{ model.id }}" method="POST">
+      <button class="delete-btn">🗑 Видалити модель</button>
+  </form>
+
+</div>
+{% endblock %}
