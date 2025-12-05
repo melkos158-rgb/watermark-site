@@ -66,7 +66,7 @@
   box-shadow: 0 18px 40px rgba(37, 99, 235, 0.45);
 }
 
-/* превʼю 3D в каруселі */
+/* превʼю 3D в каруселі (може трошки кропати, але виглядає красиво) */
 .my-ads-carousel-thumb {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -177,8 +177,6 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
-  height: auto !important;
-  min-height: 0 !important;
 }
 
 /* активна (виділена) картка */
@@ -187,13 +185,14 @@
   box-shadow: 0 14px 40px rgba(37, 99, 235, 0.55);
 }
 
-/* превʼю в сітці – фіксована пропорція, без «розпи***» */
+/* превʼю в сітці – ВАЖЛИВО: картинка повністю в рамці */
 .my-ads-card-thumb {
   width: 100%;
-  aspect-ratio: 4 / 5;        /* ~портретна картка */
-  background-size: cover;
+  aspect-ratio: 4 / 5;                 /* портретна карточка */
+  background-size: contain;            /* ⬅️ показати всю модель, не обрізати */
   background-position: center;
   background-repeat: no-repeat;
+  background-color: #05070c;           /* фон за моделлю, щоб не було прозоро */
   flex: 0 0 auto;
 }
 
@@ -271,148 +270,4 @@
   .my-ads-arrow {
     display: none;
   }
-}
-/* ===== Fix: prevent cards from stretching vertically =====
-   Append this to the end of static/css/my-ads.css
-*/
-.my-ads-carousel,
-.my-ads-grid-inner {
-  /* don't let children stretch to full available height */
-  align-items: flex-start;
-}
-
-/* Ensure card containers don't grow unexpectedly */
-.carousel-item,
-.ad-card {
-  height: auto !important;
-  min-height: 0 !important;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-
-/* Thumbs: keep fixed aspect ratio (square-ish),
-   use cover to crop images rather than stretch them */
-.carousel-thumb,
-.ad-thumb {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 4 / 3;              /* choose ratio you need (4/3, 1/1, 16/10 ...) */
-  background-size: cover !important;
-  background-position: center center !important;
-  background-repeat: no-repeat !important;
-  overflow: hidden;
-  border-radius: 6px;
-}
-
-/* Slightly taller center item if desired */
-.carousel-item.active .carousel-thumb {
-  aspect-ratio: 16 / 10; /* larger aspect for active center */
-}
-
-/* Make sure buttons/footers inside card don't force height */
-.ad-info,
-.ad-edit {
-  flex: 0 0 auto;
-}
-
-/* Fallback for older browsers without aspect-ratio support */
-@supports not (aspect-ratio: 1) {
-  .carousel-thumb,
-  .ad-thumb {
-    position: relative;
-  }
-  .carousel-thumb::before,
-  .ad-thumb::before {
-    content: "";
-    display: block;
-    padding-top: 75%; /* 4:3 fallback */
-  }
-  .carousel-thumb,
-  .ad-thumb {
-    background-size: cover !important;
-    background-position: center center !important;
-  }
-}
-
-/* Optional: reduce max-width for grid cards so they don't become too tall on large screens */
-.my-ads-grid-inner .ad-card {
-  max-width: 220px;
-  width: 100%;
-}
-/* ===== Strong fixes for stretching cards =====
-   Paste at the end of static/css/my-ads.css
-*/
-
-/* Target both names used in different parts of template/CSS */
-.my-ads-carousel,
-.my-ads-carousel-wrapper,
-.my-ads-carousel-frame,
-.my-ads-carousel .my-ads-carousel-item,
-.my-ads-carousel .carousel-item,
-.my-ads-carousel {
-  align-items: flex-start !important; /* prevent parent from stretching children */
-}
-
-/* Ensure carousel row doesn't stretch children vertically */
-.my-ads-carousel .carousel-item,
-.my-ads-carousel .my-ads-carousel-item,
-.my-ads-grid-inner .ad-card,
-.my-ads-grid-inner .my-ads-card {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  flex: 0 0 auto !important;  /* do not grow */
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-}
-
-/* Make thumbs have a controlled responsive height (prevents vertical stretching) */
-.carousel-thumb,
-.my-ads-carousel-thumb,
-.ad-thumb,
-.my-ads-card-thumb {
-  width: 100% !important;
-  /* responsive fixed height: min 140px, preferred relative to viewport, max 320px */
-  height: clamp(140px, 22vw, 320px) !important;
-  background-size: cover !important;
-  background-position: center center !important;
-  border-radius: 10px !important;
-  overflow: hidden !important;
-  flex: 0 0 auto !important;
-}
-
-/* Slightly larger center thumb but still capped */
-.my-ads-carousel .carousel-item.center .carousel-thumb,
-.my-ads-carousel .my-ads-carousel-item.center .my-ads-carousel-thumb {
-  height: clamp(180px, 28vw, 360px) !important;
-}
-
-/* Prevent footer/text sections from stretching whole card */
-.carousel-meta,
-.my-ads-carousel-caption,
-.ad-info,
-.my-ads-card-body,
-.my-ads-card-actions,
-.ad-edit,
-.my-ads-add-wrap {
-  flex: 0 0 auto !important;
-}
-
-/* Safety: remove accidental height:100% from descendants inside frame */
-.my-ads-frame * {
-  max-height: none !important;
-}
-
-/* If you prefer square thumbs, uncomment below and comment out the height rule above
-.carousel-thumb,
-.ad-thumb { aspect-ratio: 1 / 1 !important; height: auto !important; }
-*/
-
-/* Optional: limit very wide grid cards */
-.my-ads-grid-inner .ad-card,
-.my-ads-grid-inner .my-ads-card {
-  max-width: 260px !important;
-  width: 100% !important;
 }
