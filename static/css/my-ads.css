@@ -83,12 +83,36 @@
   flex-direction: column;
 }
 
+/* ТУТ ГОЛОВНІ ЗМІНИ: щоб фото повністю поміщалося в рамці, використовуємо contain.
+   Підтримуємо два підходи:
+   - якщо картка рендерить <img class="my-ads-card-thumb" ...>, то object-fit: contain;
+   - якщо картка рендерить блок із background-image (тобто фон), то background-size: contain;
+*/
+
 .my-ads-card-thumb {
   width: 100%;
   aspect-ratio: 1 / 1;
   background: #111;
-  object-fit: cover;
+  /* Якщо це <img>, object-fit: contain забезпечить показ всього фото */
+  object-fit: contain;
+  display: block;
+  height: 100%;
+  /* якщо випадково використовувався background-image, зробимо так, щоб не обрізало */
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
 }
+
+.my-ads-card-thumb img {
+  /* якщо всередині .my-ads-card-thumb леже <img>, гарантовано заповнимо площу без обрізки */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Резерв: якщо ви хочете, щоб картинка займала весь бокс і обрізалася (альтернатива), використовуйте cover */
+/* .my-ads-card-thumb { object-fit: cover; background-size: cover; } */
 
 .my-ads-card-body {
   padding: 8px 10px 10px;
@@ -158,11 +182,21 @@
   opacity: 1;
 }
 
+/* Змінено: щоб в каруселі показувалась вся картинка — background-size: contain і no-repeat */
 .my-ads-carousel-thumb {
   width: 100%;
-  padding-top: 55%; /* співвідношення сторін */
-  background-size: cover;
+  padding-top: 55%; /* співвідношення сторін (альтернативно можна керувати через height) */
+  background-size: contain; /* << змінено з cover на contain */
   background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Якщо в каруселі використовується інлайн <img>, додамо також правило для нього */
+.my-ads-carousel-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .my-ads-carousel-caption {
