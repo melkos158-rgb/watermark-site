@@ -204,7 +204,7 @@ def page_market():
     # якщо в URL ?owner=me / my / mine — показуємо сторінку "Мої оголошення"
     owner = (request.args.get("owner") or "").strip().lower()
     if owner in ("me", "my", "mine"):
-        return render_template("market/my.html")
+        return render_template("market/my-ads.html")
     # ✅ рендеримо новий список маркету (всі моделі)
     return render_template("market/index.html")
 
