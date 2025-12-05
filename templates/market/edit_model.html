@@ -1,5 +1,14 @@
 {% extends "market/layout.html" %}
+
+{% block title %}
+Редагувати модель – Proofly Market
+{% endblock %}
+
 {% block content %}
+
+<link rel="stylesheet" href="/static/css/edit_model.css">
+<script src="/static/market/js/edit_model.js" defer></script>
+
 <div class="edit-model-wrapper">
 
   <h2 class="edit-title">Редагувати модель</h2>
@@ -8,30 +17,56 @@
 
     <!-- Прев'ю -->
     <div class="edit-preview">
+      {% if model.preview_url %}
       <img src="{{ model.preview_url }}" class="preview-img" />
+      {% else %}
+      <img src="/static/img/no-preview.png" class="preview-img" />
+      {% endif %}
     </div>
 
     <!-- Назва -->
     <label class="edit-label">Назва моделі</label>
-    <input class="edit-input" type="text" name="title" value="{{ model.title }}" required>
+    <input 
+      class="edit-input" 
+      type="text" 
+      name="title" 
+      value="{{ model.title }}" 
+      required
+    >
 
     <!-- Ціна -->
     <label class="edit-label">Ціна (0 = безкоштовно)</label>
-    <input class="edit-input" type="number" name="price" value="{{ model.price }}" min="0">
+    <input 
+      class="edit-input" 
+      type="number" 
+      name="price" 
+      value="{{ model.price }}" 
+      min="0"
+    >
 
     <!-- Опис -->
     <label class="edit-label">Опис моделі</label>
-    <textarea class="edit-textarea" name="description">{{ model.description }}</textarea>
+    <textarea 
+      class="edit-textarea" 
+      name="description"
+    >{{ model.description }}</textarea>
 
     <!-- Теги -->
     <label class="edit-label">Теги (через кому)</label>
-    <input class="edit-input" type="text" name="tags" value="{{ model.tags }}">
+    <input 
+      class="edit-input" 
+      type="text" 
+      name="tags" 
+      value="{{ model.tags }}"
+    >
 
     <!-- Категорія -->
     <label class="edit-label">Категорія</label>
     <select class="edit-input" name="category">
       {% for cat in categories %}
-        <option value="{{ cat }}" {% if model.category == cat %}selected{% endif %}>{{ cat }}</option>
+        <option value="{{ cat }}" {% if model.category == cat %}selected{% endif %}>
+          {{ cat }}
+        </option>
       {% endfor %}
     </select>
 
@@ -39,21 +74,36 @@
     <label class="edit-label">Фото моделі</label>
     <div class="edit-photos">
       {% for img in model.images %}
-        <div class="edit-photo-item">
-          <img src="{{ img.url }}" />
-          <input type="checkbox" name="delete_img_{{ img.id }}"> Видалити
-        </div>
+      <div class="edit-photo-item">
+        <img src="{{ img.url }}" />
+        <label class="delete-checkbox">
+          <input type="checkbox" name="delete_img_{{ img.id }}">
+          Видалити
+        </label>
+      </div>
       {% endfor %}
     </div>
 
+    <!-- Додаємо нові -->
     <label class="edit-label">Додати нові фото</label>
-    <input class="edit-input" type="file" name="new_images" multiple>
+    <input 
+      class="edit-input" 
+      type="file" 
+      name="new_images" 
+      multiple
+    >
 
-    <!-- STL-файл (можна замінити) -->
+    <!-- STL -->
     <label class="edit-label">STL-файл (необов'язково заміняти)</label>
-    <input class="edit-input" type="file" name="stl">
+    <input 
+      class="edit-input" 
+      type="file" 
+      name="stl"
+    >
 
-    <button class="save-btn" type="submit">💾 Зберегти зміни</button>
+    <button class="save-btn" type="submit">
+      💾 Зберегти зміни
+    </button>
 
   </form>
 
@@ -62,4 +112,5 @@
   </form>
 
 </div>
+
 {% endblock %}
