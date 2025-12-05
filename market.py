@@ -280,6 +280,68 @@ def page_market_upload():
 @bp.get("/edit/<int:item_id>")
 def page_edit_item(item_id: int):
     return render_template("market/edit.html")
+# ===========================
+# 🔥 НОВИЙ РОУТ ДЛЯ РЕДАГУВАННЯ МОДЕЛІ
+# ===========================
+@bp.route("/market/edit/<int:item_id>", methods=["GET", "POST"])
+def edit_model_page(item_id):
+    if not g.user:
+        return redirect("/auth/login")
+
+    # шукаємо модель користувача
+    item = MarketItem.query.filter_by(id=item_id, user_id=g.user.id).first_or_404()
+
+    categories = [
+        "Фігурки", "Аксесуари", "Іграшки",
+        "Тварини", "Косплей", "Деталі", "Інше"
+    ]
+
+    if request.method == "POST":
+        # основні поля
+        item.title = request.form.get("title") or item.title
+        item.price = int(request.form.get("price") or 0)
+        item.description = request.form.get("description") or ""
+        item.tags = request.form.get("tags") or ""
+        item.category = request.form.get("category") or item.category
+
+        # видалення фото
+        gal = []
+        try:
+            gal = json.loads(item.gallery_urls or "[]")
+        except Exception:
+            gal = []
+
+        new_gallery = []
+        for i, url in enumerate(gal):
+            key = f"delete_img_{i}"
+            if not request.form.get(key):
+                new_gallery.append(url)
+
+        # додати нові фото
+        files = request.files.getlist("new_images")
+        for f in files:
+            if f and f.filename:
+                saved = _save_upload(f, f"user_{g.user.id}/gallery", ALLOWED_IMAGE_EXT)
+                if saved:
+                    new_gallery.append(saved)
+
+        item.gallery_urls = json.dumps(new_gallery)
+
+        # заміна STL
+        stl = request.files.get("stl")
+        if stl and stl.filename:
+            saved_stl = _save_upload(stl, f"user_{g.user.id}/models", ALLOWED_MODEL_EXT)
+            if saved_stl:
+                item.stl_main_url = saved_stl
+
+        db.session.commit()
+        return redirect(f"/market/edit/{item.id}")
+
+    return render_template(
+        "market/edit_model.html",
+        model=item,
+        categories=categories
+    )
 
 
 @bp.get("/api/items")
