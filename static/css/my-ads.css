@@ -124,3 +124,72 @@
 .my-ads-card-large {
   width: min(420px, 100%);
 }
+/* трохи стилів для 3-карткової каруселі */
+.my-ads-carousel {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.my-ads-carousel-item {
+  flex: 0 0 26%;
+  border-radius: 16px;
+  background: #14161c;
+  border: 1px solid #262a33;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.my-ads-carousel-item.left,
+.my-ads-carousel-item.right {
+  opacity: 0.7;
+  transform: scale(0.95);
+}
+
+.my-ads-carousel-item.center {
+  flex: 0 0 34%;
+  transform: scale(1.02);
+  border-color: #2563eb;
+  box-shadow: 0 0 24px rgba(37, 99, 235, 0.45);
+  opacity: 1;
+}
+
+.my-ads-carousel-thumb {
+  width: 100%;
+  padding-top: 55%; /* співвідношення сторін */
+  background-size: cover;
+  background-position: center;
+}
+
+.my-ads-carousel-caption {
+  padding: 12px 16px 16px;
+}
+
+.my-ads-carousel-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.my-ads-carousel-price {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* підсвітка вибраної картки в сітці */
+.my-ads-card.active {
+  border-color: #2563eb;
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.5);
+}
+
+/* щоб текст "порожньо" точно було видно */
+.my-ads-empty {
+  color: #e5e7eb;
+  text-align: center;
+  padding: 32px 12px;
+  font-size: 18px;
+}
