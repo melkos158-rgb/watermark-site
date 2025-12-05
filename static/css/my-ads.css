@@ -193,3 +193,48 @@
   padding: 32px 12px;
   font-size: 18px;
 }
+/* ──────────────────────────────────────────────── */
+/* ВИСОТА КАРУСЕЛІ + ВИДИМА РАМКА */
+/* ──────────────────────────────────────────────── */
+
+.my-ads-frame {
+  padding: 40px 32px;
+  border: 2px solid rgba(255, 255, 255, 0.08); /* рамка */
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.my-ads-carousel {
+  height: 280px;               /* 🔥 робимо карусель значно вищою */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 12px;
+  border: 2px solid rgba(255,255,255,0.12); /* 🔥 видима рамка */
+  border-radius: 16px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.4);
+}
+
+/* Висока картка всередині каруселі */
+.my-ads-carousel-item {
+  height: 100%;                /* картка займає всю висоту */
+  max-height: 250px;           /* контролюємо щоб не вилізала */
+}
+
+/* Зображення також тягнемо */
+.my-ads-carousel-thumb {
+  height: 70%;                 /* більше місця під картинку */
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Центр трохи вищий та більший */
+.my-ads-carousel-item.center {
+  transform: scale(1.04);
+}
+
+/* Рамка навколо всієї зони каруселі */
+.my-ads-carousel-wrapper {
+  margin: 0 auto 16px auto;
+  width: 100%;
+}
