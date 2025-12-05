@@ -21,20 +21,35 @@
   justify-content: center;
   gap: 16px;
   margin-bottom: 16px;
+  width: 100%;
 }
 
+/* ЗАУВАЖЕННЯ: прибираємо видиму рамку/фон зовнішнього контейнера */
+.my-ads-frame {
+  padding: 0;                 /* прибираємо зовнішні падінги, щоб не було видимої рамки */
+  border: none;               /* прибрано рамку */
+  border-radius: 0;
+  background: transparent;    /* прозорий фон */
+  box-shadow: none;           /* прибираємо тінь */
+}
+
+/* Головна карусель - без зовнішньої рамки та тіні */
 .my-ads-carousel {
   width: min(960px, 100%);
-  height: 260px;
+  height: 280px;              /* висота каруселі */
   border-radius: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  /* border: 2px solid rgba(255,255,255,0.12); */ /* видиму рамку прибрано */
+  background: transparent;    /* прозорий фон */
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  gap: 18px;
+  padding: 12px;
+  box-shadow: none;           /* прибрано тінь */
 }
 
+/* Стрілки */
 .my-ads-arrow {
   width: 40px;
   height: 40px;
@@ -83,36 +98,25 @@
   flex-direction: column;
 }
 
-/* ТУТ ГОЛОВНІ ЗМІНИ: щоб фото повністю поміщалося в рамці, використовуємо contain.
-   Підтримуємо два підходи:
-   - якщо картка рендерить <img class="my-ads-card-thumb" ...>, то object-fit: contain;
-   - якщо картка рендерить блок із background-image (тобто фон), то background-size: contain;
-*/
-
+/* Щоб фото повністю поміщалося в рамці (не обрізалося) */
 .my-ads-card-thumb {
   width: 100%;
   aspect-ratio: 1 / 1;
   background: #111;
-  /* Якщо це <img>, object-fit: contain забезпечить показ всього фото */
   object-fit: contain;
   display: block;
   height: 100%;
-  /* якщо випадково використовувався background-image, зробимо так, щоб не обрізало */
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
 }
 
 .my-ads-card-thumb img {
-  /* якщо всередині .my-ads-card-thumb леже <img>, гарантовано заповнимо площу без обрізки */
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
 }
-
-/* Резерв: якщо ви хочете, щоб картинка займала весь бокс і обрізалася (альтернатива), використовуйте cover */
-/* .my-ads-card-thumb { object-fit: cover; background-size: cover; } */
 
 .my-ads-card-body {
   padding: 8px 10px 10px;
@@ -148,7 +152,8 @@
 .my-ads-card-large {
   width: min(420px, 100%);
 }
-/* трохи стилів для 3-карткової каруселі */
+
+/* Стилі для 3-карткової каруселі */
 .my-ads-carousel {
   display: flex;
   justify-content: center;
@@ -166,6 +171,8 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  max-height: 250px;
 }
 
 .my-ads-carousel-item.left,
@@ -174,24 +181,24 @@
   transform: scale(0.95);
 }
 
+/* Підсвітка центру — залишаємо, щоб видно було активну картку */
 .my-ads-carousel-item.center {
   flex: 0 0 34%;
-  transform: scale(1.02);
+  transform: scale(1.04);
   border-color: #2563eb;
   box-shadow: 0 0 24px rgba(37, 99, 235, 0.45);
   opacity: 1;
 }
 
-/* Змінено: щоб в каруселі показувалась вся картинка — background-size: contain і no-repeat */
+/* В каруселі показуємо всю картинку (не обрізаємо) */
 .my-ads-carousel-thumb {
   width: 100%;
-  padding-top: 55%; /* співвідношення сторін (альтернативно можна керувати через height) */
-  background-size: contain; /* << змінено з cover на contain */
+  padding-top: 55%;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
 }
 
-/* Якщо в каруселі використовується інлайн <img>, додамо також правило для нього */
 .my-ads-carousel-thumb img {
   width: 100%;
   height: 100%;
@@ -226,49 +233,4 @@
   text-align: center;
   padding: 32px 12px;
   font-size: 18px;
-}
-/* ──────────────────────────────────────────────── */
-/* ВИСОТА КАРУСЕЛІ + ВИДИМА РАМКА */
-/* ──────────────────────────────────────────────── */
-
-.my-ads-frame {
-  padding: 40px 32px;
-  border: 2px solid rgba(255, 255, 255, 0.08); /* рамка */
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.my-ads-carousel {
-  height: 280px;               /* 🔥 робимо карусель значно вищою */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 18px;
-  padding: 12px;
-  border: 2px solid rgba(255,255,255,0.12); /* 🔥 видима рамка */
-  border-radius: 16px;
-  box-shadow: 0 0 25px rgba(0,0,0,0.4);
-}
-
-/* Висока картка всередині каруселі */
-.my-ads-carousel-item {
-  height: 100%;                /* картка займає всю висоту */
-  max-height: 250px;           /* контролюємо щоб не вилізала */
-}
-
-/* Зображення також тягнемо */
-.my-ads-carousel-thumb {
-  height: 70%;                 /* більше місця під картинку */
-  border-bottom: 1px solid rgba(255,255,255,0.15);
-}
-
-/* Центр трохи вищий та більший */
-.my-ads-carousel-item.center {
-  transform: scale(1.04);
-}
-
-/* Рамка навколо всієї зони каруселі */
-.my-ads-carousel-wrapper {
-  margin: 0 auto 16px auto;
-  width: 100%;
 }
