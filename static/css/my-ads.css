@@ -1,243 +1,240 @@
-/* static/css/my-ads.css */
 /* Загальна сторінка */
 .my-ads-page {
-  max-width: 1200px;
-  margin: 32px auto 80px;
-  padding: 0 16px 64px;
+  padding: 32px 16px 48px;
 }
 
-/* Текст зверху */
-.my-ads-lead {
-  margin-bottom: 20px;
-  color: var(--ink-soft, #9aa0a6);
-  font-size: 14px;
+.my-ads-title {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
-/* ───── КАРУСЕЛЬ ───── */
+.my-ads-subtitle {
+  margin-bottom: 24px;
+  color: var(--muted, #9ba0b5);
+}
 
+/* Карусель */
 .my-ads-carousel-wrapper {
-  position: relative;
-  margin: 24px auto 20px;
-  max-width: 900px;
-}
-
-.my-ads-carousel-frame {
-  background: rgba(25, 28, 35, 0.95);
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 18px 28px;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .my-ads-carousel {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-/* картка в каруселі */
-.my-ads-carousel-item {
-  background: #16181d;
+  width: min(960px, 100%);
+  height: 260px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-  transition: transform 0.18s ease, box-shadow 0.18s ease,
-    border-color 0.18s ease, background 0.18s ease;
-  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
   display: flex;
-  flex-direction: column;
-}
-
-/* позиції */
-.my-ads-carousel-item.left,
-.my-ads-carousel-item.right {
-  opacity: 0.75;
-  transform: scale(0.94);
-}
-
-.my-ads-carousel-item.center {
-  background: #191c24;
-  border-color: #2962ff;
-  box-shadow: 0 0 0 1px rgba(41, 98, 255, 0.3),
-    0 18px 40px rgba(0, 0, 0, 0.65);
-}
-
-/* прев’ю в каруселі – фіксоване співвідношення сторін */
-.my-ads-carousel-thumb {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-/* підпис під картинкою */
-.my-ads-carousel-caption {
-  padding: 10px 14px 12px;
-}
-
-.my-ads-carousel-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #e8eaed;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.my-ads-carousel-price {
-  margin-top: 2px;
-  font-size: 12px;
-  color: #9aa0a6;
-}
-
-/* стрілки каруселі */
-.my-ads-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(15, 17, 22, 0.95);
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #e8eaed;
-  cursor: pointer;
-  transition: background 0.16s ease, transform 0.16s ease,
-    border-color 0.16s ease;
+  overflow: hidden;
 }
 
-.my-ads-arrow.left {
-  left: -16px;
-}
-
-.my-ads-arrow.right {
-  right: -16px;
-}
-
-.my-ads-arrow:hover {
-  background: #2962ff;
-  border-color: #2962ff;
-  transform: translateY(-50%) scale(1.04);
-}
-
-/* кнопка під каруселлю */
-.my-ads-add-wrap {
-  text-align: center;
-  margin: 16px 0 32px;
-}
-
-.my-ads-add-btn {
-  min-width: 260px;
+.my-ads-arrow {
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: #ffffff;
+  font-size: 24px;
+  cursor: pointer;
 }
 
-/* ───── СІТКА ОГОЛОШЕНЬ ───── */
+/* Кнопка під каруселлю */
+.my-ads-edit-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
 
-.my-ads-grid {
-  margin-top: 8px;
+/* Повідомлення про пустий стан */
+.my-ads-empty {
+  text-align: center;
+  margin-bottom: 24px;
+  color: var(--ink, #e8eaed) !important;
+  font-size: 18px;
+}
+
+/* Сітка */
+.my-ads-grid-wrapper {
+  max-width: 960px;
+  margin: 0 auto;
 }
 
 .my-ads-grid-inner {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
 }
 
-/* картка в сітці */
+/* Картка */
 .my-ads-card {
-  background: #15171d;
-  border-radius: 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.16s ease, box-shadow 0.16s ease,
-    border-color 0.16s ease, background 0.16s ease;
 }
 
-/* ПІДСВІТКА вибраного – відповідає центру каруселі */
-.my-ads-card.active {
-  border-color: #2962ff;
-  box-shadow: 0 0 0 1px rgba(41, 98, 255, 0.35),
-    0 14px 34px rgba(0, 0, 0, 0.6);
-  background: #191c24;
-}
-
-/* прев’ю в сітці – ФІКСОВАНЕ співвідношення, щоб не тягнулось! */
 .my-ads-card-thumb {
   width: 100%;
-  aspect-ratio: 3 / 4; /* ← головний фікс, замість height:100% */
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  aspect-ratio: 1 / 1;
+  background: #111;
+  object-fit: cover;
 }
 
-/* текст у картці */
 .my-ads-card-body {
-  padding: 10px 14px 6px;
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .my-ads-card-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  color: #e8eaed;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.my-ads-card-price {
+.my-ads-card-meta {
   font-size: 12px;
-  color: #9aa0a6;
+  opacity: 0.7;
 }
 
-/* блок кнопок знизу */
 .my-ads-card-actions {
+  margin-top: 8px;
   display: flex;
   justify-content: space-between;
   gap: 6px;
-  padding: 10px 12px 12px;
-  margin-top: auto; /* щоб кнопки були внизу картки */
 }
 
-.my-ads-card-actions .btn {
-  flex: 1 1 auto;
-  font-size: 12px;
-  padding: 4px 6px;
-}
-
-/* стан порожнього списку */
-.my-ads-empty {
-  margin-top: 24px;
-  color: var(--ink, #e8eaed) !important;
-  font-size: 16px;
+.my-ads-card-actions a {
+  flex: 1;
   text-align: center;
-  padding: 40px 10px;
+  font-size: 12px;
 }
 
-/* адаптив під менші екрани */
-@media (max-width: 768px) {
-  .my-ads-carousel-frame {
-    padding: 14px 12px;
-  }
+/* Велика картка в каруселі */
+.my-ads-card-large {
+  width: min(420px, 100%);
+}
+/* трохи стилів для 3-карткової каруселі */
+.my-ads-carousel {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  align-items: stretch;
+}
 
-  .my-ads-carousel {
-    grid-template-columns: 1fr;
-  }
+.my-ads-carousel-item {
+  flex: 0 0 26%;
+  border-radius: 16px;
+  background: #14161c;
+  border: 1px solid #262a33;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
 
-  .my-ads-arrow.left {
-    left: -8px;
-  }
+.my-ads-carousel-item.left,
+.my-ads-carousel-item.right {
+  opacity: 0.7;
+  transform: scale(0.95);
+}
 
-  .my-ads-arrow.right {
-    right: -8px;
-  }
+.my-ads-carousel-item.center {
+  flex: 0 0 34%;
+  transform: scale(1.02);
+  border-color: #2563eb;
+  box-shadow: 0 0 24px rgba(37, 99, 235, 0.45);
+  opacity: 1;
+}
 
-  .my-ads-add-btn {
-    width: 100%;
-  }
+.my-ads-carousel-thumb {
+  width: 100%;
+  padding-top: 55%; /* співвідношення сторін */
+  background-size: cover;
+  background-position: center;
+}
+
+.my-ads-carousel-caption {
+  padding: 12px 16px 16px;
+}
+
+.my-ads-carousel-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.my-ads-carousel-price {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* підсвітка вибраної картки в сітці */
+.my-ads-card.active {
+  border-color: #2563eb;
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.5);
+}
+
+/* щоб текст "порожньо" точно було видно */
+.my-ads-empty {
+  color: #e5e7eb;
+  text-align: center;
+  padding: 32px 12px;
+  font-size: 18px;
+}
+/* ──────────────────────────────────────────────── */
+/* ВИСОТА КАРУСЕЛІ + ВИДИМА РАМКА */
+/* ──────────────────────────────────────────────── */
+
+.my-ads-frame {
+  padding: 40px 32px;
+  border: 2px solid rgba(255, 255, 255, 0.08); /* рамка */
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.my-ads-carousel {
+  height: 280px;               /* 🔥 робимо карусель значно вищою */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 12px;
+  border: 2px solid rgba(255,255,255,0.12); /* 🔥 видима рамка */
+  border-radius: 16px;
+  box-shadow: 0 0 25px rgba(0,0,0,0.4);
+}
+
+/* Висока картка всередині каруселі */
+.my-ads-carousel-item {
+  height: 100%;                /* картка займає всю висоту */
+  max-height: 250px;           /* контролюємо щоб не вилізала */
+}
+
+/* Зображення також тягнемо */
+.my-ads-carousel-thumb {
+  height: 70%;                 /* більше місця під картинку */
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Центр трохи вищий та більший */
+.my-ads-carousel-item.center {
+  transform: scale(1.04);
+}
+
+/* Рамка навколо всієї зони каруселі */
+.my-ads-carousel-wrapper {
+  margin: 0 auto 16px auto;
+  width: 100%;
 }
