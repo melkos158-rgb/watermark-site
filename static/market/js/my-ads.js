@@ -1,146 +1,128 @@
-// my-ads.js — load items from /api/my/items?page=1 and inject into carousel + grid
-document.addEventListener('DOMContentLoaded', function(){
+// static/market/js/my-ads.js
+console.log('my-ads.js loaded');
+
+document.addEventListener('DOMContentLoaded', () => {
   const carousel = document.getElementById('myAdsCarousel');
   const gridInner = document.querySelector('.my-ads-grid-inner');
   const emptyMsg = document.querySelector('.my-ads-empty');
   const leftBtn = document.querySelector('.my-ads-arrow.left');
   const rightBtn = document.querySelector('.my-ads-arrow.right');
 
-  function clearContainers() {
-    if (carousel) carousel.innerHTML = '';
-    if (gridInner) gridInner.innerHTML = '';
+  if (!carousel || !gridInner) {
+    console.warn('my-ads: DOM elements not found');
+    return;
   }
 
-  function showEmpty(show) {
-    if (!emptyMsg) return;
-    emptyMsg.style.display = show ? '' : 'none';
-    if (carousel) carousel.style.display = show ? 'none' : '';
-    if (gridInner) gridInner.style.display = show ? 'none' : '';
-    if (leftBtn) leftBtn.style.display = show ? 'none' : '';
-    if (rightBtn) rightBtn.style.display = show ? 'none' : '';
+  let items = [];
+  let currentIndex = 0;
+
+  function renderEmpty() {
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    carousel.innerHTML = '';
+    gridInner.innerHTML = '';
   }
 
-  function createCarouselItem(item, idx) {
-    const div = document.createElement('div');
-    div.className = 'carousel-item';
-    div.dataset.index = idx;
-    div.dataset.adId = item.id;
+  function createCard(item, isLarge = false) {
+    const card = document.createElement('article');
+    card.className = 'my-ads-card';
+    if (isLarge) card.classList.add('my-ads-card-large');
 
-    const thumb = document.createElement('div');
-    thumb.className = 'carousel-thumb';
-    const thumbUrl = item.thumbnail || item.thumb || item.image || item.cover_url || '/static/img/placeholder_stl.jpg';
-    thumb.style.backgroundImage = `url('${thumbUrl}')`;
+    const thumb = document.createElement('img');
+    thumb.className = 'my-ads-card-thumb';
+    thumb.src = item.cover_url || item.cover || '/static/img/placeholder_stl.jpg';
+    thumb.alt = item.title || '3D модель';
+
+    const body = document.createElement('div');
+    body.className = 'my-ads-card-body';
+
+    const title = document.createElement('div');
+    title.className = 'my-ads-card-title';
+    title.textContent = item.title || 'Без назви';
 
     const meta = document.createElement('div');
-    meta.className = 'carousel-meta';
-    const title = document.createElement('div');
-    title.className = 'carousel-title';
-    title.textContent = item.title || '';
-    const price = document.createElement('div');
-    price.className = 'carousel-price';
-    price.textContent = (item.price !== undefined && item.price !== null) ? item.price : '';
+    meta.className = 'my-ads-card-meta';
+    const rawPrice = Number(item.price || 0);
+    const priceText = !rawPrice ? 'Безкоштовно' : `${rawPrice.toFixed(2)} zł`;
+    meta.textContent = priceText;
 
-    meta.appendChild(title);
-    meta.appendChild(price);
+    const actions = document.createElement('div');
+    actions.className = 'my-ads-card-actions';
 
-    div.appendChild(thumb);
-    div.appendChild(meta);
+    const viewLink = document.createElement('a');
+    viewLink.href = `/item/${item.id}`;
+    viewLink.className = 'btn btn-sm btn-secondary';
+    viewLink.textContent = 'Дивитися';
 
-    return div;
+    const editLink = document.createElement('a');
+    editLink.href = `/edit/${item.id}`;
+    editLink.className = 'btn btn-sm btn-outline-secondary';
+    editLink.textContent = 'Редагувати';
+
+    actions.appendChild(viewLink);
+    actions.appendChild(editLink);
+
+    body.appendChild(title);
+    body.appendChild(meta);
+    body.appendChild(actions);
+
+    card.appendChild(thumb);
+    card.appendChild(body);
+
+    return card;
   }
 
-  function createGridItem(item) {
-    const article = document.createElement('article');
-    article.className = 'ad-card';
-    article.dataset.adId = item.id;
-
-    const thumb = document.createElement('div');
-    thumb.className = 'ad-thumb';
-    const thumbUrl = item.thumbnail || item.thumb || item.image || item.cover_url || '/static/img/placeholder_stl.jpg';
-    thumb.style.backgroundImage = `url('${thumbUrl}')`;
-    thumb.setAttribute('role','img');
-    thumb.setAttribute('aria-label', `Мініатюра ${item.title || ''}`);
-
-    const info = document.createElement('div');
-    info.className = 'ad-info';
-    const t = document.createElement('div');
-    t.className = 'ad-title';
-    t.textContent = item.title || '';
-    const p = document.createElement('div');
-    p.className = 'ad-price';
-    p.textContent = (item.price !== undefined && item.price !== null) ? item.price : '';
-
-    info.appendChild(t);
-    info.appendChild(p);
-
-    const edit = document.createElement('a');
-    edit.className = 'ad-edit';
-    edit.href = `/ads/${item.id}/edit`;
-    edit.textContent = 'Редагувати';
-
-    article.appendChild(thumb);
-    article.appendChild(info);
-    article.appendChild(edit);
-
-    return article;
-  }
-
-  function injectItems(items) {
-    clearContainers();
-    if (!items || items.length === 0) {
-      showEmpty(true);
+  function renderCarousel() {
+    carousel.innerHTML = '';
+    if (!items.length) {
+      renderEmpty();
       return;
     }
-    showEmpty(false);
+    if (emptyMsg) emptyMsg.style.display = 'none';
 
-    items.forEach((it, idx) => {
-      const cItem = createCarouselItem(it, idx);
-      if (carousel) carousel.appendChild(cItem);
-    });
-
-    const gridItems = items.slice(0, 8);
-    gridItems.forEach(it => {
-      const gItem = createGridItem(it);
-      if (gridInner) gridInner.appendChild(gItem);
-    });
-
-    document.dispatchEvent(new Event('myAds:itemsInjected'));
+    const center = createCard(items[currentIndex], true);
+    carousel.appendChild(center);
   }
 
+  function renderGrid() {
+    gridInner.innerHTML = '';
+    if (!items.length) return;
+    items.forEach((it) => {
+      gridInner.appendChild(createCard(it, false));
+    });
+  }
+
+  function shift(delta) {
+    if (!items.length) return;
+    currentIndex = (currentIndex + delta + items.length) % items.length;
+    renderCarousel();
+  }
+
+  if (leftBtn) leftBtn.addEventListener('click', () => shift(-1));
+  if (rightBtn) rightBtn.addEventListener('click', () => shift(1));
+
   function loadMyItems() {
+    console.log('my-ads: fetching /api/my/items?page=1');
     fetch('/api/my/items?page=1', { credentials: 'same-origin' })
-      .then(resp => {
-        if (!resp.ok) throw new Error('Network response was not ok');
-        return resp.json();
+      .then((r) => {
+        console.log('my-ads: status', r.status);
+        if (!r.ok) throw new Error('status ' + r.status);
+        return r.json();
       })
-      .then(json => {
-        let items = [];
-        if (Array.isArray(json)) items = json;
-        else if (json.items && Array.isArray(json.items)) items = json.items;
-        else if (json.data && json.data.items && Array.isArray(json.data.items)) items = json.data.items;
-        else if (json.data && Array.isArray(json.data)) items = json.data;
-        else if (json.results && Array.isArray(json.results)) items = json.results;
-        injectItems(items);
+      .then((data) => {
+        console.log('my-ads: json', data);
+        items = (data && data.items) || [];
+        if (!items.length) {
+          renderEmpty();
+          return;
+        }
+        renderCarousel();
+        renderGrid();
       })
-      .catch(err => {
-        console.error('Failed to load my items:', err);
-        showEmpty(true);
+      .catch((err) => {
+        console.error('my-ads fetch error', err);
+        renderEmpty();
       });
   }
 
   loadMyItems();
-
-  document.addEventListener('myAds:itemsInjected', function(){
-    const items = carousel ? Array.from(carousel.querySelectorAll('.carousel-item')) : [];
-    items.forEach((it, idx) => {
-      it.addEventListener('click', () => {
-        items.forEach(i => i.classList.remove('active','prev','next'));
-        it.classList.add('active');
-        const prevIdx = (idx - 1 + items.length) % items.length;
-        const nextIdx = (idx + 1) % items.length;
-        if (items[prevIdx]) items[prevIdx].classList.add('prev');
-        if (items[nextIdx]) items[nextIdx].classList.add('next');
-      });
-    });
-  });
 });
