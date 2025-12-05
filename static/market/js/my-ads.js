@@ -188,8 +188,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (btnEdit) {
         btnEdit.addEventListener("click", function () {
           if (it.id) {
-            // змінити на свій URL редагування, якщо інший
-            window.location.href = "/edit/" + it.id;
+            // 🔥 тепер відкриваємо нову сторінку редагування
+            window.location.href = "/market/edit/" + it.id;
           }
         });
       }
@@ -225,8 +225,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (addBtn) {
     addBtn.addEventListener("click", function () {
-      // кнопка під каруселлю
-      window.location.href = "/market/upload";
+      // кнопка під каруселлю: якщо є вибрана модель → редагування,
+      // якщо немає моделей → сторінка додавання
+      if (!items.length) {
+        window.location.href = "/market/upload";
+        return;
+      }
+      const current = items[currentIndex] || items[0];
+      if (current && current.id) {
+        window.location.href = "/market/edit/" + current.id;
+      } else {
+        window.location.href = "/market/upload";
+      }
     });
   }
 
