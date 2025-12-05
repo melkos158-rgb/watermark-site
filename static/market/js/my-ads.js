@@ -136,11 +136,13 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       card.dataset.index = String(idx);
 
+      // ⬇⬇⬇ ЄДИНА ЗМІНА: замість background-image вставляємо <img>
       card.innerHTML = `
-        <div class="my-ads-card-thumb"
-             style="background-image:url('${escapeHtml(
-               getCover(it)
-             )}');"></div>
+        <div class="my-ads-card-thumb">
+          <img src="${escapeHtml(getCover(it))}"
+               alt="${escapeHtml(it.title || "Модель")}"
+               loading="lazy">
+        </div>
         <div class="my-ads-card-body">
           <div class="my-ads-card-title">
             ${escapeHtml(it.title || "Без назви")}
@@ -160,6 +162,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </button>
         </div>
       `;
+      // ⬆⬆⬆ усе інше лишається як було
 
       // клік по картці → зробити її вибраною в каруселі
       card.addEventListener("click", function (e) {
