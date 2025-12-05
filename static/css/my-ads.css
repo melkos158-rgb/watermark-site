@@ -340,3 +340,79 @@
   max-width: 220px;
   width: 100%;
 }
+/* ===== Strong fixes for stretching cards =====
+   Paste at the end of static/css/my-ads.css
+*/
+
+/* Target both names used in different parts of template/CSS */
+.my-ads-carousel,
+.my-ads-carousel-wrapper,
+.my-ads-carousel-frame,
+.my-ads-carousel .my-ads-carousel-item,
+.my-ads-carousel .carousel-item,
+.my-ads-carousel {
+  align-items: flex-start !important; /* prevent parent from stretching children */
+}
+
+/* Ensure carousel row doesn't stretch children vertically */
+.my-ads-carousel .carousel-item,
+.my-ads-carousel .my-ads-carousel-item,
+.my-ads-grid-inner .ad-card,
+.my-ads-grid-inner .my-ads-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  flex: 0 0 auto !important;  /* do not grow */
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+/* Make thumbs have a controlled responsive height (prevents vertical stretching) */
+.carousel-thumb,
+.my-ads-carousel-thumb,
+.ad-thumb,
+.my-ads-card-thumb {
+  width: 100% !important;
+  /* responsive fixed height: min 140px, preferred relative to viewport, max 320px */
+  height: clamp(140px, 22vw, 320px) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  flex: 0 0 auto !important;
+}
+
+/* Slightly larger center thumb but still capped */
+.my-ads-carousel .carousel-item.center .carousel-thumb,
+.my-ads-carousel .my-ads-carousel-item.center .my-ads-carousel-thumb {
+  height: clamp(180px, 28vw, 360px) !important;
+}
+
+/* Prevent footer/text sections from stretching whole card */
+.carousel-meta,
+.my-ads-carousel-caption,
+.ad-info,
+.my-ads-card-body,
+.my-ads-card-actions,
+.ad-edit,
+.my-ads-add-wrap {
+  flex: 0 0 auto !important;
+}
+
+/* Safety: remove accidental height:100% from descendants inside frame */
+.my-ads-frame * {
+  max-height: none !important;
+}
+
+/* If you prefer square thumbs, uncomment below and comment out the height rule above
+.carousel-thumb,
+.ad-thumb { aspect-ratio: 1 / 1 !important; height: auto !important; }
+*/
+
+/* Optional: limit very wide grid cards */
+.my-ads-grid-inner .ad-card,
+.my-ads-grid-inner .my-ads-card {
+  max-width: 260px !important;
+  width: 100% !important;
+}
