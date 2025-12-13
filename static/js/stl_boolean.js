@@ -1,7 +1,7 @@
 // static/js/stl_boolean.js
 // Демонстраційний модуль Boolean-операцій: додає куб/циліндр/сферу та показує базові поєднання
 
-import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
+import * as THREE from "three";
 
 
 export function initBoolean(ctx, { autoBindButtons = true } = {}) {

@@ -1,10 +1,10 @@
 // static/js/stl_exporters.js
 // Експортує модель у різні формати STL / GLB / GLTF / OBJ / PLY
 
-import { STLExporter } from "stl/exporter";
-import { GLTFExporter } from "gltf/exporter";
-import { OBJExporter } from "obj/exporter";
-import { PLYExporter } from "ply/exporter";
+import { STLExporter } from "three/addons/exporters/STLExporter.js";
+import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+import { OBJExporter } from "three/addons/exporters/OBJExporter.js";
+import { PLYExporter } from "three/addons/exporters/PLYExporter.js";
 
 export function initExporters(ctx, { autoBindButtons = true } = {}) {
   if (!ctx || !ctx.modelRoot) throw new Error("initExporters: invalid viewer ctx");

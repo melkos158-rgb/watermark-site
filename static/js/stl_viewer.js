@@ -2,14 +2,14 @@
 // Створює сцену Three.js, рендер, камеру, групи та лоадери.
 // Експортує initViewer(), що повертає контекст ctx з усіма потрібними методами.
 
-// 🚀 NEW: імпорти через CDN як ES-modules
-import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "https://unpkg.com/three@0.159.0/examples/jsm/controls/TransformControls.js";
-import { STLLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/STLLoader.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js";
-import { OBJLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/OBJLoader.js";
-import { PLYLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/PLYLoader.js";
+// ✅ Imports via global import map from base.html (three@0.160.0)
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
 
 /* =========================================================
    TiledGrid — "блендерний" стіл без краю:

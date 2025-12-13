@@ -1,13 +1,13 @@
 // static/js/stl_watermark.js
 // Відповідає за попередній перегляд 3D-водяного знаку та "запікання" в геометрію.
 
-import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
-import { STLLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/STLLoader.js";
-import { FontLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/FontLoader.js";
-import { TextGeometry } from "https://unpkg.com/three@0.159.0/examples/jsm/geometries/TextGeometry.js";
+import * as THREE from "three";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { FontLoader } from "three/addons/loaders/FontLoader.js";
+import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 
 
-const FONT_URL = "https://cdn.jsdelivr.net/npm/three@0.159/examples/fonts/helvetiker_regular.typeface.json";
+const FONT_URL = "https://cdn.jsdelivr.net/npm/three@0.160/examples/fonts/helvetiker_regular.typeface.json";
 
 export function initWatermark(ctx, { autoBindButtons = true } = {}) {
   if (!ctx || !ctx.scene || !ctx.modelRoot || !ctx.watermarkGroup) {

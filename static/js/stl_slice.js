@@ -1,8 +1,8 @@
 // static/js/stl_slice.js
 // Перегляд зрізу площиною + базовий “розріз” (візуальний)
 
-import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
-import { STLLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/STLLoader.js";
+import * as THREE from "three";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
 export function initSlice(ctx, { autoBind = true } = {}) {
   if (!ctx || !ctx.scene || !ctx.modelRoot) throw new Error("initSlice: invalid ctx");

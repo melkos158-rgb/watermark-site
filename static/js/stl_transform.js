@@ -1,7 +1,7 @@
 // static/js/stl_transform.js
 // Масштабування, обертання, віддзеркалення, центрування моделі
 
-import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
+import * as THREE from "three";
 
 
 export function initTransform(ctx, { autoBindButtons = true } = {}) {
