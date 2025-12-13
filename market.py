@@ -282,6 +282,57 @@ def json_dumps_safe(obj) -> str:
         return "[]"
 
 
+def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Universal item serialization with consistent cover_url normalization.
+    Use this for all API responses to avoid cover/preview mismatches.
+    """
+    # Get cover from cover_url or cover field
+    raw_cover = it.get("cover_url") or it.get("cover") or ""
+    
+    # Parse gallery_urls (may be JSON string or list)
+    gallery = []
+    raw_gallery = it.get("gallery_urls") or it.get("photos") or "[]"
+    try:
+        gallery = raw_gallery if isinstance(raw_gallery, list) else json.loads(raw_gallery or "[]")
+    except Exception:
+        gallery = []
+    
+    # Normalize gallery URLs
+    normalized_gallery = []
+    for g in gallery:
+        try:
+            url = g.get("url") if isinstance(g, dict) else str(g)
+        except Exception:
+            url = None
+        if url:
+            url_norm = _normalize_cover_url(url)
+            if url_norm and url_norm != COVER_PLACEHOLDER:
+                normalized_gallery.append(url_norm)
+    
+    # Normalize cover, fallback to first gallery image
+    cover_url = _normalize_cover_url(raw_cover)
+    if (not raw_cover or cover_url == COVER_PLACEHOLDER) and normalized_gallery:
+        cover_url = normalized_gallery[0]
+    
+    return {
+        "id": it.get("id"),
+        "title": it.get("title"),
+        "price": it.get("price"),
+        "tags": it.get("tags"),
+        "cover_url": cover_url,  # ✅ Always normalized, never "no image"
+        "gallery_urls": normalized_gallery,
+        "rating": it.get("rating", 0),
+        "downloads": it.get("downloads", 0),
+        "url": it.get("url") or it.get("stl_main_url"),
+        "format": it.get("format"),
+        "user_id": it.get("user_id"),
+        "created_at": it.get("created_at"),
+        "price_cents": it.get("price_cents") or (int(it.get("price", 0) * 100) if it.get("price") else 0),
+        "is_free": it.get("is_free") or (it.get("price", 0) == 0),
+    }
+
+
 # ───────────────────────────── NEW: категорії в g ─────────────────────────────
 @bp.before_app_request
 def _inject_market_categories():
@@ -501,36 +552,8 @@ def api_items():
                 d.setdefault("downloads", 0)
                 items.append(d)
 
-    # Normalize gallery_urls and cover_url for each item so frontend always gets usable values
-    for it in items:
-        # gallery_urls may be stored as JSON-string or as a python list already
-        raw_gallery = it.get("gallery_urls") or it.get("photos") or "[]"
-        try:
-            gallery_list = raw_gallery if isinstance(raw_gallery, list) else json.loads(raw_gallery or "[]")
-        except Exception:
-            gallery_list = []
-        normalized_gallery = []
-        for g in gallery_list:
-            try:
-                # g might be dict with 'url' or a plain string
-                url = g.get("url") if isinstance(g, dict) else str(g)
-            except Exception:
-                url = None
-            if not url:
-                continue
-            url_norm = _normalize_cover_url(url)
-            if url_norm:
-                normalized_gallery.append(url_norm)
-        it["gallery_urls"] = normalized_gallery
-
-        # existing cover preference
-        c = it.get("cover") or it.get("cover_url") or ""
-        c_norm = _normalize_cover_url(c)
-        # if cover is placeholder or empty but gallery has images — use first gallery
-        if (not c or c_norm == COVER_PLACEHOLDER) and normalized_gallery:
-            c_norm = normalized_gallery[0]
-        it["cover"] = c_norm
-        it["cover_url"] = c_norm
+    # ✅ Use universal serializer for consistent cover_url normalization
+    items = [_item_to_dict(it) for it in items]
 
     return jsonify(
         {
@@ -624,32 +647,8 @@ def api_my_items():
     if not total:
         return api_items()
 
-    # Normalize gallery_urls and cover_url for my items as well
-    for it in items:
-        raw_gallery = it.get("gallery_urls") or "[]"
-        try:
-            gallery_list = raw_gallery if isinstance(raw_gallery, list) else json.loads(raw_gallery or "[]")
-        except Exception:
-            gallery_list = []
-        normalized_gallery = []
-        for g in gallery_list:
-            try:
-                url = g.get("url") if isinstance(g, dict) else str(g)
-            except Exception:
-                url = None
-            if not url:
-                continue
-            url_norm = _normalize_cover_url(url)
-            if url_norm:
-                normalized_gallery.append(url_norm)
-        it["gallery_urls"] = normalized_gallery
-
-        c = it.get("cover") or it.get("cover_url") or ""
-        c_norm = _normalize_cover_url(c)
-        if (not c or c_norm == COVER_PLACEHOLDER) and normalized_gallery:
-            c_norm = normalized_gallery[0]
-        it["cover"] = c_norm
-        it["cover_url"] = c_norm
+    # ✅ Use universal serializer for consistent cover_url normalization
+    items = [_item_to_dict(it) for it in items]
 
     return jsonify(
         {

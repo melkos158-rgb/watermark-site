@@ -160,6 +160,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // ✅ FIX 3: Live preview for cover file
+  function wireImagePreview(inputEl, imgEl) {
+    if (!inputEl || !imgEl) return;
+    inputEl.addEventListener("change", () => {
+      const f = inputEl.files && inputEl.files[0];
+      if (!f) return;
+      const url = URL.createObjectURL(f);
+      imgEl.src = url;
+      imgEl.onload = () => URL.revokeObjectURL(url);
+      toast("Нова обкладинка завантажена", "ok");
+    });
+  }
+
+  // ✅ FIX 3: Live preview for gallery files
+  function wireGalleryPreview(inputEl, wrapEl) {
+    if (!inputEl || !wrapEl) return;
+    inputEl.addEventListener("change", () => {
+      wrapEl.innerHTML = "";
+      const files = Array.from(inputEl.files || []);
+      if (!files.length) return;
+
+      files.forEach((f) => {
+        const thumb = document.createElement("div");
+        thumb.className = "gallery-thumb";
+        thumb.style.cssText = "display:inline-block;width:80px;height:60px;margin:4px;border-radius:8px;overflow:hidden;border:1px solid #333;";
+
+        const img = document.createElement("img");
+        img.style.cssText = "width:100%;height:100%;object-fit:cover;";
+        const url = URL.createObjectURL(f);
+        img.src = url;
+        img.onload = () => URL.revokeObjectURL(url);
+
+        thumb.appendChild(img);
+        wrapEl.appendChild(thumb);
+      });
+
+      toast(`${files.length} фото вибрано`, "ok");
+    });
+  }
+
+  // Wire up previews
+  const coverInput = document.querySelector("input[name='cover'], input[name='cover_file']");
+  wireImagePreview(coverInput || fileInputImages, coverPreviewEl);
+  
+  const galleryWrap = document.getElementById("newGalleryPreview");
+  wireGalleryPreview(fileInputImages, galleryWrap);
+
   // --------------------------------------------------------------------
   // STL preview before upload
   // --------------------------------------------------------------------

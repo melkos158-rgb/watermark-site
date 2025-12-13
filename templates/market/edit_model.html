@@ -135,10 +135,13 @@
                             <p class="edit-label-small">Поточна обкладинка</p>
 
                             <div class="edit-cover-preview">
-                                <img src="{{ item.cover_url
+                                <img id="currentCoverPreview"
+                                     src="{{ item.cover_url
                                            or item.cover
                                            or item.preview_url
-                                           or '/static/img/no-preview.png' }}">
+                                           or '/static/img/no-preview.png' }}"
+                                     alt="Cover"
+                                     loading="lazy">
                             </div>
                         </div>
 
@@ -159,6 +162,9 @@
                             <p class="edit-hint">
                                 Рекомендовано 3–6 фото. Додадуться після збереження.
                             </p>
+
+                            <!-- ✅ FIX 3: Live preview of new gallery images -->
+                            <div id="newGalleryPreview" class="new-gallery-preview"></div>
                         </div>
                     </div>
                 </section>
@@ -271,5 +277,30 @@
     </div>
 
 </div>
+
+<!-- ✅ FIX 2: Fallback for broken cover image -->
+<script>
+  (function () {
+    const img = document.getElementById('currentCoverPreview');
+    if (!img) return;
+
+    const gallery = (() => {
+      try {
+        const raw = '{{ (item.gallery_urls or "[]")|tojson|safe }}';
+        return JSON.parse(raw);
+      } catch (e) {
+        return [];
+      }
+    })();
+
+    img.addEventListener('error', () => {
+      if (gallery.length && gallery[0]) {
+        img.src = gallery[0];
+      } else {
+        img.src = '/static/img/placeholder_stl.jpg';
+      }
+    }, { once: true });
+  })();
+</script>
 
 {% endblock %}
