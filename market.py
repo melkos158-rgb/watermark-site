@@ -582,7 +582,7 @@ def api_items():
         try:
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
-            where.append("(is_published = 1 OR is_published IS NULL)")
+            where.append("(is_published IS TRUE OR is_published IS NULL)")
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
@@ -652,7 +652,7 @@ def api_items():
                     db.session.rollback()
                     sql_legacy = f"""
                         SELECT id, title, price, tags,
-                               COALESCE(cover, '') AS cover,
+                               COALESCE(cover_url, '') AS cover,
                                COALESCE(gallery_urls, '[]') AS gallery_urls,
                                COALESCE(file_url,'') AS url,
                                user_id, created_at
@@ -1021,7 +1021,7 @@ def api_item_publish(item_id: int):
             else:
                 sql = f"""
                     UPDATE {ITEMS_TBL}
-                    SET is_published = 1,
+                    SET is_published = TRUE,
                         published_at = COALESCE(published_at, CURRENT_TIMESTAMP),
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id AND user_id = :uid
@@ -1038,7 +1038,7 @@ def api_item_publish(item_id: int):
             else:
                 sql = f"""
                     UPDATE {ITEMS_TBL}
-                    SET is_published = 0,
+                    SET is_published = FALSE,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id AND user_id = :uid
                 """
