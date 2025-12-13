@@ -25,10 +25,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const coverPreviewEl = document.querySelector(".edit-cover-preview img");
 
   // Your template uses:
-  //  - input[name="new_images"] for images
-  //  - input[name="stl"]        for model
-  const fileInputImages = document.querySelector("input[name='new_images']");
-  const fileInputStl = document.querySelector("input[name='stl']");
+  //  - input[name="gallery_files"] for images
+  //  - input[name="stl_file"]      for model
+  const fileInputImages = document.querySelector("input[name='gallery_files']");
+  const fileInputStl = document.querySelector("input[name='stl_file']");
 
   // --------------------------------------------------------------------
   // API endpoints (MATCH BACKEND)
