@@ -221,13 +221,12 @@
             </form>
 
             <!-- DELETE MODEL -->
-            <form action="/api/item/{{ item.id }}/delete"
-                  method="POST"
-                  onsubmit="return confirm('Точно видалити? Дію не можна скасувати.')">
-                <button class="delete-btn" type="submit">
-                    🗑 Видалити модель
-                </button>
-            </form>
+            <button class="delete-btn" 
+                    type="button"
+                    data-item-id="{{ item.id }}"
+                    onclick="deleteModel(this)">
+                🗑 Видалити модель
+            </button>
 
         </div>
 

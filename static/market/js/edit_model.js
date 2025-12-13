@@ -302,3 +302,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   // --------------------------------------------------------------------
   setStatus("Готово до редагування ✓", "#35c46b");
 });
+
+// =============================================================
+//  DELETE MODEL FUNCTION
+// =============================================================
+window.deleteModel = async function(btn) {
+  const itemId = btn.dataset.itemId;
+  if (!itemId) {
+    alert("Помилка: не знайдено ID моделі");
+    return;
+  }
+
+  if (!confirm("Точно видалити? Дію не можна скасувати.")) {
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Видалення...";
+
+  try {
+    const res = await fetch(`/api/item/${itemId}/delete`, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "Помилка видалення");
+    }
+
+    // Success - redirect to my items
+    window.location.href = "/market?owner=me";
+  } catch (err) {
+    console.error(err);
+    alert(`Помилка видалення: ${err.message}`);
+    btn.disabled = false;
+    btn.textContent = "🗑 Видалити модель";
+  }
+};

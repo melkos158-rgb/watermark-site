@@ -376,7 +376,8 @@ def page_market_upload():
 
 @bp.get("/edit/<int:item_id>")
 def page_edit_item(item_id: int):
-    return render_template("market/edit.html")
+    """Legacy route - redirect to canonical /market/edit/<id>"""
+    return redirect(url_for('market.page_market_edit_item', item_id=item_id))
 
 
 @bp.get("/market/edit/<int:item_id>")
@@ -679,6 +680,98 @@ def api_item(item_id: int):
     return jsonify(it)
 
 
+@bp.get("/api/item/related")
+@bp.get("/api/items/related")
+@bp.get("/api/market/related")
+@bp.get("/api/market/items/related")
+def api_related_items():
+    """Return related/recommended items based on item_id, tags, or category"""
+    item_id = request.args.get("item_id")
+    limit = min(12, max(3, _parse_int(request.args.get("limit"), 6)))
+    
+    # If no item_id provided, return random popular items
+    if not item_id:
+        try:
+            sql = f"""
+                SELECT id, title, price, tags,
+                       COALESCE(cover_url, '') AS cover,
+                       COALESCE(rating, 0) AS rating,
+                       COALESCE(downloads, 0) AS downloads
+                FROM {ITEMS_TBL}
+                ORDER BY downloads DESC, rating DESC
+                LIMIT :limit
+            """
+            rows = db.session.execute(text(sql), {"limit": limit}).fetchall()
+            items = [_row_to_dict(r) for r in rows]
+            for it in items:
+                it["cover"] = _normalize_cover_url(it.get("cover"))
+                it["cover_url"] = it["cover"]
+            return jsonify({"items": items})
+        except Exception:
+            return jsonify({"items": []})
+    
+    # Get the source item's tags and category
+    try:
+        source = db.session.execute(
+            text(f"SELECT tags, category FROM {ITEMS_TBL} WHERE id = :id"),
+            {"id": item_id}
+        ).first()
+        
+        if not source:
+            return jsonify({"items": []})
+        
+        tags_str = source[0] or ""
+        category = source[1] or ""
+        
+        # Build query for similar items (same tags or category, exclude source item)
+        where_clauses = ["id != :item_id"]
+        params = {"item_id": item_id, "limit": limit}
+        
+        if category:
+            where_clauses.append("category = :category")
+            params["category"] = category
+        elif tags_str:
+            # Simple tag matching - items with any common tags
+            tags_list = [t.strip() for t in tags_str.split(",") if t.strip()]
+            if tags_list:
+                # Use first few tags for matching
+                tag_conditions = []
+                for i, tag in enumerate(tags_list[:3]):
+                    tag_param = f"tag{i}"
+                    tag_conditions.append(f"tags LIKE :{tag_param}")
+                    params[tag_param] = f"%{tag}%"
+                if tag_conditions:
+                    where_clauses.append(f"({' OR '.join(tag_conditions)})")
+        
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        
+        sql = f"""
+            SELECT id, title, price, tags,
+                   COALESCE(cover_url, '') AS cover,
+                   COALESCE(rating, 0) AS rating,
+                   COALESCE(downloads, 0) AS downloads
+            FROM {ITEMS_TBL}
+            WHERE {where_sql}
+            ORDER BY rating DESC, downloads DESC
+            LIMIT :limit
+        """
+        
+        rows = db.session.execute(text(sql), params).fetchall()
+        items = [_row_to_dict(r) for r in rows]
+        
+        # Normalize cover URLs
+        for it in items:
+            it["cover"] = _normalize_cover_url(it.get("cover"))
+            it["cover_url"] = it["cover"]
+        
+        return jsonify({"items": items})
+        
+    except Exception as e:
+        current_app.logger.error(f"Related items error: {e}")
+        return jsonify({"items": []})
+
+
+
 @bp.post("/api/item/<int:item_id>/download")
 def api_item_download(item_id: int):
     dialect = db.session.get_bind().dialect.name
@@ -938,7 +1031,7 @@ def market_delete_form(item_id: int):
     
     # If successful (2xx status), redirect to market page
     if 200 <= status_code < 300:
-        return redirect(url_for('market.market_page', owner='me'))
+        return redirect(url_for('market.page_market', owner='me'))
     
     # If failed, return the JSON error
     return result
