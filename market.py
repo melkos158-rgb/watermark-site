@@ -589,76 +589,66 @@ def api_items():
 
     offset = (page - 1) * per_page
 
-    total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
-
-    # включаємо gallery_urls у SELECT — це дозволяє потім нормалізувати масив зображень
-    # HOTFIX: Try with is_published columns first, fallback to schema without them
-    sql_new = f"""
-        SELECT id, title, price, tags,
-               COALESCE(cover_url, '') AS cover,
-               COALESCE(gallery_urls, '[]') AS gallery_urls,
-               COALESCE(rating, 0) AS rating,
-               COALESCE(downloads, 0) AS downloads,
-               {url_expr} AS url,
-               format, user_id, created_at,
-               is_published, published_at
-        FROM {ITEMS_TBL}
-        {where_sql}
-        {order_sql}
-        LIMIT :limit OFFSET :offset
-    """
-    sql_new_min = f"""
-        SELECT id, title, price, tags,
-               {cover_expr} AS cover,
-               COALESCE(gallery_urls, '[]') AS gallery_urls,
-               {url_expr}   AS url,
-               user_id, created_at,
-               is_published, published_at
-        FROM {ITEMS_TBL}
-        {where_sql}
-        {order_sql}
-        LIMIT :limit OFFSET :offset
-    """
-    # Fallback without is_published columns
-    sql_no_publish = f"""
-        SELECT id, title, price, tags,
-               COALESCE(cover_url, '') AS cover,
-               COALESCE(gallery_urls, '[]') AS gallery_urls,
-               COALESCE(rating, 0) AS rating,
-               COALESCE(downloads, 0) AS downloads,
-               {url_expr} AS url,
-               format, user_id, created_at
-        FROM {ITEMS_TBL}
-        {where_sql}
-        {order_sql}
-        LIMIT :limit OFFSET :offset
-    """
-    sql_legacy = f"""
-        SELECT id, title, price, tags,
-               COALESCE(cover, '')   AS cover,
-               COALESCE(gallery_urls, '[]') AS gallery_urls,
-               COALESCE(file_url,'') AS url,
-               user_id, created_at
-        FROM {ITEMS_TBL}
-        {where_sql}
-        {order_sql}
-        LIMIT :limit OFFSET :offset
-    """
-
+    # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
     try:
-        rows = db.session.execute(text(sql_new), {**params, "limit": per_page, "offset": offset}).fetchall()
+        # Build SQL with is_published columns - ALL inside try
+        sql_with_publish = f"""
+            SELECT id, title, price, tags,
+                   COALESCE(cover_url, '') AS cover,
+                   COALESCE(gallery_urls, '[]') AS gallery_urls,
+                   COALESCE(rating, 0) AS rating,
+                   COALESCE(downloads, 0) AS downloads,
+                   {url_expr} AS url,
+                   format, user_id, created_at,
+                   is_published, published_at
+            FROM {ITEMS_TBL}
+            {where_sql}
+            {order_sql}
+            LIMIT :limit OFFSET :offset
+        """
+        
+        rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
         items = [_row_to_dict(r) for r in rows]
-    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
-        db.session.rollback()
-        # HOTFIX: Check if error is due to missing is_published column
+        total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
+        
+    except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+        # 🔄 FALLBACK: Column doesn't exist yet
         if _is_missing_column_error(e):
+            db.session.rollback()
+            
+            # Rebuild query WITHOUT is_published columns
+            sql_fallback = f"""
+                SELECT id, title, price, tags,
+                       COALESCE(cover_url, '') AS cover,
+                       COALESCE(gallery_urls, '[]') AS gallery_urls,
+                       COALESCE(rating, 0) AS rating,
+                       COALESCE(downloads, 0) AS downloads,
+                       {url_expr} AS url,
+                       format, user_id, created_at
+                FROM {ITEMS_TBL}
+                {where_sql}
+                {order_sql}
+                LIMIT :limit OFFSET :offset
+            """
+            
             try:
-                # Retry without is_published columns
-                rows = db.session.execute(text(sql_no_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+                rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
                 items = [_row_to_dict(r) for r in rows]
+                total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
             except sa_exc.ProgrammingError:
+                # Last resort: legacy schema with file_url instead of stl_main_url
                 db.session.rollback()
-                # Fallback to legacy schema
+                sql_legacy = f"""
+                    SELECT id, title, price, tags,
+                           COALESCE(cover, '') AS cover,
+                           COALESCE(gallery_urls, '[]') AS gallery_urls,
+                           COALESCE(file_url,'') AS url,
+                           user_id, created_at
+                    FROM {ITEMS_TBL}
+                    {where_sql}
+                    {order_sql}
+                    LIMIT :limit OFFSET :offset
+                """
                 rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
                 items = []
                 for r in rows:
@@ -666,25 +656,10 @@ def api_items():
                     d.setdefault("rating", 0)
                     d.setdefault("downloads", 0)
                     items.append(d)
+                total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
         else:
-            # Try older schemas
-            try:
-                rows = db.session.execute(text(sql_new_min), {**params, "limit": per_page, "offset": offset}).fetchall()
-                items = []
-                for r in rows:
-                    d = _row_to_dict(r)
-                    d.setdefault("rating", 0)
-                    d.setdefault("downloads", 0)
-                    items.append(d)
-            except sa_exc.ProgrammingError:
-                db.session.rollback()
-                rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
-                items = []
-                for r in rows:
-                    d = _row_to_dict(r)
-                    d.setdefault("rating", 0)
-                    d.setdefault("downloads", 0)
-                    items.append(d)
+            # Other error - re-raise
+            raise
 
     # ✅ Use universal serializer for consistent cover_url normalization
     items = [_item_to_dict(it) for it in items]
@@ -717,52 +692,33 @@ def api_my_items():
 
     where_clause = "WHERE (user_id = :uid OR user_id IS NULL OR user_id = 0)"
 
-    sql_new = f"""
-        SELECT id, title, price, tags,
-               COALESCE(cover_url, '') AS cover,
-               COALESCE(gallery_urls, '[]') AS gallery_urls,
-               COALESCE(rating, 0) AS rating,
-               COALESCE(downloads, 0) AS downloads,
-               stl_main_url AS url,
-               format, user_id, created_at,
-               is_published, published_at
-        FROM {ITEMS_TBL}
-        {where_clause}
-        ORDER BY created_at DESC, id DESC
-        LIMIT :limit OFFSET :offset
-    """
-    sql_new_min = f"""
-        SELECT id, title, price, tags,
-               COALESCE(cover_url, '') AS cover,
-               COALESCE(gallery_urls, '[]') AS gallery_urls,
-               stl_main_url As url,
-               user_id, created_at,
-               is_published, published_at
-        FROM {ITEMS_TBL}
-        {where_clause}
-        ORDER BY created_at DESC, id DESC
-        LIMIT :limit OFFSET :offset
-    """
-    sql_legacy = f"""
-        SELECT id, title, price, tags,
-               COALESCE(cover, '') AS cover,
-               COALESCE(gallery_urls, '[]') AS gallery_urls,
-               COALESCE(file_url,'') AS url,
-               user_id, created_at
-        FROM {ITEMS_TBL}
-        {where_clause}
-        ORDER BY created_at DESC, id DESC
-        LIMIT :limit OFFSET :offset
-    """
-    # HOTFIX: Try with is_published first, fallback if columns don't exist
+    # ⚠️ HOTFIX: Try query with is_published - ALL inside try
     try:
-        rows = db.session.execute(text(sql_new), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
+        sql_with_publish = f"""
+            SELECT id, title, price, tags,
+                   COALESCE(cover_url, '') AS cover,
+                   COALESCE(gallery_urls, '[]') AS gallery_urls,
+                   COALESCE(rating, 0) AS rating,
+                   COALESCE(downloads, 0) AS downloads,
+                   stl_main_url AS url,
+                   format, user_id, created_at,
+                   is_published, published_at
+            FROM {ITEMS_TBL}
+            {where_clause}
+            ORDER BY created_at DESC, id DESC
+            LIMIT :limit OFFSET :offset
+        """
+        
+        rows = db.session.execute(text(sql_with_publish), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
         items = [_row_to_dict(r) for r in rows]
         total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"), {"uid": uid}).scalar() or 0
-    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
-        db.session.rollback()
+        
+    except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+        # 🔄 FALLBACK: Column doesn't exist yet
         if _is_missing_column_error(e):
-            # Columns don't exist yet, use schema without is_published
+            db.session.rollback()
+            
+            # Rebuild query WITHOUT is_published columns
             sql_fallback = f"""
                 SELECT id, title, price, tags,
                        COALESCE(cover_url, '') AS cover,
@@ -776,12 +732,25 @@ def api_my_items():
                 ORDER BY created_at DESC, id DESC
                 LIMIT :limit OFFSET :offset
             """
+            
             try:
                 rows = db.session.execute(text(sql_fallback), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
                 items = [_row_to_dict(r) for r in rows]
                 total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"), {"uid": uid}).scalar() or 0
             except sa_exc.ProgrammingError:
+                # Last resort: legacy schema
                 db.session.rollback()
+                sql_legacy = f"""
+                    SELECT id, title, price, tags,
+                           COALESCE(cover, '') AS cover,
+                           COALESCE(gallery_urls, '[]') AS gallery_urls,
+                           COALESCE(file_url,'') AS url,
+                           user_id, created_at
+                    FROM {ITEMS_TBL}
+                    {where_clause}
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT :limit OFFSET :offset
+                """
                 rows = db.session.execute(text(sql_legacy), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
                 items = []
                 for r in rows:
@@ -791,26 +760,8 @@ def api_my_items():
                     items.append(d)
                 total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"), {"uid": uid}).scalar() or 0
         else:
-            # Try older schemas
-            try:
-                rows = db.session.execute(text(sql_new_min), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
-                items = []
-                for r in rows:
-                    d = _row_to_dict(r)
-                    d.setdefault("rating", 0)
-                    d.setdefault("downloads", 0)
-                    items.append(d)
-                total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"), {"uid": uid}).scalar() or 0
-            except sa_exc.ProgrammingError:
-                db.session.rollback()
-                rows = db.session.execute(text(sql_legacy), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
-                items = []
-                for r in rows:
-                    d = _row_to_dict(r)
-                    d.setdefault("rating", 0)
-                    d.setdefault("downloads", 0)
-                    items.append(d)
-                total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"), {"uid": uid}).scalar() or 0
+            # Other error - re-raise
+            raise
 
     if not total:
         return api_items()
