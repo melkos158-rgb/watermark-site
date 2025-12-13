@@ -59,6 +59,10 @@ class MarketItem(_db.Model):
     rating = _db.Column(_db.Float, default=0)
     downloads = _db.Column(_db.Integer, default=0)
 
+    # ---------- публікація ----------
+    is_published = _db.Column(_db.Boolean, default=True, index=True)
+    published_at = _db.Column(_db.DateTime, nullable=True)
+
     created_at = _db.Column(_db.DateTime, default=datetime.utcnow, index=True)
     updated_at = _db.Column(
         _db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -115,6 +119,9 @@ class MarketItem(_db.Model):
             "format": self.format,
             "rating": self.rating,
             "downloads": self.downloads,
+            "is_published": self.is_published,
+            "published_at": self.published_at.isoformat() if self.published_at else None,
+            "status": "published" if self.is_published else "draft",
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

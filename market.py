@@ -315,6 +315,16 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     if (not raw_cover or cover_url == COVER_PLACEHOLDER) and normalized_gallery:
         cover_url = normalized_gallery[0]
     
+    # Parse publishing fields
+    is_published = it.get("is_published")
+    if is_published is None:
+        is_published = True  # default for legacy items
+    else:
+        is_published = bool(is_published)
+    
+    published_at = it.get("published_at")
+    status = "published" if is_published else "draft"
+    
     return {
         "id": it.get("id"),
         "title": it.get("title"),
@@ -330,8 +340,58 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
         "created_at": it.get("created_at"),
         "price_cents": it.get("price_cents") or (int(it.get("price", 0) * 100) if it.get("price") else 0),
         "is_free": it.get("is_free") or (it.get("price", 0) == 0),
+        "is_published": is_published,
+        "published_at": published_at,
+        "status": status,
     }
 
+
+# ───────────────────────────── Safe DB migration ─────────────────────────────
+_migration_done = False
+
+@bp.before_app_request
+def _ensure_publishing_columns():
+    """
+    Safe migration: add is_published and published_at columns if they don't exist.
+    """
+    global _migration_done
+    if _migration_done:
+        return
+    
+    p = request.path or ""
+    if not (p.startswith("/market") or p.startswith("/api/")):
+        return
+    
+    _migration_done = True
+    dialect = db.session.get_bind().dialect.name
+    
+    try:
+        # Check if columns exist by trying to query them
+        db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+    except Exception:
+        db.session.rollback()
+        try:
+            if dialect == "postgresql":
+                db.session.execute(text(f"""
+                    ALTER TABLE {ITEMS_TBL} 
+                    ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT TRUE,
+                    ADD COLUMN IF NOT EXISTS published_at TIMESTAMP
+                """))
+            else:
+                # SQLite doesn't support IF NOT EXISTS in ALTER TABLE
+                try:
+                    db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN is_published INTEGER DEFAULT 1"))
+                except Exception:
+                    pass
+                try:
+                    db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN published_at TIMESTAMP"))
+                except Exception:
+                    pass
+            db.session.commit()
+            current_app.logger.info("Publishing columns added successfully")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.warning(f"Migration failed (columns may already exist): {e}")
 
 # ───────────────────────────── NEW: категорії в g ─────────────────────────────
 @bp.before_app_request
@@ -477,6 +537,17 @@ def api_items():
         where.append("price = 0")
     elif free == "paid":
         where.append("price > 0")
+    
+    # ✅ Filter only published items in public market
+    try:
+        # Check if is_published column exists
+        db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+        where.append("(is_published = 1 OR is_published IS NULL)")
+    except Exception:
+        db.session.rollback()
+        # Column doesn't exist yet, skip filter
+        pass
+    
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
     if sort == "price_asc":
@@ -500,7 +571,8 @@ def api_items():
                COALESCE(rating, 0) AS rating,
                COALESCE(downloads, 0) AS downloads,
                {url_expr} AS url,
-               format, user_id, created_at
+               format, user_id, created_at,
+               is_published, published_at
         FROM {ITEMS_TBL}
         {where_sql}
         {order_sql}
@@ -511,7 +583,8 @@ def api_items():
                {cover_expr} AS cover,
                COALESCE(gallery_urls, '[]') AS gallery_urls,
                {url_expr}   AS url,
-               user_id, created_at
+               user_id, created_at,
+               is_published, published_at
         FROM {ITEMS_TBL}
         {where_sql}
         {order_sql}
@@ -590,7 +663,8 @@ def api_my_items():
                COALESCE(rating, 0) AS rating,
                COALESCE(downloads, 0) AS downloads,
                stl_main_url AS url,
-               format, user_id, created_at
+               format, user_id, created_at,
+               is_published, published_at
         FROM {ITEMS_TBL}
         {where_clause}
         ORDER BY created_at DESC, id DESC
@@ -601,7 +675,8 @@ def api_my_items():
                COALESCE(cover_url, '') AS cover,
                COALESCE(gallery_urls, '[]') AS gallery_urls,
                stl_main_url As url,
-               user_id, created_at
+               user_id, created_at,
+               is_published, published_at
         FROM {ITEMS_TBL}
         {where_clause}
         ORDER BY created_at DESC, id DESC
@@ -825,6 +900,77 @@ def api_item_delete(item_id: int):
         if res.rowcount == 0:
             return jsonify({"ok": False, "error": "not_found_or_forbidden"}), 403
         return jsonify({"ok": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
+
+
+@bp.post("/api/item/<int:item_id>/publish")
+def api_item_publish(item_id: int):
+    """Toggle is_published status and set published_at timestamp on first publish"""
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    
+    dialect = db.session.get_bind().dialect.name
+    
+    try:
+        # Get current status
+        row = db.session.execute(
+            text(f"SELECT is_published FROM {ITEMS_TBL} WHERE id = :id AND user_id = :uid"),
+            {"id": item_id, "uid": uid}
+        ).fetchone()
+        
+        if not row:
+            return jsonify({"ok": False, "error": "not_found_or_forbidden"}), 403
+        
+        current_status = bool(row[0]) if row[0] is not None else False
+        new_status = not current_status
+        
+        # Update is_published and published_at
+        if new_status:
+            # Publishing: set is_published=true and published_at=now
+            if dialect == "postgresql":
+                sql = f"""
+                    UPDATE {ITEMS_TBL}
+                    SET is_published = TRUE,
+                        published_at = COALESCE(published_at, NOW()),
+                        updated_at = NOW()
+                    WHERE id = :id AND user_id = :uid
+                """
+            else:
+                sql = f"""
+                    UPDATE {ITEMS_TBL}
+                    SET is_published = 1,
+                        published_at = COALESCE(published_at, CURRENT_TIMESTAMP),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id AND user_id = :uid
+                """
+        else:
+            # Unpublishing: set is_published=false, keep published_at
+            if dialect == "postgresql":
+                sql = f"""
+                    UPDATE {ITEMS_TBL}
+                    SET is_published = FALSE,
+                        updated_at = NOW()
+                    WHERE id = :id AND user_id = :uid
+                """
+            else:
+                sql = f"""
+                    UPDATE {ITEMS_TBL}
+                    SET is_published = 0,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id AND user_id = :uid
+                """
+        
+        res = db.session.execute(text(sql), {"id": item_id, "uid": uid})
+        db.session.commit()
+        
+        if res.rowcount == 0:
+            return jsonify({"ok": False, "error": "not_found_or_forbidden"}), 403
+        
+        return jsonify({"ok": True, "is_published": new_status})
+    
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500

@@ -193,6 +193,98 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       }
 
+      const btnPublish = card.querySelector(".my-ads-btn-publish");
+      if (btnPublish) {
+        btnPublish.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (!it.id) return;
+          
+          const btn = e.currentTarget;
+          const wasPublished = btn.dataset.published === "true";
+          btn.disabled = true;
+          btn.textContent = "Оновлення...";
+          
+          fetch("/api/item/" + it.id + "/publish", {
+            method: "POST",
+            credentials: "same-origin",
+          })
+            .then(function (res) {
+              if (!res.ok) throw new Error("Publish failed");
+              return res.json();
+            })
+            .then(function (data) {
+              if (data.ok) {
+                // Update item in memory
+                it.is_published = data.is_published;
+                // Re-render to show new status
+                renderAll();
+              } else {
+                throw new Error(data.error || "Unknown error");
+              }
+            })
+            .catch(function (err) {
+              console.error("Publish error:", err);
+              alert("Помилка при оновленні статусу");
+              btn.disabled = false;
+              btn.textContent = wasPublished ? "Зняти з публікації" : "Опублікувати";
+            });
+        });
+      }
+
+      const btnDelete = card.querySelector(".my-ads-btn-delete");
+      if (btnDelete) {
+        btnDelete.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (!it.id) return;
+          
+          if (!confirm("Ви впевнені, що хочете видалити \"" + (it.title || "цю модель") + "\"?")) {
+            return;
+          }
+          
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          btn.textContent = "Видалення...";
+          
+          fetch("/api/item/" + it.id + "/delete", {
+            method: "POST",
+            credentials: "same-origin",
+          })
+            .then(function (res) {
+              if (!res.ok) throw new Error("Delete failed");
+              return res.json();
+            })
+            .then(function (data) {
+              if (data.ok) {
+                // Remove item from array
+                items = items.filter(function (item) {
+                  return item.id !== it.id;
+                });
+                
+                // Adjust currentIndex if needed
+                if (currentIndex >= items.length) {
+                  currentIndex = Math.max(0, items.length - 1);
+                }
+                
+                // Show empty message if no items left
+                if (!items.length && emptyMsg) {
+                  emptyMsg.style.display = "block";
+                }
+                
+                // Re-render
+                renderAll();
+              } else {
+                throw new Error(data.error || "Unknown error");
+              }
+            })
+            .catch(function (err) {
+              console.error("Delete error:", err);
+              alert("Помилка при видаленні");
+              btn.disabled = false;
+              btn.textContent = "Видалити";
+            });
+        });
+      }
+
       gridInner.appendChild(card);
     });
   }
