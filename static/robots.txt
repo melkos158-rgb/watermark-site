@@ -1,0 +1,18 @@
+User-agent: *
+Disallow: /auth/
+Disallow: /utils/
+Disallow: /static/
+Disallow: /api/
+Allow: /
+
+# Головні сторінки, які варто індексувати
+Allow: /stl
+Allow: /video
+Allow: /enhance
+Allow: /edit
+Allow: /edit_photo
+Allow: /documents
+Allow: /market
+
+# Карта сайту для швидкої індексації
+Sitemap: https://proofly.store/sitemap.xml

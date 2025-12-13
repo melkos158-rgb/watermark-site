@@ -1,0 +1,55 @@
+{# templates/market/my-ads.html #}
+{% extends "market/layout.html" %}
+{% set market_page = 'my-ads' %}
+
+{# CSS саме для цієї сторінки #}
+{% block extra_head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/my-ads.css') }}">
+{% endblock %}
+
+{# JS для цієї сторінки #}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='market/js/my-ads.js') }}"></script>
+{% endblock %}
+
+{% block market_body %}
+<div class="my-ads-page container-xl">
+  <h1 class="my-ads-title">Мої оголошення</h1>
+  <p class="my-ads-subtitle">
+    Тут відображаються всі твої моделі. Додай нову модель — і побачиш її в каруселі та сітці нижче.
+  </p>
+
+  <!-- КАРУСЕЛЬ -->
+  <section class="my-ads-carousel-wrapper">
+    <button class="my-ads-arrow left" type="button" aria-label="Попередня модель">‹</button>
+
+    <div class="my-ads-carousel" id="myAdsCarousel">
+      <!-- JS вставить сюди великі картки -->
+    </div>
+
+    <button class="my-ads-arrow right" type="button" aria-label="Наступна модель">›</button>
+  </section>
+
+  <!-- КНОПКА РЕДАГУВАННЯ / ДОДАВАННЯ -->
+  <div class="my-ads-edit-btn-wrapper">
+    <a href="javascript:void(0)"
+       class="btn btn-primary my-ads-edit-btn my-ads-add-btn">
+      Додати / редагувати модель
+    </a>
+  </div>
+
+  <!-- ПУСТИЙ СТАН -->
+  <p class="my-ads-empty">
+    У тебе ще немає оголошень. Додай першу модель, щоб побачити карусель 😎
+  </p>
+
+  <!-- СІТКА КАРТОК -->
+  <section class="my-ads-grid-wrapper">
+    <div class="my-ads-grid-inner">
+      <!-- JS заповнить grid картками моделей -->
+    </div>
+  </section>
+</div>
+{% endblock %}

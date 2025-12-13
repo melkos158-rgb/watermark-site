@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Мої оголошення — Proofly STL Market{% endblock %}
+
+{% block content %}
+<div class="market-page my-market-page" data-market-root data-market-page="my">
+
+  <!-- 🔍 Пошук зверху -->
+  <section class="my-search-section">
+    <form id="my-search-form"
+          class="my-search-form"
+          action="{{ url_for('market.page_market', owner=request.args.get('owner', 'me')) }}"
+          method="get"
+          role="search"
+          aria-label="Пошук по моїх моделях">
+      <input id="my-search-input"
+             type="search"
+             name="q"
+             placeholder="Пошук"
+             value="{{ request.args.get('q', '') }}">
+      <button type="submit">Пошук</button>
+    </form>
+  </section>
+
+  <!-- 🎞 Карусель з 3D-превʼю (контейнер, дані підтягуємо з JS) -->
+  <section id="my-carousel" class="my-carousel" data-items-count="0">
+    <button class="mc-arrow mc-arrow-left" type="button" data-dir="prev" aria-label="Попередня модель">
+      ‹
+    </button>
+
+    <div class="mc-strip">
+      <!-- Ліве маленьке превʼю -->
+      <div class="mc-card mc-card-side" id="mc-left-card">
+        <div class="mc-thumb" data-role="thumb"></div>
+        <div class="mc-title" data-role="title"></div>
+      </div>
+
+      <!-- Центральне велике превʼю -->
+      <div class="mc-card mc-card-main" id="mc-main-card">
+        <div class="mc-thumb" data-role="thumb"></div>
+        <div class="mc-title" data-role="title"></div>
+        <a id="mc-edit-btn"
+           class="mc-edit-btn"
+           href="#"
+           aria-label="Редагувати оголошення">
+          Редагувати
+        </a>
+      </div>
+
+      <!-- Праве маленьке превʼю -->
+      <div class="mc-card mc-card-side" id="mc-right-card">
+        <div class="mc-thumb" data-role="thumb"></div>
+        <div class="mc-title" data-role="title"></div>
+      </div>
+    </div>
+
+    <button class="mc-arrow mc-arrow-right" type="button" data-dir="next" aria-label="Наступна модель">
+      ›
+    </button>
+
+    <div class="mc-empty" id="mc-empty">
+      У тебе ще немає оголошень. Додай першу модель, щоб побачити карусель 😎
+    </div>
+  </section>
+
+  <!-- 🧱 Грід «Мої оголошення» -->
+  <section class="my-grid-section">
+    <h2 class="my-grid-title">Мої оголошення</h2>
+
+    <div class="my-grid" id="my-grid">
+      {# JS вставить сюди карти оголошень #}
+    </div>
+
+    <p class="my-grid-empty" id="my-grid-empty">
+      Поки що немає моделей. Як тільки додаси — вони зʼявляться тут у вигляді сітки.
+    </p>
+  </section>
+</div>
+
+{# Підключаємо зовнішній JS/CSS, як і було #}
+<script src="{{ url_for('static', filename='js/market_my.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/market_my.css') }}">
+
+{# Додатковий inline-скрипт: базові дані, які може використати JS #}
+<script>
+  window.PROOFLY_MY_MARKET = window.PROOFLY_MY_MARKET || {};
+  window.PROOFLY_MY_MARKET.apiMyUrl = "/api/market/my";
+  window.PROOFLY_MY_MARKET.itemEditBase = "/market/edit/";
+  window.PROOFLY_MY_MARKET.itemPublicBase = "/market/item/";
+</script>
+{% endblock %}

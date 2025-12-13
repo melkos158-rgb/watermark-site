@@ -1,0 +1,24 @@
+{% if pages and pages > 1 %}
+<nav class="pagination">
+  {% set p = page or 1 %}
+  {% set base = request.path %}
+  {% if p > 1 %}
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=1)|urlencode }}">&laquo;</a>
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=p-1)|urlencode }}">‹</a>
+  {% endif %}
+  <span class="pg current">{{ p }}/{{ pages }}</span>
+  {% if p < pages %}
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=p+1)|urlencode }}">›</a>
+    <a class="pg" href="{{ base }}?{{ request.args.to_dict()|d({})|dict(page=pages)|urlencode }}">&raquo;</a>
+  {% endif %}
+</nav>
+{% endif %}
+
+<style>
+.pagination{display:flex;gap:6px;align-items:center;justify-content:center;margin:14px 0}
+.pg{display:inline-flex;align-items:center;justify-content:center;
+    min-width:32px;height:32px;padding:0 8px;border:1px solid var(--line);
+    border-radius:8px;background:var(--card);color:var(--text);text-decoration:none}
+.pg.current{background:transparent;border-style:dashed;color:var(--muted);pointer-events:none}
+.pg:hover{transform:translateY(-1px)}
+</style>

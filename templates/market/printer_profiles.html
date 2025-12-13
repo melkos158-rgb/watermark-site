@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}Профілі принтерів — Proofly STL{% endblock %}
+
+{% block content %}
+<style>
+  .pp-wrap{
+    max-width:1200px;
+    margin:24px auto 40px;
+    padding:0 12px;
+  }
+  .pp-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .pp-title{
+    font-size:22px;
+    font-weight:600;
+  }
+  .pp-sub{
+    font-size:13px;
+    opacity:.8;
+    margin-top:4px;
+  }
+  .pp-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:8px;
+  }
+  .pp-badge{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.85;
+  }
+
+  .pp-layout{
+    display:grid;
+    grid-template-columns: minmax(0,1.1fr) minmax(0,1.1fr) minmax(0,0.9fr);
+    gap:16px;
+    align-items:start;
+  }
+  @media(max-width:1100px){
+    .pp-layout{
+      grid-template-columns:1fr;
+    }
+  }
+
+  .pp-card{
+    background:#0f1117;
+    border:1px solid #242735;
+    border-radius:12px;
+    padding:14px 16px;
+  }
+  .pp-card h2{
+    margin:0 0 10px 0;
+    font-size:18px;
+  }
+  .pp-card h3{
+    margin:0 0 8px 0;
+    font-size:15px;
+  }
+  .pp-help{
+    font-size:12px;
+    opacity:.8;
+    margin-top:4px;
+  }
+
+  .pp-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    margin-bottom:8px;
+  }
+
+  .pp-input,
+  .pp-select{
+    background:#050712;
+    border:1px solid #252a3a;
+    border-radius:8px;
+    padding:6px 10px;
+    color:#e2e8f0;
+    font-size:13px;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .pp-select{
+    border-radius:999px;
+    padding:4px 10px;
+    width:auto;
+  }
+
+  .pp-search-input{
+    flex:1 1 auto;
+  }
+
+  .pp-btn{
+    border-radius:999px;
+    border:1px solid #2563eb;
+    background:#1d3a7f;
+    padding:6px 14px;
+    font-size:13px;
+    cursor:pointer;
+    color:#e5f0ff;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    transition:background .12s,border-color .12s,transform .06s;
+  }
+  .pp-btn.secondary{
+    border-color:#374151;
+    background:#111827;
+    color:#e5e7eb;
+  }
+  .pp-btn.danger{
+    border-color:#b91c1c;
+    background:#7f1d1d;
+  }
+  .pp-btn:active{
+    transform:translateY(1px);
+  }
+  .pp-btn:disabled{
+    opacity:.6;
+    cursor:default;
+  }
+
+  .pp-list{
+    margin-top:10px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-height:460px;
+    overflow:auto;
+  }
+  .pp-item{
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid #1f2937;
+    background:#020617;
+    display:grid;
+    grid-template-columns:minmax(0,1.4fr) minmax(0,1.2fr) auto;
+    gap:8px;
+    align-items:center;
+    cursor:pointer;
+    transition:border-color .12s,background .12s,transform .06s;
+  }
+  .pp-item:hover{
+    border-color:#2563eb;
+    background:#020817;
+  }
+  .pp-item.active{
+    border-color:#22c55e;
+    background:#022c22;
+  }
+  .pp-item-name{
+    font-size:14px;
+    font-weight:500;
+  }
+  .pp-item-meta{
+    font-size:11px;
+    opacity:.85;
+  }
+  .pp-item-tags{
+    font-size:11px;
+    opacity:.8;
+  }
+  .pp-item-actions{
+    display:flex;
+    gap:6px;
+    justify-content:flex-end;
+  }
+  .pp-tag-pill{
+    display:inline-flex;
+    align-items:center;
+    padding:1px 6px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    margin-right:4px;
+  }
+
+  .pp-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:8px;
+  }
+  .pp-grid-3{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:8px;
+  }
+  @media(max-width:700px){
+    .pp-grid,
+    .pp-grid-3{
+      grid-template-columns:1fr;
+    }
+  }
+  .pp-field label{
+    display:block;
+    font-size:12px;
+    opacity:.9;
+    margin-bottom:3px;
+  }
+
+  .pp-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:4px;
+  }
+  .pp-chip{
+    font-size:11px;
+    padding:2px 7px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.9;
+  }
+
+  .pp-status{
+    font-size:12px;
+    opacity:.8;
+    margin-top:6px;
+  }
+
+  .pp-compat{
+    font-size:13px;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:6px;
+    margin-top:8px;
+  }
+  .pp-compat span strong{
+    font-weight:600;
+  }
+</style>
+
+<div class="pp-wrap">
+  <header class="pp-header">
+    <div>
+      <div class="pp-title">Профілі принтерів</div>
+      <div class="pp-sub">
+        Зберігай свої принтери, сопла, матеріали та базові обмеження.
+        Далі ці профілі будуть використовуватися у <strong>Printability Check</strong>,
+        <strong>G-code Viewer</strong>, бандлах і майбутньому авто-слайсері.
+      </div>
+      <div class="pp-badges">
+        <div class="pp-badge">🧵 Діаметр філамента</div>
+        <div class="pp-badge">🔩 Сопло</div>
+        <div class="pp-badge">📏 Обʼєм стола</div>
+        <div class="pp-badge">⚙️ Швидкості</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+      <button id="pp-btn-new" class="pp-btn">＋ Новий профіль</button>
+      <div class="pp-help" style="max-width:200px;text-align:right;">
+        Активний профіль синхронізується з іншими інструментами Proofly.
+      </div>
+    </div>
+  </header>
+
+  <div class="pp-layout">
+    <!-- ЛІВА: список профілів -->
+    <section class="pp-card">
+      <h2>Список профілів</h2>
+
+      <div class="pp-row">
+        <input id="pp-search" class="pp-input pp-search-input" type="text" placeholder="Пошук: Bambu X1C, Ender 3, Prusa MK4…">
+        <select id="pp-filter-type" class="pp-select">
+          <option value="">Тип: всі</option>
+          <option value="bed-slinger">Bed-slinger</option>
+          <option value="corexy">CoreXY</option>
+          <option value="bed-slinger">Cartesion</option>
+          <option value="delta">Delta</option>
+          <option value="bambu">Bambu</option>
+        </select>
+      </div>
+
+      <div id="pp-list" class="pp-list">
+        <!-- Список профілів рендериться через printer_profiles.js -->
+      </div>
+
+      <div id="pp-list-empty" class="pp-help" style="margin-top:8px;display:none;">
+        Поки що немає жодного профілю. Створи перший — наприклад,
+        <strong>Bambu Lab A1 mini</strong> або <strong>Ender-3 V2</strong>.
+      </div>
+    </section>
+
+    <!-- ЦЕНТР: форма редагування -->
+    <section class="pp-card">
+      <h2 id="pp-form-title">Параметри профілю</h2>
+      <div class="pp-help">
+        Заповни основні параметри принтера. Для базового UX достатньо розміру стола,
+        сопла, діаметра філамента та максимальної швидкості.
+      </div>
+
+      <form id="pp-form" autocomplete="off" style="margin-top:10px;">
+        <input type="hidden" id="pp-id">
+
+        <div class="pp-grid">
+          <div class="pp-field">
+            <label>Назва профілю</label>
+            <input id="pp-name" class="pp-input" placeholder="Bambu X1C, Ender-3 V3 KE…">
+          </div>
+          <div class="pp-field">
+            <label>Бренд / модель</label>
+            <input id="pp-model" class="pp-input" placeholder="Bambu Lab, Creality, Prusa…">
+          </div>
+        </div>
+
+        <div class="pp-grid">
+          <div class="pp-field">
+            <label>Тип принтера</label>
+            <select id="pp-type" class="pp-input">
+              <option value="">(не вказано)</option>
+              <option value="cartesian">Cartesian / bed-slinger</option>
+              <option value="corexy">CoreXY</option>
+              <option value="delta">Delta</option>
+              <option value="bambu">Bambu / закритий</option>
+              <option value="resin">Resin (MSLA)</option>
+            </select>
+          </div>
+          <div class="pp-field">
+            <label>Драйвер / прошивка</label>
+            <input id="pp-firmware" class="pp-input" placeholder="Marlin, Klipper, Bambu OS…">
+          </div>
+        </div>
+
+        <h3 style="margin-top:14px;">Розмір стола (XYZ, мм)</h3>
+        <div class="pp-grid-3">
+          <div class="pp-field">
+            <label>X (ширина)</label>
+            <input id="pp-bed-x" class="pp-input" type="number" min="1" step="1" placeholder="256">
+          </div>
+          <div class="pp-field">
+            <label>Y (глибина)</label>
+            <input id="pp-bed-y" class="pp-input" type="number" min="1" step="1" placeholder="256">
+          </div>
+          <div class="pp-field">
+            <label>Z (висота)</label>
+            <input id="pp-bed-z" class="pp-input" type="number" min="1" step="1" placeholder="256">
+          </div>
+        </div>
+
+        <h3 style="margin-top:14px;">Філамент / сопло</h3>
+        <div class="pp-grid-3">
+          <div class="pp-field">
+            <label>Діаметр філамента, мм</label>
+            <input id="pp-filament-dia" class="pp-input" type="number" step="0.01" placeholder="1.75">
+          </div>
+          <div class="pp-field">
+            <label>Діаметр сопла, мм</label>
+            <input id="pp-nozzle-dia" class="pp-input" type="number" step="0.01" placeholder="0.4">
+          </div>
+          <div class="pp-field">
+            <label>Температура сопла (типова), °C</label>
+            <input id="pp-temp-nozzle" class="pp-input" type="number" step="1" placeholder="210">
+          </div>
+        </div>
+
+        <div class="pp-grid-3">
+          <div class="pp-field">
+            <label>Температура стола (типова), °C</label>
+            <input id="pp-temp-bed" class="pp-input" type="number" step="1" placeholder="60">
+          </div>
+          <div class="pp-field">
+            <label>Макс. швидкість друку, мм/с</label>
+            <input id="pp-max-print-speed" class="pp-input" type="number" step="1" placeholder="250">
+          </div>
+          <div class="pp-field">
+            <label>Макс. швидкість переміщень, мм/с</label>
+            <input id="pp-max-travel-speed" class="pp-input" type="number" step="1" placeholder="500">
+          </div>
+        </div>
+
+        <h3 style="margin-top:14px;">Матеріали / фішки</h3>
+        <div class="pp-field">
+          <label>Підтримувані матеріали</label>
+          <input id="pp-materials" class="pp-input" placeholder="PLA, PETG, ABS, TPU…">
+          <div class="pp-help">Просто через кому; далі це можна буде привʼязати до маркету філамента.</div>
+        </div>
+
+        <div class="pp-field">
+          <label>Особливості</label>
+          <textarea id="pp-notes" class="pp-input" rows="3" placeholder="AMS, авто-калібровка, датчики, direct drive…"></textarea>
+        </div>
+
+        <div class="pp-row" style="justify-content:space-between;margin-top:12px;">
+          <div>
+            <button type="button" id="pp-btn-save" class="pp-btn">💾 Зберегти</button>
+            <button type="button" id="pp-btn-duplicate" class="pp-btn secondary">⧉ Дублювати</button>
+          </div>
+          <div>
+            <button type="button" id="pp-btn-delete" class="pp-btn danger">🗑 Видалити</button>
+          </div>
+        </div>
+
+        <div id="pp-status" class="pp-status"></div>
+      </form>
+    </section>
+
+    <!-- ПРАВА: активний профіль / сумісність -->
+    <section class="pp-card">
+      <h2>Активний профіль</h2>
+      <div class="pp-help">
+        Обраний профіль буде застосовуватися за замовчуванням у:
+        <ul style="margin:4px 0 0 18px;font-size:12px;opacity:.9;">
+          <li>Printability Check (перевірка влізання в стіл, мін. товщина, кут нависань)</li>
+          <li>G-code Viewer (аналітика часу та швидкостей)</li>
+          <li>Бандли з філаментом і таргетованими STL</li>
+        </ul>
+      </div>
+
+      <div id="pp-active" style="margin-top:10px;font-size:13px;">
+        <div style="opacity:.7;">Ще нічого не обрано. Клікни по будь-якому профілю в списку зліва, щоб зробити його активним.</div>
+      </div>
+
+      <h3 style="margin-top:16px;">Сумісність</h3>
+      <div id="pp-compat" class="pp-compat">
+        <!-- JS вставить аналіз сумісності -->
+      </div>
+
+      <h3 style="margin-top:16px;">Швидкі пресети</h3>
+      <div class="pp-chips" id="pp-presets">
+        <!-- заповнюється з JS: Bambu A1, Ender 3 тощо -->
+      </div>
+
+      <div class="pp-help" style="margin-top:10px;">
+        Клік по пресету — створення швидкого профілю з готовими параметрами, які можна підредагувати.
+      </div>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+  import { initPrinterProfiles } from "{{ url_for('static', filename='js/printer_profiles.js') }}";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initPrinterProfiles({
+      listId: "pp-list",
+      listEmptyId: "pp-list-empty",
+      searchId: "pp-search",
+      filterTypeId: "pp-filter-type",
+      btnNewId: "pp-btn-new",
+      formId: "pp-form",
+      statusId: "pp-status",
+      activeContainerId: "pp-active",
+      compatContainerId: "pp-compat",
+      presetsContainerId: "pp-presets",
+    });
+  });
+</script>
+{% endblock %}

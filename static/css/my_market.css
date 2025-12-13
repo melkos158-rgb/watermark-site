@@ -1,0 +1,168 @@
+.my-market-page {
+  max-width: 1100px;
+  margin: 24px auto 60px;
+  padding: 0 16px 40px;
+}
+
+/* 🔍 Пошук */
+
+.my-search-section {
+  margin-bottom: 24px;
+}
+
+.my-search-form {
+  display: flex;
+  gap: 8px;
+}
+
+.my-search-form input[type="search"] {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #2b3140;
+  background: #05070d;
+  color: #fff;
+}
+
+.my-search-form button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 🎞 Карусель */
+
+.my-carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.my-carousel .mc-arrow {
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #2b3140;
+  background: #05070d;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.my-carousel .mc-strip {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  max-width: 720px;
+}
+
+.mc-card {
+  border-radius: 12px;
+  border: 1px solid #2b3140;
+  background: #05070d;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  min-height: 120px;
+}
+
+.mc-card-side .mc-thumb {
+  aspect-ratio: 1 / 1;
+}
+
+.mc-card-main .mc-thumb {
+  aspect-ratio: 1 / 1;
+}
+
+.mc-thumb {
+  width: 100%;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: #111827;
+}
+
+.mc-title {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #e5e7eb;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mc-card-main .mc-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mc-edit-btn {
+  margin-top: 8px;
+  display: block;
+  text-align: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 🧱 Грід */
+
+.my-grid-section {
+  margin-top: 24px;
+}
+
+.my-grid-title {
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+
+.my-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.my-grid-item {
+  border-radius: 10px;
+  border: 1px solid #2b3140;
+  background: #05070d;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.my-grid-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background-size: cover;
+  background-position: center;
+}
+
+.my-grid-empty {
+  color: #9ca3af;
+}
+
+/* Mobile */
+
+@media (max-width: 768px) {
+  .my-carousel .mc-strip {
+    grid-template-columns: 1fr;
+  }
+  .mc-card-side {
+    display: none;
+  }
+}

@@ -1,0 +1,162 @@
+{% extends "market/layout.html" %}
+
+{# 
+  Сторінка аналітики автора STL-моделей.
+  Працює поверх market/layout.html і використовує блок market_main.
+#}
+
+{% block market_main %}
+
+  {# Безпечні дефолти, якщо бек не передав stats #}
+  {% set s = stats if stats is defined else {
+    'total_views': 0,
+    'total_downloads': 0,
+    'total_sales': 0,
+    'ctr': 0,
+    'avg_price': 0,
+    'top_items': []
+  } %}
+
+  <section class="market-stats">
+    <header class="stats-header">
+      <h1>Моя статистика</h1>
+      <p class="muted">
+        Перегляди, завантаження, покупки та ефективність твоїх моделей на Proofly STL Market.
+      </p>
+
+      <div class="stats-range-switch">
+        <button class="btn tiny stats-range-btn active" data-range="7d">7 днів</button>
+        <button class="btn tiny stats-range-btn" data-range="30d">30 днів</button>
+        <button class="btn tiny stats-range-btn" data-range="90d">90 днів</button>
+        <button class="btn tiny stats-range-btn" data-range="all">За весь час</button>
+      </div>
+    </header>
+
+    <!-- KPI картки -->
+    <section class="stats-kpi-grid">
+      <article class="stats-card">
+        <div class="stats-label">Перегляди</div>
+        <div class="stats-value">{{ s.total_views }}</div>
+        <div class="stats-sub" data-kpi="views_delta">Δ за період: –</div>
+      </article>
+
+      <article class="stats-card">
+        <div class="stats-label">Завантаження</div>
+        <div class="stats-value">{{ s.total_downloads }}</div>
+        <div class="stats-sub" data-kpi="downloads_delta">Δ за період: –</div>
+      </article>
+
+      <article class="stats-card">
+        <div class="stats-label">Продажі</div>
+        <div class="stats-value">{{ s.total_sales }}</div>
+        <div class="stats-sub" data-kpi="sales_delta">Δ за період: –</div>
+      </article>
+
+      <article class="stats-card">
+        <div class="stats-label">CTR (перегляд → завантаження)</div>
+        <div class="stats-value">
+          {{ "%.1f"|format(s.ctr or 0) }}%
+        </div>
+        <div class="stats-sub">
+          Наскільки добре працюють прев’ю та опис.
+        </div>
+      </article>
+
+      <article class="stats-card">
+        <div class="stats-label">Середня ціна</div>
+        <div class="stats-value">
+          {{ "%.2f"|format(s.avg_price or 0) }} zł
+        </div>
+        <div class="stats-sub">
+          Середня вартість твоїх платних моделей.
+        </div>
+      </article>
+    </section>
+
+    <!-- Графіки -->
+    <section class="stats-charts">
+      <div class="stats-chart-card">
+        <h2>Перегляди vs завантаження</h2>
+        <p class="muted">
+          Допомагає бачити, які дні приносять максимум трафіку та дій.
+        </p>
+        <canvas
+          id="chart-views-downloads"
+          class="stats-chart"
+          data-endpoint="/api/market/stats/timeseries">
+        </canvas>
+      </div>
+
+      <div class="stats-chart-card">
+        <h2>Пошукові запити (heatmap)</h2>
+        <p class="muted">
+          Які слова люди вводять, перш ніж потрапити на твої моделі.
+        </p>
+        <div
+          id="search-heatmap"
+          class="search-heatmap"
+          data-endpoint="/api/market/stats/search_heatmap">
+          <div class="placeholder muted">
+            Heatmap запитів завантажується…
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Таблиця ТОП моделей -->
+    <section class="stats-top-items">
+      <h2>Топ моделей за період</h2>
+      <p class="muted">
+        Сортуруй за переглядами, завантаженнями, продажами або CTR.
+      </p>
+
+      <div class="top-table-scroll">
+        <table class="top-items-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Модель</th>
+              <th>Перегляди</th>
+              <th>Завантаження</th>
+              <th>Продажі</th>
+              <th>CTR</th>
+              <th>Дохід</th>
+            </tr>
+          </thead>
+          <tbody id="top-items-body">
+            {% if s.top_items and s.top_items|length %}
+              {% for item in s.top_items %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>
+                    <a href="{{ url_for('market.detail', item_id=item.id) }}" class="link">
+                      {{ item.title }}
+                    </a>
+                  </td>
+                  <td>{{ item.views }}</td>
+                  <td>{{ item.downloads }}</td>
+                  <td>{{ item.sales }}</td>
+                  <td>{{ "%.1f"|format(item.ctr or 0) }}%</td>
+                  <td>{{ "%.2f"|format(item.revenue or 0) }} zł</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="muted">
+                  Поки що недостатньо даних. Опублікуй кілька моделей і почни збирати статистику 📈
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  {# JS, який намалює графіки й підтягне дані #}
+  <script src="{{ url_for('static', filename='market/js/analytics.js') }}"></script>
+{% endblock %}

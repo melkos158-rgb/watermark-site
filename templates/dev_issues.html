@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Dev Issues{% endblock %}
+
+{% block content %}
+
+<h1 style="margin-bottom: 20px;">🛠 Dev Issues — проблеми, правки та сірий код</h1>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dev_issues.css') }}">
+<script src="{{ url_for('static', filename='js/dev_issues.js') }}"></script>
+
+<div class="dev-issues-container">
+
+  {% if items %}
+    {% for it in items %}
+      <div class="issue-card issue-{{ it.status }}" data-id="{{ it.id }}">
+        
+        <div class="issue-top">
+          <div class="issue-title">
+            {{ it.title }}
+          </div>
+
+          <div class="issue-status">
+            {% if it.status == "error" %}
+              🔴 Проблема
+            {% elif it.status == "fix" %}
+              🔵 Потрібна правка
+            {% elif it.status == "orphan" %}
+              ⚪ Не підключено
+            {% else %}
+              🟢 ОК
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="issue-section">
+          <strong>URL / Root:</strong> {{ it.root.label }}
+        </div>
+
+        <div class="issue-section">
+          <strong>Файли:</strong>
+          <ul>
+            {% for n in it.nodes %}
+              <li>{{ n.file }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        {% if it.problems %}
+        <div class="issue-section">
+          <strong>Проблеми:</strong>
+          <ul>
+            {% for p in it.problems %}
+              <li class="problem-item"
+                  data-feature="{{ it.title }}"
+                  data-file="{{ p.file }}"
+                  data-function="{{ p.function or '' }}"
+                  data-details="{{ p.details|e }}"
+                  data-status="{{ p.status }}">
+                <span class="problem-link">
+                  {% if p.status == "error" %}🔴{% endif %}
+                  {% if p.status == "fix" %}🔵{% endif %}
+                  {% if p.status == "orphan" %}⚪{% endif %}
+                  {{ p.title }}
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+      </div>
+    {% endfor %}
+
+  {% else %}
+    <p>Немає проблемних елементів.</p>
+  {% endif %}
+
+</div>
+
+
+<!-- === Деталі проблему — відкривається при кліку === -->
+
+<div id="problem-detail" class="problem-detail" style="display:none;">
+  <h2 id="pd-title">Деталі проблеми</h2>
+  <pre id="pd-text"></pre>
+</div>
+
+<script>
+document.querySelectorAll('.problem-item').forEach(el => {
+  el.addEventListener('click', () => {
+
+    const feature = el.dataset.feature;
+    const file = el.dataset.file;
+    const func = el.dataset.function;
+    const details = el.dataset.details;
+
+    document.getElementById("pd-title").textContent = "Проблема у фічі: " + feature;
+
+    const text =
+`Фіча: ${feature}
+Файл: ${file}
+Функція: ${func || "не вказано"}
+
+Опис проблеми:
+${details}
+
+Що треба зробити:
+(допиши свою задачу і відправ мені цей текст у чат)
+`;
+
+    document.getElementById("pd-text").textContent = text;
+    document.getElementById("problem-detail").style.display = "block";
+  });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,285 @@
+/* static/css/animations.css
+ *
+ * Глобальні анімації для Proofly STL Market.
+ *
+ * Тут тільки "building blocks" — готові класи, які можна навішувати будь-де:
+ *
+ *   .anim-fade-in
+ *   .anim-fade-in-up
+ *   .anim-scale-in
+ *   .anim-pop
+ *   .anim-shine
+ *   .anim-pulse-soft
+ *   .anim-slide-left / .anim-slide-right
+ *   .anim-hover-lift
+ *   .anim-hover-glow
+ *   .anim-skeleton
+ *
+ * Приклад у HTML:
+ *   <div class="market-card anim-fade-in-up anim-hover-lift">...</div>
+ */
+
+
+/* ================== БАЗОВІ KEYFRAMES ================== */
+
+@keyframes pf-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pf-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pf-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pf-pop {
+  0%   { transform: scale(0.95); }
+  60%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pf-shine {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes pf-pulse-soft {
+  0%   { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.0); }
+  50%  { box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.0); }
+}
+
+@keyframes pf-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pf-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pf-skeleton {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+
+/* ================== УТИЛІТНІ КЛАСИ ДЛЯ ВХОДУ ================== */
+
+.anim-fade-in {
+  opacity: 0;
+  animation: pf-fade-in 0.26s ease-out forwards;
+}
+
+.anim-fade-in-up {
+  opacity: 0;
+  animation: pf-fade-in-up 0.30s ease-out forwards;
+}
+
+.anim-scale-in {
+  opacity: 0;
+  animation: pf-scale-in 0.24s ease-out forwards;
+}
+
+.anim-pop {
+  animation: pf-pop 0.18s ease-out;
+}
+
+/* Наприклад, для банерів на адмінці */
+.anim-slide-left {
+  opacity: 0;
+  animation: pf-slide-left 0.28s ease-out forwards;
+}
+
+.anim-slide-right {
+  opacity: 0;
+  animation: pf-slide-right 0.28s ease-out forwards;
+}
+
+/* Можна трохи затримки через data-атрибут:
+   <div class="anim-fade-in-up delay-2">...</div>
+*/
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.10s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.20s; }
+.delay-5 { animation-delay: 0.25s; }
+
+
+/* ================== ХОВЕР-АНІМАЦІЇ ДЛЯ КАРТОК ================== */
+
+.anim-hover-lift {
+  transition:
+    transform 0.16s ease-out,
+    box-shadow 0.16s ease-out,
+    border-color 0.16s ease-out,
+    background 0.16s ease-out;
+}
+
+.anim-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+}
+
+.anim-hover-glow {
+  position: relative;
+  transition:
+    box-shadow 0.18s ease-out,
+    border-color 0.18s ease-out,
+    transform 0.18s ease-out;
+}
+
+.anim-hover-glow:hover {
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.7), 0 18px 40px rgba(15,23,42,0.8);
+  border-color: rgba(59,130,246,0.9);
+  transform: translateY(-1px);
+}
+
+/* Легка пульсація для виділення активних елементів (наприклад, активний бандл) */
+.anim-pulse-soft {
+  animation: pf-pulse-soft 1.6s ease-out infinite;
+}
+
+
+/* ================== SHINE ефект для карточок / кнопок ================== */
+
+/* Обрізаємо shine всередині елемента */
+.anim-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.anim-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.0) 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0.0) 100%
+  );
+  transform: translateX(-100%);
+  animation: pf-shine 1.4s ease-out;
+  pointer-events: none;
+}
+
+/* Якщо потрібен нескінченний shine (наприклад, промо-бейдж) */
+.anim-shine-loop::after {
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+
+/* ================== SKELETON-LOADING (placeholder) ================== */
+
+.anim-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #111827;
+  background-image: linear-gradient(
+    90deg,
+    #111827 0px,
+    #1f2933 40px,
+    #111827 80px
+  );
+  background-size: 200px 100%;
+  animation: pf-skeleton 1.4s ease-in-out infinite;
+}
+
+/* Приклади для конкретних блоків:
+   <div class="card anim-skeleton skeleton-rect"></div>
+*/
+.skeleton-rect {
+  border-radius: 8px;
+}
+
+.skeleton-pill {
+  border-radius: 999px;
+}
+
+.skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+}
+
+/* ================== DRAG / DROP / СТАНИ ================== */
+
+/* Для перетягування карток (drag preview) */
+.anim-dragging {
+  opacity: 0.75;
+  transform: scale(0.98);
+  box-shadow: 0 0 0 1px rgba(96,165,250,0.6);
+}
+
+/* Для drop-зони під час drag-over */
+.anim-drop-target {
+  position: relative;
+}
+.anim-drop-target::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px dashed rgba(96,165,250,0.7);
+  box-shadow: 0 0 0 1px rgba(17,24,39,0.9);
+  pointer-events: none;
+}
+
+
+/* ================== MISC ================== */
+
+/* Легка вібрація / shake (для помилок) */
+@keyframes pf-shake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-2px); }
+  40%  { transform: translateX(2px); }
+  60%  { transform: translateX(-2px); }
+  80%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+.anim-shake {
+  animation: pf-shake 0.22s ease-out;
+}
+
+/* Можна навісити, коли форма не пройшла валідацію:
+   form.classList.add('anim-shake');
+*/

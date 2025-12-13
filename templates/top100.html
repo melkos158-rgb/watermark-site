@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Top-100 PXP</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  .page { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { margin-bottom: 18px; color: var(--ink); }
+
+  .table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 12px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--card) 96%, #000 4%);
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  }
+  .table-wrap th, .table-wrap td {
+    padding: 12px 14px;
+    text-align: left;
+    border-top: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .table-wrap th {
+    background: color-mix(in srgb, var(--card) 90%, #000 10%);
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .table-wrap tr:nth-child(even) {
+    background: color-mix(in srgb, var(--card) 92%, #000 8%);
+  }
+  .table-wrap tr:hover {
+    background: color-mix(in srgb, var(--btn-bg) 15%, var(--card) 85%);
+  }
+
+  .rank { font-weight: 700; color: var(--btn-bg); }
+  .pxp  { font-weight: 700; color: var(--btn-text-hover); }
+
+  .panel{ background: color-mix(in srgb, var(--card) 96%, #000 4%); border:1px solid var(--line);
+          border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  .sub{ color:var(--muted) }
+  .btn{ display:inline-block; padding:10px 14px; background:var(--btn-bg); color:var(--btn-text);
+        border-radius:10px; text-decoration:none; font-weight:700; }
+  .btn:hover{ color:var(--btn-text-hover); }
+
+  .hero{ display:grid; grid-template-columns:56px 1fr auto auto; gap:14px; align-items:center; }
+  .hero .ava{ width:56px; height:56px; border-radius:50%; background:#222a; border:1px solid var(--line); overflow:hidden; }
+  .hero .ava img{ width:100%; height:100%; object-fit:cover; display:block; border-radius:50%; }
+  .hero .name{ font-weight:800; color:var(--ink); font-size:1.15rem }
+  .hero .stats{ display:flex; gap:12px; color:var(--muted) }
+  .badge{ background:#1d4ed8; color:#fff; padding:8px 12px; border-radius:10px; font-weight:800 }
+  .medal{ margin-right:6px }
+
+  .skeleton{ position:relative; overflow:hidden; background: color-mix(in srgb, var(--card) 86%, #000 14%); border-radius:8px; }
+  .skeleton::after{
+    content:""; position:absolute; inset:0; transform:translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+    animation: shimmer 1.25s infinite;
+  }
+  @keyframes shimmer{ 100% { transform:translateX(100%); } }
+  .sk-a{ width:36px; height:36px; border-radius:50%; background:#1b2233 }
+  .sk-n{ width:160px; height:14px }
+  .sk-b{ width:40px; height:14px }
+  .sk-l{ width:120px; height:14px }
+
+  .tabs .tab.active{ background: color-mix(in srgb, var(--btn-bg) 35%, #1a1f2e 65%); border-color: var(--btn-bg); color:#fff; }
+  .note{ color:var(--muted) }
+
+  /* аватар у таблиці */
+  .cell-ava { width:36px; height:36px; border-radius:50%; overflow:hidden; border:1px solid var(--line); background:#1b2233; }
+  .cell-ava img { width:100%; height:100%; object-fit:cover; display:block; border-radius:50%; }
+</style>
+
+</head>
+<body>
+  {% include 'nav.html' %}
+
+  <div class="page">
+    <h1>Top-100 PXP</h1>
+    <div class="sub">Рейтинг за <b>сумою донатів</b> (1$ = 1 PXP). Обери період.</div>
+
+    <div class="panel" id="heroPanel" style="display:none; margin-bottom:14px;">
+      <div class="hero">
+        <div class="ava"><img id="heroAvaImg" alt="avatar"></div>
+        <div class="meta">
+          <div class="name" id="heroName">—</div>
+          <div class="stats">
+            <span id="heroPxp">Донати: —</span>
+            <span id="heroDate">З нами з: —</span>
+          </div>
+        </div>
+        <a id="heroBtn" href="{{ url_for('profile.profile') }}" class="btn">Переглянути профіль</a>
+        <div class="badge"><span class="medal">🥇</span> Топ-1</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar" style="display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px;">
+        <div class="tabs" id="tabs" style="display:flex; gap:8px;">
+          <button class="tab active" data-range="all" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">За весь час</button>
+          <button class="tab" data-range="month" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Місяць</button>
+          <!-- “Тиждень” поки не підтримується бекендом: підвантажуємо “all” і показуємо підказку -->
+          <button class="tab" data-range="week" style="padding:8px 12px; border-radius:10px; background:#1a1f2e; border:1px solid #25304b; cursor:pointer; font-weight:600;">Тиждень</button>
+        </div>
+        <div class="sub">PXP = PixPaw 🐾</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th class="rank">#</th><th>Нік</th><th>Донати</th><th>З нами з</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+            <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+            <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="myrank" class="note" style="margin-top:12px"></div>
+      <div class="note">Щоб увійти до ТОП-100, потрібно мати більшу суму донатів, ніж у 100-го місця.</div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/pxp/top100';
+    const DEFAULT_AVA = '{{ url_for("static", filename="avatar_default.png") }}';
+
+    function formatSince(dateStr) {
+      return dateStr ? new Date(dateStr).toLocaleDateString() : '—';
+    }
+
+    function resolveAvatar(a) {
+      if (!a) return DEFAULT_AVA;
+      const s = String(a);
+      if (s.startsWith('data:')) return s;
+      if (s.startsWith('http://') || s.startsWith('https://')) return s;
+      const clean = s.replace(/^\/+/, '');
+      return `/static/${clean}`;
+    }
+
+    function normalize(data){
+      if (Array.isArray(data)) return { items: data, me_rank: null, me_pxp: null };
+      if (data && Array.isArray(data.items)) return data;
+      return { items: [], me_rank: null, me_pxp: null };
+    }
+
+    function showSkeleton(){
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = `
+        <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+        <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+        <tr class="sk-row"><td><div class="skeleton sk-b"></div></td><td><div style="display:flex;align-items:center;gap:10px;"><div class="sk-a"></div><div class="skeleton sk-n"></div></div></td><td><div class="skeleton sk-b"></div></td><td><div class="skeleton sk-l"></div></td></tr>
+      `;
+    }
+
+    function renderRows(list) {
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="sub">Ще немає даних</td></tr>`;
+        return;
+      }
+      list.forEach((u, i) => {
+        const ava = resolveAvatar(u.avatar);
+        const name = (u.name || (u.email ? u.email.split('@')[0] : 'Без імені'));
+        const donated = (u.donated != null ? u.donated : (u.pxp ?? 0)); // fallback на випадок старого API
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="rank">${i + 1}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="cell-ava"><img src="${ava}" alt="avatar"></div>
+              <span>${name}</span>
+            </div>
+          </td>
+          <td class="pxp">${donated}</td>
+          <td>${u.created_at ? formatSince(u.created_at) : '—'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderHero(list) {
+      const hero = document.getElementById('heroPanel');
+      if (!list.length) { hero.style.display='none'; return; }
+      const top = list[0];
+      const donated = (top.donated != null ? top.donated : (top.pxp ?? 0));
+      document.getElementById('heroName').textContent = top.name || 'Без імені';
+      document.getElementById('heroPxp').textContent  = `Донати: ${donated}`;
+      document.getElementById('heroDate').textContent = `З нами з: ${top.created_at ? formatSince(top.created_at) : '—'}`;
+      const heroImg = document.getElementById('heroAvaImg');
+      heroImg.src = resolveAvatar(top.avatar);
+      hero.style.display = 'block';
+    }
+
+    function renderMyRank(me_rank, me_total){
+      const n = document.getElementById('myrank');
+      if (me_rank == null) { n.textContent = ''; return; }
+      n.textContent = `Твій ранг: #${me_rank} • Донати: ${me_total ?? 0}`;
+    }
+
+    async function load(period='all'){
+      showSkeleton();
+      // “week” поки не підтримується — використовуємо all і показуємо підказку
+      let realPeriod = period;
+      if (period === 'week') {
+        realPeriod = 'all';
+        const note = document.getElementById('myrank');
+        note.textContent = 'Режим “Тиждень” тимчасово недоступний — показуємо рейтинг за весь час.';
+      } else {
+        document.getElementById('myrank').textContent = '';
+      }
+      const url = `${API}?period=${encodeURIComponent(realPeriod)}`;
+      try{
+        const r = await fetch(url, {headers:{'Accept':'application/json'}});
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        const raw = await r.json();
+        const data = normalize(raw);
+        renderRows(data.items);
+        renderHero(data.items);
+        renderMyRank(data.me_rank, data.me_pxp); // бекенд повертає суму донатів у me_pxp
+      }catch(err){
+        console.error(err);
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = `<tr><td colspan="4">Помилка завантаження</td></tr>`;
+        renderMyRank(null, null);
+        document.getElementById('heroPanel').style.display='none';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      load('all');
+      const tabs = document.querySelectorAll('#tabs .tab');
+      tabs.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          tabs.forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          const p = btn.getAttribute('data-range') || 'all';
+          load(p);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

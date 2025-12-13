@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}G-code Viewer — Proofly STL{% endblock %}
+
+{% block content %}
+<style>
+  .gcode-layout{
+    max-width:1200px;
+    margin:24px auto 40px;
+    padding:0 12px;
+    display:grid;
+    grid-template-columns:320px minmax(0,1fr) 320px;
+    gap:16px;
+    align-items:start;
+  }
+  @media (max-width:1100px){
+    .gcode-layout{
+      grid-template-columns:1fr;
+    }
+  }
+  .gcode-card{
+    background:#0f1117;
+    border:1px solid #242735;
+    border-radius:12px;
+    padding:14px 16px;
+  }
+  .gcode-card h1,
+  .gcode-card h2{
+    margin:0 0 10px 0;
+    font-size:18px;
+  }
+  .gcode-card h1{
+    font-size:20px;
+  }
+  .gcode-help{
+    font-size:12px;
+    opacity:.8;
+    margin-top:6px;
+  }
+  .gcode-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .gcode-row label{
+    font-size:13px;
+    opacity:.9;
+  }
+  .gcode-input{
+    background:#050712;
+    border:1px solid #252a3a;
+    border-radius:8px;
+    padding:6px 10px;
+    color:#e2e8f0;
+    font-size:13px;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .gcode-btn{
+    border-radius:999px;
+    border:1px solid #2563eb;
+    background:#1d3a7f;
+    padding:6px 14px;
+    font-size:13px;
+    cursor:pointer;
+    color:#e5f0ff;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    transition:background .12s,border-color .12s,transform .06s;
+  }
+  .gcode-btn.secondary{
+    border-color:#374151;
+    background:#111827;
+    color:#e5e7eb;
+  }
+  .gcode-btn:active{
+    transform:translateY(1px);
+  }
+  .gcode-btn:disabled{
+    opacity:.6;
+    cursor:default;
+  }
+
+  #gcode-canvas{
+    width:100%;
+    height:420px;
+    border-radius:12px;
+    border:1px solid #242735;
+    background:#020617;
+    display:block;
+  }
+
+  .gcode-controls{
+    margin-top:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    font-size:13px;
+  }
+  .gcode-layer-slider{
+    flex:1 1 140px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .gcode-layer-slider input[type="range"]{
+    flex:1;
+  }
+  .gcode-layer-label{
+    min-width:120px;
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+    opacity:.9;
+  }
+
+  .gcode-select{
+    background:#050712;
+    border:1px solid #252a3a;
+    border-radius:999px;
+    padding:4px 10px;
+    font-size:13px;
+    color:#e2e8f0;
+  }
+
+  #gcode-status{
+    margin-top:8px;
+    font-size:12px;
+    opacity:.8;
+  }
+
+  #gcode-stats{
+    font-size:13px;
+  }
+  .gcode-stats-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:6px;
+  }
+  .gcode-stats-grid div strong{
+    font-weight:600;
+  }
+
+  .gcode-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin:6px 0 4px;
+  }
+  .gcode-badge{
+    font-size:11px;
+    padding:2px 6px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.8;
+  }
+
+  .gcode-warnings{
+    margin-top:12px;
+    border-top:1px dashed #272c3f;
+    padding-top:8px;
+  }
+  .gcode-warnings ul{
+    padding-left:18px;
+    margin:4px 0 0;
+    font-size:12px;
+  }
+</style>
+
+<div class="gcode-layout">
+  <!-- ЛІВА КОЛОНКА: завантаження + режими -->
+  <section class="gcode-card">
+    <h1>G-code Viewer</h1>
+    <div class="gcode-help">
+      Завантаж G-code з слайсера (PrusaSlicer, Cura, OrcaSlicer, Bambu Studio тощо) і подивись,
+      як буде друкуватися модель — пошарово, в розрізах і з базовими метриками.
+    </div>
+
+    <div style="margin-top:12px">
+      <label style="font-size:13px;opacity:.9;">G-code файл (.gcode)</label>
+      <input id="gcode-file" class="gcode-input" type="file" accept=".gcode">
+      <div class="gcode-help">Найшвидший спосіб: просто експортуй G-code зі слайсера і кинь сюди.</div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label style="font-size:13px;opacity:.9;">G-code по URL</label>
+      <div class="gcode-row">
+        <input id="gcode-url" class="gcode-input" type="text" placeholder="https://…/file.gcode">
+        <button id="gcode-load-url" class="gcode-btn">Завантажити</button>
+      </div>
+      <div class="gcode-help">Працює, якщо файл доступний публічно (CORS/HTTPS).</div>
+    </div>
+
+    <div style="margin-top:16px">
+      <label style="font-size:13px;opacity:.9;">Кольори траєкторії</label>
+      <div class="gcode-row" style="align-items:center">
+        <select id="gcode-color-mode" class="gcode-select">
+          <option value="byLayer">По шарах</option>
+          <option value="bySpeed">По швидкості</option>
+          <option value="byExtrusion">По екструзії</option>
+        </select>
+      </div>
+      <div class="gcode-help">
+        <strong>По шарах</strong> — візуально показує прогрес по висоті.<br>
+        <strong>По швидкості</strong> — знаходь ділянки з різкою зміною F.<br>
+        <strong>По екструзії</strong> — підсвічує "жирні" ділянки, де багато пластику.
+      </div>
+    </div>
+
+    <div id="gcode-status"></div>
+  </section>
+
+  <!-- ЦЕНТР: canvas + контрол -->
+  <section class="gcode-card">
+    <h2>Превʼю траєкторії</h2>
+    <canvas id="gcode-canvas"></canvas>
+
+    <div class="gcode-controls">
+      <div class="gcode-layer-slider">
+        <input id="gcode-layer" type="range" min="0" max="0" value="0">
+        <div class="gcode-layer-label">
+          <span id="gcode-layer-label">- / -</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="gcode-play" class="gcode-btn">▶️ Плей</button>
+        <button id="gcode-pause" class="gcode-btn secondary">⏸️ Пауза</button>
+        <button id="gcode-reset" class="gcode-btn secondary">⟲ Скинути</button>
+      </div>
+    </div>
+
+    <div class="gcode-help">
+      Колесо миші — масштаб, drag — панорама (через браузерні жести, оскільки це 2D canvas).
+      Окремий 3D-G-code-вʼювер можна буде додати пізніше, але навіть такий 2D-режим дає
+      топовий UX для перевірки G-code перед друком.
+    </div>
+  </section>
+
+  <!-- ПРАВА КОЛОНКА: метрики -->
+  <section class="gcode-card">
+    <h2>Метрики G-code</h2>
+
+    <div class="gcode-badges">
+      <div class="gcode-badge">⏱ Оцінка часу друку</div>
+      <div class="gcode-badge">📦 Габарити моделі</div>
+      <div class="gcode-badge">🧵 Філамент (умовно)</div>
+    </div>
+
+    <div id="gcode-stats"></div>
+
+    <div class="gcode-warnings" id="gcode-warnings" style="display:none">
+      <div style="font-size:12px;opacity:.8;margin-bottom:2px;">Попередження:</div>
+      <ul id="gcode-warnings-list"></ul>
+    </div>
+
+    <div class="gcode-help">
+      Зараз метрики рахує сам фронтенд на основі G-code. Додатково ми можемо
+      завʼязати це на серверний аналізатор (<code>/api/gcode/metrics</code>)
+      і будувати більш глибоку аналітику (проблемні зони, температурні зміни, ретракти тощо).
+    </div>
+  </section>
+</div>
+
+<script type="module">
+  import { initGCodeViewer } from "{{ url_for('static', filename='js/gcode_viewer.js') }}";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const api = initGCodeViewer({
+      canvasId: "gcode-canvas",
+      fileInputId: "gcode-file",
+      urlInputId: "gcode-url",
+      urlButtonId: "gcode-load-url",
+      layerSliderId: "gcode-layer",
+      layerLabelId: "gcode-layer-label",
+      statsContainerId: "gcode-stats",
+      playButtonId: "gcode-play",
+      pauseButtonId: "gcode-pause",
+      resetButtonId: "gcode-reset",
+      colorModeSelectId: "gcode-color-mode",
+      statusId: "gcode-status",
+    });
+
+    // (За бажанням в майбутньому тут можна викликати /api/gcode/metrics
+    //  для більш важкої аналітики на бекенді.)
+  });
+</script>
+{% endblock %}

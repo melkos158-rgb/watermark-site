@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <title>Online Watermark – Video</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* Легка рамка прев’ю (не конфліктує з основним style.css) */
+    .video-frame{
+      border: 4px solid rgba(0,0,0,.08);
+      border-radius: 14px;
+      padding: 10px;
+      background: #f5f7fb;
+    }
+    #cvsVideo{ display:block; width: 100%; height: auto; background:#e9edf3; border-radius:10px; }
+  </style>
+</head>
+<body class="page--video">
+
+<!-- NAV -->
+ {% include 'nav.html' %}
+
+
+  <!-- LAYOUT -->
+  <div class="layout">
+
+    <!-- Ліва колонка -->
+    <div class="card side">
+      <h2>Відео (preview)</h2>
+
+      <label>Video file</label>
+      <input id="inpVideo" type="file" accept="video/*">
+
+      <h3 style="margin-top:16px">Текст</h3>
+
+      <label>Watermark text</label>
+      <input id="inpTextV" type="text" value="© My Brand">
+
+      <label>Opacity (%)</label>
+      <input id="rngOpV" type="range" min="0" max="100" value="70">
+
+      <label>Size (px)</label>
+      <input id="rngSizeV" type="range" min="10" max="200" value="48">
+
+      <label>Angle (°)</label>
+      <input id="rngAngV" type="range" min="-180" max="180" value="0">
+
+      <label>Color</label>
+      <input id="inpColorV" type="color" value="#FFFFFF">
+
+      <div class="check-inline">
+        <label><input id="chkShadowV" type="checkbox" checked> Тінь</label>
+        <label><input id="chkOutlineV" type="checkbox"> Контур</label>
+        <label><input id="chkTileV" type="checkbox"> Мозаїка</label>
+      </div>
+
+      <div id="tileGapRowV" style="display:none">
+        <label>Tile spacing (× size)</label>
+        <input id="rngTileGapV" type="range" min="2" max="10" value="4">
+      </div>
+    </div>
+
+    <!-- Центральна колонка -->
+    <div class="canvas-wrap">
+      <h2>Прев’ю</h2>
+
+      <div class="video-frame">
+        <!-- Приховане джерело відео + видимий canvas -->
+        <video id="video" playsinline style="display:none"></video>
+        <canvas id="cvsVideo" width="960" height="540"></canvas>
+      </div>
+
+      <div class="tip">Клік по обʼєкту — вибір. Перетягуй. Колесико — розмір. Ctrl — кут (текст) / прозорість (лого).</div>
+
+      <div class="row" style="margin-top:14px">
+        <button id="btnPause" class="btn primary">Пауза</button>
+        <button id="btnSound" class="btn primary">🔊 Включити звук</button>
+        <button id="btnShot"  class="btn primary">Знімок (PNG)</button>
+        <button id="btnWebm"  class="btn primary">Запис WEBM</button>
+        <button id="btnClearV" class="btn ghost" type="button">Очистити</button>
+      </div>
+    </div>
+
+    <!-- Права колонка -->
+    <div class="card side">
+      <h2>Лого</h2>
+
+      <label>Logo image</label>
+      <input id="inpLogoV" type="file" accept="image/*">
+
+      <label>Logo opacity (%)</label>
+      <input id="rngLogoOpV" type="range" min="0" max="100" value="70">
+
+      <label>Logo scale (%)</label>
+      <input id="rngLogoScaleV" type="range" min="10" max="300" value="100">
+    </div>
+
+  </div>
+
+  <!-- JS -->
+  <script>
+(() => {
+  // ------- elements
+  const $ = id => document.getElementById(id);
+
+  const vid           = $('video');
+  const cvs           = $('cvsVideo');
+  const ctx           = cvs.getContext('2d', { alpha: false });
+
+  const inpVideo      = $('inpVideo');
+
+  const inpText       = $('inpTextV');
+  const rngOp         = $('rngOpV');
+  const rngSize       = $('rngSizeV');
+  const rngAng        = $('rngAngV');
+  const inpColor      = $('inpColorV');
+  const chkShadow     = $('chkShadowV');
+  const chkOutline    = $('chkOutlineV');
+  const chkTile       = $('chkTileV');
+  const rngTileGap    = $('rngTileGapV');
+  const tileGapRow    = $('tileGapRowV');
+
+  const inpLogo       = $('inpLogoV');
+  const rngLogoOp     = $('rngLogoOpV');
+  const rngLogoScale  = $('rngLogoScaleV');
+
+  const btnPause      = $('btnPause');
+  const btnSound      = $('btnSound');
+  const btnShot       = $('btnShot');
+  const btnWebm       = $('btnWebm');
+  const btnClear      = $('btnClearV');
+
+  // ------- state
+  let logoImg = null;
+  let textOffset = {x:0,y:0}, logoOffset = {x:0,y:0};
+  let draggingText=false, draggingLogo=false;
+  let dragStart={x:0,y:0}, startTextOffset={x:0,y:0}, startLogoOffset={x:0,y:0};
+  let activeMode='text';
+  let textBox=null, logoBox=null;
+  let rafId=null;
+
+  // recording
+  let mediaRecorder=null, chunks=[];
+
+  // ------- utils
+  function mousePos(e){
+    const r=cvs.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (cvs.width  / r.width),
+      y: (e.clientY - r.top ) * (cvs.height / r.height),
+    };
+  }
+  const fileToImage = f => new Promise((res,rej)=>{
+    const fr = new FileReader();
+    fr.onload = e => { const im = new Image(); im.onload=()=>res(im); im.src=e.target.result; };
+    fr.onerror = rej; fr.readAsDataURL(f);
+  });
+
+  // ====== ЄДИНІ ЗМІНИ: точне підганяння canvas під аспект відео (без горизонтального розтягування)
+  function fitCanvasToVideo() {
+    // якщо відео ще не має метаданих — нічого не міняємо
+    if (!vid.videoWidth || !vid.videoHeight) return;
+
+    const ar = vid.videoWidth / vid.videoHeight; // реальний аспект джерела
+
+    // беремо доступну ширину контейнера (рамки)
+    const wrap = cvs.parentElement || document.body;
+    const cssW = Math.max(320, Math.round(wrap.clientWidth));
+
+    // висота рахується СУВОРО по аспекту без будь-яких множників
+    const cssH = Math.max(180, Math.round(cssW / ar));
+
+    // прибираємо можливий вплив зовнішнього CSS типу width:100%
+    cvs.style.maxWidth  = 'none';
+    cvs.style.maxHeight = 'none';
+
+    // виставляємо видимий розмір canvas (у CSS пікселях)
+    cvs.style.width  = cssW + 'px';
+    cvs.style.height = cssH + 'px';
+
+    // внутрішня роздільна під DPR для чіткості (не впливає на геометрію)
+    const dpr = window.devicePixelRatio || 1;
+    cvs.width  = Math.round(cssW * dpr);
+    cvs.height = Math.round(cssH * dpr);
+
+    // не використовуємо setTransform — координати = пікселям canvas
+  }
+  window.addEventListener('resize', fitCanvasToVideo);
+  // ====== КІНЕЦЬ БЛОКУ ЗМІН
+
+  function drawContainVideo(video){
+    const cw=cvs.width, ch=cvs.height;
+    const ir = video.videoWidth / video.videoHeight;
+    const cr = cw / ch;
+    let w,h;
+    if (ir > cr){ w = cw; h = w/ir; } else { h = ch; w = h*ir; }
+    const x=(cw-w)/2, y=(ch-h)/2;
+
+    // фон всередині канваса (рамка сайту не зачіпається)
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0,0,cw,ch);
+
+    ctx.drawImage(video, x, y, w, h);
+    return {x,y,w,h};
+  }
+
+  function pointInRotRect(mx,my,b){
+    const dx=mx-b.cx, dy=my-b.cy;
+    const c=Math.cos(-b.angleRad), s=Math.sin(-b.angleRad);
+    const rx=dx*c - dy*s, ry=dx*s + dy*c;
+    return Math.abs(rx)<=b.w/2 && Math.abs(ry)<=b.h/2;
+  }
+
+  // метрики тексту (узгоджено з baseline='middle')
+  function getTextBoxMetrics(text, size, angleRad, centerX, centerY) {
+    ctx.save();
+    ctx.font = `bold ${size}px Arial`;
+    const m = ctx.measureText(text);
+    const w = m.width;
+    const h = (m.actualBoundingBoxAscent ?? size*0.8) + (m.actualBoundingBoxDescent ?? size*0.2);
+    ctx.restore();
+    return { cx:centerX, cy:centerY, w, h, angleRad };
+  }
+
+  const startLoop = () => { if(!rafId){ rafId=requestAnimationFrame(render); } };
+  const stopLoop  = () => { if(rafId){ cancelAnimationFrame(rafId); rafId=null; } };
+
+  // ------- render
+  function render(){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    textBox=null; logoBox=null;
+
+    if (vid.readyState >= 2 && vid.videoWidth && vid.videoHeight){
+      const box = drawContainVideo(vid);
+      const cx = box.x + box.w/2, cy = box.y + box.h/2;
+
+      // текст
+      const text=(inpText.value||'').trim();
+      if (text){
+        const opacity=(+rngOp.value||70)/100;
+        const size=Math.max(8, +rngSize.value||48);
+        const angle=+rngAng.value||0, angleRad=angle*Math.PI/180;
+        const color=inpColor.value||'#fff';
+        const shadow=!!chkShadow.checked, outline=!!chkOutline.checked, tiled=!!chkTile.checked;
+
+        ctx.save();
+        ctx.globalAlpha=opacity;
+        ctx.font=`bold ${size}px Arial`;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        if (shadow){
+          ctx.shadowColor='rgba(0,0,0,.6)';
+          ctx.shadowBlur=Math.ceil(size*.1);
+          ctx.shadowOffsetX=Math.ceil(size*.05);
+          ctx.shadowOffsetY=Math.ceil(size*.05);
+        }
+
+        const tb = getTextBoxMetrics(text, size, angleRad, cx + textOffset.x, cy + textOffset.y);
+        textBox = tb;
+
+        if(!tiled){
+          ctx.translate(tb.cx, tb.cy);
+          ctx.rotate(angleRad);
+          if (outline){ ctx.lineWidth=Math.max(2,size*.08); ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.strokeText(text,0,0); }
+          ctx.fillStyle=color; ctx.fillText(text,0,0);
+        }else{
+          const gapFactor = Math.max(2, +rngTileGap.value||4);
+          const step = Math.max(10, size*gapFactor);
+          const r = Math.hypot(box.w, box.h) / 2;
+          ctx.translate(cx,cy); ctx.rotate(angleRad);
+          for (let y=-r+textOffset.y; y<=r+textOffset.y; y+=step){
+            for (let x=-r+textOffset.x; x<=r+textOffset.x; x+=step){
+              if(outline){ ctx.lineWidth=Math.max(1,size*.06); ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.strokeText(text,x,y); }
+              ctx.fillStyle=color; ctx.fillText(text,x,y);
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      // лого
+      if (logoImg){
+        const op=(+rngLogoOp.value||70)/100;
+        const scale=(+rngLogoScale.value||100)/100;
+        const baseW=box.w*0.22*scale;
+        const ratio=logoImg.width/logoImg.height;
+        const w=baseW, h=w/ratio;
+        const pad=Math.max(8, Math.round(box.w*.02));
+        const x = box.x + box.w - w - pad + logoOffset.x;
+        const y = box.y + box.h - h - pad + logoOffset.y;
+        ctx.save(); ctx.globalAlpha=op; ctx.drawImage(logoImg,x,y,w,h); ctx.restore();
+        logoBox={x,y,w,h};
+      }
+    } else {
+      // плейсхолдер
+      ctx.fillStyle='#eef1f7'; ctx.fillRect(0,0,cvs.width,cvs.height);
+      ctx.fillStyle='#6b7280'; ctx.font='16px system-ui, Arial'; ctx.textAlign='center';
+      ctx.fillText('Виберіть відео (MP4 H.264/AAC або WebM VP9).', cvs.width/2, cvs.height/2);
+    }
+
+    rafId=requestAnimationFrame(render);
+  }
+
+  // ------- мозаїка UI
+  function updateTileUI(){ tileGapRow.style.display = chkTile.checked ? '' : 'none'; }
+  chkTile.addEventListener('change', updateTileUI); updateTileUI();
+
+  // ------- вибір відео
+  inpVideo.addEventListener('change', () => {
+    const f = inpVideo.files?.[0]; if (!f) return;
+    const url = URL.createObjectURL(f);
+
+    // ресет
+    stopLoop();
+    vid.pause();
+    vid.removeAttribute('src');
+    vid.load();
+
+    // новий src
+    vid.src = url;
+    vid.playsInline = true;
+    vid.muted = true; // дозволяє автоплей
+
+    const boot = () => {
+      fitCanvasToVideo();        // ПІДГІН — без розтягувань
+      try { vid.currentTime = 0; } catch {}
+      vid.play().catch(()=>{});
+      render();                  // перший кадр
+      if (!rafId) rafId = requestAnimationFrame(render);
+    };
+    vid.addEventListener('loadedmetadata', boot, { once:true });
+    vid.addEventListener('loadeddata',    boot, { once:true });
+
+    vid.addEventListener('error', () => {
+      stopLoop();
+      ctx.clearRect(0,0,cvs.width,cvs.height);
+      ctx.fillStyle='#fee2e2'; ctx.fillRect(0,0,cvs.width,cvs.height);
+      ctx.fillStyle='#991b1b'; ctx.font='16px system-ui, Arial'; ctx.textAlign='center';
+      ctx.fillText('Не вдалося відтворити відео. Спробуй MP4 (H.264/AAC) або WebM VP9).', cvs.width/2, cvs.height/2);
+    }, { once:true });
+  });
+
+  // ------- лого
+  inpLogo.addEventListener('change', async () => {
+    const f=inpLogo.files?.[0];
+    if (!f){ logoImg=null; return; }
+    try { logoImg = await fileToImage(f); } catch { alert('Не вдалося завантажити логотип.'); }
+  });
+
+  // ------- кнопки
+  btnPause.addEventListener('click', () => {
+    if (!vid.src) return;
+    if (vid.paused){
+      vid.play().catch(()=>{});
+      btnPause.textContent = 'Пауза';
+    } else {
+      vid.pause();
+      btnPause.textContent = 'Продовжити';
+    }
+  });
+
+  btnSound.addEventListener('click', () => {
+    if (!vid.src) return;
+    vid.muted = !vid.muted;
+    if (!vid.muted && vid.paused) vid.play().catch(()=>{});
+    btnSound.textContent = vid.muted ? '🔊 Включити звук' : '🔇 Вимкнути звук';
+  });
+
+  btnShot.addEventListener('click', () => {
+    if (!vid.src) return;
+    const a=document.createElement('a');
+    a.download='frame.png';
+    a.href=cvs.toDataURL('image/png');
+    a.click();
+  });
+
+  btnWebm.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording'){
+      mediaRecorder.stop();
+      btnWebm.textContent='Запис WEBM';
+      return;
+    }
+    const videoStream = cvs.captureStream(30);
+    let combined = videoStream;
+    try {
+      const audioStream = vid.captureStream ? vid.captureStream()
+                        : (vid.mozCaptureStream && vid.mozCaptureStream());
+      if (audioStream){
+        const ms = new MediaStream([
+          ...videoStream.getVideoTracks(),
+          ...audioStream.getAudioTracks()
+        ]);
+        combined = ms;
+      }
+    } catch {}
+
+    mediaRecorder = new MediaRecorder(combined, { mimeType:'video/webm;codecs=vp9,opus' });
+    chunks = [];
+    mediaRecorder.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type:'video/webm' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'watermarked.webm';
+      a.click();
+    };
+    mediaRecorder.start();
+    btnWebm.textContent='Зупинити запис';
+  });
+
+  btnClear.addEventListener('click', () => {
+    stopLoop();
+    vid.pause(); vid.removeAttribute('src'); vid.load();
+    inpVideo.value=''; inpLogo.value='';
+    logoImg=null; textOffset={x:0,y:0}; logoOffset={x:0,y:0};
+    textBox=null; logoBox=null;
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    btnPause.textContent='Пауза';
+    btnSound.textContent='🔊 Включити звук';
+  });
+
+  // ------- drag & wheel (пріоритет: лого, потім текст)
+  cvs.addEventListener('mousedown', (e) => {
+    const {x:mx,y:my}=mousePos(e);
+    if(logoBox && mx>=logoBox.x && mx<=logoBox.x+logoBox.w && my>=logoBox.y && my<=logoBox.y+logoBox.h){
+      activeMode='logo'; draggingLogo=true; dragStart={x:mx,y:my}; startLogoOffset={...logoOffset}; return;
+    }
+    if(textBox && pointInRotRect(mx,my,textBox) && !chkTile.checked){
+      activeMode='text'; draggingText=true; dragStart={x:mx,y:my}; startTextOffset={...textOffset};
+    }
+  });
+  cvs.addEventListener('mousemove', (e) => {
+    const p=mousePos(e);
+    if (draggingText){ textOffset={ x:startTextOffset.x+(p.x-dragStart.x), y:startTextOffset.y+(p.y-dragStart.y) }; }
+    else if (draggingLogo){ logoOffset={ x:startLogoOffset.x+(p.x-dragStart.x), y:startLogoOffset.y+(p.y-dragStart.y) }; }
+  });
+  ['mouseup','mouseleave'].forEach(ev => cvs.addEventListener(ev, () => { draggingText=false; draggingLogo=false; }));
+
+  cvs.addEventListener('wheel', (e) => {
+    if (!vid.src) return;
+    e.preventDefault();
+    if (activeMode==='text'){
+      if (e.ctrlKey){ const v=+rngAng.value - Math.sign(e.deltaY)*3; rngAng.value=Math.max(-180,Math.min(180,v)); }
+      else{ const v=+rngSize.value - Math.sign(e.deltaY)*3; rngSize.value=Math.max(8,Math.min(400,v)); }
+    } else if (activeMode==='logo'){
+      if (e.ctrlKey){ const v=+rngLogoOp.value - Math.sign(e.deltaY)*3; rngLogoOp.value=Math.max(0,Math.min(100,v)); }
+      else{ const v=+rngLogoScale.value - Math.sign(e.deltaY)*5; rngLogoScale.value=Math.max(10,Math.min(400,v)); }
+    }
+  }, { passive:false });
+
+})();
+</script>
+
+</body>
+</html>
+

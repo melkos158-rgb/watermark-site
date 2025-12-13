@@ -1,0 +1,71 @@
+/* компактний блок праворуч, строго під банером; вузький */
+.improve-panel{
+  position: fixed;
+  right: 16px;
+  top: 9999px;              /* реальне значення виставить JS після вимірювання банера */
+  width: 240px;             /* було 280px -> зробив тоншим */
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.45);
+  z-index: 10000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.improve-header{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; background:#0b0d12; border-bottom:1px solid var(--line);
+}
+.improve-header .grow{ flex:1; }
+.icon-btn{
+  background:transparent; border:1px solid var(--line); border-radius:8px;
+  padding:2px 8px; color:var(--ink); cursor:pointer; line-height:18px;
+}
+
+.improve-compose{ padding:8px 10px; border-bottom:1px solid var(--line); }
+#improve-idea{
+  width:100%; background:#0f1115; border:1px solid var(--line); color:var(--ink);
+  border-radius:10px; padding:6px 8px; font-size:13px; resize:none;
+  margin-bottom:8px; min-height:40px;
+}
+.send-btn{
+  width:100%; padding:7px 10px; border-radius:10px; border:none;
+  background:var(--btn); color:#fff; cursor:pointer; font-weight:700; font-size:13px;
+}
+.send-btn:disabled{ opacity:.7; cursor:not-allowed; }
+.hint{ font-size:11px; color:var(--muted); margin-top:6px; }
+
+.improve-list{
+  max-height: 300px; overflow:auto;
+  padding:6px 8px; display:flex; flex-direction:column; gap:8px;
+}
+.s-card{
+  border:1px solid var(--line); border-radius:10px; padding:8px;
+  background: color-mix(in srgb, var(--card) 96%, #000 4%);
+}
+.s-top{ display:flex; align-items:center; gap:6px; }
+.s-idea{ font-size:13px; white-space:pre-wrap; }
+.chev{
+  margin-left:auto; border:1px solid var(--line); background:#0f1115; color:var(--ink);
+  padding:0 8px; height:22px; border-radius:8px; cursor:pointer; font-size:13px;
+}
+
+.comments{ margin-top:6px; border-top:1px dashed var(--line); padding-top:6px; display:none; }
+.comment{ font-size:12px; padding:4px 0; border-bottom:1px dotted var(--line); }
+.comment:last-child{ border-bottom:none; }
+.comment-add{ display:flex; gap:6px; margin-top:6px; }
+.comment-add input{
+  flex:1; background:#0f1115; border:1px solid var(--line); color:var(--ink);
+  border-radius:8px; padding:4px 6px; font-size:12px;
+}
+.comment-add button{
+  border:1px solid var(--line); background:#0f1115; color:var(--ink);
+  border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px;
+}
+
+/* ховаємо віджет на вузьких екранах */
+@media (max-width: 1100px){
+  .improve-panel{ display:none; }
+}

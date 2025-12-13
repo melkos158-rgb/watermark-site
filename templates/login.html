@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-card">
+  <h2>Увійти</h2>
+
+  <!-- Локальний логін (e-mail + пароль) -->
+  <form method="post" action="{{ url_for('auth.login_post') }}">
+    <input type="email" name="email" placeholder="Email" required>
+    <input type="password" name="password" placeholder="Пароль" required>
+    <button type="submit">Увійти</button>
+  </form>
+
+  <div class="divider">або</div>
+
+  <!-- Соц-входи -->
+  <a class="btn oauth google" href="{{ url_for('auth.google_login') }}">Увійти через Google</a>
+  <a class="btn oauth apple" href="#">Увійти через Apple (скоро)</a>
+
+  <p class="muted">
+    Немає акаунта?
+    <a href="{{ url_for('auth.register') }}" class="reg-link">Зареєструватися</a><br>
+    <small>Порада: після реєстрації по e-mail ти отримаєш свій довгий код — він зберігається у профілі.</small>
+  </p>
+</div>
+
+<style>
+.auth-card{max-width:520px;margin:32px auto;padding:24px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06)}
+.auth-card h2{margin:0 0 12px}
+.auth-card form{display:grid;gap:12px;margin-bottom:12px}
+.auth-card input{height:42px;padding:0 12px;border:1px solid #e5e7eb;border-radius:10px}
+.auth-card button{height:42px;border:0;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700;cursor:pointer}
+.divider{text-align:center;margin:12px 0;color:#6b7280}
+.btn.oauth{display:block;text-align:center;padding:12px 16px;border-radius:12px;text-decoration:none;font-weight:700;margin-top:10px}
+.btn.oauth.google{background:#fff;border:1px solid #e5e7eb}
+.btn.oauth.apple{background:#000;color:#fff}
+.muted{color:#6b7280;margin-top:14px}
+.flash .flash-item{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:10px;margin-bottom:8px}
+</style>
+
+<script>
+/* якщо у URL є ?next=..., додаємо його до дій форм/посилань  */
+(function() {
+  var params = new URLSearchParams(location.search);
+  var next = params.get('next');
+  if (!next) return;
+
+  var form = document.querySelector('form[action$="{{ url_for("auth.login_post") }}"]');
+  if (form) {
+    var u = new URL(form.action, location.origin);
+    u.searchParams.set('next', next);
+    form.action = u.toString();
+  }
+
+  var reg = document.querySelector('.reg-link');
+  if (reg) {
+    var ru = new URL(reg.href, location.origin);
+    ru.searchParams.set('next', next);
+    reg.href = ru.toString();
+  }
+
+  var g = document.querySelector('.btn.oauth.google');
+  if (g) {
+    var gu = new URL(g.href, location.origin);
+    gu.searchParams.set('next', next);
+    g.href = gu.toString();
+  }
+})();
+</script>
+{% endblock %}
+

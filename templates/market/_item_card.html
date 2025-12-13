@@ -1,0 +1,116 @@
+{# 1) обираємо коректне посилання: slug → id → fallback #}
+{% if it.slug %}
+  {% set href = url_for('market.detail', slug=it.slug) %}
+{% elif it.id %}
+  {% set href = url_for('market.page_item', item_id=it.id) %}
+{% else %}
+  {% set href = '#' %}
+{% endif %}
+
+{# 2) визначаємо обкладинку #}
+{% set cover = None %}
+
+{# 2.a — якщо є структуровані it.images (list of objects with kind/url) #}
+{% if it.images %}
+  {% set c = (it.images|selectattr('kind','equalto','cover')|list|first) %}
+  {% if c %}
+    {% if c.url is defined %}
+      {% set cover = c.url %}
+    {% else %}
+      {% set cover = c %}
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+{# 2.b — якщо ще не знайдено — використовуємо прості поля cover_url / cover #}
+{% if not cover and it.cover_url %}
+  {% set cover = it.cover_url %}
+{% endif %}
+{% if not cover and it.cover %}
+  {% set cover = it.cover %}
+{% endif %}
+
+{# 2.c — якщо є gallery_urls — перший елемент може бути або рядком, або mapping #}
+{% if not cover and it.gallery_urls %}
+  {% set first = it.gallery_urls[0] %}
+  {% if first is mapping %}
+    {% if first.url is defined %}
+      {% set cover = first.url %}
+    {% endif %}
+  {% else %}
+    {% set cover = first %}
+  {% endif %}
+{% endif %}
+
+{# fallback локальний #}
+{% set fallback = url_for('static', filename='img/placeholder_stl.jpg') %}
+
+{# 3) нормалізація cover (дуже важливо) #}
+{% set cover_src = cover %}
+{% if cover_src %}
+  {# якщо це не http(s) і не починається з / — додаємо / #}
+  {% if cover_src is string %}
+    {% if not cover_src.startswith('http://') and not cover_src.startswith('https://') and not cover_src.startswith('/') %}
+      {% set cover_src = '/' ~ cover_src %}
+    {% endif %}
+  {% else %}
+    {% set cover_src = None %}
+  {% endif %}
+{% endif %}
+{% if not cover_src %}
+  {% set cover_src = fallback %}
+{% endif %}
+
+<article
+  class="model-card"
+  data-id="{{ it.id }}"
+  data-free="{{ 1 if it.is_free else 0 }}"
+  data-downloads="{{ it.downloads or 0 }}"
+  data-rating="{{ it.rating or 0 }}"
+  data-price="{{ it.price_cents if it.price_cents else ((it.price*100)|int if it.price else 0) }}"
+  data-tags="{{ (it.tags or '')|lower }}"
+>
+  <a href="{{ href }}" class="thumb">
+    {% if it.is_free %}
+      <span class="badge free">FREE</span>
+    {% elif it.downloads and it.downloads > 200 %}
+      <span class="badge best">BESTSELLER</span>
+    {% elif it.trending %}
+      <span class="badge trend">TRENDING</span>
+    {% elif it.created_at and it.created_at >= (now - timedelta(days=7)) %}
+      <span class="badge new">NEW</span>
+    {% endif %}
+
+    <img
+      src="{{ cover_src }}"
+      loading="lazy"
+      alt="{{ it.title or 'Model' }}"
+      onerror="this.onerror=null;this.src='{{ fallback }}';"
+    >
+  </a>
+
+  <div class="info">
+    <h3 class="title">
+      <a href="{{ href }}">{{ it.title or 'Без назви' }}</a>
+    </h3>
+
+    <div class="stats">
+      <div class="s">
+        <svg viewBox="0 0 24 24"><path d="M12 17.3l6.18 3.9-1.64-7.03 5.46-4.73-7.19-.62L12 2.1 9.19 8.82l-7.19.62 5.46 4.73L5.82 21.2z"/></svg>
+        {{ "%.1f"|format(it.rating or 0) }}
+      </div>
+      <div class="s">
+        <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z"/></svg>
+        {{ it.downloads or 0 }}
+      </div>
+
+      <strong class="price">
+        {% if it.is_free %}
+          Безкоштовно
+        {% else %}
+          {{ (it.price_cents / 100) if it.price_cents else (it.price or 0) }}
+        {% endif %}
+      </strong>
+    </div>
+  </div>
+</article>

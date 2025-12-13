@@ -1,0 +1,145 @@
+<div class="market-subheader">
+  <div class="left">
+    <strong>🧩 STL Market</strong>
+    <span class="divider"></span>
+    {% include "market/_filters.html" %}
+  </div>
+
+  <div class="right">
+    <div class="search">
+      <input id="q" class="inp" placeholder="{{ _('Пошук: dragon, stand, toy…') }}"
+             value="{{ request.args.get('q','') }}">
+      <button id="btn-search" class="btn">🔎</button>
+      <div id="search-suggest" class="suggest-box" style="display:none;"></div>
+    </div>
+
+    <a class="btn" href="{{ url_for('market.page_market') }}?owner=me">{{ _('Мої оголошення') }}</a>
+    <a class="btn primary" href="#" id="btn-upload">{{ _('+ Додати модель') }}</a>
+  </div>
+</div>
+
+<style>
+.market-subheader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+  background:var(--card);
+  border-bottom:1px solid var(--line);
+  padding:10px 14px;
+  border-radius:10px;
+  margin-bottom:14px;
+  position:relative;
+  z-index:5;
+}
+.market-subheader .left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:600;
+}
+.market-subheader .divider{
+  width:1px;
+  height:18px;
+  background:var(--line);
+}
+.market-subheader .right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.market-subheader .btn{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:6px 10px;
+  color:var(--text);
+  cursor:pointer;
+  transition:all .2s;
+}
+.market-subheader .btn.primary{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+.market-subheader .btn:hover{
+  background:var(--accent);
+  color:#fff;
+}
+.market-subheader .search{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.market-subheader .inp{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:transparent;
+  color:var(--text);
+  padding:6px 10px;
+  width:220px;
+  outline:none;
+  transition:all .2s;
+}
+.market-subheader .inp:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 10px rgba(59,130,246,.3);
+}
+.suggest-box{
+  position:absolute;
+  top:110%;
+  left:0;
+  right:0;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+  overflow:hidden;
+}
+.suggest-item{
+  padding:6px 10px;
+  color:var(--text);
+  cursor:pointer;
+  transition:background .15s;
+}
+.suggest-item:hover{
+  background:var(--accent);
+  color:#fff;
+}
+@media(max-width:720px){
+  .market-subheader{flex-direction:column;align-items:stretch;}
+  .market-subheader .right{width:100%;justify-content:space-between;}
+  .market-subheader .inp{flex:1;}
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  const inp = document.getElementById('q');
+  const box = document.getElementById('search-suggest');
+  let timer;
+  inp.addEventListener('input', ()=>{
+    clearTimeout(timer);
+    const val = inp.value.trim();
+    if(!val){ box.style.display='none'; return; }
+    timer = setTimeout(async ()=>{
+      const r = await fetch(`/api/search_suggest?q=${encodeURIComponent(val)}`);
+      if(!r.ok) return;
+      const arr = await r.json().catch(()=>[]);
+      if(!Array.isArray(arr) || !arr.length){ box.style.display='none'; return; }
+      box.innerHTML = arr.map(x=>`<div class='suggest-item'>${x}</div>`).join('');
+      box.style.display='block';
+    }, 300);
+  });
+  box.addEventListener('click', e=>{
+    if(e.target.classList.contains('suggest-item')){
+      inp.value = e.target.textContent.trim();
+      box.style.display='none';
+      document.getElementById('btn-search').click();
+    }
+  });
+});
+</script>

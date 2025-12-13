@@ -1,0 +1,158 @@
+/* =========================
+   CAT THEME — ніжно-рожевий стиль + лапка-курсор
+   ========================= */
+
+/* --- Вбудовані курсори лапки (SVG data-URI) --- */
+:root{
+  /* Звичайна лапка (темно-сіра), 4 пальчики + кігтики */
+  --paw-normal: url('data:image/svg+xml;utf8,\
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">\
+  <g fill="%23444">\
+    <!-- пальчики -->\
+    <circle cx="6.5"  cy="10" r="3.2"/>\
+    <circle cx="12.5" cy="8.8" r="3.4"/>\
+    <circle cx="19.5" cy="8.8" r="3.4"/>\
+    <circle cx="25.5" cy="10" r="3.2"/>\
+    <!-- кігтики -->\
+    <polygon points="6.5,4.1 5.0,7.0 8.0,7.0"/>\
+    <polygon points="12.5,2.8 11.0,5.9 14.0,5.9"/>\
+    <polygon points="19.5,2.8 18.0,5.9 21.0,5.9"/>\
+    <polygon points="25.5,4.1 24.0,7.0 27.0,7.0"/>\
+    <!-- велика подушечка -->\
+    <path d="M16 14c-6.2 0-10.5 4.2-10.5 8.4S9.8 28 16 28s10.5-2.2 10.5-5.6S22.2 14 16 14z"/>\
+  </g>\
+</svg>');
+
+  /* Стиснена лапка (для натискання): без кігтиків, пальчики ближче + осадження */
+  --paw-pressed: url('data:image/svg+xml;utf8,\
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">\
+  <g fill="%23444" transform="translate(0,2) scale(1,0.92)">\
+    <!-- пальчики (нижче і трохи ближче до центру) -->\
+    <circle cx="8.0"  cy="12.0" r="3.0"/>\
+    <circle cx="13.0" cy="11.3" r="3.1"/>\
+    <circle cx="19.0" cy="11.3" r="3.1"/>\
+    <circle cx="24.0" cy="12.0" r="3.0"/>\
+    <!-- велика подушечка (майже та сама, легке “осідання”) -->\
+    <path d="M16 15.2c-6.0 0-10.0 4.0-10.0 8.0s4.0 5.6 10.0 5.6 10.0-1.6 10.0-5.6-4.0-8.0-10.0-8.0z"/>\
+  </g>\
+</svg>');
+}
+
+/* -------------------------
+   КУРСОР ЛАПКА НА ВСЬОМУ ЕКРАНІ
+   ------------------------- */
+
+/* 1) База — скрізь лапка */
+html, body {
+  cursor: var(--paw-normal) 16 16, auto;
+}
+
+/* 2) Не дозволяємо мінятися курсору на стандартний над інтерактивом */
+a, button, .btn, .nav-btn, [role="button"],
+input, select, textarea, label, summary,
+input[type="button"], input[type="submit"], input[type="reset"] {
+  cursor: var(--paw-normal) 16 16, pointer !important;
+}
+
+/* 3) Ховер — тримаємо ту саму лапку */
+a:hover, button:hover, .btn:hover, .nav-btn:hover, [role="button"]:hover,
+input:hover, select:hover, textarea:hover, label:hover, summary:hover,
+input[type="button"]:hover, input[type="submit"]:hover, input[type="reset"]:hover {
+  cursor: var(--paw-normal) 16 16, pointer !important;
+}
+
+/* 4) Натискання ЛИШЕ CSS: body:active спрацьовує при mousedown будь-де */
+body:active {
+  cursor: var(--paw-pressed) 16 16, auto !important;
+}
+/* Дублюємо для конкретних елементів, якщо браузер насильно ставить свій курсор */
+a:active, button:active, .btn:active, .nav-btn:active, [role="button"]:active,
+input:active, select:active, textarea:active, label:active, summary:active,
+input[type="button"]:active, input[type="submit"]:active, input[type="reset"]:active {
+  cursor: var(--paw-pressed) 16 16, pointer !important;
+}
+
+/* -------------------------
+   ТЕМА (рожевий, як і було)
+   ------------------------- */
+
+/* Глобальні */
+body {
+  margin: 0;
+  font-family: Arial, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  background: #fff0f5;    /* світло-рожевий фон */
+  color: #4a2c2c;         /* темно-рожевий/коричневий текст */
+}
+
+/* Навігація */
+nav {
+  background: #ffb6c1;    /* рожевий бар */
+  border-bottom: 1px solid #e89aa6;
+}
+.nav-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 24px;
+}
+.nav-btn {
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #ff69b4;    /* яскраво-рожеві кнопки */
+  color: #fff;
+  transition: all .15s ease;
+}
+.nav-btn:hover {
+  background: #ff85c1;    /* світліший рожевий при наведенні */
+  color: #4a2c2c;
+}
+.nav-btn.active {
+  border: 1px solid #ff1493;
+}
+
+/* Карточки */
+.card, .canvas-wrap {
+  border-radius: 14px;
+  border: 1px solid #f5c6d2;
+  background: #ffe4e9;   /* дуже світло-рожевий фон карток */
+  padding: 16px;
+  color: #4a2c2c;
+}
+
+/* Кнопки */
+.btn {
+  background: #ff69b4;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: var(--paw-normal) 16 16, pointer !important; /* тримаємо лапку */
+  transition: all .15s ease;
+}
+.btn:hover {
+  background: #ff85c1;
+  color: #4a2c2c;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Інпути */
+input, select, textarea {
+  background: #fff0f5;
+  border: 1px solid #f5c6d2;
+  color: #4a2c2c;
+  border-radius: 8px;
+  padding: 8px 10px;
+  outline: none;
+  cursor: var(--paw-normal) 16 16, text !important; /* навіть над текстом - лапка */
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #ff69b4;
+  box-shadow: 0 0 0 2px rgba(255,105,180,0.4);
+}

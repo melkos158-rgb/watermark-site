@@ -1,0 +1,851 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>+ Додати STL</h1>
+
+<style>
+  /* === LAYOUT === */
+  .upload-layout{
+    display:grid;
+    grid-template-columns:minmax(0,2.1fr) minmax(320px,1fr);
+    gap:26px;
+    align-items:flex-start;
+  }
+  @media (max-width: 1024px){
+    .upload-layout{ grid-template-columns:1fr; }
+  }
+  .upload-main .card{
+    max-width:100%;
+    background:linear-gradient(135deg, rgba(12,16,36,.96), rgba(8,11,26,.98));
+    border-radius:22px;
+    border:1px solid rgba(110,132,255,.25);
+    box-shadow:0 24px 60px rgba(0,0,0,.75);
+    padding:18px 20px 20px;
+  }
+  .upload-main label{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:#9fa8ff;
+  }
+  .upload-main input,
+  .upload-main textarea{
+    border-radius:12px;
+    border:1px solid #262d4f;
+    background:#050819;
+    color:#e5e9ff;
+    padding:8px 10px;
+    font-size:14px;
+  }
+  .upload-main input:focus,
+  .upload-main textarea:focus{
+    outline:none;
+    border-color:#5b66ff;
+    box-shadow:0 0 0 1px rgba(91,102,255,.45);
+  }
+
+  /* === STEPS TOP BAR === */
+  .upload-steps{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+    padding:4px;
+    border-radius:999px;
+    background:radial-gradient(circle at 0 0,rgba(120,138,255,.15),transparent 45%),
+               radial-gradient(circle at 100% 100%,rgba(165,95,255,.25),transparent 40%),
+               #050818;
+    border:1px solid #252c52;
+  }
+  .upload-step-pill{
+    flex:1;
+    min-width:120px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:7px 12px;
+    border-radius:999px;
+    font-size:11px;
+    color:#aeb6ff;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    cursor:default;
+    transition:background .18s ease,color .18s ease, transform .18s ease;
+  }
+  .upload-step-pill span{
+    width:18px;height:18px;
+    border-radius:999px;
+    background:#252d52;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;
+  }
+  .upload-step-pill.active{
+    background:linear-gradient(90deg,#5b66ff,#b574ff);
+    color:#fff;
+    box-shadow:0 0 0 1px rgba(255,255,255,.12),0 14px 35px rgba(51,64,188,.7);
+    transform:translateY(-1px);
+  }
+  .upload-step-pill.active span{
+    background:#050814;
+  }
+
+  /* === FIELDS / FIELDSETS === */
+  .note-muted{ color:#9ea6c9; font-size:12px }
+  .fieldset{
+    border-radius:18px;
+    padding:14px 14px 12px;
+    border:1px solid rgba(55,65,115,.95);
+    background:linear-gradient(145deg,rgba(14,18,40,.97),rgba(8,10,24,1));
+    box-shadow:0 16px 40px rgba(0,0,0,.7);
+  }
+  .fieldset legend{
+    font-size:11px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:#8c97ff;
+    padding:0 8px;
+  }
+  .list{
+    font-size:13px;
+    color:#cfd5ff;
+    margin-top:8px;
+    word-break:break-all;
+  }
+
+  /* === DROP ZONES === */
+  .drop-tile{
+    width:100%; aspect-ratio: 16/6; max-height:280px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:18px;
+    position:relative;
+    overflow:hidden;
+    cursor:pointer;
+    border:1px dashed rgba(115,132,219,.8);
+    background:
+      radial-gradient(circle at 0 0,rgba(120,138,255,.25),transparent 55%),
+      radial-gradient(circle at 100% 100%,rgba(199,107,255,.32),transparent 52%),
+      linear-gradient(180deg,#151b34 0%,#0b0f24 100%);
+    box-shadow:0 18px 50px rgba(0,0,0,.85);
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  }
+  .drop-tile:hover{
+    transform:translateY(-1px) scale(1.01);
+    border-color:#c1c7ff;
+    box-shadow:0 24px 65px rgba(0,0,0,.9);
+  }
+  .drop-center{ text-align:center; pointer-events:none; user-select:none; }
+  .drop-title{
+    font-size:19px;
+    font-weight:700;
+    letter-spacing:.04em;
+    color:#edf1ff;
+  }
+  .drop-sub{
+    font-size:13px;
+    opacity:.9;
+    margin-top:5px;
+    color:#c0c7ff;
+  }
+  .badge{
+    position:absolute; top:10px; right:12px;
+    padding:4px 10px;
+    border-radius:999px;
+    font-size:11px;
+    background:rgba(4,7,20,.92);
+    color:#f7f7ff;
+    border:1px solid rgba(191,200,255,.35);
+    backdrop-filter:blur(8px);
+  }
+  .thumbs{
+    display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;
+  }
+  .thumb{
+    width:100px; height:75px;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid #252d52;
+    background:#050814;
+    box-shadow:0 10px 24px rgba(0,0,0,.8);
+  }
+  .thumb img{ width:100%; height:100%; object-fit:cover }
+
+  /* === PRICE SWITCH === */
+  .price-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .switch{
+    position:relative;
+    display:inline-block;
+    width:44px;
+    height:24px;
+  }
+  .switch input{ opacity:0;width:0;height:0; }
+  .slider{
+    position:absolute;
+    inset:0;
+    border-radius:999px;
+    background:#232842;
+    box-shadow:inset 0 0 0 1px rgba(96,110,187,.7);
+    cursor:pointer;
+    transition:.2s;
+  }
+  .slider:before{
+    content:"";
+    position:absolute;
+    height:18px;width:18px;
+    left:3px;top:3px;
+    border-radius:50%;
+    background:#f7f7ff;
+    box-shadow:0 4px 10px rgba(0,0,0,.7);
+    transition:.2s;
+  }
+  .switch input:checked + .slider{
+    background:linear-gradient(90deg,#5b66ff,#e46bff);
+    box-shadow:0 0 0 1px rgba(180,196,255,.9);
+  }
+  .switch input:checked + .slider:before{
+    transform:translateX(18px);
+  }
+  .switch-label{
+    font-size:13px;
+    color:#d7dcff;
+  }
+
+  /* === TAGS CHIPS === */
+  .tags-input{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:6px;
+    padding:6px 8px;
+    min-height:40px;
+    border-radius:12px;
+    border:1px solid #283257;
+    background:radial-gradient(circle at 0 0,rgba(95,122,255,.12),transparent 55%),
+               #050819;
+  }
+  .tags-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .tag-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:3px 9px;
+    border-radius:999px;
+    font-size:11px;
+    background:rgba(33,41,90,.96);
+    color:#dde2ff;
+    border:1px solid rgba(125,144,255,.7);
+    box-shadow:0 8px 18px rgba(0,0,0,.8);
+  }
+  .tag-chip button{
+    border:none;
+    background:transparent;
+    color:#9aa4d6;
+    cursor:pointer;
+    font-size:11px;
+    padding:0;
+    line-height:1;
+  }
+  .tags-input input{
+    flex:1;
+    min-width:120px;
+    border:none;
+    background:transparent;
+    outline:none;
+    font-size:13px;
+    color:#e5e9ff;
+  }
+
+  /* === PREVIEW SIDE === */
+  .upload-side{
+    position:sticky;
+    top:88px;
+  }
+  .upload-preview-card,
+  .upload-tips-card{
+    background:radial-gradient(circle at 0 0,rgba(148,101,255,.16),transparent 55%),
+               radial-gradient(circle at 100% 100%,rgba(87,194,255,.16),transparent 55%),
+               #050712;
+    border-radius:20px;
+    padding:16px 18px;
+    border:1px solid rgba(82,100,201,.85);
+    box-shadow:0 24px 60px rgba(0,0,0,.9);
+  }
+  .upload-tips-card{ margin-top:18px;font-size:13px;color:#cfd6ff; }
+  .upload-tips-card ul{ padding-left:18px;margin:8px 0 0; }
+  .upload-preview-card h3,
+  .upload-tips-card h3{
+    margin:0 0 8px;
+    font-size:13px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:#9fa8ff;
+  }
+
+  .preview-thumbnail{
+    width:100%;
+    aspect-ratio:4/3;
+    border-radius:16px;
+    background:#040614;
+    border:1px solid #262c54;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    margin-bottom:10px;
+    box-shadow:inset 0 0 0 1px rgba(10,14,40,.9);
+  }
+  .preview-thumbnail img{
+    width:100%;height:100%;object-fit:cover;
+  }
+  .preview-placeholder-text{
+    font-size:12px;
+    color:#737aa7;
+    text-align:center;
+  }
+  .preview-body{
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .preview-title{
+    font-size:16px;
+    font-weight:600;
+    color:#eef1ff;
+  }
+  .preview-price{
+    font-size:14px;
+    font-weight:600;
+  }
+  .preview-price.free{ color:#7bffb7; }
+  .preview-price.paid{ color:#ffd88a; }
+  .preview-tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:4px;
+  }
+  .preview-tag{
+    font-size:11px;
+    padding:3px 8px;
+    border-radius:999px;
+    background:#151a38;
+    border:1px solid #353f73;
+    color:#d8defe;
+  }
+</style>
+
+<div class="upload-layout">
+
+  <!-- ліва колонка: форма -->
+  <div class="upload-main">
+    <div class="card">
+
+      <!-- step bar -->
+      <div class="upload-steps">
+        <div class="upload-step-pill active"><span>1</span> Інфо</div>
+        <div class="upload-step-pill"><span>2</span> Файли</div>
+        <div class="upload-step-pill"><span>3</span> Опис & публікація</div>
+      </div>
+
+      <!-- форма -->
+      <form id="uploadForm"
+            method="post"
+            action="/api/market/upload"
+            enctype="multipart/form-data"
+            novalidate>
+        <label>Назва</label>
+        <input id="title" name="title" required placeholder="Dragon, Phone stand…" style="width:100%">
+
+        <div style="height:10px"></div>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap">
+          <div style="flex:1; min-width:160px">
+            <label>Ціна</label>
+            <div class="price-row">
+              <!-- changed name to "price" to match backend reading form.get("price") -->
+              <input id="price" name="price" type="number" min="0" value="0" required style="width:100%">
+              <label class="switch">
+                <input type="checkbox" id="is_free" name="is_free" value="1">
+                <span class="slider"></span>
+              </label>
+              <span class="switch-label">Безкоштовно</span>
+            </div>
+          </div>
+          <div style="flex:2; min-width:220px">
+            <label>Теги</label>
+            <div class="tags-input" id="tagsWrapper">
+              <div class="tags-chips" id="tagsChips"></div>
+              <input id="tagsInput" type="text" placeholder="dragon, toy, figure">
+            </div>
+            <!-- бекенд читає name="tags" -->
+            <input type="hidden" id="tagsHidden" name="tags">
+            <div class="note-muted" style="margin-top:4px">Enter або , щоб додати тег. Макс. 15 тегів.</div>
+          </div>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <!-- ZIP (головний файл для скачування) -->
+        <fieldset class="fieldset">
+          <legend>ZIP (головний файл для скачування, необовʼязково)</legend>
+
+          <!-- Пул ZIP -->
+          <input id="zip_pool" type="file" accept=".zip" style="display:none">
+
+          <!-- Реальне поле для бекенду -->
+          <input id="zip_file" name="zip_file" type="file" accept=".zip" style="display:none">
+
+          <div id="zip_tile" class="drop-tile" tabindex="0" aria-label="Додай ZIP-архів">
+            <div class="drop-center">
+              <div class="drop-title">Додай ZIP-архів</div>
+              <div class="drop-sub">ZIP — перетягни або натисни (цей файл буде качатися користувачам)</div>
+            </div>
+            <div id="zip_badge" class="badge">—</div>
+          </div>
+
+          <div id="zip_list" class="list"></div>
+          <div class="note-muted" style="margin-top:6px">
+            Якщо ZIP не додано — при скачуванні піде основний STL. STL/Фото нижче — лише для перегляду на сторінці товару.
+          </div>
+        </fieldset>
+
+        <div style="height:14px"></div>
+
+        <!-- 3D-ФАЙЛИ (одна плитка, до 5) -->
+        <fieldset class="fieldset">
+          <legend>3D-файли (обовʼязково, до 5 — для перегляду)</legend>
+
+          <!-- Пул (користувач обирає тут) -->
+          <input id="stl_pool" type="file" multiple accept=".stl,.obj,.ply,.gltf,.glb" style="display:none" aria-required="true">
+
+          <!-- Реальне головне поле для бекенду: file -->
+          <input id="stl_file"  name="file"  type="file" accept=".stl,.obj,.ply,.gltf,.glb" style="display:none">
+          <!-- додаткові — якщо бекенд не знає про stl_files, просто проігнорує -->
+          <input id="stl_files" name="stl_files" type="file" accept=".stl,.obj,.ply,.gltf,.glb" multiple style="display:none">
+
+          <div id="stl_tile" class="drop-tile" tabindex="0" aria-label="Додай 3D-файли">
+            <div class="drop-center">
+              <div class="drop-title">Додай 3D-файли</div>
+              <div class="drop-sub">STL / OBJ / PLY / GLTF / GLB — перетягни або натисни (до 5)</div>
+            </div>
+            <div id="stl_badge" class="badge">0/5</div>
+          </div>
+
+          <div id="stl_list" class="list"></div>
+          <div id="stl_file_hint" class="note-muted" style="margin-top:6px">Перший файл стане основним для перегляду, решта — додаткові.</div>
+        </fieldset>
+
+        <div style="height:14px"></div>
+
+        <!-- ФОТО (одна плитка, до 5) -->
+        <fieldset class="fieldset">
+          <legend>Фото (необовʼязково, до 5 — для перегляду)</legend>
+
+          <!-- Пул -->
+          <input id="photo_pool" type="file" multiple accept=".jpg,.jpeg,.png,.webp" style="display:none">
+
+          <!-- Реальні поля для бекенду (імена під бекенд: cover_file, gallery_files) -->
+          <input id="cover_file"    name="cover_file" type="file" accept=".jpg,.jpeg,.png,.webp" style="display:none">
+          <input id="gallery_files" name="gallery_files" type="file" accept=".jpg,.jpeg,.png,.webp" multiple style="display:none">
+
+          <div id="photo_tile" class="drop-tile" tabindex="0" aria-label="Додай фото">
+            <div class="drop-center">
+              <div class="drop-title">Додай фото</div>
+              <div class="drop-sub">JPG / PNG / WEBP — перетягни або натисни (до 5)</div>
+            </div>
+            <div id="gal_badge" class="badge">0/5</div>
+          </div>
+
+          <div id="gallery_preview" class="thumbs"></div>
+          <div id="gallery_note" class="note-muted" style="margin-top:6px">Перше фото стане обкладинкою, решта — в галерею.</div>
+        </fieldset>
+
+        <div style="height:14px"></div>
+
+        <label>Опис</label>
+        <!-- бекенд чекає desc -->
+        <textarea id="desc" name="desc" rows="5" placeholder="Короткий опис моделі…" style="width:100%"></textarea>
+
+        <div style="height:14px"></div>
+
+        <button class="btn primary" id="send" type="submit">Зберегти</button>
+        <span id="msg" class="muted" style="margin-left:10px"></span>
+      </form>
+    </div>
+  </div>
+
+  <!-- права колонка: live-превʼю -->
+  <aside class="upload-side">
+    <div class="upload-preview-card">
+      <h3>Превʼю оголошення</h3>
+      <div class="preview-thumbnail" id="previewThumbnail">
+        <span class="preview-placeholder-text">Тут з’явиться твоя модель (перше фото)</span>
+      </div>
+      <div class="preview-body">
+        <div class="preview-title" id="previewTitle">Назва моделі</div>
+        <div class="preview-price free" id="previewPrice">FREE</div>
+        <div class="preview-tags" id="previewTags"></div>
+      </div>
+    </div>
+
+    <div class="upload-tips-card">
+      <h3>Поради</h3>
+      <ul>
+        <li>Додай 3–5 фото: рендер + реальний друк.</li>
+        <li>Укажи час друку та складність в описі.</li>
+        <li>Чим точніший опис, тим вище модель в пошуку.</li>
+      </ul>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+(function(){
+  const CURRENT_USER_ID = {{ (session.get('user_id') or none) | tojson }};
+
+  const form = document.getElementById('uploadForm');
+  const msg  = document.getElementById('msg');
+
+  // Пули
+  const zipPool   = document.getElementById('zip_pool');
+  const stlPool   = document.getElementById('stl_pool');
+  const photoPool = document.getElementById('photo_pool');
+
+  // Реальні поля для бекенду
+  const zipFile   = document.getElementById('zip_file');
+  const stlMain   = document.getElementById('stl_file');   // name="file"
+  const stlExtras = document.getElementById('stl_files');
+  const coverFile = document.getElementById('cover_file'); // name="cover_file"
+  const galFiles  = document.getElementById('gallery_files');
+
+  // плитки
+  const zipTile   = document.getElementById('zip_tile');
+  const zipBadge  = document.getElementById('zip_badge');
+  const zipList   = document.getElementById('zip_list');
+
+  const stlTile   = document.getElementById('stl_tile');
+  const stlBadge  = document.getElementById('stl_badge');
+  const stlList   = document.getElementById('stl_list');
+  const stlHint   = document.getElementById('stl_file_hint');
+
+  const photoTile  = document.getElementById('photo_tile');
+  const galBadge   = document.getElementById('gal_badge');
+  const galPreview = document.getElementById('gallery_preview');
+  const galNote    = document.getElementById('gallery_note');
+
+  const STL_LIMIT   = 5;
+  const PHOTO_LIMIT = 5;
+
+  // live preview
+  const titleInput   = document.getElementById('title');
+  const priceInput   = document.getElementById('price');
+  const isFreeToggle = document.getElementById('is_free');
+  const previewTitle = document.getElementById('previewTitle');
+  const previewPrice = document.getElementById('previewPrice');
+  const previewTags  = document.getElementById('previewTags');
+  const previewThumb = document.getElementById('previewThumbnail');
+
+  // tags chips
+  const tagsInput   = document.getElementById('tagsInput');
+  const tagsHidden  = document.getElementById('tagsHidden');
+  const tagsChips   = document.getElementById('tagsChips');
+  let tags = [];
+
+  function renderTags(){
+    tagsChips.innerHTML = '';
+    tags.forEach((t, idx)=>{
+      const div = document.createElement('span');
+      div.className = 'tag-chip';
+      div.innerHTML = `<span>${t}</span>`;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = '&times;';
+      btn.addEventListener('click', ()=>{
+        tags.splice(idx,1);
+        renderTags();
+        updateTagsPreview();
+      });
+      div.appendChild(btn);
+      tagsChips.appendChild(div);
+    });
+    // на бекенд як CSV
+    tagsHidden.value = tags.join(', ');
+    updateTagsPreview();
+  }
+
+  function addTagFromInput(){
+    let value = (tagsInput.value || '').trim();
+    if (!value) return;
+    const parts = value.split(',').map(s=>s.trim()).filter(Boolean);
+    for (const p of parts){
+      if (!p) continue;
+      if (tags.includes(p)) continue;
+      if (tags.length >= 15) break;
+      tags.push(p);
+    }
+    tagsInput.value = '';
+    renderTags();
+  }
+
+  tagsInput.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ','){
+      e.preventDefault();
+      addTagFromInput();
+    } else if (e.key === 'Backspace' && !tagsInput.value && tags.length){
+      tags.pop();
+      renderTags();
+    }
+  });
+  tagsInput.addEventListener('blur', addTagFromInput);
+
+  function updateTitle(){
+    const v = (titleInput.value || '').trim();
+    previewTitle.textContent = v || 'Назва моделі';
+  }
+  function updatePrice(){
+    const free = isFreeToggle.checked;
+    if (free){
+      priceInput.value = 0;
+      priceInput.disabled = true;
+      previewPrice.textContent = 'FREE';
+      previewPrice.classList.remove('paid');
+      previewPrice.classList.add('free');
+      return;
+    }
+    priceInput.disabled = false;
+    const raw = priceInput.value;
+    const num = Number(raw);
+    if (!raw || isNaN(num) || num === 0){
+      previewPrice.textContent = 'FREE';
+      previewPrice.classList.remove('paid');
+      previewPrice.classList.add('free');
+    } else {
+      previewPrice.textContent = num.toFixed(num % 1 ? 2 : 0) + ' zł';
+      previewPrice.classList.remove('free');
+      previewPrice.classList.add('paid');
+    }
+  }
+  function updateTagsPreview(){
+    previewTags.innerHTML = '';
+    tags.forEach(t=>{
+      const span = document.createElement('span');
+      span.className = 'preview-tag';
+      span.textContent = t;
+      previewTags.appendChild(span);
+    });
+  }
+
+  titleInput.addEventListener('input', updateTitle);
+  priceInput.addEventListener('input', updatePrice);
+  isFreeToggle.addEventListener('change', updatePrice);
+  updateTitle(); updatePrice(); renderTags();
+
+  // helpers для файлів
+  function accepts(input){
+    const acc = (input.getAttribute('accept') || '').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
+    if (!acc.length) return null;
+    const exts = acc.filter(s=>s.startsWith('.'));
+    const mimes= acc.filter(s=>s.includes('/'));
+    return {exts, mimes};
+  }
+  function fileAccepted(file, input){
+    const rule = accepts(input);
+    if (!rule) return true;
+    const name = (file.name || '').toLowerCase();
+    const type = (file.type || '').toLowerCase();
+    if (rule.exts.some(ext => name.endsWith(ext))) return true;
+    if (rule.mimes.some(m => m.endsWith('/*') ? type.startsWith(m.slice(0,-1)) : type===m)) return true;
+    return false;
+  }
+  function safeAssignFiles(input, filesArr, limit){
+    const dt = new DataTransfer();
+    for (let i=0; i<filesArr.length && i<limit; i++){
+      const f = filesArr[i];
+      if (fileAccepted(f, input)) dt.items.add(f);
+    }
+    input.files = dt.files;
+  }
+
+  function attachTile(tile, input, onFiles){
+    tile.addEventListener('click', ()=> input.click());
+    tile.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); input.click(); }});
+
+    ['dragenter','dragover'].forEach(ev=>{
+      tile.addEventListener(ev, (e)=>{ e.preventDefault(); tile.style.borderColor='#8ea0d8'; tile.style.transform='scale(1.01)'; });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      tile.addEventListener(ev, (e)=>{ e.preventDefault(); tile.style.borderColor=''; tile.style.transform=''; });
+    });
+
+    tile.addEventListener('drop', (e)=>{
+      if (!e.dataTransfer || !e.dataTransfer.files) return;
+      const files = Array.from(e.dataTransfer.files);
+      safeAssignFiles(input, files, input===stlPool ? STL_LIMIT : (input===photoPool ? PHOTO_LIMIT : 1));
+      onFiles && onFiles(input.files);
+    });
+
+    input.addEventListener('change', ()=> onFiles && onFiles(input.files||[]));
+  }
+
+  function updateZipUI(files){
+    const n = files.length;
+    zipBadge.textContent = n ? '1' : '—';
+    zipList.textContent  = n ? files[0].name : '';
+    if (n) safeAssignFiles(zipFile, [files[0]], 1);
+    else   safeAssignFiles(zipFile, [], 1);
+  }
+
+  function updateStlUI(files){
+    const n = Math.min(files.length, STL_LIMIT);
+    stlBadge.textContent = `${n}/${STL_LIMIT}`;
+    stlList.textContent = n ? Array.from(files).slice(0,STL_LIMIT).map(f=>f.name).join(' • ') : '';
+    stlHint.textContent = n ? 'Файли вибрано.' : 'Перший файл стане основним для перегляду, решта — додаткові.';
+    if (n){
+      const list = Array.from(files).slice(0, STL_LIMIT);
+      safeAssignFiles(stlMain,  [list[0]], 1);      // file
+      safeAssignFiles(stlExtras, list.slice(1), 4); // stl_files
+    } else {
+      safeAssignFiles(stlMain,  [], 1);
+      safeAssignFiles(stlExtras, [], 4);
+    }
+  }
+
+  function updatePhotoUI(files){
+    galPreview.innerHTML = '';
+    const n = Math.min(files.length, PHOTO_LIMIT);
+    let firstUrl = null;
+    for(let i=0;i<n;i++){
+      const url = URL.createObjectURL(files[i]);
+      if (!firstUrl) firstUrl = url;
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      const img = document.createElement('img');
+      img.src = url;
+      div.appendChild(img);
+      galPreview.appendChild(div);
+    }
+    galBadge.textContent = `${n}/${PHOTO_LIMIT}`;
+    galNote.textContent  = 'Перше фото стане обкладинкою, решта — в галерею.' + (files.length>PHOTO_LIMIT ? ' Зайві будуть проігноровані.' : '');
+
+    // превʼю картинка
+    previewThumb.innerHTML = '';
+    if (firstUrl){
+      const img = document.createElement('img');
+      img.src = firstUrl;
+      previewThumb.appendChild(img);
+    } else {
+      const span = document.createElement('span');
+      span.className = 'preview-placeholder-text';
+      span.textContent = 'Тут з’явиться твоя модель (перше фото)';
+      previewThumb.appendChild(span);
+    }
+
+    if (n){
+      const list = Array.from(files).slice(0, PHOTO_LIMIT);
+      safeAssignFiles(coverFile, [list[0]], 1);   // cover_file
+      safeAssignFiles(galFiles,  list.slice(1), 4);
+    } else {
+      safeAssignFiles(coverFile, [], 1);
+      safeAssignFiles(galFiles,  [], 4);
+    }
+  }
+
+  attachTile(zipTile,  zipPool,  updateZipUI);
+  attachTile(stlTile,  stlPool,  updateStlUI);
+  attachTile(photoTile,photoPool,updatePhotoUI);
+
+  // init
+  updateZipUI(zipPool.files||[]);
+  updateStlUI(stlPool.files||[]);
+  updatePhotoUI(photoPool.files||[]);
+
+  function validateFiles(){
+    return !!(stlPool.files && stlPool.files.length);
+  }
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    msg.textContent = '';
+
+    if (!CURRENT_USER_ID){
+      msg.textContent = 'Потрібно увійти, щоб додати модель.';
+      return;
+    }
+    if (!validateFiles()){
+      msg.textContent = 'Додай 3D-файли (мінімум 1).';
+      return;
+    }
+
+    const fd = new FormData(form);
+
+    // ДОДАНО: явний user_id щоб бекенд отримував від користувача
+    fd.set('user_id', String(CURRENT_USER_ID));
+
+    // теги як CSV
+    fd.set('tags', tags.join(', '));
+
+    // is_free + price → backend reads "price" (integer PLN); we keep cents off the wire
+    const free = isFreeToggle.checked;
+    fd.set('is_free', free ? '1' : '0');
+    const priceVal = Number(priceInput.value || 0);
+    // DO NOT send price_cents (avoid mixed fields). Send integer 'price' to match backend.
+    fd.set('price', String(Math.max(0, Math.floor(priceVal))));
+
+    if (!(zipFile.files && zipFile.files.length))     fd.delete('zip_file');
+    if (!(stlMain.files && stlMain.files.length))     fd.delete('file');
+    if (!(coverFile.files && coverFile.files.length)) fd.delete('cover_file');
+
+    if (stlExtras && stlExtras.files && stlExtras.files.length){
+      const keep = Math.min(stlExtras.files.length, 4);
+      fd.delete('stl_files');
+      for (let i=0;i<keep;i++){
+        fd.append('stl_files', stlExtras.files[i], stlExtras.files[i].name);
+      }
+    }
+    if (galFiles && galFiles.files && galFiles.files.length){
+      const keep = Math.min(galFiles.files.length, 4);
+      fd.delete('gallery_files');
+      for (let i=0;i<keep;i++){
+        fd.append('gallery_files', galFiles.files[i], galFiles.files[i].name);
+      }
+    }
+
+    try{
+      const r = await fetch('/api/market/upload', {
+        method:'POST',
+        body: fd,
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      });
+
+      let j = null;
+      try {
+        j = await r.clone().json();
+      } catch {
+        const txt = (await r.text()).slice(0,200);
+        msg.textContent = 'Помилка ' + r.status + ': ' + txt;
+        return;
+      }
+
+      if (j.ok){
+        msg.textContent = 'Готово! Перехід до сторінки…';
+        if (j.id){
+          setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
+        }
+      } else {
+        msg.textContent = 'Помилка: ' + (j.error || 'server');
+      }
+    } catch(err){
+      console.error(err);
+      msg.textContent = 'Помилка мережі.';
+    }
+  });
+})();
+</script>
+{% endblock %} 

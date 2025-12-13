@@ -1,0 +1,138 @@
+<div class="market-grid">
+  {% if items and items|length > 0 %}
+    {% for it in items %}
+      <div
+        class="grid-item {% if it.is_featured or it.featured %}featured{% endif %}"
+        data-id="{{ it.id }}"
+        data-price="{{ it.price_cents if it.price_cents is not none else ((it.price * 100)|int if it.price is defined and it.price is not none else 0) }}"
+        data-free="{{ 1 if it.is_free else 0 }}"
+        data-downloads="{{ it.downloads or 0 }}"
+        data-rating="{{ it.rating or 0 }}"
+        data-tags="{{ (it.tags or '')|lower }}"
+      >
+        {% if it.is_featured or it.featured %}
+          <div class="grid-item-ribbon">TOP</div>
+        {% endif %}
+
+        {% include "market/_item_card.html" %}
+      </div>
+    {% endfor %}
+  {% else %}
+    {% include "market/_empty.html" %}
+  {% endif %}
+</div>
+
+{# Опційний "ще" — якщо передаси pagination в контекст #}
+{% if pagination is defined and pagination.pages > pagination.page %}
+  <div class="grid-more-wrap">
+    <a href="{{ url_for(request.endpoint, **request.view_args, page=pagination.page + 1, **request.args.to_dict(flat=True)) }}"
+       class="grid-more-btn">
+      Показати ще моделі
+    </a>
+  </div>
+{% endif %}
+
+<style>
+  .market-grid{
+    display:grid;
+    gap:16px;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    align-items:stretch;
+  }
+
+  .grid-item{
+    position:relative;
+    display:block;
+    transform:translateY(0);
+    transition:
+      transform .16s ease-out,
+      box-shadow .16s ease-out,
+      border-color .16s ease-out,
+      background-color .16s ease-out;
+    border-radius:16px;
+    /* легкий фон/бордер навколо картки (сама картка всередині _item_card.html) */
+    padding:2px;
+    background:linear-gradient(135deg, #0f172a, #020617);
+    border:1px solid rgba(148, 163, 184, 0.15);
+    box-shadow:0 4px 14px rgba(15, 23, 42, 0.45);
+    overflow:hidden;
+  }
+
+  .grid-item:hover{
+    transform:translateY(-4px);
+    box-shadow:0 12px 30px rgba(15, 23, 42, 0.8);
+    border-color:#6366f1;
+    background:radial-gradient(circle at top, #1d2235 0, #020617 55%);
+  }
+
+  /* Бейдж для виділених моделей */
+  .grid-item-ribbon{
+    position:absolute;
+    top:10px;
+    left:10px;
+    z-index:5;
+    padding:4px 10px;
+    font-size:11px;
+    line-height:1;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    border-radius:999px;
+    background:linear-gradient(135deg, #f97316, #facc15);
+    color:#020617;
+    font-weight:700;
+    box-shadow:0 6px 18px rgba(248, 181, 58, .55);
+  }
+
+  /* featured займає 2 колонки на великих екранах */
+  @media (min-width: 1200px){
+    .grid-item.featured{
+      grid-column:span 2;
+    }
+  }
+
+  /* Щільніша сітка на середніх екранах */
+  @media (max-width: 1100px){
+    .market-grid{
+      grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    }
+  }
+
+  /* Один стовпчик на мобілці */
+  @media (max-width: 700px){
+    .market-grid{
+      grid-template-columns:1fr;
+    }
+    .grid-item.featured{
+      grid-column:auto;
+    }
+  }
+
+  /* Кнопка "ще" */
+  .grid-more-wrap{
+    margin-top:18px;
+    text-align:center;
+  }
+  .grid-more-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:9px 20px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#0b1120;
+    color:#e5e7eb;
+    font-size:13px;
+    text-decoration:none;
+    gap:6px;
+    cursor:pointer;
+    box-shadow:0 6px 20px rgba(15, 23, 42, 0.65);
+  }
+  .grid-more-btn::after{
+    content:"↓";
+    font-size:12px;
+  }
+  .grid-more-btn:hover{
+    border-color:#6366f1;
+    background:#111827;
+  }
+</style>

@@ -1,0 +1,87 @@
+{% extends "market/layout.html" %}
+
+{% block market_main %}
+
+<section class="ai-tools-page">
+  <header class="ai-tools-header">
+    <h1>AI Інструменти для авторів</h1>
+    <p class="muted">
+      Автоматична генерація описів, тегів, назв, перекладу і SEO-оптимізації для STL моделей.
+    </p>
+  </header>
+
+  <div class="ai-tools-grid">
+
+    <!-- ===== Назва ===== -->
+    <div class="ai-card">
+      <h2>Генерація назви</h2>
+      <p class="muted">AI підбере найкращу назву для моделі.</p>
+
+      <textarea id="ai-name-input"
+                class="ai-textarea"
+                placeholder="Опиши модель…"></textarea>
+
+      <button class="btn primary" id="ai-generate-name">Згенерувати назву</button>
+
+      <div class="ai-output" id="ai-name-output"></div>
+    </div>
+
+    <!-- ===== Опис ===== -->
+    <div class="ai-card">
+      <h2>Генерація опису</h2>
+      <p class="muted">Отримай професійний опис STL моделі.</p>
+
+      <textarea id="ai-desc-input"
+                class="ai-textarea"
+                placeholder="Коротко опиши модель…"></textarea>
+
+      <button class="btn primary" id="ai-generate-desc">Згенерувати опис</button>
+
+      <div class="ai-output" id="ai-desc-output"></div>
+    </div>
+
+    <!-- ===== Теги ===== -->
+    <div class="ai-card">
+      <h2>Генерація тегів</h2>
+      <p class="muted">AI підбирає 10–20 ідеальних тегів.</p>
+
+      <textarea id="ai-tags-input"
+                class="ai-textarea"
+                placeholder="Опиши модель або встав назву…"></textarea>
+
+      <button class="btn primary" id="ai-generate-tags">Згенерувати теги</button>
+
+      <div class="ai-output" id="ai-tags-output"></div>
+    </div>
+
+    <!-- ===== Переклад ===== -->
+    <div class="ai-card">
+      <h2>Переклад опису</h2>
+      <p class="muted">Миттєвий переклад на EN / PL / DE / ES / FR.</p>
+
+      <textarea id="ai-translate-input"
+                class="ai-textarea"
+                placeholder="Встав текст для перекладу…"></textarea>
+
+      <select id="ai-translate-lang" class="ai-select">
+        <option value="en">Англійська</option>
+        <option value="pl">Польська</option>
+        <option value="de">Німецька</option>
+        <option value="fr">Французька</option>
+        <option value="es">Іспанська</option>
+      </select>
+
+      <button class="btn primary" id="ai-translate-btn">Перекласти</button>
+
+      <div class="ai-output" id="ai-translate-output"></div>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='market/js/ai_tools.js') }}"></script>
+{% endblock %}

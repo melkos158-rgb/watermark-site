@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Фільтри — Preview</title>
+<style>
+  :root{
+    --bg:#0b0e14; --card:#101522; --line:#1b2131; --text:#e6e9ef; --muted:#aab1c7; --chip:#161a20; --accent:#4f7cff;
+  }
+  html,body{
+    margin:0;
+    padding:0;
+    height:100%;
+    background:transparent;
+    color:var(--text);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+  }
+
+  .rail{
+    display:flex;
+    gap:10px;
+    overflow-x:auto;
+    padding:10px 14px;
+  }
+  .rail::-webkit-scrollbar{height:8px}
+  .rail::-webkit-scrollbar-thumb{background:#273044;border-radius:8px}
+
+  .tile{
+    flex:0 0 120px;
+    background:var(--chip);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:8px;
+    text-align:center;
+    cursor:pointer;
+    user-select:none;
+    transition:transform .2s ease;
+    position:relative;
+  }
+  .tile:hover{transform:scale(1.04);border-color:var(--accent)}
+  .thumb{
+    width:100%;
+    height:80px;
+    border-radius:8px;
+    object-fit:cover;
+    display:block;
+    background:#0f141c;
+  }
+  .filename{
+    font-size:11px;
+    color:#8aa0bf;
+    margin-top:4px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .name{
+    font-size:12px;
+    color:#e6e9ef;
+    margin-top:2px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .tile:active{outline:2px solid var(--accent)}
+  .empty{
+    color:#8aa0bf;
+    font-size:13px;
+    padding:16px;
+    text-align:center;
+  }
+  /* невеликий бейдж популярності */
+  .badge{
+    position:absolute; top:6px; left:6px;
+    font-size:10px; padding:2px 6px; border-radius:999px;
+    background:rgba(79,124,255,.15); border:1px solid rgba(79,124,255,.35); color:#cfe0ff;
+    display:none;
+  }
+  .tile.popular .badge{display:inline-block}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="empty" id="empty">Генерація прев’ю...</div>
+  <div class="rail" id="rail" style="display:none"></div>
+</div>
+
+<script>
+// ==========================
+//   Популярність фільтрів
+// ==========================
+const USAGE_KEY = 'proofly_preset_usage_v1';
+function loadUsage(){
+  try { return JSON.parse(localStorage.getItem(USAGE_KEY) || '{}') || {}; }
+  catch(_) { return {}; }
+}
+function saveUsage(map){
+  try { localStorage.setItem(USAGE_KEY, JSON.stringify(map)); } catch(_){}
+}
+function bumpUsage(key){
+  const u = loadUsage();
+  u[key] = (u[key] || 0) + 1;
+  saveUsage(u);
+  return u[key];
+}
+
+// ==========================
+//   100 пресетів (orig + 99)
+// ==========================
+function fxFromCategoryLevel(cat, lvl){
+  // lvl = 1..11 (сила ефекту)
+  const t = (a,b)=> (a + (b-a)*((lvl-1)/10));
+  switch(cat){
+    case 'pop':  return `contrast(${t(110,140)}%) saturate(${t(115,150)}%) brightness(${t(102,108)}%)`;
+    case 'acc':  return `contrast(${t(120,150)}%) saturate(${t(110,130)}%)`;
+    case 'fade': return `contrast(${t(95,85)}%) brightness(${t(103,112)}%) saturate(${t(90,70)}%)`;
+    case 'cool': return `hue-rotate(${t(-3,-12)}deg) saturate(${t(108,120)}%)`;
+    case 'warm': return `sepia(${t(6,16)}%) saturate(${t(108,125)}%) brightness(${t(102,108)}%)`;
+    case 'mono': return `grayscale(${t(60,100)}%) contrast(${t(105,120)}%)`;
+    case 'film': return `sepia(${t(15,32)}%) contrast(${t(105,120)}%) saturate(${t(102,112)}%)`;
+    case 'dusk': return `hue-rotate(${t(8,18)}deg) contrast(${t(98,110)}%) brightness(${t(98,103)}%)`;
+    case 'vivid':return `contrast(${t(115,145)}%) saturate(${t(120,165)}%)`;
+    default:     return 'none';
+  }
+}
+
+function buildPresetsRaw(){
+  const arr = [{key:'orig', label:'Original', fx:null}];
+  const cats = ['pop','acc','fade','cool','warm','mono','film','dusk','vivid']; // 9
+  for(const cat of cats){
+    for(let lvl=1; lvl<=11; lvl++){ // 9*11=99 + orig = 100
+      arr.push({
+        key: `${cat}${lvl}`,
+        label: `${cat.toUpperCase()} ${lvl}`,
+        fx: ctx => ctx.filter = fxFromCategoryLevel(cat, lvl)
+      });
+    }
+  }
+  return arr;
+}
+
+function sortPresetsByUsage(presets){
+  const usage = loadUsage();
+  const [orig, ...rest] = presets;
+  rest.sort((a,b)=>{
+    const ua = usage[a.key] || 0;
+    const ub = usage[b.key] || 0;
+    if(ub !== ua) return ub - ua;         // спочатку найчастіші
+    return a.label.localeCompare(b.label); // стабільність
+  });
+  return [orig, ...rest];
+}
+
+// ✅ шлях до базової фотки
+const BASE_FILE = "{{ url_for('static', filename='img/filters-base.jpg') }}";
+
+// === СТВОРЕННЯ ПРЕВ’Ю ===
+function buildTiles(img){
+  const rail = document.getElementById('rail');
+  const keepScroll = rail.scrollLeft;
+
+  const PRESETS = sortPresetsByUsage(buildPresetsRaw());
+  rail.innerHTML = '';
+
+  const usage = loadUsage();
+  const maxU = Math.max(0, ...Object.values(usage));
+
+  PRESETS.forEach(p=>{
+    const tile = document.createElement('div');
+    tile.className='tile';
+    tile.dataset.key=p.key;
+
+    const cnv = document.createElement('canvas');
+    cnv.width = 160; cnv.height = 120;
+    const ctx = cnv.getContext('2d');
+    if (p.fx) p.fx(ctx); else ctx.filter = 'none';
+    const r = fitCover(img.naturalWidth, img.naturalHeight, cnv.width, cnv.height);
+    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, r.dx, r.dy, r.dw, r.dh);
+
+    const thumb = document.createElement('img');
+    thumb.className='thumb';
+    thumb.src = cnv.toDataURL('image/jpeg', 0.85);
+
+    const fname = document.createElement('div');
+    fname.className='filename';
+    fname.textContent = 'filters-base.jpg';
+
+    const name = document.createElement('div');
+    name.className='name';
+    name.textContent = p.label;
+
+    // бейдж популярності (показуємо тільки якщо фільтр реально використовували)
+    const ucount = usage[p.key] || 0;
+    const badge = document.createElement('div');
+    badge.className = 'badge';
+    badge.textContent = ucount > 0 ? (ucount >= 100 ? '99+' : '×' + ucount) : '';
+    if(ucount > 0 && p.key !== 'orig') tile.classList.add('popular');
+
+    tile.appendChild(badge);
+    tile.appendChild(thumb);
+    tile.appendChild(fname);
+    tile.appendChild(name);
+
+    // 🔗 Клік: повідомляємо батька, інкрементуємо популярність і перебудовуємо
+    tile.addEventListener('click', ()=>{
+      // 1) postMessage (основний спосіб)
+      try { window.parent?.postMessage({type:'preset_clicked', presetKey:p.key}, '*'); } catch(e){}
+
+      // 2) прямий виклик, якщо батько надав функцію
+      try { if (window.parent && typeof window.parent.applyPreset === 'function') { window.parent.applyPreset(p.key); } } catch(e){}
+
+      // 3) дубль через localStorage (батько може слухати 'storage')
+      try { localStorage.setItem('proofly_preset_clicked', JSON.stringify({key:p.key, t:Date.now()})); } catch(e){}
+
+      // 4) оновлюємо лічильник і перебудовуємо список
+      bumpUsage(p.key);
+      buildTiles(img);
+    });
+
+    rail.appendChild(tile);
+  });
+
+  // повертаємо позицію скролу, щоб не дратувало перестрибування
+  rail.scrollLeft = keepScroll;
+}
+
+// fit image to canvas keeping aspect
+function fitCover(sw,sh,dw,dh){
+  const s = Math.max(dw/sw, dh/sh);
+  const rw = sw*s, rh = sh*s;
+  const dx = (dw - rw)/2, dy = (dh - rh)/2;
+  return {sx:0, sy:0, sw, sh, dx, dy, dw:rw, dh:rh};
+}
+
+// === ЗАВАНТАЖЕННЯ БАЗОВОГО ФОТО ===
+window.addEventListener('DOMContentLoaded',()=>{
+  const im = new Image();
+  im.onload = ()=>{
+    buildTiles(im);
+    document.getElementById('rail').style.display='flex';
+    document.getElementById('empty').style.display='none';
+  };
+  im.onerror = ()=>{
+    document.getElementById('empty').textContent = 'Не знайдено filters-base.jpg';
+  };
+  im.src = BASE_FILE;
+});
+</script>
+</body>
+</html>

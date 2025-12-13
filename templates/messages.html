@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Загальний чат</h2>
+
+<div class="card" style="margin-bottom:12px">
+  <form onsubmit="return sendMsg(event)">
+    <label>Текст</label>
+    <textarea class="textarea" name="text" id="msgText" required></textarea>
+    <button class="btn">Надіслати</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Історія</h3>
+  <div id="log" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
+<script>
+  const log = document.getElementById('log');
+  let lastId = null;
+
+  function esc(s){return (s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function row(m){
+    const div = document.createElement('div');
+    div.innerHTML = `<div class="muted" style="font-size:12px">${esc(m.user_name)} • ${m.time||''}</div>${esc(m.text)}`;
+    div.style.border = '1px solid #1b2131';
+    div.style.borderRadius = '10px';
+    div.style.padding = '8px 10px';
+    log.appendChild(div);
+    lastId = m.id;
+  }
+
+  function fetchInit(){
+    fetch('/chat/fetch').then(r=>r.json()).then(d=>{
+      if(!d.ok) return;
+      log.innerHTML = '';
+      d.messages.forEach(row);
+    });
+  }
+  function fetchNew(){
+    const url = lastId ? `/chat/fetch?since_id=${lastId}` : '/chat/fetch';
+    fetch(url).then(r=>r.json()).then(d=>{
+      if(!d.ok) return;
+      d.messages.forEach(row);
+    });
+  }
+
+  function sendMsg(e){
+    e.preventDefault();
+    const ta = document.getElementById('msgText');
+    const text = ta.value.trim();
+    if(!text) return false;
+    ta.value = '';
+    fetch('/chat/post', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text })
+    }).then(()=>fetchNew());
+    return false;
+  }
+
+  fetchInit();
+  setInterval(fetchNew, 2500);
+</script>
+{% endblock %}

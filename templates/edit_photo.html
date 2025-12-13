@@ -1,0 +1,769 @@
+{% set page = 'edit_photo' %}
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Edit Photo</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  :root{
+    --bg-x:      var(--bg, #0b0e14);
+    --panel-x:   var(--card, #101522);
+    --border-x:  var(--line, #1b2131);
+    --text-x:    var(--text, #e6e9ef);
+    --muted-x:   var(--muted, #aab1c7);
+    --hint-x:    var(--muted, #92a0b6);
+    --chip-x:    var(--chip,  #182034);
+    --primary-x: var(--accent, #4f7cff);
+    --primary-contrast-x: #ffffff;
+  }
+
+  body{background:var(--bg-x);color:var(--text-x);margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+
+  .container{max-width:1280px;margin:0 auto;padding:16px}
+  .grid-3{display:grid;grid-template-columns:320px 1fr 320px;gap:16px}
+  .panel{background:var(--panel-x);border:1px solid var(--border-x);border-radius:12px;padding:14px}
+  .panel h3{margin:0 0 8px;font-size:13px;letter-spacing:.3px;color:var(--muted-x);text-transform:uppercase}
+
+  .controls{display:flex;flex-direction:column;gap:12px}
+  .control{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center}
+  .control label{font-size:13px;color:var(--muted-x)}
+  .control input[type=range]{grid-column:1/3;width:100%}
+  .control.hidden{display:none}
+
+  .btnrow{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+  .btn{background:var(--panel-x);border:1px solid var(--border-x);color:var(--text-x);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+  .btn:hover{background:rgba(255,255,255,.03)}
+  .btn.primary{background:var(--primary-x);color:var(--primary-contrast-x);border-color:var(--primary-x)}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .hint{font-size:12px;color:var(--hint-x)}
+
+  /* Сцена */
+  .stage{height:64vh;min-height:420px;background:var(--panel-x);border:1px dashed var(--border-x);
+         border-radius:12px;position:relative;overflow:hidden}
+  .stage .inner{position:absolute;inset:0}
+  .stage img{position:absolute;inset:0;margin:auto;width:auto;height:auto;max-width:100%;max-height:100%;
+             object-fit:contain;display:none;pointer-events:none;will-change:filter}
+  #imgAfter{z-index:1}
+  #imgBefore{z-index:2;opacity:0}
+  #paintOverlay{position:absolute;inset:0;z-index:3;pointer-events:none}
+
+  /* Crop box */
+  #cropBox{
+    position:absolute;border:2px dashed var(--primary-x);border-radius:6px;display:none;
+    box-shadow:0 0 0 100vmax rgba(0,0,0,.35);
+    cursor:default; /* не рухається без перетягування */
+    z-index:4;
+    touch-action:none; /* блокує скрол на драг */
+  }
+  .crop-h{position:absolute;width:14px;height:14px;background:var(--primary-x);border:2px solid #0b0e14;border-radius:50%;box-sizing:border-box}
+  .h-nw{left:-7px;top:-7px;cursor:nwse-resize}.h-ne{right:-7px;top:-7px;cursor:nesw-resize}
+  .h-sw{left:-7px;bottom:-7px;cursor:nesw-resize}.h-se{right:-7px;bottom:-7px;cursor:nwse-resize}
+  .h-n{left:50%;top:-7px;transform:translateX(-50%);cursor:ns-resize}
+  .h-s{left:50%;bottom:-7px;transform:translateX(-50%);cursor:ns-resize}
+  .h-w{left:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+  .h-e{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+
+  /* Прибрали сині підзаголовки */
+  .split-title{display:none}
+
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pair.onecol{grid-template-columns:1fr}
+
+  input[type=range]{appearance:none;height:4px;background:#94a3b826;border-radius:999px;outline:none}
+  input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--primary-x);border:2px solid #182034}
+
+  .vignette-row{display:flex;align-items:center;gap:10px}
+  select{border:1px solid var(--border-x);background:transparent;color:var(--text-x);border-radius:8px;padding:6px 8px}
+
+  /* ролики */
+  .rail-wrap{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin:8px 0 6px}
+  .rail{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px;border:1px solid var(--border-x);
+        border-radius:14px;background:#0f1216}
+  .rail::-webkit-scrollbar{display:none}
+  .tool{flex:0 0 auto;min-width:110px;padding:8px 12px;border-radius:12px;border:1px solid var(--border-x);
+        background:#161a20;color:#dbe2ee;scroll-snap-align:start;cursor:pointer}
+  .tool.active{outline:2px solid var(--primary-x);background:#1b2230}
+  .rail-arrow{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-x);background:#131821;color:#dbe2ee;cursor:pointer}
+
+  .pulse{animation:pulse 900ms ease}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,124,255,.8)}100%{box-shadow:0 0 0 12px rgba(79,124,255,0)}}
+
+  @media (max-width: 980px){.grid-3{grid-template-columns:1fr;gap:12px}}
+</style>
+</head>
+<body>
+  {% include 'nav.html' %}
+
+  <div class="container">
+    <div class="grid-3">
+      <!-- LEFT -->
+      <section class="panel">
+        <h3>Корегувати (базове)</h3>
+
+        <div class="rail-wrap" id="rail-left">
+          <button class="rail-arrow" data-dir="-1">‹</button>
+          <div class="rail" role="tablist" aria-label="Базові інструменти">
+            <button class="tool active" data-target="brightness">Яскравість</button>
+            <button class="tool" data-target="contrast">Контраст</button>
+            <button class="tool" data-target="saturate">Насиченість</button>
+            <button class="tool" data-target="hue">Відтінок</button>
+            <button class="tool" data-target="sepia">Сепія</button>
+            <button class="tool" data-target="grayscale">Ч/Б</button>
+            <button class="tool" data-target="blur">Розмиття</button>
+          </div>
+          <button class="rail-arrow" data-dir="1">›</button>
+        </div>
+
+        <div class="controls" id="controls-left">
+          <div class="control">
+            <label>Вибір файлу</label>
+            <div class="btnrow">
+              <input id="file" type="file" accept="image/*" style="display:none">
+              <button class="btn" id="pickBtn">Вибір файлу</button>
+              <button class="btn" id="clearBtn">Очистити</button>
+            </div>
+          </div>
+
+          <div class="control" data-name="brightness"><label>Яскравість</label><span id="v-bright">100%</span><input type="range" id="brightness" min="0" max="200" value="100"></div>
+          <div class="control" data-name="contrast"><label>Контраст</label><span id="v-contrast">100%</span><input type="range" id="contrast"  min="0" max="200" value="100"></div>
+          <div class="control" data-name="saturate"><label>Насиченість</label><span id="v-sat">100%</span><input type="range" id="saturate"  min="0" max="300" value="100"></div>
+          <div class="control" data-name="hue"><label>Відтінок (Hue)</label><span id="v-hue">0°</span><input type="range" id="hue" min="-180" max="180" value="0"></div>
+          <div class="control" data-name="sepia"><label>Сепія</label><span id="v-sepia">0%</span><input type="range" id="sepia" min="0" max="100" value="0"></div>
+          <div class="control" data-name="grayscale"><label>Ч/Б</label><span id="v-gray">0%</span><input type="range" id="grayscale" min="0" max="100" value="0"></div>
+          <div class="control" data-name="blur"><label>Розмиття</label><span id="v-blur">0px</span><input type="range" id="blur" min="0" max="10" step="0.1" value="0"></div>
+
+          <div class="btnrow">
+            <button class="btn primary" id="saveBtn">Завантажити (PNG)</button>
+            <button class="btn" id="resetBtn">Скинути налаштування</button>
+          </div>
+          <p class="hint">Затисни на фото — <b>До</b>, відпусти — <b>Після</b>. Усі обчислення локально в браузері.</p>
+        </div>
+      </section>
+
+      <!-- CENTER -->
+      <section class="panel">
+        <h3>Фото</h3>
+        <div class="stage" id="stage">
+          <div class="inner">
+            <img id="imgAfter" alt="">
+            <img id="imgBefore" alt="">
+            <canvas id="paintOverlay"></canvas>
+
+            <!-- Crop box -->
+            <div id="cropBox">
+              <div class="crop-h h-nw"></div><div class="crop-h h-ne"></div>
+              <div class="crop-h h-sw"></div><div class="crop-h h-se"></div>
+              <div class="crop-h h-n"></div><div class="crop-h h-s"></div>
+              <div class="crop-h h-w"></div><div class="crop-h h-e"></div>
+            </div>
+          </div>
+          <div class="placeholder" id="ph">Обери зображення, щоб почати</div>
+          <div class="badge" id="badge">ПІСЛЯ</div>
+        </div>
+      </section>
+
+      <!-- RIGHT -->
+      <section class="panel">
+        <h3>Корегувати (просунуте)</h3>
+
+        <div class="rail-wrap" id="rail-right">
+          <button class="rail-arrow" data-dir="-1">‹</button>
+          <div class="rail" role="tablist" aria-label="Просунуті інструменти">
+            <button class="tool active" data-target="temperature">Тепло/Холод</button>
+            <button class="tool" data-target="tint">Tint</button>
+            <button class="tool" data-target="highlights">Світла</button>
+            <button class="tool" data-target="shadows">Тіні</button>
+            <button class="tool" data-target="whites">Білі відт.</button>
+            <button class="tool" data-target="blacks">Чорні відт.</button>
+            <button class="tool" data-target="sharpness">Різкість</button>
+            <button class="tool" data-target="vignette">Віньєтка</button>
+            <button class="tool" data-target="vignetteStrength">Сила віньєтки</button>
+            <button class="tool" data-target="grain">Зерно</button>
+            <!-- нові -->
+            <button class="tool" data-target="crop">Обрізати</button>
+            <button class="tool" data-target="rotateflip">Поворот/Дзеркало</button>
+            <button class="tool" data-target="bgremove">Фон</button>
+          </div>
+          <button class="rail-arrow" data-dir="1">›</button>
+        </div>
+
+        <div class="controls" id="controls-right">
+          <div class="control" data-name="temperature"><label>Тепло/Холод</label><span id="v-temp">0</span><input type="range" id="temperature" min="-100" max="100" value="0"></div>
+          <div class="control" data-name="tint"><label>Tint</label><span id="v-tint">0</span><input type="range" id="tint" min="-100" max="100" value="0"></div>
+
+          <div class="pair">
+            <div class="control" data-name="highlights"><label>Світла</label><span id="v-high">0</span><input type="range" id="highlights" min="-100" max="100" value="0"></div>
+            <div class="control" data-name="shadows"><label>Тіні</label><span id="v-shadows">0</span><input type="range" id="shadows" min="-100" max="100" value="0"></div>
+          </div>
+          <div class="pair">
+            <div class="control" data-name="whites"><label>Білі відтінки</label><span id="v-whites">0</span><input type="range" id="whites" min="-100" max="100" value="0"></div>
+            <div class="control" data-name="blacks"><label>Чорні відтінки</label><span id="v-blacks">0</span><input type="range" id="blacks" min="-100" max="100" value="0"></div>
+          </div>
+
+          <div class="control" data-name="sharpness"><label>Різкість</label><span id="v-sharp">0</span><input type="range" id="sharpness" min="0" max="5" step="0.1" value="0"></div>
+
+          <div class="control" data-name="vignette" style="grid-template-columns:auto 1fr">
+            <div class="vignette-row">
+              <label><input type="checkbox" id="vignette"> Віньєтка</label>
+              <select id="vignetteColor"><option value="black">Чорна</option><option value="white">Біла</option></select>
+            </div>
+          </div>
+          <div class="control" data-name="vignetteStrength">
+            <label>Сила віньєтки</label><span id="v-vignette">0%</span>
+            <input type="range" id="vignetteStrength" min="0" max="100" value="0">
+          </div>
+
+          <div class="control" data-name="grain"><label>Зерно</label><span id="v-grain">0</span><input type="range" id="grain" min="0" max="100" value="0"></div>
+
+          <!-- Обрізка: кнопки керування -->
+          <div class="control hidden" data-name="crop" style="grid-template-columns:1fr">
+            <div class="btnrow">
+              <button class="btn primary" id="cropStart">Обрізати</button>
+              <button class="btn" id="cropApply" disabled>Застосувати</button>
+              <button class="btn" id="cropCancel" disabled>Скасувати</button>
+            </div>
+          </div>
+
+          <!-- Поворот / Дзеркало -->
+          <div class="control hidden" data-name="rotateflip" style="grid-template-columns:1fr 1fr">
+            <button class="btn" id="rotMinus">-90°</button>
+            <button class="btn" id="rotPlus">+90°</button>
+            <button class="btn" id="flipH">↔ Дзеркало</button>
+            <button class="btn" id="flipV">↕ Дзеркало</button>
+          </div>
+
+          <!-- Фон -->
+          <div class="control hidden" data-name="bgremove" style="grid-template-columns:1fr 1fr">
+            <button class="btn" id="autoBg">Автовидалити</button>
+            <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:6px">
+              <label>Допуск (Auto)</label><input type="range" id="bgTol" min="5" max="80" value="28">
+            </div>
+            <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <button class="btn" id="brushErase">Пензлик (стерти)</button>
+              <button class="btn" id="brushRestore">Відновити</button>
+            </div>
+            <div style="grid-column:1/3;display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:6px">
+              <label>Розмір пензля</label><input type="range" id="brushSize" min="5" max="120" value="40">
+            </div>
+            <div style="grid-column:1/3;display:flex;gap:8px">
+              <button class="btn" id="clearMask">Очистити маску</button>
+            </div>
+          </div>
+
+        </div> <!-- /controls-right -->
+      </section>
+    </div>
+
+    <!-- === ПАНЕЛЬ ФІЛЬТРІВ знизу сторінки === -->
+    <section class="panel" style="margin-top:16px; overflow:hidden">
+      <h3>Фільтри</h3>
+      <iframe
+        id="filtersFrame"
+        src="{{ url_for('filters_page') }}?v=1"
+        style="width:100%; height:220px; border:0; border-radius:12px; background:transparent;"
+        loading="lazy"
+      ></iframe>
+    </section>
+
+  </div>
+
+<script>
+  const $=id=>document.getElementById(id);
+  const S={
+    brightness:100,contrast:100,saturate:100,hue:0,sepia:0,grayscale:0,blur:0,
+    temperature:0,tint:0,highlights:0,shadows:0,whites:0,blacks:0,
+    sharpness:0, grain:0,
+    vignette:false, vignetteColor:'black', vignetteStrength:0,
+
+    cropEnable:false, cropX:0, cropY:0, cropW:100, cropH:100,
+    rotate:0, flipH:false, flipV:false,
+    mask:null, brushMode:'none', brushSize:40, bgTol:28
+  };
+
+  let ORIG=null;
+  const imgA=$('imgAfter'), imgB=$('imgBefore'), badge=$('badge'), ph=$('ph'), stage=$('stage');
+  const overlay=$('paintOverlay');
+  const cropBox=$('cropBox');
+  let drawing=false;
+
+  // file
+  $('pickBtn').onclick=()=>$('file').click();
+  $('clearBtn').onclick=()=>{imgA.removeAttribute('src');imgB.removeAttribute('src');imgA.style.display='none';imgB.style.display='none';badge.style.display='none';ph.style.display='block';$('file').value='';ORIG=null;imgB.style.opacity=0; S.mask=null; overlay.width=overlay.height=0; cropBox.style.display='none'; toggleCropButtons(false);};
+  $('file').addEventListener('change',e=>{
+    const f=e.target.files?.[0]; if(!f) return;
+    const url=URL.createObjectURL(f);
+    ORIG=new Image(); ORIG.onload=()=>{
+      imgB.src=url; imgB.style.display='block';
+      badge.style.display='block'; ph.style.display='none';
+      initMask(); fitOverlay(); render(); pressOff();
+    };
+    ORIG.src=url;
+  });
+
+  function initMask(){ if(!ORIG) return; S.mask=new Uint8Array(ORIG.naturalWidth*ORIG.naturalHeight); S.mask.fill(1); }
+  function fitOverlay(){ const r=stage.getBoundingClientRect(); overlay.width=r.width; overlay.height=r.height; }
+  window.addEventListener('resize', fitOverlay);
+
+  /* ===== binds слайдерів (без змін функцій) ===== */
+  const binds=[
+    ['brightness','v-bright',v=>v+'%'],['contrast','v-contrast',v=>v+'%'],['saturate','v-sat',v=>v+'%'],['hue','v-hue',v=>v+'°'],
+    ['sepia','v-sepia',v=>v+'%'],['grayscale','v-gray',v=>v+'%'],['blur','v-blur',v=>v+'px'],
+    ['temperature','v-temp',v=>v],['tint','v-tint',v=>v],
+    ['highlights','v-high',v=>v],['shadows','v-shadows',v=>v],['whites','v-whites',v=>v],['blacks','v-blacks',v=>v],
+    ['sharpness','v-sharp',v=>v],['grain','v-grain',v=>v],
+    ['vignetteStrength','v-vignette',v=>v+'%']
+  ];
+  binds.forEach(([id,l,fmt])=>{
+    $(id).addEventListener('input',()=>{S[id]=+$(id).value; $(l).textContent=fmt(S[id]); render(); markActiveByControl(id,true);});
+  });
+  $('vignette').addEventListener('change',e=>{S.vignette=e.target.checked; render(); markActiveByControl('vignette',true);});
+  $('vignetteColor').addEventListener('change',e=>{S.vignetteColor=e.target.value; render();});
+
+  /* ===== Поворот / дзеркало ===== */
+  $('rotMinus').addEventListener('click',()=>{S.rotate=(S.rotate-90)%360; render();});
+  $('rotPlus').addEventListener('click',()=>{S.rotate=(S.rotate+90)%360; render();});
+  $('flipH').addEventListener('click',()=>{S.flipH=!S.flipH; render();});
+  $('flipV').addEventListener('click',()=>{S.flipV=!S.flipV; render();});
+
+  /* ===== Фон ===== */
+  $('autoBg').addEventListener('click',()=>{autoRemoveBg(); render();});
+  $('bgTol').addEventListener('input',e=>{S.bgTol=+e.target.value;});
+  $('brushSize').addEventListener('input',e=>{S.brushSize=+e.target.value;});
+  $('brushErase').addEventListener('click',()=>{S.brushMode='erase'; overlay.style.pointerEvents='auto';});
+  $('brushRestore').addEventListener('click',()=>{S.brushMode='restore'; overlay.style.pointerEvents='auto';});
+  $('clearMask').addEventListener('click',()=>{ if(S.mask){S.mask.fill(1); render();}});
+
+  /* ===== Малювання маски ===== */
+  function stageToImageCoords(clientX, clientY){
+    if(!ORIG) return null;
+    const rect = stage.getBoundingClientRect();
+    const x = (clientX - rect.left) / rect.width;
+    const y = (clientY - rect.top) / rect.height;
+    if(x<0||y<0||x>1||y>1) return null;
+    return {x:Math.round(x*ORIG.naturalWidth), y:Math.round(y*ORIG.naturalHeight)};
+  }
+  function paintAt(cx,cy,restore){
+    if(!S.mask) return;
+    const r = Math.max(1, Math.round(S.brushSize/2));
+    const w = ORIG.naturalWidth, h=ORIG.naturalHeight;
+    for(let y=-r;y<=r;y++) for(let x=-r;x<=r;x++){
+      if(x*x+y*y>r*r) continue;
+      const px=cx+x, py=cy+y; if(px<0||py<0||px>=w||py>=h) continue;
+      S.mask[py*w+px] = restore?1:0;
+    }
+  }
+  overlay.addEventListener('pointerdown',e=>{
+    if(S.brushMode==='none') return;
+    drawing=true; overlay.setPointerCapture(e.pointerId);
+    const p=stageToImageCoords(e.clientX,e.clientY); if(p){ paintAt(p.x,p.y, S.brushMode==='restore'); render(); }
+  });
+  overlay.addEventListener('pointermove',e=>{
+    if(!drawing) return;
+    const p=stageToImageCoords(e.clientX,e.clientY); if(p){ paintAt(p.x,p.y, S.brushMode==='restore'); render(); }
+  });
+  const stopDraw=()=>{drawing=false; overlay.releasePointerCapture?.();};
+  overlay.addEventListener('pointerup',stopDraw); overlay.addEventListener('pointercancel',stopDraw);
+  document.addEventListener('click',e=>{
+    const inBg = e.target.closest('[data-name="bgremove"]');
+    if(!inBg && S.brushMode!=='none'){ S.brushMode='none'; overlay.style.pointerEvents='none'; }
+  });
+
+  /* ===== Рамка обрізання (fixed drag behaviour) ===== */
+  let cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
+  function toggleCropButtons(on){
+    $('cropApply').disabled=!on; $('cropCancel').disabled=!on;
+  }
+  $('cropStart').addEventListener('click',()=>{
+    if(!ORIG) return;
+    const r=stage.getBoundingClientRect();
+    const w=r.width*0.6, h=r.height*0.6, x=(r.width-w)/2, y=(r.height-h)/2;
+    Object.assign(cropBox.style,{display:'block',left:`${x}px`,top:`${y}px`,width:`${w}px`,height:`${h}px`});
+    cropState.active=true; cropState.drag=null; cropState.dragging=false;
+    toggleCropButtons(true);
+  });
+  $('cropCancel').addEventListener('click',()=>{
+    cropBox.style.display='none'; cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
+    toggleCropButtons(false);
+  });
+  $('cropApply').addEventListener('click',()=>{
+    if(!ORIG||!cropState.active) return;
+    const rS=stage.getBoundingClientRect();
+    const rB=cropBox.getBoundingClientRect();
+    const x=(rB.left - rS.left)/rS.width, y=(rB.top - rS.top)/rS.height;
+    const w=rB.width/rS.width, h=rB.height/rS.height;
+    S.cropX=Math.max(0, Math.min(100, Math.round(x*100)));
+    S.cropY=Math.max(0, Math.min(100, Math.round(y*100)));
+    S.cropW=Math.max(1, Math.min(100, Math.round(w*100)));
+    S.cropH=Math.max(1, Math.min(100, Math.round(h*100)));
+    S.cropEnable=true;
+    cropBox.style.display='none';
+    cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
+    toggleCropButtons(false);
+    render();
+  });
+
+  // Початок перетягування/ресайзу — тільки ЛКМ
+  cropBox.addEventListener('pointerdown',e=>{
+    if(!cropState.active) return;
+    if(e.button!==0 || e.buttons!==1) return; // тільки натиснута ЛКМ
+    const target=e.target;
+    const rect=cropBox.getBoundingClientRect(); const s=stage.getBoundingClientRect();
+    cropState.drag = target.classList.contains('crop-h') ? target.className.split(' ')[1].slice(2) : 'move';
+    cropState.dragging = true;
+    cropState.startX=e.clientX; cropState.startY=e.clientY;
+    cropState.startRect={x:rect.left-s.left, y:rect.top-s.top, w:rect.width, h:rect.height};
+    cropBox.setPointerCapture(e.pointerId);
+  });
+
+  // Рухаємось тільки коли dragging=true
+  cropBox.addEventListener('pointermove',e=>{
+    if(!cropState.dragging || !cropState.drag) return;
+    const dx=e.clientX-cropState.startX, dy=e.clientY-cropState.startY;
+    const s=stage.getBoundingClientRect();
+    let {x,y,w,h}=cropState.startRect;
+
+    const clamp=(val,min,max)=>Math.max(min,Math.min(max,val));
+    const apply=()=>{
+      x=clamp(x,0,s.width-20); y=clamp(y,0,s.height-20);
+      w=clamp(w,20,s.width-x); h=clamp(h,20,s.height-y);
+      Object.assign(cropBox.style,{left:`${x}px`,top:`${y}px`,width:`${w}px`,height:`${h}px`});
+    };
+
+    switch(cropState.drag){
+      case 'move': x+=dx; y+=dy; break;
+      case 'nw': x+=dx; y+=dy; w-=dx; h-=dy; break;
+      case 'ne': y+=dy; w+=dx; h-=dy; break;
+      case 'sw': x+=dx; w-=dx; h+=dy; break;
+      case 'se': w+=dx; h+=dy; break;
+      case 'n':  y+=dy; h-=dy; break;
+      case 's':  h+=dy; break;
+      case 'w':  x+=dx; w-=dx; break;
+      case 'e':  w+=dx; break;
+    }
+    apply();
+  });
+
+  const stopCropDrag=()=>{
+    cropBox.releasePointerCapture?.();
+    cropState.drag=null;
+    cropState.dragging=false;
+  };
+  cropBox.addEventListener('pointerup',stopCropDrag);
+  cropBox.addEventListener('pointercancel',stopCropDrag);
+  cropBox.addEventListener('pointerleave',stopCropDrag);
+  cropBox.addEventListener('lostpointercapture',stopCropDrag);
+
+  /* ===== Рендер (твоя логіка) ===== */
+  const baseFilter=()=>`brightness(${S.brightness}%) contrast(${S.contrast}%) saturate(${S.saturate}%) hue-rotate(${S.hue}deg) sepia(${S.sepia}%) grayscale(${S.grayscale}%) blur(${S.blur}px)`;
+
+  function render(toDownload=false){
+    if(!ORIG) return;
+    const iw=ORIG.naturalWidth, ih=ORIG.naturalHeight;
+
+    // crop
+    let sx=0, sy=0, sw=iw, sh=ih;
+    if(S.cropEnable){
+      sx=Math.round(iw*(S.cropX/100));
+      sy=Math.round(ih*(S.cropY/100));
+      sw=Math.max(1,Math.round(iw*(S.cropW/100)));
+      sh=Math.max(1,Math.round(ih*(S.cropH/100)));
+      if(sx+sw>iw) sw=iw-sx;
+      if(sy+sh>ih) sh=ih-sy;
+    }
+
+    const t=document.createElement('canvas');
+    let tw=sw, th=sh;
+    if((S.rotate%180+180)%180===90){ tw=sh; th=sw; }
+    t.width=tw; t.height=th;
+    const g=t.getContext('2d');
+
+    g.save();
+    g.translate(tw/2,th/2);
+    g.scale(S.flipH?-1:1, S.flipV?-1:1);
+    g.rotate(S.rotate*Math.PI/180);
+    g.filter=baseFilter();
+    g.drawImage(ORIG, sx,sy,sw,sh, -sw/2,-sh/2, sw,sh);
+    g.restore();
+    g.filter='none';
+
+    if(S.temperature||S.tint){
+      const r=Math.max(0,S.temperature)/100*255, g2=(100-Math.abs(S.tint))/100*255, b=Math.max(0,-S.temperature)/100*255;
+      g.save(); g.globalAlpha=(Math.abs(S.temperature)+Math.abs(S.tint))/220; g.globalCompositeOperation='color';
+      g.fillStyle=`rgb(${r|0},${g2|0},${b|0})`; g.fillRect(0,0,tw,th); g.restore();
+    }
+    if([S.highlights,S.shadows,S.whites,S.blacks].some(v=>v)){
+      const id=g.getImageData(0,0,tw,th), d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        let r=d[i],gg=d[i+1],b=d[i+2]; const L=0.2126*r+0.7152*gg+0.0722*b;
+        const hi=S.highlights/100, sh=S.shadows/100, ww=S.whites/100, bb=S.blacks/100;
+        const hiM=Math.max(0,(L-128)/127), shM=Math.max(0,(128-L)/128);
+        const s=(1+hiM*hi)*(1+shM*sh);
+        r=r*s+255*ww-80*bb; gg=gg*s+255*ww-80*bb; b=b*s+255*ww-80*bb;
+        d[i]=r<0?0:r>255?255:r; d[i+1]=gg<0?0:gg>255?255:gg; d[i+2]=b<0?0:b>255?255:b;
+      }
+      g.putImageData(id,0,0);
+    }
+    if(S.sharpness>0){
+      const k=[1,2,1,2,4,2,1,2,1], ks=16, src=g.getImageData(0,0,tw,th), s=src.data, out=g.createImageData(tw,th), o=out.data;
+      const idx=(x,y)=>(y*tw+x)*4;
+      for(let y=1;y<th-1;y++)for(let x=1;x<tw-1;x++){
+        let r=0,gg=0,b=0,ki=0;
+        for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const p=idx(x+i,y+j), kv=k[ki++]; r+=s[p]*kv; gg+=s[p+1]*kv; b+=s[p+2]*kv;}
+        const p=idx(x,y), br=r/ks, bg=gg/ks, bb=b/ks, a=S.sharpness;
+        o[p]=cl(s[p]+(s[p]-br)*a); o[p+1]=cl(s[p+1]+(s[p+1]-bg)*a); o[p+2]=cl(s[p+2]+(s[p+2]-bb)*a); o[p+3]=s[p+3];
+      }
+      g.putImageData(out,0,0);
+      function cl(v){return v<0?0:v>255?255:v}
+    }
+    if(S.vignette && S.vignetteStrength>0){
+      const color=S.vignetteColor==='white'?'255,255,255':'0,0,0';
+      const strength=Math.min(1,S.vignetteStrength/100);
+      const grd=g.createRadialGradient(tw/2,th/2,Math.min(tw,th)*0.55,tw/2,th/2,Math.max(tw,th)*0.8);
+      grd.addColorStop(0,`rgba(${color},0)`); grd.addColorStop(1,`rgba(${color},${0.5*strength})`);
+      g.fillStyle=grd; g.fillRect(0,0,tw,th);
+    }
+    if(S.grain>0){
+      const lvl=S.grain/100*30, id=g.getImageData(0,0,tw,th), d=id.data;
+      for(let i=0;i<d.length;i+=4){ const n=(Math.random()*2-1)*lvl; d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
+      g.putImageData(id,0,0);
+    }
+
+    // маска прозорості (фон)
+    if(S.mask){
+      const id=g.getImageData(0,0,tw,th), d=id.data;
+      if(S.rotate===0 && !S.flipH && !S.flipV){
+        for(let y=0;y<th;y++){
+          const oy=sy+y; if(oy<0||oy>=ih) continue;
+          for(let x=0;x<tw;x++){
+            const ox=sx+x; if(ox<0||ox>=iw) continue;
+            if(!S.mask[oy*iw+ox]) d[(y*tw+x)*4+3]=0;
+          }
+        }
+        g.putImageData(id,0,0);
+      }
+    }
+
+    if(toDownload){ return t.toDataURL('image/png'); }
+    imgA.src=t.toDataURL('image/png'); imgA.style.display='block'; badge.style.display='block';
+  }
+
+  function autoRemoveBg(){
+    if(!ORIG) return;
+    const w=ORIG.naturalWidth, h=ORIG.naturalHeight;
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const ctx=c.getContext('2d'); ctx.drawImage(ORIG,0,0);
+    const id=ctx.getImageData(0,0,w,h), d=id.data;
+
+    let r=0,g=0,b=0,cnt=0, step=Math.max(1, Math.floor(Math.min(w,h)/200));
+    for(let x=0;x<w;x+=step){
+      const t=(0*w+x)*4, btm=((h-1)*w+x)*4;
+      r+=d[t]; g+=d[t+1]; b+=d[t+2]; cnt++;
+      r+=d[btm]; g+=d[btm+1]; b+=d[btm+2]; cnt++;
+    }
+    for(let y=0;y<h;y+=step){
+      const l=(y*w+0)*4, rgt=(y*w+(w-1))*4;
+      r+=d[l]; g+=d[l+1]; b+=d[l+2]; cnt++;
+      r+=d[rgt]; g+=d[rgt+1]; b+=d[rgt+2]; cnt++;
+    }
+    r/=cnt; g/=cnt; b/=cnt;
+
+    const tol=S.bgTol, tol2=tol*tol;
+    if(!S.mask) initMask();
+    for(let i=0,px=0;i<d.length;i+=4,px++){
+      const dr=d[i]-r, dg=d[i+1]-g, db=d[i+2]-b;
+      const dist=dr*dr+dg*dg+db*db;
+      if(dist<tol2*4) S.mask[px]=0;
+    }
+  }
+
+  // ДО/ПІСЛЯ
+  const pressOn=()=>{ if(!ORIG) return; imgB.style.opacity=1; badge.textContent='ДО'; };
+  const pressOff=()=>{ if(!ORIG) return; imgB.style.opacity=0; badge.textContent='ПІСЛЯ'; };
+  stage.addEventListener('mousedown',pressOn); stage.addEventListener('mouseup',pressOff);
+  stage.addEventListener('mouseleave',pressOff);
+  stage.addEventListener('touchstart',e=>{e.preventDefault();pressOn();},{passive:false});
+  stage.addEventListener('touchend',pressOff);
+
+  // reset
+  $('resetBtn').onclick=()=>{
+    Object.assign(S,{brightness:100,contrast:100,saturate:100,hue:0,sepia:0,grayscale:0,blur:0,
+      temperature:0,tint:0,highlights:0,shadows:0,whites:0,blacks:0,sharpness:0,grain:0,
+      vignette:false,vignetteColor:'black',vignetteStrength:0,
+      cropEnable:false,cropX:0,cropY:0,cropW:100,cropH:100,rotate:0,flipH:false,flipV:false,mask:null,brushMode:'none',brushSize:40,bgTol:28
+    });
+    const set=(id,val)=>{const el=$(id); if(!el) return; if(el.type==='checkbox') el.checked=val; else el.value=val;};
+    ['brightness','contrast','saturate','hue','sepia','grayscale','blur','temperature','tint','highlights','shadows','whites','blacks','sharpness','grain','vignetteStrength','bgTol','brushSize'].forEach(k=>set(k,S[k]));
+    $('vignette').checked=false; $('vignetteColor').value=S.vignetteColor;
+    $('v-bright').textContent='100%'; $('v-contrast').textContent='100%'; $('v-sat').textContent='100%';
+    $('v-hue').textContent='0°'; $('v-sepia').textContent='0%'; $('v-gray').textContent='0%'; $('v-blur').textContent='0px';
+    $('v-temp').textContent='0'; $('v-tint').textContent='0'; $('v-high').textContent='0'; $('v-shadows').textContent='0';
+    $('v-whites').textContent='0'; $('v-blacks').textContent='0'; $('v-sharp').textContent='0'; $('v-grain').textContent='0'; $('v-vignette').textContent='0%';
+    imgB.style.opacity=0; initMask(); fitOverlay();
+    showOnly('brightness', $('controls-left'), document.querySelector('#rail-left .rail'));
+    showOnly('temperature', $('controls-right'), document.querySelector('#rail-right .rail'));
+    cropBox.style.display='none'; toggleCropButtons(false);
+    // скидання стану рамки
+    cropState={active:false, drag:null, dragging:false, startX:0, startY:0, startRect:null};
+    render();
+  };
+
+  // save
+  $('saveBtn').onclick=()=>{ if(!ORIG) return; const dataURL=render(true); const a=document.createElement('a'); a.href=dataURL; a.download='edited.png'; a.click(); };
+
+  /* ролики: показ лише обраного інструмента */
+  function showOnly(controlId, controlsRoot, railRoot){
+    controlsRoot.querySelectorAll('.control[data-name]').forEach(ctrl=>{
+      ctrl.classList.toggle('hidden', ctrl.dataset.name !== controlId);
+    });
+    controlsRoot.querySelectorAll('.pair').forEach(pair=>{
+      const visible=[...pair.querySelectorAll('.control')].filter(c=>!c.classList.contains('hidden'));
+      pair.classList.toggle('onecol', visible.length===1);
+    });
+    if(railRoot){
+      railRoot.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+    }
+    const activeCtrl=controlsRoot.querySelector(`.control[data-name="${controlId}"]`);
+    if(activeCtrl){
+      activeCtrl.classList.remove('pulse'); void activeCtrl.offsetWidth; activeCtrl.classList.add('pulse');
+      activeCtrl.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }
+  }
+  function initRail(railWrapId, controlsContainerId){
+    const wrap=document.getElementById(railWrapId);
+    const rail=wrap.querySelector('.rail');
+    const arrows=wrap.querySelectorAll('.rail-arrow');
+    const controlsRoot=document.getElementById(controlsContainerId);
+
+    const first=rail.querySelector('.tool.active')||rail.querySelector('.tool');
+    if(first) showOnly(first.dataset.target, controlsRoot, rail);
+
+    rail.addEventListener('click',e=>{
+      const btn=e.target.closest('.tool'); if(!btn) return;
+      showOnly(btn.dataset.target, controlsRoot, rail);
+    });
+    arrows.forEach(a=>a.addEventListener('click',()=>rail.scrollBy({left:(+a.dataset.dir)*240, behavior:'smooth'})));
+    let sx=0; rail.addEventListener('pointerdown',e=>{sx=e.clientX;});
+    rail.addEventListener('pointerup',e=>{const dx=e.clientX-sx; if(Math.abs(dx)>60) rail.scrollBy({left:-dx,behavior:'smooth'});});
+  }
+  function markActiveByControl(controlId, alsoShow=false){
+    const map={
+      left:['brightness','contrast','saturate','hue','sepia','grayscale','blur'],
+      right:['temperature','tint','highlights','shadows','whites','blacks','sharpness','vignette','vignetteStrength','grain','crop','rotateflip','bgremove']
+    };
+    const hitLeft=map.left.includes(controlId);
+    const hitRight=map.right.includes(controlId);
+    if(hitLeft){
+      const rail=document.querySelector('#rail-left .rail');
+      rail.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+      if(alsoShow) showOnly(controlId, $('controls-left'), rail);
+    }
+    if(hitRight){
+      const rail=document.querySelector('#rail-right .rail');
+      rail.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active', b.dataset.target===controlId));
+      if(alsoShow) showOnly(controlId, $('controls-right'), rail);
+    }
+  }
+
+  initRail('rail-left','controls-left');
+  initRail('rail-right','controls-right');
+  showOnly('brightness', $('controls-left'), document.querySelector('#rail-left .rail'));
+  showOnly('temperature', $('controls-right'), document.querySelector('#rail-right .rail'));
+
+  /* =========================
+     >>> ДОДАНО для фільтрів <<<
+     ========================= */
+
+  // Базові ключі та дефолти — щоб новий пресет не накладався на попередній
+  const BASE_KEYS = ['brightness','contrast','saturate','hue','sepia','grayscale','blur'];
+  const BASE_DEFAULTS = { brightness:100, contrast:100, saturate:100, hue:0, sepia:0, grayscale:0, blur:0 };
+
+  // Формули слайдерів для категорії/рівня (мають відповідати фрейму з плитками)
+  function slidersFromCategoryLevel(cat, lvl){
+    const lerp = (a,b)=> Math.round(a + (b-a)*((lvl-1)/10)); // lvl 1..11
+    switch(cat){
+      case 'pop':  return { contrast: lerp(110,140), saturate: lerp(115,150), brightness: lerp(102,108) };
+      case 'acc':  return { contrast: lerp(120,150), saturate: lerp(110,130) };
+      case 'fade': return { contrast: lerp(95,85),   brightness: lerp(103,112), saturate: lerp(90,70) };
+      case 'cool': return { hue: lerp(-3,-12),       saturate: lerp(108,120) };
+      case 'warm': return { sepia: lerp(6,16),       saturate: lerp(108,125),  brightness: lerp(102,108) };
+      case 'mono': return { grayscale: lerp(60,100), contrast: lerp(105,120) };
+      case 'film': return { sepia: lerp(15,32),      contrast: lerp(105,120),  saturate: lerp(102,112) };
+      case 'dusk': return { hue: lerp(8,18),         contrast: lerp(98,110),   brightness: lerp(98,103) };
+      case 'vivid':return { contrast: lerp(115,145), saturate: lerp(120,165) };
+      default:     return {};
+    }
+  }
+
+  // Генеруємо PRESET_MAP на 100 ключів: orig + 9×11
+  const PRESET_CATS = ['pop','acc','fade','cool','warm','mono','film','dusk','vivid'];
+  const PRESET_MAP = { orig: { ...BASE_DEFAULTS } };
+  PRESET_CATS.forEach(cat=>{
+    for(let lvl=1; lvl<=11; lvl++){
+      PRESET_MAP[`${cat}${lvl}`] = { ...slidersFromCategoryLevel(cat, lvl) };
+    }
+  });
+
+  // Синхронізація інпутів/лейблів під S
+  function syncControl(id){
+    const el=$(id);
+    if(!el) return;
+    if(el.type==='range'){ el.value = S[id]; }
+    const labelIds = {
+      brightness:'v-bright', contrast:'v-contrast', saturate:'v-sat',
+      hue:'v-hue', sepia:'v-sepia', grayscale:'v-gray', blur:'v-blur'
+    };
+    const fmt = {
+      brightness:v=>v+'%', contrast:v=>v+'%', saturate:v=>v+'%',
+      hue:v=>v+'°', sepia:v=>v+'%', grayscale:v=>v+'%', blur:v=>v+'px'
+    };
+    const lid = labelIds[id];
+    if(lid) $(lid).textContent = fmt[id](S[id]);
+  }
+
+  // Застосувати пресет (замінює попередній, без накладання)
+  function applyPreset(key){
+    if(!ORIG) return; // щоб не лякало без зображення
+
+    // 1) скидаємо всі базові повзунки до дефолтів
+    BASE_KEYS.forEach(k => {
+      S[k] = BASE_DEFAULTS[k];
+      syncControl(k);
+      markActiveByControl(k);
+    });
+
+    // 2) застосовуємо обраний пресет
+    const patch = PRESET_MAP[key] || PRESET_MAP.orig;
+    Object.keys(patch).forEach(k => {
+      S[k] = patch[k];
+      syncControl(k);
+      markActiveByControl(k);
+    });
+
+    // 3) перемальовуємо
+    render();
+  }
+  window.applyPreset = applyPreset;
+
+  // 1) Слухаємо postMessage від iframe
+  window.addEventListener('message', (e)=>{
+    const data = e.data || {};
+    if(data.type === 'preset_clicked' && data.presetKey){
+      applyPreset(data.presetKey);
+    }
+  });
+
+  // 2) Дубль: слухач 'storage'
+  window.addEventListener('storage', (e)=>{
+    if(e.key === 'proofly_preset_clicked' && e.newValue){
+      try{
+        const msg = JSON.parse(e.newValue);
+        if(msg && msg.key) applyPreset(msg.key);
+      }catch(_){}
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,771 @@
+{% extends "market/layout.html" %}
+{% set market_page = 'detail' %}
+
+{% block market_body %}
+{# ------------------ MAIN MODEL SRC ------------------ #}
+{% set main_src =
+  item.main_model_url
+  or item.stl_main_url
+  or item.url
+  or (item.stl_files[0] if item.stl_files) %}
+
+<article class="detail-wrap">
+  <!-- Хлібні крихти -->
+  <nav class="crumbs">
+    <a href="{{ url_for('market.page_market') }}">Маркет</a>
+    <span>/</span>
+    <span>{{ item.title }}</span>
+  </nav>
+
+  <!-- Заголовок + мета -->
+  <header class="detail-head">
+    <h1 class="title">{{ item.title }}</h1>
+    <div class="meta">
+      <span>★ {{ item.rating or '—' }} ({{ item.ratings_cnt or 0 }})</span>
+      <span>⬇ {{ item.downloads or 0 }}</span>
+
+      {# Ціна #}
+      {% if item.is_free %}
+        <span class="price free">Безкоштовно</span>
+      {% else %}
+        {% set cents = item.price_cents
+                        if item.price_cents is not none
+                        else ( (item.price * 100) if item.price is defined and item.price is not none else 0 ) %}
+        <span class="price">{{ (cents / 100.0)|round(2) }} PLN</span>
+      {% endif %}
+
+      <span class="sep">•</span>
+      <a class="author" href="#author">
+        Автор: {{ item.owner.name if item.owner else '—' }}
+      </a>
+
+      {% if item.format %}
+        <span class="sep">•</span>
+        <span class="fmt">Формат: {{ item.format|upper }}</span>
+      {% endif %}
+
+      {% if item.created_at %}
+        <span class="sep">•</span>
+        <span class="date">
+          Додано:
+          {% if item.created_at is string %}
+            {{ item.created_at[:10] }}
+          {% else %}
+            {{ item.created_at.strftime('%Y-%m-%d') }}
+          {% endif %}
+        </span>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="detail-grid">
+    <!-- ====== В’ЮВЕР ====== -->
+    <section class="viewer-card">
+      <div class="viewer-toolbar">
+        <button type="button" class="vt-btn" data-viewer-action="reset">
+          🔄 Скинути камеру
+        </button>
+        <button type="button" class="vt-btn" data-viewer-action="spin">
+          🧭 Автообертання
+        </button>
+        <button type="button" class="vt-btn" data-viewer-action="wire">
+          🕸 Wireframe
+        </button>
+        <button type="button" class="vt-btn" data-viewer-action="grid">
+          ▤ Сітка
+        </button>
+        <button type="button" class="vt-btn" data-viewer-action="dark">
+          🌑 Темне світло
+        </button>
+        <button type="button" class="vt-btn" data-viewer-action="light">
+          🌕 Яскраве світло
+        </button>
+      </div>
+
+      <div id="viewer"
+           class="viewer"
+           data-item-id="{{ item.id }}"
+           data-src="{{ main_src or '' }}"></div>
+      <span id="status" class="viewer-status"></span>
+
+      <div class="viewer-actions">
+        {% if item.is_free %}
+          <button id="btnPrimary" class="btn primary" data-mode="free">
+            ⬇ Завантажити
+          </button>
+        {% else %}
+          <button id="btnPrimary" class="btn primary" data-mode="paid">
+            💳 Купити та завантажити
+          </button>
+        {% endif %}
+
+        <button id="btnFav" class="btn">☆ В обране</button>
+        <a id="btnOpenRaw" class="btn ghost" target="_blank" rel="noopener">
+          Відкрити файл
+        </a>
+        <button id="btnCopyLink" class="btn ghost" type="button">
+          🔗 Скопіювати посилання
+        </button>
+
+        {# Кнопка редагування тільки для автора #}
+        {% if g.user and item.author_id and g.user.id == item.author_id %}
+          <a href="/market/edit/{{ item.id }}" class="btn ghost edit-link">
+            ✏ Редагувати модель
+          </a>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- ====== ОПИС + ГАЛЕРЕЯ ====== -->
+    <section class="desc-card">
+      {% set cover_src = item.cover_url or item.cover or (item.photos[0] if item.photos) %}
+      <div class="cover">
+        <img src="{{ cover_src or '/static/img/placeholder_stl.jpg' }}"
+             alt="{{ item.title }}"
+             loading="lazy"
+             onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
+      </div>
+
+      {% if item.photos and item.photos|length %}
+      <div class="gallery">
+        {% for img in item.photos %}
+          <img src="{{ img }}" alt="preview" loading="lazy"
+               onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {# Теги як чіпси #}
+      {% set tags_str = item.tags or '' %}
+      {% set tags = tags_str.split(',') if tags_str else [] %}
+      {% if tags %}
+        <div class="tags">
+          {% for t in tags %}
+            {% set tt = t.strip() %}
+            {% if tt %}
+              <a href="{{ url_for('market.page_market') }}?q={{ tt }}" class="tag">#{{ tt }}</a>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="desc">
+        {{ item.description or item.desc or 'Немає опису' }}
+      </div>
+
+      {% include "market/_owner_panel.html" ignore missing %}
+    </section>
+
+    <!-- ====== ВІДГУКИ ====== -->
+    <section class="reviews-card">
+      <h2>Відгуки</h2>
+
+      <form id="reviewForm" class="review-form">
+        <label class="rev-label">
+          Оцінка:
+          <select name="rating" id="revRating">
+            <option value="5">5 — 💎</option>
+            <option value="4">4 — 👍</option>
+            <option value="3">3 — 🙂</option>
+            <option value="2">2 — 😐</option>
+            <option value="1">1 — 👎</option>
+          </select>
+        </label>
+        <textarea id="revText" rows="3" placeholder="Ваш відгук..."></textarea>
+        <button class="btn" id="btnSendReview" type="submit">Надіслати</button>
+        <span id="revMsg" class="muted"></span>
+      </form>
+
+      <div class="reviews-list" id="reviewsList">
+        {% for r in item.reviews or [] %}
+          <div class="rev">
+            <div class="r-head">
+              <strong>{{ r.user.name if r.user else 'Користувач' }}</strong>
+              <span>★ {{ r.rating }}</span>
+              <span class="muted">
+                {% if r.created_at %}
+                  {% if r.created_at is string %}
+                    {{ r.created_at[:10] }}
+                  {% else %}
+                    {{ r.created_at.strftime('%Y-%m-%d') }}
+                  {% endif %}
+                {% endif %}
+              </span>
+            </div>
+            <div class="r-text">{{ r.text }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <!-- ====== АВТОР ====== -->
+  <section id="author" class="author-card">
+    <img class="avatar"
+         src="{{ item.owner.avatar_url if item.owner and item.owner.avatar_url else '/static/img/user.jpg' }}"
+         alt="author">
+    <div class="a-meta">
+      <div class="name">{{ item.owner.name if item.owner else '—' }}</div>
+      <div class="bio muted">
+        {{ item.owner.bio if item.owner and item.owner.bio else '3D-дизайнер' }}
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== СХОЖІ МОДЕЛІ ====== -->
+  <section class="related">
+    <h2>Схожі моделі</h2>
+    <div id="related-grid" class="grid"></div>
+  </section>
+</article>
+
+<style>
+  .detail-wrap{
+    max-width:1200px;
+    margin:0 auto;
+    padding:16px 16px 32px;
+  }
+  .crumbs{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    color:var(--muted,#9fb0d4);
+    font-size:13px;
+    margin-bottom:4px;
+  }
+  .crumbs a{color:var(--muted,#9fb0d4);text-decoration:none;}
+  .crumbs a:hover{text-decoration:underline;}
+
+  .detail-head .title{
+    margin:8px 0 6px 0;
+    font-size:26px;
+    font-weight:700;
+  }
+  .detail-head .meta{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+    color:var(--muted,#9fb0d4);
+    font-size:13px;
+  }
+  .detail-head .price{
+    font-weight:700;
+  }
+  .detail-head .price.free{
+    color:#22c55e;
+  }
+  .detail-head .sep{
+    opacity:.6;
+  }
+  .detail-head .author{
+    color:var(--muted,#9fb0d4);
+    text-decoration:none;
+  }
+  .detail-head .author:hover{
+    text-decoration:underline;
+  }
+
+  .detail-grid{
+    display:grid;
+    grid-template-columns:1.4fr .9fr;
+    gap:16px;
+    margin-top:14px;
+  }
+  @media(max-width:980px){
+    .detail-grid{grid-template-columns:1fr;}
+  }
+
+  .viewer-card,
+  .desc-card,
+  .reviews-card{
+    background:var(--card,#11141b);
+    border:1px solid var(--line,#1b2131);
+    border-radius:12px;
+    padding:12px;
+  }
+
+  /* Toolbar */
+  .viewer-toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .vt-btn{
+    border-radius:999px;
+    border:1px solid var(--line,#1b2131);
+    background:#0f172a;
+    color:#e5e7eb;
+    font-size:11px;
+    padding:4px 8px;
+    cursor:pointer;
+    opacity:.9;
+  }
+  .vt-btn:hover{opacity:1;}
+
+  .viewer{
+    height:520px;
+    background:#020617;
+    border-radius:10px;
+    border:1px solid var(--line,#1b2131);
+    overflow:hidden;
+  }
+  .viewer-status{
+    display:block;
+    margin-top:6px;
+    color:var(--muted,#9fb0d4);
+    font-size:12px;
+  }
+
+  .viewer-actions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    background:var(--card,#11141b);
+    border:1px solid var(--line,#1b2131);
+    color:var(--text,#e8eaed);
+    padding:8px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:13px;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+  }
+  .btn.primary{
+    background:var(--accent,#5b66ff);
+    border-color:var(--accent,#5b66ff);
+    color:#fff;
+  }
+  .btn.ghost{
+    opacity:.85;
+  }
+  .btn:hover{
+    filter:brightness(1.05);
+  }
+  .edit-link{
+    margin-left:auto;
+  }
+
+  .cover img{
+    width:100%;
+    height:220px;
+    object-fit:cover;
+    border-radius:8px;
+    border:1px solid var(--line,#1b2131);
+  }
+  .gallery{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-top:8px;
+  }
+  .gallery img{
+    width:100%;
+    height:110px;
+    object-fit:cover;
+    border-radius:8px;
+    border:1px solid var(--line,#1b2131);
+  }
+
+  .tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:10px;
+  }
+  .tag{
+    font-size:11px;
+    padding:3px 8px;
+    border-radius:999px;
+    background:#020617;
+    border:1px solid #1e293b;
+    color:#e5e7eb;
+    text-decoration:none;
+  }
+  .tag:hover{
+    background:#0f172a;
+  }
+
+  .desc{
+    margin-top:10px;
+    white-space:pre-wrap;
+    font-size:14px;
+    line-height:1.4;
+  }
+
+  .reviews-card h2{
+    margin:0 0 8px 0;
+    font-size:18px;
+  }
+  .review-form{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:flex-start;
+    margin-bottom:10px;
+    font-size:13px;
+  }
+  .rev-label{
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .review-form textarea{
+    flex:1;
+    min-width:220px;
+    background:transparent;
+    border:1px solid var(--line,#1b2131);
+    border-radius:10px;
+    color:var(--text,#e8eaed);
+    padding:8px;
+    font-size:13px;
+  }
+  .reviews-list .rev{
+    border-top:1px solid var(--line,#1b2131);
+    padding:10px 0;
+    font-size:13px;
+  }
+  .reviews-list .rev:first-child{
+    border-top:none;
+  }
+  .r-head{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:4px;
+  }
+
+  .author-card{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-top:16px;
+    background:var(--card,#11141b);
+    border:1px solid var(--line,#1b2131);
+    border-radius:12px;
+    padding:12px;
+  }
+  .author-card .avatar{
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    border:1px solid var(--line,#1b2131);
+    object-fit:cover;
+  }
+  .a-meta .name{
+    font-weight:600;
+    margin-bottom:2px;
+  }
+
+  .related{
+    margin-top:24px;
+  }
+  .related h2{
+    margin:0 0 10px 0;
+    font-size:18px;
+  }
+  .related .grid{
+    display:grid;
+    gap:16px;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  }
+  .rel-item{
+    display:flex;
+    flex-direction:column;
+    background:var(--card,#11141b);
+    border:1px solid var(--line,#1b2131);
+    border-radius:12px;
+    overflow:hidden;
+    text-decoration:none;
+    color:inherit;
+  }
+  .rel-item img{
+    width:100%;
+    height:150px;
+    object-fit:cover;
+  }
+  .rel-title{
+    padding:8px 10px;
+    font-size:13px;
+  }
+
+  .muted{
+    color:var(--muted,#9fb0d4);
+  }
+
+  @media(max-width:768px){
+    .detail-wrap{padding:12px 12px 24px;}
+    .viewer{height:380px;}
+  }
+
+  /* =========================================================
+     FIX: В’ЮВЕР НЕ МАЄ ПРАВА "ВИНОСИТИСЬ" ВПРАВО
+     1) canvas завжди 100% контейнера
+     2) box-sizing щоб border/padding не давали overflow
+     ========================================================= */
+  .detail-wrap, .detail-grid, .viewer-card, .desc-card, .reviews-card, .viewer{
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+  #viewer, .viewer{
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  #viewer canvas, .viewer canvas{
+    display:block;
+    width:100% !important;
+    height:100% !important;
+    max-width:100% !important;
+  }
+</style>
+
+<script type="module">
+  const viewerEl   = document.getElementById('viewer');
+  const statusEl   = document.getElementById('status');
+  const btnOpenRaw = document.getElementById('btnOpenRaw');
+  const btnCopy    = document.getElementById('btnCopyLink');
+  const rawSrc     = viewerEl?.dataset?.src || null;
+  const itemId     = Number(viewerEl?.dataset?.itemId || {{ item.id }});
+
+  // Лінк "Відкрити файл"
+  if (btnOpenRaw) {
+    if (rawSrc) { btnOpenRaw.href = rawSrc; }
+    else { btnOpenRaw.style.display = 'none'; }
+  }
+
+  // Копіювати посилання
+  if (btnCopy) {
+    btnCopy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        btnCopy.textContent = '✅ Скопійовано';
+        setTimeout(() => btnCopy.textContent = '🔗 Скопіювати посилання', 1200);
+      } catch (e) {
+        alert('Не вдалося скопіювати посилання.');
+      }
+    });
+  }
+
+  // Обране
+  const btnFav = document.getElementById('btnFav');
+  if (btnFav) {
+    btnFav.addEventListener('click', async () => {
+      try {
+        const r = await fetch('/api/market/fav', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: itemId })
+        });
+        const j = await r.json().catch(() => null);
+        if (r.status === 401) {
+          alert('Увійдіть, щоб додати в обране.');
+          return;
+        }
+        if (j && j.ok) {
+          btnFav.textContent = j.fav ? '★ В обраному' : '☆ В обране';
+        }
+      } catch (e) { console.error(e); }
+    });
+  }
+
+  // Купити / скачати (одна логіка для free/paid)
+  const primaryBtn = document.getElementById('btnPrimary');
+  if (primaryBtn) {
+    primaryBtn.addEventListener('click', async () => {
+      primaryBtn.disabled = true;
+      const oldText = primaryBtn.textContent;
+      primaryBtn.textContent = '...';
+
+      try {
+        const r = await fetch('/api/market/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: itemId })
+        });
+        if (r.status === 401) {
+          alert('Увійдіть, щоб завантажити модель.');
+          return;
+        }
+        const j = await r.json().catch(() => null);
+        if (!j || !j.ok) {
+          alert('Помилка під час створення платежу / завантаження.');
+          return;
+        }
+        // free
+        if (j.free && j.download_url) {
+          // Лог події
+          fetch('/api/market/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'download', item_id: itemId })
+          }).catch(() => {});
+          window.location.href = j.download_url;
+          return;
+        }
+        // Stripe / інша оплата
+        if (j.url) {
+          window.location.href = j.url;
+          return;
+        }
+        alert('Демо-режим: оплата ще не підключена.');
+      } catch (e) {
+        console.error(e);
+        alert('Помилка мережі.');
+      } finally {
+        primaryBtn.disabled = false;
+        primaryBtn.textContent = oldText;
+      }
+    });
+  }
+
+  // Відгуки
+  const form = document.getElementById('reviewForm');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const rating = Number(document.getElementById('revRating').value || 5);
+      const text   = String(document.getElementById('revText').value || '').trim();
+      const msg    = document.getElementById('revMsg');
+      msg.textContent = '';
+
+      try {
+        const r = await fetch('/api/market/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: itemId, rating, text })
+        });
+        if (r.status === 401) {
+          msg.textContent = 'Увійди, щоб залишити відгук.';
+          return;
+        }
+        const j = await r.json().catch(() => null);
+        if (j && j.ok) {
+          msg.textContent = 'Збережено ✔';
+          setTimeout(() => location.reload(), 700);
+        } else {
+          msg.textContent = 'Помилка збереження.';
+        }
+      } catch (err) {
+        console.error(err);
+        msg.textContent = 'Помилка мережі.';
+      }
+    });
+  }
+
+  // Схожі моделі (використовує /api/market/items/related, яку ми додали в market_api)
+  (async () => {
+    const grid = document.getElementById('related-grid');
+    if (!grid) return;
+
+    try {
+      const r = await fetch(`/api/market/items/related?item_id=${itemId}`);
+      if (!r.ok) return;
+      const arr = await r.json().catch(() => []);
+      if (!Array.isArray(arr) || !arr.length) return;
+
+      grid.innerHTML = arr.map(it => `
+        <a href="/item/${it.slug || it.id}" class="rel-item">
+          <img src="${it.cover_url || '/static/img/placeholder_stl.jpg'}"
+               alt="${it.title}" loading="lazy">
+          <div class="rel-title">${it.title}</div>
+        </a>
+      `).join('');
+    } catch (e) {
+      console.error(e);
+    }
+  })();
+
+  // =========================
+  // FIX helpers (локально)
+  // =========================
+  function clampViewerCanvas(container, ctx) {
+    if (!container) return;
+    container.style.width = "100%";
+    container.style.maxWidth = "100%";
+    container.style.overflow = "hidden";
+
+    const canvas =
+      container.querySelector("canvas") ||
+      (ctx && ctx.renderer && ctx.renderer.domElement) ||
+      null;
+
+    if (canvas) {
+      canvas.style.display = "block";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.maxWidth = "100%";
+    }
+
+    try {
+      // якщо в initViewer є resize() — викличемо його (не міняє функції)
+      if (ctx && typeof ctx.resize === "function") ctx.resize();
+    } catch (_) {}
+  }
+
+  // 3D viewer через stl_viewer.js
+  if (viewerEl && rawSrc) {
+    (async () => {
+      try {
+        // GUARD #1: якщо хтось уже ініціалізував (наприклад static/market/js/viewer.js)
+        if (window.MARKET_VIEWER) {
+          clampViewerCanvas(viewerEl, window.MARKET_VIEWER);
+          return;
+        }
+
+        // GUARD #2: якщо в #viewer вже є canvas — значить init уже був
+        if (viewerEl.querySelector("canvas")) {
+          clampViewerCanvas(viewerEl, null);
+          return;
+        }
+
+        statusEl.textContent = 'Завантажуємо 3D-модель...';
+        const { initViewer } = await import('/static/js/stl_viewer.js');
+        const ctx = await initViewer({
+          containerId: 'viewer',
+          statusId: 'status',
+        });
+
+        // ВАЖЛИВО: виставляємо глобально, щоб інші скрипти не робили дубль-init
+        window.MARKET_VIEWER = ctx;
+
+        // Притискаємо canvas одразу після init
+        clampViewerCanvas(viewerEl, ctx);
+
+        const resp = await fetch(rawSrc);
+        const blob = await resp.blob();
+        const file = new File([blob], 'model.stl');
+        await ctx.loadAnyFromFile(file);
+
+        // Притискаємо ще раз після завантаження
+        clampViewerCanvas(viewerEl, ctx);
+
+        statusEl.textContent = 'Готово. Обертай моделлю мишкою.';
+
+        // тулбар
+        document.querySelectorAll('.vt-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const action = btn.dataset.viewerAction;
+            if (!action || !ctx || !ctx.controls) return;
+            ctx.handleAction?.(action);
+            // після дій інколи потрібен clamp
+            clampViewerCanvas(viewerEl, ctx);
+          });
+        });
+      } catch (err) {
+        console.error(err);
+        if (statusEl) statusEl.textContent = 'Не вдалося завантажити 3D-превʼю.';
+      }
+    })();
+  } else if (statusEl) {
+    statusEl.textContent = 'STL-файл відсутній.';
+  }
+</script>
+{% endblock %}

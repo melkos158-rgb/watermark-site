@@ -1,0 +1,666 @@
+<nav class="navbar">
+  <div class="nav-wrap">
+    <!-- БУРГЕР (видимий лише на мобілці) -->
+    <button class="burger" id="burger" aria-label="Меню" aria-expanded="false">☰</button>
+
+    <!-- ЛОГО + НАЗВА -->
+    <a href="{{ url_for('core.index') }}" class="brand" aria-label="На головну">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+      <span class="wordmark" aria-label="Proofly">Proofly</span>
+    </a>
+
+    <!-- ЛІВІ КНОПКИ -->
+    <a class="nav-btn {{ 'active' if request.endpoint=='core.index' else '' }}" href="{{ url_for('core.index') }}">Головна</a>
+    <a class="nav-btn {{ 'active' if request.endpoint=='core.stl' else '' }}" href="{{ url_for('core.stl') }}">STL3D</a>
+    <a class="nav-btn {{ 'active' if request.endpoint=='core.video' else '' }}" href="{{ url_for('core.video') }}">Video</a>
+
+    <!-- DROPDOWN: Photo -->
+    <div class="nav-dropdown" data-dd>
+      <button
+        class="nav-btn dd-trigger {{ 'active' if request.endpoint in ['core.photo','core.enhance','core.edit_photo'] else '' }}"
+        type="button"
+        aria-expanded="false"
+      >
+        Photo <span class="dd-caret" aria-hidden="true"></span>
+      </button>
+      <div class="dd-menu" role="menu">
+        <a class="dd-item {{ 'active' if request.endpoint=='core.photo' else '' }}" href="{{ url_for('core.photo') }}">Photo — Gallery / Tools</a>
+        <a class="dd-item {{ 'active' if request.endpoint=='core.enhance' else '' }}" href="{{ url_for('core.enhance') }}">Photo Enhance</a>
+        <a class="dd-item {{ 'active' if request.endpoint=='core.edit_photo' else '' }}" href="{{ url_for('core.edit_photo') }}">Edit Photo</a>
+      </div>
+    </div>
+
+    <!-- NEW: Documents -->
+    <a class="nav-btn {{ 'active' if request.endpoint=='core.documents' else '' }}" href="{{ url_for('core.documents') }}">Documents</a>
+
+    <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}"
+       href="{{ url_for('market.page_market') }}">Market</a>
+
+    <!-- ПРАВИЙ БЛОК -->
+    <div class="nav-right" style="display:flex; align-items:center; gap:10px; margin-left:auto">
+      <select id="themeSelect" aria-label="Тема" class="theme-select">
+        <option value="main">Main</option>
+        <option value="cat">Cat</option>
+        <option value="hellowen">Hellowen</option>
+        <option value="minecraft">Minecraft</option>
+      </select>
+
+      <!-- === Language Switcher in NAV (flags-only) === -->
+      <div class="nav-lang" id="langSwitcher" data-current="{{ current_lang or 'en' }}">
+        <button class="lang-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language">
+          <span id="langFlag" class="flag-badge"></span><span class="lang-code" id="langCode"></span><span class="chev">▾</span>
+        </button>
+        <div class="lang-panel">
+          <input id="langSearch" placeholder="Search language..." class="lang-search" />
+          <ul class="lang-menu" id="langMenu" role="listbox" tabindex="-1"></ul>
+        </div>
+      </div>
+      <!-- === /Language Switcher === -->
+
+      {% set has_user =
+           (g is defined and g.user) or
+           (session and session.get('user_id')) or
+           (current_user is defined and current_user.is_authenticated) %}
+
+      {% if has_user %}
+        <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}"
+           href="{{ url_for('profile.top100') }}">Top-100</a>
+        <span class="sep" aria-hidden="true">|</span>
+        <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}"
+           href="{{ url_for('profile.donate') }}">Donate</a>
+        <span class="sep" aria-hidden="true">|</span>
+
+        <!-- PXP бейдж без імені -->
+        <div class="nav-user-meta">
+          <div class="nav-pxp-pill" title="Ваші PXP токени">
+            <span class="nav-pxp-label">PXP</span>
+            <span class="nav-pxp-value">{{ pxp }}</span>
+          </div>
+        </div>
+
+        <span class="sep" aria-hidden="true">|</span>
+
+        <a class="nav-btn {{ 'active' if (request.path == '/profile') else '' }}"
+           href="/profile">Профіль</a>
+
+        {% if session.is_admin %}
+          <span class="sep" aria-hidden="true">|</span>
+          <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}"
+             href="{{ url_for('admin_panel') }}">Admin</a>
+        {% endif %}
+
+        <a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a>
+      {% else %}
+        <a class="nav-btn {{ 'active' if request.endpoint=='auth.login' else '' }}"
+           href="{{ url_for('auth.login') }}">Увійти</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- Портал для дропдаунів -->
+<div id="nav-portal" style="position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;"></div>
+
+<!-- ОВЕРЛЕЙ І ВИЇЗНЕ МЕНЮ ДЛЯ МОБІЛКИ -->
+<div class="drawer-overlay" id="drawerOverlay" hidden></div>
+<aside class="drawer" id="mobileMenu" aria-hidden="true">
+  <div class="drawer-head">
+    <button class="drawer-close" id="drawerClose" aria-label="Закрити">✕</button>
+    <strong>Меню</strong>
+  </div>
+
+  <nav class="drawer-links">
+    <a href="{{ url_for('core.index') }}"     class="{{ 'active' if request.endpoint=='core.index' else '' }}">Головна</a>
+    <a href="{{ url_for('core.stl') }}"       class="{{ 'active' if request.endpoint=='core.stl' else '' }}">STL3D</a>
+    <a href="{{ url_for('core.video') }}"     class="{{ 'active' if request.endpoint=='core.video' else '' }}">Video</a>
+    <a href="{{ url_for('core.photo') }}"      class="{{ 'active' if request.endpoint=='core.photo' else '' }}">Photo — Gallery / Tools</a>
+    <a href="{{ url_for('core.enhance') }}"    class="{{ 'active' if request.endpoint=='core.enhance' else '' }}">Photo Enhance</a>
+    <a href="{{ url_for('core.edit_photo') }}" class="{{ 'active' if request.endpoint=='core.edit_photo' else '' }}">Edit Photo</a>
+
+    <!-- NEW: Documents (mobile) -->
+    <a href="{{ url_for('core.documents') }}" class="{{ 'active' if request.endpoint=='core.documents' else '' }}">Documents</a>
+
+    <a href="{{ url_for('market.page_market') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}">Market</a>
+
+    <hr>
+
+    <div class="drawer-theme">
+      <label for="themeSelectDrawer">Тема</label>
+      <select id="themeSelectDrawer">
+        <option value="main">Main</option>
+        <option value="cat">Cat</option>
+        <option value="hellowen">Hellowen</option>
+        <option value="minecraft">Minecraft</option>
+      </select>
+    </div>
+
+    <hr>
+
+    {% if has_user %}
+      <a href="{{ url_for('profile.top100') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}">Top-100</a>
+      <a href="{{ url_for('profile.donate') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}">Donate</a>
+      <a href="/profile"                         class="{{ 'active' if (request.path == '/profile') else '' }}">Профіль</a>
+      {% if session.is_admin %}
+        <a href="{{ url_for('admin_panel') }}"   class="{{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}">Admin</a>
+      {% endif %}
+      <a href="{{ url_for('auth.logout') }}">Вийти</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}" class="{{ 'active' if request.endpoint=='auth.login' else '' }}">Увійти</a>
+    {% endif %}
+  </nav>
+</aside>
+
+<script>
+  (function(){
+    var THEME_MAP = {
+      main:      "{{ url_for('static', filename='themes/main.css') }}",
+      cat:       "{{ url_for('static', filename='themes/cat.css') }}",
+      hellowen:  "{{ url_for('static', filename='themes/hellowen.css') }}",
+      minecraft: "{{ url_for('static', filename='themes/minecraft.css') }}"
+    };
+
+    function applyTheme(v){
+      var base = THEME_MAP[v] || THEME_MAP.main;
+      var head = document.getElementsByTagName('head')[0];
+      var old  = document.getElementById('theme-css');
+
+      var link = document.createElement('link');
+      link.rel  = 'stylesheet';
+      link.id   = 'theme-css';
+      link.href = base + '?v=' + Date.now();
+
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      head.appendChild(link);
+
+      localStorage.setItem('theme', v);
+      document.documentElement.setAttribute('data-theme', v);
+    }
+
+    var select = document.getElementById('themeSelect');
+    var saved  = localStorage.getItem('theme') || 'main';
+    if (select) select.value = (saved in THEME_MAP) ? saved : 'main';
+    applyTheme(saved);
+    if (select) select.addEventListener('change', function(){ applyTheme(this.value); });
+
+    var selectDrawer = document.getElementById('themeSelectDrawer');
+    if (selectDrawer){
+      selectDrawer.value = localStorage.getItem('theme') || 'main';
+      selectDrawer.addEventListener('change', function(){
+        applyTheme(this.value);
+        if (select) select.value = this.value;
+      });
+    }
+
+    var burger = document.getElementById('burger');
+    var drawer = document.getElementById('mobileMenu');
+    var overlay= document.getElementById('drawerOverlay');
+    var close  = document.getElementById('drawerClose');
+
+    function openDrawer(){
+      drawer.classList.add('open');
+      overlay.hidden = false;
+      document.body.style.overflow = 'hidden';
+      burger.setAttribute('aria-expanded','true');
+      drawer.setAttribute('aria-hidden','false');
+    }
+    function closeDrawer(){
+      drawer.classList.remove('open');
+      overlay.hidden = true;
+      document.body.style.overflow = '';
+      burger.setAttribute('aria-expanded','false');
+      drawer.setAttribute('aria-hidden','true');
+    }
+
+    burger && burger.addEventListener('click', openDrawer);
+    overlay && overlay.addEventListener('click', closeDrawer);
+    close && close.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
+    });
+  })();
+
+  /* Дропдаун Photo — портал у body + кліки по лінках */
+  (function(){
+    var root   = document.querySelector('[data-dd]');
+    if(!root) return;
+
+    var btn    = root.querySelector('.dd-trigger');
+    var menu   = root.querySelector('.dd-menu');
+    var portal = document.getElementById('nav-portal');
+    var inPortal = false;
+
+    function placeMenu(){
+      if(!btn || !menu || !portal) return;
+      var r = btn.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.left = r.left + 'px';
+      menu.style.top  = (r.bottom + 6) + 'px';
+      menu.style.display = 'block';
+      menu.style.zIndex  = '2147483647';
+      portal.appendChild(menu);
+      inPortal = true;
+      btn.setAttribute('aria-expanded','true');
+    }
+
+    function restoreMenu(){
+      if(inPortal && root && menu){
+        menu.removeAttribute('style');
+        root.appendChild(menu);
+      }
+      inPortal = false;
+      btn && btn.setAttribute('aria-expanded','false');
+      root.classList.remove('open');
+    }
+
+    function toggle(){
+      if(inPortal){ restoreMenu(); }
+      else { root.classList.add('open'); placeMenu(); }
+    }
+
+    btn && btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      toggle();
+    });
+
+    document.addEventListener('click', function(e){
+      if(!inPortal) return;
+      if(menu && !menu.contains(e.target) && btn && !btn.contains(e.target)){
+        restoreMenu();
+      }
+    });
+
+    ['scroll','resize'].forEach(ev=>{
+      window.addEventListener(ev, function(){
+        if(!inPortal) return;
+        placeMenu();
+      }, { passive:true });
+    });
+
+    menu.querySelectorAll('a.dd-item').forEach(function(a){
+      a.addEventListener('click', function(){
+        setTimeout(restoreMenu, 0);
+      });
+    });
+  })();
+
+  /* === Language Switcher JS (та сама логіка, додаємо генерацію прапорів) === */
+  (function(){
+    var root = document.getElementById('langSwitcher');
+    if(!root) return;
+    var btn    = document.getElementById('langBtn');
+    var menu   = document.getElementById('langMenu');
+    var search = document.getElementById('langSearch');
+    var flagEl = document.getElementById('langFlag');
+    var codeEl = document.getElementById('langCode');
+
+    var LANGS = {
+      af:"ZA Afrikaans", sq:"AL Albanian", am:"ET Amharic", ar:"SA Arabic", hy:"AM Armenian",
+      az:"AZ Azerbaijani", eu:"ES Basque", be:"BY Belarusian", bn:"BD Bengali", bs:"BA Bosnian",
+      bg:"BG Bulgarian", my:"MM Burmese", ca:"ES Catalan", zh:"CN Chinese", hr:"HR Croatian",
+      cs:"CZ Czech", da:"DK Danish", nl:"NL Dutch", en:"GB English", et:"EE Estonian",
+      fi:"FI Finnish", fr:"FR French", ka:"GE Georgian", de:"DE German", el:"GR Greek",
+      he:"IL Hebrew", hi:"IN Hindi", hu:"HU Hungarian", is:"IS Icelandic", id:"ID Indonesian",
+      ga:"IE Irish", it:"IT Italian", ja:"JP Japanese", jv:"ID Javanese", kn:"IN Kannada",
+      kk:"KZ Kazakh", km:"KH Khmer", ko:"KR Korean", ky:"KG Kyrgyz", lo:"LA Lao",
+      lv:"LV Latvian", lt:"LT Lithuanian", mk:"MK Macedonian", ms:"MY Malay", ml:"IN Malayalam",
+      mt:"MT Maltese", mi:"NZ Maori", mr:"IN Marathi", mn:"MN Mongolian", ne:"NP Nepali",
+      no:"NO Norwegian", fa:"IR Persian", pl:"PL Polish", pt:"PT Portuguese", pa:"IN Punjabi",
+      ro:"RO Romanian", ru:"RU Russian", sr:"RS Serbian", si:"LK Sinhala", sk:"SK Slovak",
+      sl:"SI Slovenian", so:"SO Somali", es:"ES Spanish", su:"ID Sundanese", sw:"KE Swahili",
+      sv:"SE Swedish", tl:"PH Tagalog", tg:"TJ Tajik", ta:"IN Tamil", te:"IN Telugu",
+      th:"TH Thai", tr:"TR Turkish", uk:"UA Ukrainian", ur:"PK Urdu", uz:"UZ Uzbek",
+      vi:"VN Vietnamese", cy:"GB Welsh", xh:"ZA Xhosa", yi:"IL Yiddish", zu:"ZA Zulu"
+    };
+
+    // CC -> 🇨🇨 (емодзі-прапор)
+    function toFlag(cc){
+      if(!cc || cc.length!==2) return '🌐';
+      cc = cc.toUpperCase();
+      var A = 0x1F1E6;
+      return String.fromCodePoint(A + (cc.charCodeAt(0)-65)) +
+             String.fromCodePoint(A + (cc.charCodeAt(1)-65));
+    }
+    // Витягнути прапор і назву
+    function extractFlag(label){
+      if(!label) return '🌐';
+      var first = label.trim().codePointAt(0);
+      if(first && first>=0x1F1E6 && first<=0x1F1FF) return label.split(' ')[0];
+      var m = label.match(/^([A-Z]{2})\b/);
+      return m ? toFlag(m[1]) : '🌐';
+    }
+    function extractName(label){
+      if(!label) return '';
+      var m = label.match(/^([A-Z]{2})\s+(.*)$/);
+      if(m) return m[2];
+      var parts = label.split(' ');
+      return parts.length>1 ? label.substring(parts[0].length).trim() : label;
+    }
+
+    var current = ((root.dataset.current||'en') || localStorage.getItem('lng') || 'en').toLowerCase();
+    if(!LANGS[current]) current = 'en';
+
+    function renderBtn(){
+      var label = LANGS[current];
+      flagEl.textContent = extractFlag(label);
+      codeEl.textContent = ' ' + current.toUpperCase(); // код сховано CSS-ом
+    }
+
+    function openMenu(){ root.classList.add('open'); menu.classList.add('open'); }
+    function closeMenu(){ root.classList.remove('open'); menu.classList.remove('open'); }
+    function toggleMenu(){ menu.classList.toggle('open'); root.classList.toggle('open'); }
+
+    function buildList(){
+      menu.innerHTML = '';
+      Object.keys(LANGS).forEach(function(code){
+        var label = LANGS[code];
+        var flag  = extractFlag(label);
+        var name  = extractName(label);
+        var li = document.createElement('li');
+        li.setAttribute('data-lang', code);
+        li.innerHTML =
+          '<span class="flag" aria-hidden="true">'+flag+'</span>' +
+          '<span class="name">'+name+'</span>' +
+          '<span class="short">('+code.toUpperCase()+')</span>';
+        menu.appendChild(li);
+      });
+    }
+
+    function bindSearch(){
+      if(!search) return;
+      search.addEventListener('input', function(e){
+        var q = e.target.value.toLowerCase();
+        Array.prototype.forEach.call(menu.children, function(li){
+          var txt = li.textContent.toLowerCase();
+          li.style.display = (txt.indexOf(q) !== -1) ? '' : 'none';
+        });
+      });
+    }
+
+    function onPick(code){
+      current = code;
+      localStorage.setItem('lng', code);
+      renderBtn();
+      closeMenu();
+      fetch('/api/lang/set', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ lang: code })
+      }).catch(function(){});
+      if(window.i18next){
+        i18next.changeLanguage(code).then(function(){
+          document.querySelectorAll('[data-i18n]').forEach(function(el){
+            el.textContent = i18next.t(el.getAttribute('data-i18n'));
+          });
+        });
+      }
+      if (window.__i18nSetLang) { window.__i18nSetLang(code); }
+    }
+
+    btn && btn.addEventListener('click', function(e){ e.stopPropagation(); toggleMenu(); });
+    document.addEventListener('click', function(e){
+      if(!root.contains(e.target)) closeMenu();
+    });
+    menu.addEventListener('click', function(e){
+      var li = e.target.closest('li[data-lang]');
+      if(!li) return;
+      onPick(li.getAttribute('data-lang'));
+    });
+
+    buildList(); bindSearch(); renderBtn();
+
+    fetch('/api/lang/me').then(function(r){ return r.json(); }).then(function(js){
+      if(js && js.lang && LANGS[js.lang]){
+        current = js.lang;
+        localStorage.setItem('lng', current);
+        renderBtn();
+        if(window.i18next){
+          i18next.changeLanguage(current).then(function(){
+            document.querySelectorAll('[data-i18n]').forEach(function(el){
+              el.textContent = i18next.t(el.getAttribute('data-i18n'));
+            });
+          });
+        }
+        if (window.__i18nSetLang) { window.__i18nSetLang(current); }
+      }
+    }).catch(function(){});
+  })();
+
+  /* === Language panel → portal (observer) — НЕ змінює твої функції === */
+  (function(){
+    var root = document.getElementById('langSwitcher');
+    if(!root) return;
+    var panel  = root.querySelector('.lang-panel');
+    var btn    = document.getElementById('langBtn');
+    var portal = document.getElementById('nav-portal');
+    var inPortal = false;
+
+    function place(){
+      if(!panel || !btn || !portal) return;
+      var r = btn.getBoundingClientRect();
+      panel.style.position = 'fixed';
+      panel.style.left = r.left + 'px';
+      panel.style.top  = (r.bottom + 6) + 'px';
+      panel.style.display = 'block';
+      panel.style.zIndex  = '2147483647';
+      portal.appendChild(panel);
+      inPortal = true;
+    }
+    function restore(){
+      if(inPortal){
+        panel.removeAttribute('style');
+        root.appendChild(panel);
+        inPortal = false;
+      }
+    }
+
+    var mo = new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        if(m.attributeName === 'class'){
+          if(root.classList.contains('open')) place();
+          else restore();
+        }
+      });
+    });
+    mo.observe(root, { attributes:true });
+
+    ['scroll','resize'].forEach(function(ev){
+      window.addEventListener(ev, function(){ if(inPortal) place(); }, {passive:true});
+    });
+
+    document.addEventListener('click', function(e){
+      if(inPortal && !panel.contains(e.target) && !btn.contains(e.target)) restore();
+    });
+  })();
+</script>
+
+{% if request.endpoint not in ["auth.login", "auth.register", "auth.logout"] %}
+  {% include "chat.html" %}
+{% endif %}
+
+<style>
+/* ====== НАВІГАЦІЯ ====== */
+.navbar{
+  position:sticky;
+  top:0;
+  z-index:2147483647;
+  background:#0b0d12;
+  border-bottom:1px solid #1b2131;
+  overflow:visible;
+  isolation:isolate;
+}
+.nav-wrap{
+  max-width:1368px;
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+  gap:6px;
+  padding:6px 10px 6px 4px;
+  min-height:72px;
+  overflow-x:auto;
+  overflow-y:visible;
+}
+
+/* бургер (десктоп приховано) */
+.burger{
+  display:none;
+  font-size:20px;line-height:1;
+  border:1px solid #1b2131;background:transparent;color:#e8eaed;
+  border-radius:10px;width:38px;height:38px;cursor:pointer
+}
+
+/* ЛОГО + НАЗВА */
+.brand{display:flex;align-items:center;gap:8px;padding:0 2px;border-radius:10px;border:1px solid transparent;text-decoration:none}
+.brand img{height:44px;width:auto;display:block;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(173,92,255,.25))}
+.wordmark{
+  font-weight:900;letter-spacing:.25px;line-height:1;font-size:22px;text-transform:capitalize;
+  background:linear-gradient(90deg,#ff3cac 0%, #784ba0 45%, #2b86c5 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 12px rgba(123,162,255,.22);
+  transition:transform .15s ease, letter-spacing .15s ease, filter .15s ease;
+}
+.brand:hover .wordmark{transform:translateY(-1px);letter-spacing:.4px;filter:brightness(1.08)}
+
+/* КНОПКИ */
+.nav-btn{ padding:7px 11px !important; font-size:14.5px !important; margin:0 !important; white-space:nowrap; }
+
+/* селект теми */
+.theme-select{ height:30px; border-radius:8px; padding:0 8px; font-size:14px; background:transparent; color:#e8eaed; border:1px solid #1b2131; }
+
+/* роздільники */
+.sep{opacity:.7}
+
+/* правий блок */
+.nav-right{gap:8px !important}
+
+/* PXP бейдж */
+.nav-user-meta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.nav-pxp-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#111827,#1f2937);
+  border:1px solid rgba(147,197,253,0.4);
+  box-shadow:0 0 12px rgba(59,130,246,0.45);
+  font-size:12px;
+  line-height:1;
+}
+.nav-pxp-label{
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  font-weight:600;
+  color:#93c5fd;
+}
+.nav-pxp-value{
+  font-weight:700;
+  font-size:13px;
+  color:#e5e7eb;
+}
+
+/* Dropdown — базові стилі; реальне меню рендериться у портал */
+.nav-dropdown{ position:relative; display:inline-block; }
+.dd-trigger{ display:inline-flex; align-items:center; gap:6px; }
+.dd-caret{
+  display:inline-block; width:0; height:0;
+  border-left:5px solid transparent; border-right:5px solid transparent;
+  border-top:6px solid var(--text, #e8eaed);
+  transition:transform .15s ease;
+}
+.nav-dropdown.open .dd-caret{ transform:rotate(180deg); }
+
+.dd-menu{
+  background:var(--card, #101522);
+  border:1px solid #1b2131;
+  border-radius:10px;
+  padding:6px;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  display:none;
+  pointer-events:auto;
+}
+.dd-menu, .dd-menu *{ pointer-events:auto; }
+.dd-item{ display:block; padding:10px 12px; border-radius:8px; color:var(--text, #e8eaed); text-decoration:none; white-space:nowrap; }
+.dd-item:hover{ background:var(--chip, #182034); }
+
+/* === Language Switcher (flags only) === */
+.nav-lang{ position:relative; }
+.nav-lang .lang-btn{
+  display:flex; align-items:center; gap:8px;
+  background:#151a24; color:#e6e9ef; border:1px solid #262e42;
+  padding:6px 10px; border-radius:10px; cursor:pointer;
+  font-size:14px; transition:.15s;
+}
+.nav-lang .lang-code{ display:none; }   /* у кнопці лише прапор */
+.nav-lang .lang-btn:hover{ background:#1d2330; border-color:#3a4560; }
+.nav-lang .chev{ opacity:.8; margin-left:4px; }
+.nav-lang.open .lang-panel{ display:block; }
+
+.nav-lang .lang-panel{
+  position:absolute; top:100%; right:0; margin-top:6px;
+  background:#101522; border:1px solid #262e42; border-radius:12px;
+  min-width:280px; max-height:360px; overflow:hidden; display:none;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+
+.lang-search{
+  width:calc(100% - 16px); padding:8px 10px; border:1px solid #2a3248; outline:none;
+  background:#141a28; color:#e6e9ef; border-radius:10px; margin:8px;
+  font-size:14px;
+}
+
+.lang-menu{
+  margin:0; padding:6px 8px 10px; list-style:none; max-height:280px; overflow:auto;
+  display:grid; grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-auto-rows:minmax(36px,auto); gap:6px 8px;
+}
+.lang-menu li{
+  padding:10px; border-radius:10px; cursor:pointer;
+  color:#dbe1f1; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;
+  border:1px solid transparent;
+}
+.lang-menu li:hover{ background:#161b28; border-color:#28324a; }
+
+/* у списку також залишаємо тільки прапорці (текст приховано) */
+.lang-menu .name, .lang-menu .short{ display:none; }
+.lang-menu .flag{ font-size:20px; line-height:1; }
+
+/* значок у кнопці */
+.flag-badge{ font-size:18px; line-height:1; }
+
+/* ====== МОБІЛЬНИЙ DRAWER ====== */
+.drawer-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:2147483646; }
+.drawer{
+  position:fixed; top:0; right:0; height:100vh; width:320px; max-width:85vw;
+  background:#0e0f12; border-left:1px solid #1b2131; box-shadow:-12px 0 30px rgba(0,0,0,.5);
+  transform:translateX(110%); transition:transform .28s cubic-bezier(.2,.9,.2,1);
+  z-index:2147483647; display:flex; flex-direction:column;
+}
+.drawer.open{ transform:translateX(0); }
+.drawer-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-bottom:1px solid #1b2131; }
+.drawer-close{ background:none; border:0; color:#e8eaed; font-size:20px; cursor:pointer; }
+.drawer-links{ display:flex; flex-direction:column; gap:4px; padding:10px 12px 18px; overflow:auto; }
+.drawer-links a{ padding:10px 12px; border-radius:10px; text-decoration:none; color:#e8eaed; }
+.drawer-links a:hover{ background:#182034; }
+.drawer-theme{ display:flex; align-items:center; gap:10px; padding:0 12px; }
+
+/* Нічого не обрізаємо */
+.navbar{ overflow:visible; }
+.nav-wrap{ overflow-y:visible; overflow-x:auto; }
+
+/* При малій ширині — моб. варіант */
+@media (max-width: 1360px){ .user-chip{display:none} .sep{display:none} }
+@media (max-width: 1280px){ .nav-btn{padding:6px 10px !important;font-size:14px !important} .brand img{height:42px} .wordmark{font-size:21px} }
+@media (max-width: 768px){
+  .nav-wrap > .nav-btn, .nav-right, .nav-dropdown{ display:none !important; }
+  .burger{ display:inline-flex; align-items:center; justify-content:center; }
+  .brand img{height:38px}
+  .wordmark{font-size:20px}
+  .nav-wrap{ min-height:64px; padding-left:8px; }
+}
+@media (min-width: 769px){ .drawer, .drawer-overlay{ display:none !important; } }
+</style>

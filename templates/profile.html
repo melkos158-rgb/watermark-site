@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page">
+  <h1>Мій профіль</h1>
+
+  {% if not current_user %}
+    <div class="panel" style="text-align:center">
+      <p class="muted">Щоб редагувати профіль, увійди.</p>
+      <a class="btn" href="{{ url_for('auth.login') }}">Увійти</a>
+    </div>
+  {% else %}
+  <div class="panel">
+    <div class="row">
+      <!-- Ліва колонка -->
+      <div class="left">
+        <div class="avatar-wrap" title="Натисни, щоб змінити аватар">
+          {% if current_user.avatar %}
+            <img id="avatarPreview" class="avatar" src="{{ current_user.avatar }}" alt="avatar">
+          {% else %}
+            <img id="avatarPreview" class="avatar" src="{{ url_for('static', filename='avatar_default.png') }}" alt="avatar">
+          {% endif %}
+          <button class="edit-btn" type="button"><span>✎</span></button>
+          <input id="avatarFile" type="file" accept="image/*">
+        </div>
+
+        <div class="stat">
+          <!-- ВАЖЛИВО: показуємо баланс, який приходить як змінна pxp -->
+          <div class="badge" title="Баланс для витрат (ідеї, сервіс тощо)">
+            💰 PXP (баланс): <b>{{ pxp or 0 }}</b>
+          </div>
+          <form action="{{ url_for('profile.spend') }}" method="post" class="inline">
+            <button class="btn small" type="submit">+1 PXP (test)</button>
+          </form>
+        </div>
+
+        <!-- Місячний PXP (показуємо лише якщо поле є) -->
+        {% if current_user.pxp_month is defined and current_user.pxp_month is not none %}
+        <div class="stat" style="margin-top:6px">
+          <div class="badge" title="Сума донатів за місяць для топу">
+            📅 PXP (місяць): <b>{{ current_user.pxp_month }}</b>
+          </div>
+        </div>
+        {% endif %}
+
+        <a href="{{ url_for('profile.top100') }}" class="btn gray" style="width:100%;text-align:center">Top-100</a>
+        <a href="{{ url_for('profile.donate') }}" class="btn" style="width:100%;text-align:center;margin-top:8px">Поповнити PXP</a>
+
+        <!-- Кнопка для TOP-1 (бекенд сам перевіряє доступ) -->
+        <a href="{{ url_for('ads.ad_upload') }}" class="btn gray" style="width:100%;text-align:center;margin-top:8px">
+          ➕ Додати банер (TOP-1)
+        </a>
+        <div class="muted" style="font-size:.85rem;margin-top:6px">
+          Доступно лише користувачу з TOP-1 цього місяця.
+        </div>
+
+        <!-- Швидкий перехід в адмінку -->
+        {% if session.is_admin %}
+          <a href="{{ url_for('admin_panel') }}" class="btn" style="width:100%;text-align:center;margin-top:10px">
+            Admin
+          </a>
+        {% endif %}
+      </div>
+
+      <!-- Права колонка -->
+      <div class="right">
+        <div class="idline muted" style="margin-bottom:8px">
+          id: {{ current_user.id or "—" }} • {{ current_user.email }}
+        </div>
+
+        <form method="post" action="{{ url_for('profile.profile_update') }}" id="profileForm" class="form">
+          <div class="field">
+            <div class="label">Ім’я / нік</div>
+            <input class="input" type="text" name="name" value="{{ current_user.name or '' }}" placeholder="Твоє ім’я">
+          </div>
+
+          <!-- приховане поле для dataURL аватара -->
+          <input type="hidden" name="avatar" id="avatarData" value="{{ current_user.avatar or '' }}">
+
+          <div class="field">
+            <div class="label">Про себе</div>
+            <textarea class="textarea" name="bio" rows="4" placeholder="Коротко про себе">{{ current_user.bio or '' }}</textarea>
+          </div>
+
+          <div>
+            <button class="btn" type="submit">Зберегти</button>
+            <button class="btn gray" type="button" id="resetBtn" style="margin-left:8px">Скинути</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  .page{max-width:980px;margin:0 auto;padding:16px 24px 40px}
+  .row{display:flex;gap:20px;flex-wrap:wrap}
+  .left{flex:0 0 260px}
+  .right{flex:1}
+  .muted{color:var(--muted)}
+
+  .panel{
+    background: color-mix(in srgb, var(--card) 96%, #000 4%);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+
+  .avatar-wrap{position:relative;width:200px;height:200px;margin:6px auto 10px;cursor:pointer}
+  .avatar{
+    width:100%;height:100%;border-radius:50%;object-fit:cover;
+    background: color-mix(in srgb, var(--card) 85%, #000 15%);
+    border:2px solid var(--line);
+  }
+  .edit-btn{
+    position:absolute;right:8px;bottom:8px;
+    background:var(--btn-bg); color:var(--btn-text); border:0;
+    border-radius:50%; width:44px; height:44px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    box-shadow:0 8px 18px rgba(0,0,0,.35)
+  }
+  .edit-btn span{font-size:20px;line-height:1}
+  input[type="file"]{display:none}
+
+  .field{margin-bottom:14px}
+  .label{font-size:12px;color:var(--muted);margin-bottom:6px}
+
+  .input, .textarea{
+    width:100%;
+    background: color-mix(in srgb, var(--bg) 75%, var(--card) 25%);
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:10px;
+    padding:10px 12px;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .textarea{min-height:110px;resize:vertical}
+  .input:focus, .textarea:focus{
+    border-color: var(--btn-bg);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--btn-bg) 30%, transparent);
+  }
+
+  .btn{
+    display:inline-block;padding:10px 16px;
+    background:var(--btn-bg); color:var(--btn-text);
+    font-weight:700;border-radius:10px;text-decoration:none;border:0;cursor:pointer;
+    transition:color .15s ease, transform .06s ease;
+  }
+  .btn:hover{ color:var(--btn-text-hover); }
+  .btn.small{padding:8px 12px;border-radius:10px}
+  .btn.gray{
+    background: transparent;
+    color: var(--ink);
+    border:1px solid var(--line);
+  }
+  .btn.gray:hover{ color: var(--btn-text-hover); }
+
+  .stat{display:flex;gap:10px;align-items:center;margin:8px 0 18px}
+  .badge{
+    background: color-mix(in srgb, var(--card) 85%, #000 15%);
+    border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;color:var(--ink);
+  }
+</style>
+
+<script>
+  const avatarWrap  = document.querySelector('.avatar-wrap');
+  const avatarImg   = document.getElementById('avatarPreview');
+  const avatarFile  = document.getElementById('avatarFile');
+  const avatarData  = document.getElementById('avatarData');
+  const resetBtn    = document.getElementById('resetBtn');
+
+  avatarWrap.addEventListener('click', () => avatarFile.click());
+
+  avatarFile.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      avatarImg.src = dataUrl;
+      avatarData.value = dataUrl;
+    };
+    reader.readAsDataURL(f);
+  });
+
+  resetBtn?.addEventListener('click', () => {
+    avatarImg.src = "{{ current_user.avatar or url_for('static', filename='avatar_default.png') }}";
+    avatarData.value = "{{ current_user.avatar or '' }}";
+    const form = document.getElementById('profileForm');
+    form.querySelector('[name="name"]').value = "{{ current_user.name or '' }}";
+    form.querySelector('[name="bio"]').value  = `{{ (current_user.bio or '')|replace('`','\\`') }}`;
+  });
+</script>
+
+{% endblock %}

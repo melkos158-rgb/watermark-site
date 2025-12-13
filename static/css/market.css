@@ -1,0 +1,414 @@
+/* static/market/css/market.css */
+/* =======================
+   БАЗОВЕ ОФОРМЛЕННЯ МАРКЕТУ
+   ======================= */
+
+:root {
+  --mkt-bg: #050814;
+  --mkt-card: #0c1020;
+  --mkt-card-soft: #111425;
+  --mkt-line: #1c2338;
+  --mkt-line-soft: #151a2c;
+  --mkt-text: #e5e9ff;
+  --mkt-muted: #9aa4c9;
+  --mkt-accent: #5b66ff;
+  --mkt-accent-soft: rgba(91, 102, 255, 0.12);
+  --mkt-danger: #f97373;
+  --mkt-radius-lg: 18px;
+  --mkt-radius-md: 12px;
+  --mkt-radius-sm: 999px;
+  --mkt-shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.6);
+  --mkt-shadow-chip: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Загальний контейнер сторінки маркету */
+.market-page {
+  max-width: 1200px;
+  margin: 32px auto 48px;
+  padding: 0 16px 16px;
+}
+
+/* Верхня смуга з заголовком і пошуком */
+.market-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.market-title {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.market-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--mkt-muted);
+}
+
+/* Блок пошуку + основні селекти */
+.market-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0 14px;
+}
+
+/* поля та селекти */
+.market-input,
+.market-select {
+  min-width: 0;
+  border-radius: 999px;
+  border: 1px solid var(--mkt-line);
+  padding: 7px 12px;
+  font-size: 13px;
+  background: #050816;
+  color: var(--mkt-text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.market-input:focus,
+.market-select:focus {
+  border-color: var(--mkt-accent);
+  box-shadow: 0 0 0 1px rgba(91, 102, 255, 0.5);
+  background: #050a1b;
+}
+
+.market-input-search {
+  flex: 1 1 220px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.market-input-search input {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid var(--mkt-line);
+  padding: 8px 12px;
+  background: #050816;
+  color: var(--mkt-text);
+}
+
+.market-input-search button {
+  border-radius: 999px;
+  border: 1px solid var(--mkt-line);
+  padding: 8px 12px;
+  background: var(--mkt-accent);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.market-input-search button:hover {
+  filter: brightness(1.05);
+}
+
+/* селекти sort/show */
+.market-select {
+  height: 32px;
+}
+
+/* Інфо-банер над грідом */
+.market-notice {
+  margin-bottom: 10px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--mkt-muted);
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px dashed var(--mkt-line-soft);
+  display: none;
+}
+
+.market-notice.error {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.35);
+  border-color: #fecaca33;
+}
+
+/* =======================
+   QUICK FILTERS ЧІПСИ
+   ======================= */
+
+.market-quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mqf-chip {
+  border-radius: var(--mkt-radius-sm);
+  border: 1px solid var(--mkt-line-soft);
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--mkt-muted);
+  background: rgba(15, 23, 42, 0.85);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--mkt-shadow-chip);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.mqf-chip span.icon {
+  font-size: 13px;
+}
+
+.mqf-chip:hover {
+  border-color: var(--mkt-accent);
+  color: var(--mkt-text);
+  transform: translateY(-1px);
+}
+
+.mqf-chip.is-active {
+  border-color: var(--mkt-accent);
+  color: #ffffff;
+  background: var(--mkt-accent-soft);
+}
+
+/* =======================
+   ГРІД МОДЕЛЕЙ
+   ======================= */
+
+[data-market-grid],
+#my-grid {
+  position: relative;
+  min-height: 120px;
+}
+
+/* loading / empty / error */
+.market-grid-loading,
+.market-grid-empty,
+.market-grid-error {
+  border-radius: var(--mkt-radius-lg);
+  border: 1px dashed var(--mkt-line);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--mkt-muted);
+  background: #050816;
+  font-size: 14px;
+}
+
+.market-grid-error button.btn {
+  margin-top: 10px;
+}
+
+/* базова сітка (якщо не використовується окремий grid.html) */
+.market-grid-list {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+/* =======================
+   КАРТКИ "МОЇ ОГОЛОШЕННЯ"
+   ======================= */
+
+.market-card.my-card {
+  background: var(--mkt-card);
+  border-radius: var(--mkt-radius-md);
+  border: 1px solid var(--mkt-line);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.market-card.my-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--mkt-accent);
+  box-shadow: var(--mkt-shadow-soft);
+}
+
+.market-card-img {
+  position: relative;
+  padding-top: 62%;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, #1f2937, #020617);
+}
+
+.market-card-img img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.market-card-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mkt-muted);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  font-size: 18px;
+}
+
+.market-card-body {
+  padding: 10px 12px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.market-card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--mkt-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.market-card-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--mkt-muted);
+}
+
+.market-card-price .price-main {
+  font-weight: 600;
+  color: var(--mkt-text);
+}
+
+.market-card-downloads {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* =======================
+   ПАГІНАЦІЯ
+   ======================= */
+
+[data-market-pagination],
+#my-pagination {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+.market-pagination-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #050816;
+  border-radius: 999px;
+  padding: 3px 4px;
+  border: 1px solid var(--mkt-line-soft);
+}
+
+.pg-btn {
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--mkt-muted);
+  font-size: 12px;
+  padding: 5px 10px;
+  cursor: pointer;
+  min-width: 26px;
+  text-align: center;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease;
+}
+
+.pg-btn:hover {
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--mkt-text);
+  transform: translateY(-1px);
+}
+
+.pg-btn.is-active,
+.pg-btn.is-active:hover {
+  background: var(--mkt-accent);
+  color: #fff;
+  cursor: default;
+  transform: none;
+}
+
+/* =======================
+   КНОПКИ ДЛЯ МАРКЕТУ
+   ======================= */
+
+.market-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--mkt-line);
+  background: #050816;
+  color: var(--mkt-text);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.market-btn:hover {
+  background: #050a1b;
+  border-color: var(--mkt-accent);
+  transform: translateY(-1px);
+}
+
+.market-btn.primary {
+  background: var(--mkt-accent);
+  border-color: var(--mkt-accent);
+  color: #fff;
+}
+
+.market-btn.primary:hover {
+  filter: brightness(1.05);
+}
+
+/* =======================
+   МОБІЛЬНІ АДАПТАЦІЇ
+   ======================= */
+
+@media (max-width: 900px) {
+  .market-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .market-title {
+    font-size: 22px;
+  }
+
+  .market-page {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .market-filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .market-input-search {
+    width: 100%;
+  }
+}
+
+/* ==== HOTFIX: трохи страхуємося від горизонтального скролу
+   саме для контенту маркету, але НЕ чіпаємо шапку Proofly ==== */
+
+body[data-market-page] {
+  max-width: 100%;
+  overflow-x: hidden;
+}

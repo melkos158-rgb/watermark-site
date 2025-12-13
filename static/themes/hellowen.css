@@ -1,0 +1,121 @@
+/* ===== HALLOWEEN THEME ===== */
+:root {
+  --bg: #0a0a0a;               /* чорний фон */
+  --ink: #ff9933;              /* оранжевий текст */
+  --line: #ff6600;             /* вогняні рамки */
+  --card: rgba(20, 10, 5, 0.85); /* темні картки з прозорістю */
+  --muted: #ffaa66;            /* м’якший помаранчевий */
+  --btn-bg: #ff6600;           /* гарбузові кнопки */
+  --btn-text: #fff;            /* білий текст */
+  --btn-text-hover: #ffcc00;   /* жовтий при наведенні */
+  --nav-bg: rgba(0, 0, 0, 0.85); /* затемнена навігація */
+  --link: #ff3300;             /* червонуваті лінки */
+}
+
+/* =========================
+   BODY
+   ========================= */
+body {
+  background: var(--bg) url("/static/themes/halloween_bg.jpg");
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  color: var(--ink);
+  font-family: "Creepster", "Comic Sans MS", cursive, sans-serif;
+}
+
+/* =========================
+   NAVIGATION
+   ========================= */
+nav {
+  background: var(--nav-bg);
+  border-bottom: 3px solid var(--line);
+}
+.nav-btn {
+  background: var(--btn-bg);
+  border: 2px solid #330000;
+  color: var(--btn-text);
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 6px;
+  box-shadow: 0 0 8px rgba(255, 100, 0, 0.8);
+  transition: all .2s ease-in-out;
+}
+.nav-btn:hover {
+  background: #ff3300;
+  color: var(--btn-text-hover);
+  box-shadow: 0 0 12px rgba(255, 140, 0, 1);
+}
+.nav-btn:active {
+  background: #cc2200;
+  transform: translateY(2px);
+}
+
+/* =========================
+   CARDS / PANELS
+   ========================= */
+.card, .canvas-wrap, .panel {
+  background: var(--card);
+  border: 2px solid var(--line);
+  color: var(--ink);
+  box-shadow: 0 0 18px rgba(255, 90, 0, 0.6);
+}
+
+/* =========================
+   BUTTONS
+   ========================= */
+.btn {
+  background: var(--btn-bg);
+  border: 2px solid #330000;
+  color: var(--btn-text);
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-shadow: 0 0 6px #000;
+  box-shadow: 0 0 8px rgba(255, 120, 0, 0.7);
+  transition: all .2s ease-in-out;
+}
+.btn:hover {
+  background: #ff3300;
+  color: var(--btn-text-hover);
+  box-shadow: 0 0 12px rgba(255, 150, 0, 1);
+}
+.btn:active {
+  background: #cc2200;
+  transform: translateY(2px);
+}
+
+/* =========================
+   INPUTS
+   ========================= */
+input, select, textarea {
+  background: #1a0a05;
+  border: 2px solid var(--line);
+  color: #fff;
+  padding: 8px 10px;
+  font-family: "Verdana", sans-serif;
+  box-shadow: inset 0 0 6px rgba(255, 80, 0, 0.8);
+}
+input:focus, textarea:focus {
+  border-color: #ffcc00;
+  outline: none;
+  box-shadow: 0 0 8px #ffcc00;
+}
+
+/* =========================
+   PROFILE / AVATAR
+   ========================= */
+.avatar {
+  border: 3px solid var(--line);
+  box-shadow: 0 0 12px rgba(255, 90, 0, 0.9);
+  background: #220000;
+}
+.badge {
+  background: #330000;
+  border: 2px solid var(--line);
+  color: #ff9933;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+}

@@ -1,0 +1,945 @@
+{% extends "base.html" %}
+
+{% block title %}Менеджер ліцензій — Proofly STL{% endblock %}
+
+{% block content %}
+<style>
+  .lic-wrap{
+    max-width:1200px;
+    margin:24px auto 40px;
+    padding:0 12px;
+  }
+  .lic-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .lic-title{
+    font-size:22px;
+    font-weight:600;
+  }
+  .lic-sub{
+    font-size:13px;
+    opacity:.8;
+    margin-top:4px;
+  }
+  .lic-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:8px;
+  }
+  .lic-badge{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    background:#020617;
+    opacity:.85;
+  }
+
+  .lic-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr);
+    gap:16px;
+    align-items:start;
+  }
+  @media(max-width:1100px){
+    .lic-layout{
+      grid-template-columns:1fr;
+    }
+  }
+
+  .lic-card{
+    background:#0f1117;
+    border:1px solid #242735;
+    border-radius:12px;
+    padding:14px 16px;
+  }
+  .lic-card h2{
+    margin:0 0 10px 0;
+    font-size:18px;
+  }
+  .lic-card h3{
+    margin:12px 0 6px;
+    font-size:15px;
+  }
+  .lic-help{
+    font-size:12px;
+    opacity:.8;
+    margin-top:4px;
+  }
+
+  .lic-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    margin-bottom:8px;
+  }
+
+  .lic-input,
+  .lic-select,
+  .lic-textarea{
+    background:#050712;
+    border:1px solid #252a3a;
+    border-radius:8px;
+    padding:6px 10px;
+    color:#e2e8f0;
+    font-size:13px;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .lic-select{
+    border-radius:999px;
+    padding:4px 10px;
+    width:auto;
+  }
+  .lic-textarea{
+    resize:vertical;
+    min-height:80px;
+  }
+  .lic-search{
+    flex:1 1 auto;
+  }
+
+  .lic-btn{
+    border-radius:999px;
+    border:1px solid #2563eb;
+    background:#1d3a7f;
+    padding:6px 14px;
+    font-size:13px;
+    cursor:pointer;
+    color:#e5f0ff;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    transition:background .12s,border-color .12s,transform .06s;
+  }
+  .lic-btn.secondary{
+    border-color:#374151;
+    background:#111827;
+    color:#e5e7eb;
+  }
+  .lic-btn.danger{
+    border-color:#b91c1c;
+    background:#7f1d1d;
+  }
+  .lic-btn:active{
+    transform:translateY(1px);
+  }
+  .lic-btn:disabled{
+    opacity:.6;
+    cursor:default;
+  }
+
+  .lic-list{
+    margin-top:10px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-height:460px;
+    overflow:auto;
+  }
+  .lic-item{
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid #1f2937;
+    background:#020617;
+    display:grid;
+    grid-template-columns:minmax(0,1.5fr) minmax(0,1.2fr) auto;
+    gap:8px;
+    align-items:center;
+    cursor:pointer;
+    transition:border-color .12s,background .12s,transform .06s;
+  }
+  .lic-item:hover{
+    border-color:#2563eb;
+    background:#020817;
+  }
+  .lic-item.active{
+    border-color:#22c55e;
+    background:#022c22;
+  }
+  .lic-item-name{
+    font-size:14px;
+    font-weight:500;
+  }
+  .lic-item-meta{
+    font-size:11px;
+    opacity:.85;
+  }
+  .lic-item-tags{
+    font-size:11px;
+    opacity:.8;
+  }
+  .lic-item-actions{
+    display:flex;
+    gap:6px;
+    justify-content:flex-end;
+  }
+  .lic-tag-pill{
+    display:inline-flex;
+    align-items:center;
+    padding:1px 6px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+    margin-right:4px;
+  }
+
+  .lic-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:8px;
+  }
+  @media(max-width:800px){
+    .lic-grid{
+      grid-template-columns:1fr;
+    }
+  }
+  .lic-field label{
+    display:block;
+    font-size:12px;
+    opacity:.9;
+    margin-bottom:3px;
+  }
+
+  .lic-switch-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:4px;
+  }
+  .lic-switch{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    font-size:12px;
+    background:#020617;
+    border-radius:999px;
+    padding:3px 8px;
+    border:1px solid #1f2937;
+  }
+  .lic-switch input{
+    margin:0;
+  }
+
+  .lic-status{
+    font-size:12px;
+    opacity:.8;
+    margin-top:6px;
+  }
+
+  .lic-preview{
+    font-size:13px;
+    background:#020617;
+    border-radius:8px;
+    padding:10px;
+    border:1px dashed #1f2937;
+    margin-top:8px;
+  }
+  .lic-preview h4{
+    margin:0 0 6px 0;
+    font-size:14px;
+  }
+  .lic-preview ul{
+    padding-left:18px;
+    margin:4px 0;
+    font-size:12px;
+  }
+  .lic-preview-code{
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size:11px;
+    opacity:.9;
+    background:#020617;
+    padding:3px 6px;
+    border-radius:999px;
+    border:1px solid #1f2937;
+  }
+</style>
+
+<div class="lic-wrap">
+  <header class="lic-header">
+    <div>
+      <div class="lic-title">Менеджер ліцензій STL/3D</div>
+      <div class="lic-sub">
+        Створюй стандартизовані ліцензії для STL-файлів: особисте/комерційне використання,
+        ремікси, перепродаж друків тощо. Далі користувачі зможуть легко вибирати
+        ліцензію на сторінці моделі — як на Cults / Printables, тільки більш розумно.
+      </div>
+      <div class="lic-badges">
+        <div class="lic-badge">📜 Proofly License</div>
+        <div class="lic-badge">🧑‍🎨 Авторські права</div>
+        <div class="lic-badge">💰 Комерційні друки</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+      <button id="lic-btn-new" class="lic-btn">＋ Нова ліцензія</button>
+      <div class="lic-help" style="max-width:220px;text-align:right;">
+        Активна «дефолтна» ліцензія буде автоматично пропонуватися при додаванні нових STL.
+      </div>
+    </div>
+  </header>
+
+  <div class="lic-layout">
+    <!-- ЛІВА КОЛОНКА: список -->
+    <section class="lic-card">
+      <h2>Ліцензії маркету</h2>
+      <div class="lic-row">
+        <input id="lic-search" class="lic-input lic-search" type="text" placeholder="Пошук: Proofly personal, Proofly commercial, CC…">
+        <select id="lic-filter-type" class="lic-select">
+          <option value="">Тип: всі</option>
+          <option value="proofly">Proofly</option>
+          <option value="cc">Creative Commons</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <div id="lic-list" class="lic-list"></div>
+      <div id="lic-list-empty" class="lic-help" style="margin-top:8px;display:none;">
+        Поки що немає жодної ліцензії. Створи хоча б:
+        <strong>Proofly Personal</strong> та <strong>Proofly Commercial</strong>.
+      </div>
+    </section>
+
+    <!-- ПРАВА КОЛОНКА: форма + превʼю -->
+    <section class="lic-card">
+      <h2 id="lic-form-title">Параметри ліцензії</h2>
+      <div class="lic-help">
+        Назва й короткий опис показуються поруч з моделлю. Детальний текст — на сторінці ліцензії.
+      </div>
+
+      <form id="lic-form" autocomplete="off" style="margin-top:10px;">
+        <input type="hidden" id="lic-id">
+
+        <div class="lic-grid">
+          <div class="lic-field">
+            <label>Назва ліцензії</label>
+            <input id="lic-name" class="lic-input" placeholder="Proofly Personal, Proofly Commercial, CC-BY-NC…">
+          </div>
+          <div class="lic-field">
+            <label>Код / слаг</label>
+            <input id="lic-code" class="lic-input" placeholder="proofly-personal, proofly-commercial…">
+            <div class="lic-help">Використовується у URL та внутрішніх посиланнях.</div>
+          </div>
+        </div>
+
+        <div class="lic-grid">
+          <div class="lic-field">
+            <label>Тип ліцензії</label>
+            <select id="lic-type" class="lic-input">
+              <option value="proofly">Proofly (власний шаблон)</option>
+              <option value="cc">Creative Commons</option>
+              <option value="custom">Custom / інші</option>
+            </select>
+          </div>
+          <div class="lic-field">
+            <label>Короткий підзаголовок</label>
+            <input id="lic-short" class="lic-input" placeholder="Наприклад: Personal use only / Комерційні друки дозволені…">
+          </div>
+        </div>
+
+        <div class="lic-field" style="margin-top:6px;">
+          <label>Публічний опис (коротко)</label>
+          <textarea id="lic-summary" class="lic-textarea" rows="3" placeholder="Коротко, людською мовою, що можна й що не можна робити з моделлю."></textarea>
+        </div>
+
+        <h3>Права й обмеження</h3>
+        <div class="lic-switch-row">
+          <label class="lic-switch">
+            <input id="lic-allow-print" type="checkbox" checked>
+            <span>✅ Дозволено друкувати для особистого використання</span>
+          </label>
+          <label class="lic-switch">
+            <input id="lic-allow-commercial" type="checkbox">
+            <span>💰 Дозволено продавати надруковані моделі</span>
+          </label>
+          <label class="lic-switch">
+            <input id="lic-allow-remix" type="checkbox">
+            <span>🧩 Дозволено ремікси / модифікації</span>
+          </label>
+          <label class="lic-switch">
+            <input id="lic-allow-redistribute" type="checkbox">
+            <span>🌐 Дозволено поширення STL (share)</span>
+          </label>
+        </div>
+
+        <div class="lic-switch-row" style="margin-top:6px;">
+          <label class="lic-switch">
+            <input id="lic-require-attrib" type="checkbox" checked>
+            <span>🖋 Обовʼязково вказувати автора</span>
+          </label>
+          <label class="lic-switch">
+            <input id="lic-require-linkback" type="checkbox" checked>
+            <span>🔗 Лінк на Proofly / автора</span>
+          </label>
+          <label class="lic-switch">
+            <input id="lic-share-alike" type="checkbox">
+            <span>♻ Ремікси — під тією ж ліцензією</span>
+          </label>
+        </div>
+
+        <div class="lic-grid" style="margin-top:8px;">
+          <div class="lic-field">
+            <label>Макс. кількість комерційних друків (0 = без ліміту)</label>
+            <input id="lic-max-prints" class="lic-input" type="number" min="0" step="1" placeholder="0">
+          </div>
+          <div class="lic-field">
+            <label>Юрисдикція / регіон (опційно)</label>
+            <input id="lic-region" class="lic-input" placeholder="Worldwide, EU, US, UA…">
+          </div>
+        </div>
+
+        <h3>Повний текст (legal)</h3>
+        <div class="lic-field">
+          <label>Детальний текст ліцензії</label>
+          <textarea id="lic-body" class="lic-textarea" rows="6" placeholder="Повний текст ліцензії, який буде показаний на окремій сторінці. Можна залишити порожнім, якщо використовується стандарт CC і ми даємо лінк."></textarea>
+          <div class="lic-help">
+            Для Creative Commons можна вказати коротко (CC BY-NC-SA 4.0) та додати офіційний лінк.
+          </div>
+        </div>
+
+        <div class="lic-row" style="justify-content:space-between;margin-top:12px;">
+          <div>
+            <button type="button" id="lic-btn-save" class="lic-btn">💾 Зберегти</button>
+            <button type="button" id="lic-btn-duplicate" class="lic-btn secondary">⧉ Дублювати</button>
+          </div>
+          <div>
+            <button type="button" id="lic-btn-set-default" class="lic-btn secondary">⭐ Зробити дефолтною</button>
+            <button type="button" id="lic-btn-delete" class="lic-btn danger">🗑 Видалити</button>
+          </div>
+        </div>
+
+        <div id="lic-status" class="lic-status"></div>
+
+        <div class="lic-preview" id="lic-preview">
+          <h4>Превʼю для сторінки моделі</h4>
+          <div style="margin-bottom:4px;">
+            <span id="lic-preview-name" style="font-weight:600;">(назва)</span>
+            <span id="lic-preview-code" class="lic-preview-code" style="margin-left:6px;">code</span>
+          </div>
+          <div id="lic-preview-short" style="font-size:12px;opacity:.9;margin-bottom:4px;">
+            (короткий опис)
+          </div>
+          <ul id="lic-preview-list"></ul>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+
+  const listEl = $("lic-list");
+  const listEmptyEl = $("lic-list-empty");
+  const searchEl = $("lic-search");
+  const filterTypeEl = $("lic-filter-type");
+
+  const form = $("lic-form");
+  const formTitleEl = $("lic-form-title");
+
+  const fId = $("lic-id");
+  const fName = $("lic-name");
+  const fCode = $("lic-code");
+  const fType = $("lic-type");
+  const fShort = $("lic-short");
+  const fSummary = $("lic-summary");
+  const fAllowPrint = $("lic-allow-print");
+  const fAllowCommercial = $("lic-allow-commercial");
+  const fAllowRemix = $("lic-allow-remix");
+  const fAllowRedistribute = $("lic-allow-redistribute");
+  const fRequireAttrib = $("lic-require-attrib");
+  const fRequireLinkback = $("lic-require-linkback");
+  const fShareAlike = $("lic-share-alike");
+  const fMaxPrints = $("lic-max-prints");
+  const fRegion = $("lic-region");
+  const fBody = $("lic-body");
+
+  const btnNew = $("lic-btn-new");
+  const btnSave = $("lic-btn-save");
+  const btnDuplicate = $("lic-btn-duplicate");
+  const btnDelete = $("lic-btn-delete");
+  const btnSetDefault = $("lic-btn-set-default");
+
+  const statusEl = $("lic-status");
+
+  const prevName = $("lic-preview-name");
+  const prevCode = $("lic-preview-code");
+  const prevShort = $("lic-preview-short");
+  const prevList = $("lic-preview-list");
+
+  let allLicenses = [];
+  let defaultLicenseId = null;
+  let currentSelectedId = null;
+  let isLoading = false;
+
+  function escapeHtml(str) {
+    if (str == null) return "";
+    return String(str)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+
+  function setStatus(msg, kind = "info") {
+    if (!statusEl) return;
+    const color =
+      kind === "error" ? "#f97373" :
+      kind === "success" ? "#4ade80" :
+      "#e5e7eb";
+    statusEl.textContent = msg || "";
+    statusEl.style.color = color;
+  }
+
+  function apiFetch(url, options = {}) {
+    const opts = {
+      headers:{
+        "Content-Type":"application/json",
+        ...(options.headers || {})
+      },
+      credentials:"same-origin",
+      ...options
+    };
+    return fetch(url, opts).then(async (res) => {
+      let data;
+      try{
+        data = await res.json();
+      }catch(e){
+        throw new Error("Invalid JSON from server");
+      }
+      if(!res.ok || data.ok === false){
+        const msg = (data && data.error) || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    });
+  }
+
+  function toNumber(val) {
+    if(val === "" || val == null) return null;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function clearForm() {
+    if(formTitleEl) formTitleEl.textContent = "Параметри ліцензії";
+    fId.value = "";
+    fName.value = "";
+    fCode.value = "";
+    fType.value = "proofly";
+    fShort.value = "";
+    fSummary.value = "";
+    fAllowPrint.checked = true;
+    fAllowCommercial.checked = false;
+    fAllowRemix.checked = false;
+    fAllowRedistribute.checked = false;
+    fRequireAttrib.checked = true;
+    fRequireLinkback.checked = true;
+    fShareAlike.checked = false;
+    fMaxPrints.value = "";
+    fRegion.value = "";
+    fBody.value = "";
+    currentSelectedId = null;
+    updatePreview();
+  }
+
+  function fillForm(lic) {
+    if(!lic) return;
+    if(formTitleEl) formTitleEl.textContent = "Редагування: " + (lic.name || "ліцензія");
+
+    fId.value = lic.id ?? "";
+    fName.value = lic.name || "";
+    fCode.value = lic.code || "";
+    fType.value = lic.type || "proofly";
+    fShort.value = lic.short_title || "";
+    fSummary.value = lic.summary || "";
+
+    fAllowPrint.checked = !!lic.allow_print;
+    fAllowCommercial.checked = !!lic.allow_commercial;
+    fAllowRemix.checked = !!lic.allow_remix;
+    fAllowRedistribute.checked = !!lic.allow_redistribute;
+
+    fRequireAttrib.checked = lic.require_attribution !== false;
+    fRequireLinkback.checked = lic.require_linkback !== false;
+    fShareAlike.checked = !!lic.share_alike;
+
+    fMaxPrints.value = lic.max_prints != null ? String(lic.max_prints) : "";
+    fRegion.value = lic.region || "";
+    fBody.value = lic.body || "";
+
+    updatePreview();
+  }
+
+  function formToObject() {
+    return {
+      id: fId.value || null,
+      name: fName.value.trim(),
+      code: fCode.value.trim(),
+      type: fType.value || "proofly",
+      short_title: fShort.value.trim(),
+      summary: fSummary.value.trim(),
+      allow_print: !!fAllowPrint.checked,
+      allow_commercial: !!fAllowCommercial.checked,
+      allow_remix: !!fAllowRemix.checked,
+      allow_redistribute: !!fAllowRedistribute.checked,
+      require_attribution: !!fRequireAttrib.checked,
+      require_linkback: !!fRequireLinkback.checked,
+      share_alike: !!fShareAlike.checked,
+      max_prints: toNumber(fMaxPrints.value),
+      region: fRegion.value.trim() || null,
+      body: fBody.value.trim() || null
+    };
+  }
+
+  function updatePreview() {
+    const lic = formToObject();
+    prevName.textContent = lic.name || "(назва ліцензії)";
+    prevCode.textContent = lic.code || "code";
+
+    prevShort.textContent =
+      lic.short_title ||
+      lic.summary ||
+      "Короткий опис того, що можна й що не можна робити з моделлю.";
+
+    const bullets = [];
+
+    if(lic.allow_print){
+      bullets.push("Дозволено друк для особистого використання.");
+    }else{
+      bullets.push("Друк для особистого використання не дозволений (дуже жорстка ліцензія).");
+    }
+
+    if(lic.allow_commercial){
+      if(lic.max_prints && lic.max_prints > 0){
+        bullets.push(`Дозволено продавати до ${lic.max_prints} комерційних друків з одного придбання.`);
+      }else{
+        bullets.push("Дозволено продавати надруковані моделі (без ліміту кількості).");
+      }
+    }else{
+      bullets.push("Продаж надрукованих моделей заборонений (тільки non-commercial).");
+    }
+
+    if(lic.allow_remix){
+      bullets.push("Дозволено ремікси та модифікації моделі.");
+      if(lic.share_alike){
+        bullets.push("Ремікси мають публікуватися під тією ж ліцензією (share-alike).");
+      }
+    }else{
+      bullets.push("Ремікси та модифікації моделі заборонені.");
+    }
+
+    if(lic.allow_redistribute){
+      bullets.push("Дозволено поширювати STL-файл (з урахуванням умов ліцензії).");
+    }else{
+      bullets.push("Поширення STL-файлу заборонене (тільки через Proofly).");
+    }
+
+    if(lic.require_attribution){
+      bullets.push("Потрібно вказувати автора моделі у публікаціях / описах.");
+    }else{
+      bullets.push("Вказувати автора необовʼязково (attribution не required).");
+    }
+
+    if(lic.require_linkback){
+      bullets.push("Потрібно залишити посилання на Proofly / сторінку моделі.");
+    }
+
+    if(lic.region){
+      bullets.push("Юрисдикція / регіон: " + lic.region + ".");
+    }
+
+    prevList.innerHTML = bullets.map(b => `<li>${escapeHtml(b)}</li>`).join("");
+  }
+
+  function renderList() {
+    const q = (searchEl && searchEl.value.trim().toLowerCase()) || "";
+    const typeFilter = filterTypeEl && filterTypeEl.value || "";
+
+    const filtered = allLicenses.filter((lic) => {
+      const hay = (
+        (lic.name || "") +
+        " " + (lic.code || "") +
+        " " + (lic.summary || "") +
+        " " + (lic.type || "")
+      ).toLowerCase();
+      if(q && !hay.includes(q)) return false;
+      if(typeFilter && lic.type !== typeFilter) return false;
+      return true;
+    });
+
+    listEl.innerHTML = "";
+    if(filtered.length === 0){
+      if(listEmptyEl) listEmptyEl.style.display = "block";
+      return;
+    }
+    if(listEmptyEl) listEmptyEl.style.display = "none";
+
+    filtered.forEach((lic) => {
+      const item = document.createElement("div");
+      item.className = "lic-item";
+      if(lic.id === defaultLicenseId){
+        item.classList.add("active");
+      }
+
+      const typeLabel =
+        lic.type === "proofly" ? "Proofly" :
+        lic.type === "cc" ? "Creative Commons" :
+        "Custom";
+
+      const tags = [];
+      if(lic.allow_commercial) tags.push("Commercial OK");
+      if(lic.allow_remix) tags.push("Remix OK");
+      if(lic.allow_redistribute) tags.push("Redistribute STL");
+      if(lic.share_alike) tags.push("Share-alike");
+      if(lic.max_prints && lic.max_prints > 0) tags.push(`≤${lic.max_prints} prints`);
+
+      item.innerHTML = `
+        <div>
+          <div class="lic-item-name">${escapeHtml(lic.name || "(без назви)")}</div>
+          <div class="lic-item-meta">
+            ${escapeHtml(lic.code || "")}
+            · ${escapeHtml(typeLabel)}
+          </div>
+        </div>
+        <div class="lic-item-tags">
+          ${
+            tags.length
+              ? tags.map(t => `<span class="lic-tag-pill">${escapeHtml(t)}</span>`).join("")
+              : '<span style="opacity:.7;">Без маркерів</span>'
+          }
+        </div>
+        <div class="lic-item-actions">
+          ${
+            lic.id === defaultLicenseId
+              ? '<span style="font-size:11px;opacity:.9;">Дефолтна</span>'
+              : '<button type="button" class="lic-btn secondary lic-btn-set-default" data-id="' +
+                String(lic.id) + '">⭐ Дефолт</button>'
+          }
+        </div>
+      `;
+
+      item.addEventListener("click", (ev) => {
+        const target = ev.target;
+        if(target && target.classList && target.classList.contains("lic-btn-set-default")){
+          const id = target.getAttribute("data-id");
+          if(id) setDefaultLicense(id);
+          ev.stopPropagation();
+          return;
+        }
+
+        currentSelectedId = lic.id;
+        fillForm(lic);
+        renderList();
+      });
+
+      listEl.appendChild(item);
+    });
+  }
+
+  function loadAll() {
+    isLoading = true;
+    setStatus("Завантаження ліцензій…");
+    return apiFetch("/api/licenses")
+      .then((data) => {
+        allLicenses = data.items || [];
+        defaultLicenseId = data.default_id || null;
+        renderList();
+        if(!allLicenses.length){
+          setStatus("Додай першу ліцензію для STL-маркету.", "info");
+        }else{
+          setStatus(`Завантажено ліцензій: ${allLicenses.length}`, "success");
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setStatus(`Помилка завантаження: ${err.message}`, "error");
+      })
+      .finally(() => {
+        isLoading = false;
+      });
+  }
+
+  function saveLicense() {
+    if(isLoading) return;
+    const lic = formToObject();
+
+    if(!lic.name){
+      setStatus("Вкажи назву ліцензії.", "error");
+      fName.focus();
+      return;
+    }
+    if(!lic.code){
+      setStatus("Вкажи код / слаг ліцензії.", "error");
+      fCode.focus();
+      return;
+    }
+
+    const hasId = !!lic.id;
+    const url = hasId ? `/api/licenses/${encodeURIComponent(lic.id)}` : "/api/licenses";
+    const method = hasId ? "PUT" : "POST";
+
+    isLoading = true;
+    setStatus(hasId ? "Оновлення ліцензії…" : "Створення нової ліцензії…");
+
+    apiFetch(url, {
+      method,
+      body: JSON.stringify(lic)
+    })
+      .then((data) => {
+        const saved = data.item;
+        const defId = data.default_id ?? defaultLicenseId;
+        defaultLicenseId = defId;
+
+        const idx = allLicenses.findIndex(l => String(l.id) === String(saved.id));
+        if(idx >= 0){
+          allLicenses[idx] = saved;
+        }else{
+          allLicenses.push(saved);
+        }
+
+        currentSelectedId = saved.id;
+        fillForm(saved);
+        renderList();
+
+        setStatus(hasId ? "Ліцензію оновлено." : "Ліцензію створено.", "success");
+      })
+      .catch((err) => {
+        console.error(err);
+        setStatus(`Помилка збереження: ${err.message}`, "error");
+      })
+      .finally(() => {
+        isLoading = false;
+      });
+  }
+
+  function deleteLicense() {
+    const id = fId.value;
+    if(!id){
+      setStatus("Немає що видаляти — ліцензія ще не збережена.", "error");
+      return;
+    }
+    if(!window.confirm("Точно видалити цю ліцензію? Моделі, які її використовують, можуть потребувати оновлення.")){
+      return;
+    }
+
+    isLoading = true;
+    setStatus("Видалення ліцензії…");
+    apiFetch(`/api/licenses/${encodeURIComponent(id)}`, {
+      method:"DELETE"
+    })
+      .then((data) => {
+        allLicenses = allLicenses.filter(l => String(l.id) !== String(id));
+        if(defaultLicenseId && String(defaultLicenseId) === String(id)){
+          defaultLicenseId = data.next_default_id || null;
+        }
+        clearForm();
+        renderList();
+        setStatus("Ліцензію видалено.", "success");
+      })
+      .catch((err) => {
+        console.error(err);
+        setStatus(`Помилка видалення: ${err.message}`, "error");
+      })
+      .finally(() => {
+        isLoading = false;
+      });
+  }
+
+  function setDefaultLicense(id) {
+    if(isLoading) return;
+    isLoading = true;
+    setStatus("Встановлення дефолтної ліцензії…");
+    apiFetch(`/api/licenses/${encodeURIComponent(id)}/set_default`, {
+      method:"POST",
+      body: JSON.stringify({})
+    })
+      .then((data) => {
+        defaultLicenseId = data.default_id || id;
+        renderList();
+        setStatus("Дефолтна ліцензія оновлена.", "success");
+      })
+      .catch((err) => {
+        console.error(err);
+        setStatus(`Помилка встановлення дефолтної ліцензії: ${err.message}`, "error");
+      })
+      .finally(() => {
+        isLoading = false;
+      });
+  }
+
+  // ====== Події ======
+  if(btnNew){
+    btnNew.addEventListener("click", () => {
+      clearForm();
+      if(formTitleEl) formTitleEl.textContent = "Нова ліцензія";
+      setStatus("Створення нової ліцензії.", "info");
+    });
+  }
+  if(btnSave){
+    btnSave.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      saveLicense();
+    });
+  }
+  if(btnDuplicate){
+    btnDuplicate.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const lic = formToObject();
+      fId.value = "";
+      if(lic.name){
+        fName.value = lic.name + " (копія)";
+      }
+      if(formTitleEl) formTitleEl.textContent = "Нова ліцензія (копія)";
+      setStatus("Скопійовано у форму. Натисни «Зберегти», щоб створити нову ліцензію.", "info");
+      updatePreview();
+    });
+  }
+  if(btnDelete){
+    btnDelete.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      deleteLicense();
+    });
+  }
+  if(btnSetDefault){
+    btnSetDefault.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const id = fId.value;
+      if(!id){
+        setStatus("Спочатку збережи ліцензію, потім можна зробити її дефолтною.", "error");
+        return;
+      }
+      setDefaultLicense(id);
+    });
+  }
+
+  if(searchEl){
+    searchEl.addEventListener("input", () => {
+      renderList();
+    });
+  }
+  if(filterTypeEl){
+    filterTypeEl.addEventListener("change", () => {
+      renderList();
+    });
+  }
+
+  // Превʼю в реальному часі
+  [
+    fName, fCode, fShort, fSummary, fAllowPrint, fAllowCommercial,
+    fAllowRemix, fAllowRedistribute, fRequireAttrib, fRequireLinkback,
+    fShareAlike, fMaxPrints, fRegion
+  ].forEach((el) => {
+    if(!el) return;
+    el.addEventListener("input", updatePreview);
+    el.addEventListener("change", updatePreview);
+  });
+
+  // Старт
+  clearForm();
+  loadAll();
+</script>
+{% endblock %}

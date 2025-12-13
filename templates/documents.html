@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+{% set page = 'documents' %}
+{% block title %}Документи — Proofly{% endblock %}
+
+{% block content %}
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+
+<style>
+  :root{ --bg:#0b0e14; --card:#101522; --line:#1b2131; --text:#e6e9ef; --muted:#aab1c7; --chip:#161a20; --accent:#4f7cff; }
+
+  html{box-sizing:border-box} *,*:before,*:after{box-sizing:inherit}
+  body{ background:var(--bg); color:var(--text) }
+
+  .doc-shell{ max-width:1400px; margin:0 auto; padding:12px 16px 20px; }
+
+  /* ==== РІББОН В ДВА РЯДКИ ==== */
+  .ribbon{
+    position:sticky; top:8px; z-index:50;
+    display:flex; flex-direction:column; gap:8px;
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:8px 10px;
+  }
+  .rrow{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .rrow .group{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .rrow .vr{ width:1px; height:34px; background:var(--line); margin:0 6px; }
+
+  .rib-btn{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    width:70px; height:58px; gap:4px;
+    border:1px solid var(--line); border-radius:10px; background:#0f1730;
+    cursor:pointer; transition:transform .05s ease, background .2s ease, border-color .2s ease; text-align:center;
+  }
+  .rib-btn:hover{ background:#142049; border-color:#24325a; transform:translateY(-1px) }
+  .rib-btn:active{ transform:translateY(0) }
+  .rib-ico{ font-size:18px; line-height:18px }
+  .rib-txt{ font-size:12px; color:var(--muted); white-space:nowrap }
+
+  /* Тіло */
+  .doc-body{ display:grid; grid-template-columns:220px 1fr; gap:14px; margin-top:12px; }
+
+  .thumbs{
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px;
+    display:flex; flex-direction:column; gap:10px; height: calc(100vh - 140px); overflow:auto;
+  }
+  .thumb{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px; border:1px solid var(--line); border-radius:10px; background:#0f1422; cursor:pointer; }
+  .thumb.active{ outline:2px solid var(--accent) }
+  .thumb .pgnum{ font-size:12px; color:var(--muted) }
+  .thumb .box{ width:100%; height:120px; background:#0b0e14; border:1px solid #2a3550; border-radius:8px }
+
+  .viewer{
+    background:var(--card); border:1px solid var(--line); border-radius:12px; position:relative;
+    display:flex; align-items:center; justify-content:center; height: calc(100vh - 140px); min-height:520px; overflow:hidden;
+  }
+  .viewer .hint{ position:absolute; top:16px; left:16px; color:var(--muted); font-size:14px; z-index:2 }
+  .viewer.has-preview .hint{ display:none }
+  canvas#pdfCanvas, img#imgPreview{ max-width:100%; max-height:100%; display:block; position:relative; z-index:1 }
+
+  .editor-layer{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:3; pointer-events:none; }
+  .editor-stage{ position:relative; pointer-events:all }
+
+  /* Плаваючу панель — прибрано */
+  .edit-toolbar-float{ display:none !important; }
+
+  .chip{ padding:8px 10px; border-radius:10px; border:1px solid var(--line); background:#0f1730; cursor:pointer }
+  .chip.active{ outline:2px solid var(--accent) }
+
+  .edit-box{ position:absolute; min-width:80px; min-height:28px; padding:6px 8px; border:1px dashed #6b7bb8; border-radius:8px; background:rgba(0,0,0,.25); color:#fff; font:16px/1.35 "Inter", system-ui, Arial; cursor:move; }
+  .edit-img{ position:absolute; max-width:100%; max-height:100%; border:1px dashed #6b7bb8; border-radius:8px; cursor:move; }
+  .hl-rect{ position:absolute; background:rgba(255,255,0,.22); border:1px solid rgba(255,255,0,.35); border-radius:4px; cursor:move; }
+  .hl-ellipse{ position:absolute; background:rgba(255,255,0,.18); border:1px solid rgba(255,255,0,.35); border-radius:999px; cursor:move; }
+  .freehand{ position:absolute; pointer-events:none }
+
+  .pager{ position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:center; z-index:4; }
+  .pager .pbtn{ width:34px; height:34px; border-radius:999px; border:1px solid var(--line); background:#0f1730; display:inline-flex; align-items:center; justify-content:center; cursor:pointer }
+  .muted{ color:var(--muted) }
+
+  .theme-toggle{ display:none !important }
+
+  .uploader{
+    margin:12px 0; display:flex; gap:12px; flex-wrap:wrap;
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px;
+  }
+  .uploader .row{ display:flex; gap:8px; align-items:center }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 14px; border-radius:12px; border:1px solid var(--line); background:#0f1730; color:#fff; cursor:pointer }
+</style>
+
+<div class="doc-shell">
+  <div class="uploader">
+    <div class="row"><strong>Головний файл:</strong> <input id="fileInput" type="file"/></div>
+    <div class="row"><strong>Додаткові файли:</strong> <input id="fileInputMany" type="file" multiple/></div>
+  </div>
+
+  <!-- РЯДОК 1 -->
+  <div class="ribbon">
+    <div class="rrow">
+      <div class="group">
+        <button class="rib-btn" id="rb-thumbs"><div class="rib-ico">🗂️</div><div class="rib-txt">Miniatury</div></button>
+        <div class="vr"></div>
+        <button class="rib-btn" id="rb-undo"><div class="rib-ico">↶</div><div class="rib-txt">Cofnij</div></button>
+        <button class="rib-btn" id="rb-redo"><div class="rib-ico">↷</div><div class="rib-txt">Ponów</div></button>
+      </div>
+      <div class="vr"></div>
+      <div class="group">
+        <button class="rib-btn" id="rb-addtext"><div class="rib-ico">✏️</div><div class="rib-txt">Dodaj tekst</div></button>
+        <button class="rib-btn" id="rb-edit"><div class="rib-ico">🖱️</div><div class="rib-txt">Edytuj текст</div></button>
+        <button class="rib-btn" id="rb-erase"><div class="rib-ico">🧽</div><div class="rib-txt">Gumka</div></button>
+        <button class="rib-btn" id="rb-highlight"><div class="rib-ico">🟨</div><div class="rib-txt">Podświetl</div></button>
+        <button class="rib-btn" id="rb-pencil"><div class="rib-ico">✍️</div><div class="rib-txt">Ołówek</div></button>
+        <button class="rib-btn" id="rb-image"><div class="rib-ico">🖼️</div><div class="rib-txt">Obraz</div></button>
+        <button class="rib-btn" id="rb-ellipse"><div class="rib-ico">⭕</div><div class="rib-txt">Elipsa</div></button>
+        <button class="rib-btn" id="rb-rect"><div class="rib-ico">▭</div><div class="rib-txt">Zaznaczenie</div></button>
+        <button class="rib-btn" id="rb-sign"><div class="rib-ico">✒️</div><div class="rib-txt">Podpis</div></button>
+      </div>
+    </div>
+
+    <!-- РЯДОК 2 -->
+    <div class="rrow">
+      <div class="group">
+        <button class="rib-btn" id="rb-split"><div class="rib-ico">✂️</div><div class="rib-txt">Split</div></button>
+        <button class="rib-btn" id="rb-merge"><div class="rib-ico">🔗</div><div class="rib-txt">Merge</div></button>
+        <button class="rib-btn" id="rb-reorder"><div class="rib-ico">↕️</div><div class="rib-txt">Reorder</div></button>
+        <button class="rib-btn" id="rb-export"><div class="rib-ico">🖨️</div><div class="rib-тxt">PNG</div></button>
+        <button class="rib-btn" id="rb-compress"><div class="rib-ico">🗜️</div><div class="rib-тxt">Compress</div></button>
+        <button class="rib-btn" id="rb-watermark"><div class="rib-ico">💧</div><div class="rib-тxt">Watermark</div></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-body">
+    <aside class="thumbs" id="thumbs" style="display:flex"></aside>
+
+    <div class="viewer" id="viewer">
+      <div class="hint">Завантаж PDF/зображення вище. Натисни «Dodaj tekst»/«Obraz» для редагування.</div>
+
+      <div class="editor-layer" id="editorLayer">
+        <!-- edit-toolbar-float прибрана CSS-ом -->
+        <div class="pager">
+          <button class="pbtn" id="pgPrev">◀</button>
+          <div id="pgInfo" class="muted">1 / 1</div>
+          <button class="pbtn" id="pgNext">▶</button>
+        </div>
+        <div class="editor-stage" id="editorStage"></div>
+      </div>
+
+      <canvas id="pdfCanvas" style="display:none"></canvas>
+      <img id="imgPreview" alt="" style="display:none"/>
+      <div id="docxMount" style="display:none; max-width:95%; height:95%; overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== LIBRARIES ====== -->
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window['pdfjsLib']) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<!-- ====== LOGIC (функції залишені без змін) ====== -->
+<script>
+/* helpers */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const toBlob = async (u8, mime='application/pdf') => new Blob([u8], {type:mime});
+const saveBlob = (blob, name) => { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); };
+const getMainFile = () => $('#fileInput').files?.[0];
+const getManyFiles = () => Array.from($('#fileInputMany').files || []);
+const note = (msg) => console.log('[Docs]', msg);
+
+/* preview */
+const canvas = $('#pdfCanvas'); const ctx = canvas.getContext('2d');
+const img = $('#imgPreview'); const docxMount = $('#docxMount'); const viewer = $('#viewer');
+const thumbs = $('#thumbs');
+
+const editorLayer = $('#editorLayer'); const editorStage = $('#editorStage'); const pgInfo = $('#pgInfo');
+let currPdfDoc = null, currPdfPages = 0, currPageIndex = 0, previewViewport = null;
+
+/* === безпечний рендер: одна операція за раз === */
+let _renderBusy = false;
+let _renderPendingIndex = null;
+
+async function renderPageForPreview(pdf, pageIndex=0){
+  if (_renderBusy) { _renderPendingIndex = pageIndex; return; }
+  _renderBusy = true;
+
+  const page = await pdf.getPage(pageIndex+1);
+  const base = page.getViewport({scale:1});
+  const pad = 24;
+  const maxW = Math.max(320, viewer.clientWidth - pad);
+  const maxH = Math.max(320, viewer.clientHeight - pad);
+  const scale = Math.min(maxW / base.width, maxH / base.height);
+  const vp = page.getViewport({scale: Math.max(0.5, Math.min(scale, 3))});
+  previewViewport = vp;
+  canvas.width = vp.width; canvas.height = vp.height;
+
+  const task = page.render({canvasContext: ctx, viewport: vp});
+  try {
+    await task.promise;
+  } catch(e) {
+    console.warn('Render cancelled/failed:', e?.message || e);
+  } finally {
+    canvas.style.display='block';
+    _renderBusy = false;
+    if (_renderPendingIndex !== null) {
+      const next = _renderPendingIndex; _renderPendingIndex = null;
+      // запустимо відкладений рендер
+      renderPageForPreview(pdf, next);
+    }
+  }
+}
+
+function buildThumbs(num){
+  thumbs.innerHTML='';
+  for(let i=0;i<num;i++){
+    const t=document.createElement('div'); t.className='thumb'; if(i===0) t.classList.add('active');
+    t.innerHTML=`<div class="box"></div><div class="pgnum">${i+1}</div>`;
+    t.onclick=async ()=>{ if(!currPdfDoc) return; currPageIndex=i; await renderPageForPreview(currPdfDoc,currPageIndex); pgInfo.textContent = `${currPageIndex+1} / ${currPdfPages}`; $$('.thumb').forEach(x=>x.classList.remove('active')); t.classList.add('active'); renderOverlaysForPage(currPageIndex); ensureStageSize(); };
+    thumbs.appendChild(t);
+  }
+}
+
+/* file change */
+const onMainFileChange = async () => {
+  const f = getMainFile(); if (!f) return;
+  await previewFile(f);
+  if (/pdf$/i.test(f.name)) await buildReorderListFromPdf(f);
+};
+$('#fileInput').addEventListener('change', onMainFileChange);
+$('#fileInput').addEventListener('input', onMainFileChange);
+
+async function previewFile(file){
+  canvas.style.display='none'; img.style.display='none'; docxMount.style.display='none';
+  viewer.classList.remove('has-preview'); editorLayer.style.display='none';
+
+  const name = file.name.toLowerCase();
+
+  if (name.endsWith('.pdf')){
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    currPdfDoc = pdf; currPdfPages = pdf.numPages; currPageIndex = 0;
+    await renderPageForPreview(pdf, currPageIndex);
+    pgInfo.textContent = `${currPageIndex+1} / ${currPdfPages}`;
+    buildThumbs(currPdfPages);
+    viewer.classList.add('has-preview');
+  } else if (/\.(png|jpg|jpeg|webp)$/i.test(name)){
+    img.src = URL.createObjectURL(file);
+    img.onload = ()=> URL.revokeObjectURL(img.src);
+    img.style.display='block';
+    thumbs.innerHTML='';
+    viewer.classList.add('has-preview');
+  } else if (name.endsWith('.docx')){
+    docxMount.innerHTML = '<div class="muted">Попередній перегляд DOCX наразі спрощений. Експортуй у PDF для перегляду.</div>';
+    docxMount.style.display='block'; thumbs.innerHTML='';
+    viewer.classList.add('has-preview');
+  } else if (/\.(xlsx|csv|json)$/i.test(name)){
+    docxMount.innerHTML = '<div class="muted">Табличний файл: скористайся конвертаціями вище.</div>';
+    docxMount.style.display='block'; thumbs.innerHTML='';
+    viewer.classList.add('has-preview');
+  } else {
+    docxMount.innerHTML = '<div class="muted">Формат не підтримано для прев’ю.</div>';
+    docxMount.style.display='block'; thumbs.innerHTML='';
+  }
+}
+
+/* ====== редактор ====== */
+let editMode=false;
+let pageOverlays = {};
+let actionStack=[], redoStack=[];
+let activeTool='select';
+let rectStart=null,tempRect=null, tempEllipse=null;
+let penPath=null, penPoints=[]; /* ← виправлено */
+
+/* одноразове додавання тексту */
+let singleAddMode = false;
+
+function ensureStageSize(){
+  const rect = canvas.getBoundingClientRect();
+  editorStage.style.width = canvas.width + 'px';
+  editorStage.style.height = canvas.height + 'px';
+  editorStage.style.transform = `scale(${rect.width/canvas.width})`;
+  editorStage.style.transformOrigin = 'top left';
+  editorStage.style.marginLeft = ((viewer.clientWidth - rect.width)/2) + 'px';
+}
+function startEditor(){ if(!getMainFile() || !/\.pdf$/i.test(getMainFile().name)) return alert('Оберіть PDF'); editMode=true; editorLayer.style.display='flex'; ensureStageSize(); renderOverlaysForPage(currPageIndex); }
+function exitEditor(){ editMode=false; editorLayer.style.display='none'; clearStage(); }
+function clearStage(){ editorStage.innerHTML=''; }
+
+function renderOverlaysForPage(idx){ clearStage(); (pageOverlays[idx]||[]).forEach(n=> editorStage.appendChild(n)); }
+function addAction(node,type){ actionStack.push({node,type}); redoStack.length=0; }
+function makeDraggable(el){
+  let ox=0, oy=0, dragging=false;
+  el.addEventListener('pointerdown', e=>{ dragging=true; ox=e.clientX - el.offsetLeft; oy=e.clientY - el.offsetTop; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove', e=>{
+    if(!dragging) return; let x=e.clientX-ox, y=e.clientY-oy;
+    x=Math.max(0,Math.min(x,editorStage.clientWidth-el.offsetWidth)); y=Math.max(0,Math.min(y,editorStage.clientHeight-el.offsetHeight));
+    el.style.left=x+'px'; el.style.top=y+'px';
+  });
+  el.addEventListener('pointerup', ()=> dragging=false);
+}
+
+function setTool(t){
+  activeTool=t;
+}
+const hiddenImgInput = document.createElement('input'); hiddenImgInput.type='file'; hiddenImgInput.accept='image/*';
+hiddenImgInput.onchange = e=>{ const f=e.target.files?.[0]; if(f) addImageAtCenter(f); hiddenImgInput.value=''; };
+function addImageAtCenter(file){
+  const url = URL.createObjectURL(file);
+  const im = document.createElement('img'); im.className='edit-img'; im.src=url;
+  im.onload=()=>{ const w=Math.min(im.naturalWidth, editorStage.clientWidth*0.6); im.style.width=w+'px';
+                  im.style.left=(editorStage.clientWidth-w)/2+'px'; im.style.top='80px'; };
+  makeDraggable(im);
+  editorStage.appendChild(im);
+  (pageOverlays[currPageIndex] ||= []).push(im);
+  addAction(im,'add');
+}
+
+/* створення текстового боксу під курсором */
+function createTextBoxAtCanvasPoint(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const cx = (clientX - rect.left) * (canvas.width / rect.width);
+  const cy = (clientY - rect.top) * (canvas.height / rect.height);
+
+  const box=document.createElement('div');
+  box.className='edit-box';
+  box.contentEditable='true';
+  box.textContent='Текст';
+  box.style.left=(Math.max(0, cx - 60))+'px';
+  box.style.top=(Math.max(0, cy - 16))+'px';
+  makeDraggable(box);
+  editorStage.appendChild(box);
+  (pageOverlays[currPageIndex] ||= []).push(box);
+  addAction(box,'add');
+  box.focus();
+
+  box.addEventListener('blur', ()=>{ if(singleAddMode){ singleAddMode=false; setTool('select'); } }, {once:true});
+}
+
+/* подвійний клік у режимі тексту */
+editorStage.addEventListener('dblclick', e=>{
+  if(activeTool!=='text') return;
+  const box=document.createElement('div'); box.className='edit-box'; box.contentEditable='true'; box.textContent='Текст';
+  box.style.left=(e.offsetX-60)+'px'; box.style.top=(e.offsetY-16)+'px'; makeDraggable(box); editorStage.appendChild(box);
+  (pageOverlays[currPageIndex] ||= []).push(box); addAction(box,'add'); box.focus();
+});
+
+/* клік по PDF для розміщення тексту */
+canvas.addEventListener('pointerdown', (e)=>{
+  if(!currPdfDoc) return;
+  if(e.button !== 0) return;
+  if(!editMode){ startEditor(); ensureStageSize(); }
+  if(activeTool==='text'){ 
+    createTextBoxAtCanvasPoint(e.clientX, e.clientY);
+    e.preventDefault();
+  }
+});
+
+/* вихід з одноразового режиму */
+viewer.addEventListener('pointerdown', (e)=>{
+  if(!singleAddMode) return;
+  const isOnStage = editorStage.contains(e.target);
+  const isBox = e.target.classList?.contains('edit-box');
+  const isCanvas = e.target === canvas;
+  if(!(isOnStage || isBox || isCanvas)){
+    singleAddMode=false;
+    setTool('select');
+  }
+});
+
+/* інші інструменти */
+editorStage.addEventListener('pointerdown', e=>{
+  if(activeTool==='rect'){
+    rectStart={x:e.offsetX,y:e.offsetY};
+    tempRect=document.createElement('div'); tempRect.className='hl-rect';
+    tempRect.style.left=rectStart.x+'px'; tempRect.style.top=rectStart.y+'px'; tempRect.style.width='1px'; tempRect.style.height='1px';
+    editorStage.appendChild(tempRect);
+  } else if(activeTool==='ellipse'){
+    rectStart={x:e.offsetX,y:e.offsetY};
+    tempEllipse=document.createElement('div'); tempEllipse.className='hl-ellipse';
+    tempEllipse.style.left=rectStart.x+'px'; tempEllipse.style.top=rectStart.y+'px'; tempEllipse.style.width='1px'; tempEllipse.style.height='1px';
+    editorStage.appendChild(tempEllipse);
+  } else if(activeTool==='pen'){
+    penPoints=[{x:e.offsetX,y:e.offsetY}];
+    penPath=document.createElement('canvas'); penPath.className='freehand';
+    penPath.width=editorStage.clientWidth; penPath.height=editorStage.clientHeight;
+    penPath.style.left='0'; penPath.style.top='0'; editorStage.appendChild(penPath);
+  }
+});
+editorStage.addEventListener('pointermove', e=>{
+  if(tempRect){ const w=e.offsetX-rectStart.x, h=e.offsetY-rectStart.y;
+    tempRect.style.width=Math.abs(w)+'px'; tempRect.style.height=Math.abs(h)+'px';
+    tempRect.style.left=(w<0?e.offsetX:rectStart.x)+'px'; tempRect.style.top=(h<0?e.offsetY:rectStart.y)+'px';
+  }
+  if(tempEllipse){ const w=e.offsetX-rectStart.x, h=e.offsetY-rectStart.y;
+    tempEllipse.style.width=Math.abs(w)+'px'; tempEllipse.style.height=Math.abs(h)+'px';
+    tempEllipse.style.left=(w<0?e.offsetX:rectStart.x)+'px'; tempEllipse.style.top=(h<0?e.offsetY:rectStart.y)+'px';
+  }
+  if(penPath){
+    const ctx2=penPath.getContext('2d'); const last=penPoints[penPoints.length-1];
+    penPoints.push({x:e.offsetX,y:e.offsetY}); ctx2.lineWidth=2; ctx2.strokeStyle='rgba(255,255,0,0.9)';
+    ctx2.beginPath(); ctx2.moveTo(last.x,last.y); ctx2.lineTo(e.offsetX,e.offsetY); ctx2.stroke();
+  }
+});
+editorStage.addEventListener('pointerup', ()=>{
+  if(tempRect){ makeDraggable(tempRect); (pageOverlays[currPageIndex] ||= []).push(tempRect); addAction(tempRect,'add'); rectStart=null; tempRect=null; }
+  if(tempEllipse){ makeDraggable(tempEllipse); (pageOverlays[currPageIndex] ||= []).push(tempEllipse); addAction(tempEllipse,'add'); rectStart=null; tempEllipse=null; }
+  if(penPath){ (pageOverlays[currPageIndex] ||= []).push(penPath); addAction(penPath,'add'); penPath=null; }
+});
+
+function clearStage(){ editorStage.innerHTML=''; }
+
+/* навігація сторінок */
+$('#pgPrev').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.max(0, currPageIndex-1); await renderPageForPreview(currPdfDoc, currPageIndex); pgInfo.textContent=`${currPageIndex+1} / ${currPdfPages}`; renderOverlaysForPage(currPageIndex); ensureStageSize(); highlightThumb(); };
+$('#pgNext').onclick = async ()=>{ if(!currPdfDoc) return; currPageIndex = Math.min(currPdfPages-1, currPageIndex+1); await renderPageForPreview(currPdfDoc, currPageIndex); pgInfo.textContent=`${currPageIndex+1} / ${currPdfPages}`; renderOverlaysForPage(currPageIndex); ensureStageSize(); highlightThumb(); };
+function highlightThumb(){ $$('.thumb').forEach((x,i)=> x.classList.toggle('active', i===currPageIndex)); }
+
+/* збереження в PDF / скасування — підв'язуємо лише якщо кнопки існують */
+const chipApply = $('#chipApply');
+if (chipApply) chipApply.onclick = async ()=>{
+  const f = getMainFile(); if (!f) return;
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
+  const srcU8 = new Uint8Array(await f.arrayBuffer());
+  const pdf = await PDFDocument.load(srcU8);
+  const helv = await pdf.embedFont(StandardFonts.Helvetica);
+
+  for (let p=0; p<pdf.getPageCount(); p++){
+    const page = pdf.getPage(p);
+    const { width, height } = page.getSize();
+    const ov = pageOverlays[p] || [];
+    for (const el of ov){
+      const kx = width / (previewViewport ? previewViewport.width : canvas.width);
+      const ky = height / (previewViewport ? previewViewport.height : canvas.height);
+
+      const left = parseFloat(el.style.left||'0'), top = parseFloat(el.style.top||'0');
+      const elW = el.offsetWidth || el.width || 0, elH = el.offsetHeight || el.height || 0;
+      const px = left * kx;
+      const py = ( (previewViewport ? previewViewport.height : canvas.height) - (top + elH) ) * ky;
+
+      if (el.classList.contains('edit-box')){
+        const txt = el.textContent || '';
+        page.drawText(txt, { x: px+4, y: py+4, size: 14, font: helv, color: rgb(1,1,1) });
+      } else if (el.classList.contains('edit-img')){
+        const blob = await fetch(el.src).then(r=>r.blob());
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        let imgEmbed = null; try{ imgEmbed=await pdf.embedPng(buf);}catch{ imgEmbed=await pdf.embedJpg(buf);}
+        const w = elW * kx, h = elH * ky;
+        page.drawImage(imgEmbed, { x:px, y:py, width:w, height:h });
+      } else if (el.classList.contains('hl-rect')){
+        const w = elW * kx, h = elH * ky;
+        page.drawRectangle({ x:px, y:py, width:w, height:h, color: rgb(1,1,0), opacity:0.22, borderColor: rgb(1,1,0), borderWidth:1 });
+      } else if (el.classList.contains('hl-ellipse')){
+        const w = elW * kx, h = elH * ky;
+        page.drawEllipse({ x: px + w/2, y: py + h/2, xScale: w/2, yScale: h/2, color: rgb(1,1,0), opacity:0.18, borderColor: rgb(1,1,0), borderWidth:1 });
+      } else if (el.classList.contains('freehand')){
+        const c = el; const data = c.toDataURL('image/png'); const imgBytes = Uint8Array.from(atob(data.split(',')[1]), c=>c.charCodeAt(0));
+        const imgEmbed = await pdf.embedPng(imgBytes);
+        page.drawImage(imgEmbed, { x:0, y:0, width, height, opacity:0.9 });
+      }
+    }
+  }
+  const outU8 = await pdf.save();
+  saveBlob(await toBlob(outU8), (f.name.replace(/\.[^.]+$/,'')||'edited')+'-edited.pdf');
+  exitEditor();
+};
+const chipCancel = $('#chipCancel');
+if (chipCancel) chipCancel.onclick = ()=> exitEditor();
+
+/* resize */
+new ResizeObserver(()=>{ if(editMode) ensureStageSize(); }).observe(viewer);
+
+/* ribbon actions */
+$('#rb-thumbs').onclick = ()=>{ thumbs.style.display = (thumbs.style.display==='none'?'flex':'none'); };
+$('#rb-undo').onclick = ()=>{ const a=actionStack.pop(); if(!a) return; if(a.type==='add'){ a.node.remove(); redoStack.push(a);} };
+$('#rb-redo').onclick = ()=>{ const a=redoStack.pop(); if(!a) return; if(a.type==='add'){ editorStage.appendChild(a.node); actionStack.push(a);} };
+
+/* змінено: одноразовий режим для «Dodaj tekst» */
+$('#rb-addtext').onclick = ()=>{
+  startEditor();
+  setTool('text');
+  singleAddMode = true;
+};
+$('#rb-edit').onclick = ()=>{ startEditor(); setTool('select'); singleAddMode=false; };
+$('#rb-erase').onclick = ()=>{ if(!editMode) return; const last=(pageOverlays[currPageIndex]||[]).pop(); if(last){ last.remove(); } };
+$('#rb-highlight').onclick = ()=>{ startEditor(); setTool('rect'); singleAddMode=false; };
+$('#rb-pencil').onclick = ()=>{ startEditor(); setTool('pen'); singleAddMode=false; };
+$('#rb-image').onclick = ()=>{ startEditor(); setTool('image'); singleAddMode=false; hiddenImgInput.click(); };
+$('#rb-ellipse').onclick = ()=>{ startEditor(); setTool('ellipse'); singleAddMode=false; };
+$('#rb-rect').onclick = ()=>{ startEditor(); setTool('rect'); singleAddMode=false; };
+$('#rb-sign').onclick = ()=>{ startEditor(); setTool('text'); singleAddMode=true; };
+
+/* ваші функції — без змін */
+function fileStem(name){ return name.replace(/\.[^.]+$/,''); }
+function blobToDataURL(blob){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); }); }
+function imageDims(src){ return new Promise(res=>{ const im=new Image(); im.onload=()=>res({w:im.width,h:im.height}); im.src=src; }); }
+function parseRanges(s){
+  const parts = (s||'').split(',').map(x=>x.trim()).filter(Boolean); const out=[];
+  for (const p of parts){ if (p.includes('-')){ const [a,b]=p.split('-').map(n=>parseInt(n,10)); if (a && b && a<=b) out.push([a,b]); }
+    else { const n=parseInt(p,10); if (n) out.push([n,n]); } }
+  return out;
+}
+
+/* == нижче — існуючі обробники, без змін логіки; прив’язка захищена == */
+const _b = (sel, fn)=>{ const el=$(sel); if(el) el.onclick = fn; };
+
+_b('#btnImageToPdf', async () => {
+  const f = getMainFile(); if (!f || !/\.(png|jpg|jpeg|webp)$/i.test(f.name)) return alert('Обери зображення у головному файлі');
+  const { jsPDF } = window.jspdf; const imgData = await blobToDataURL(f);
+  const pdf = new jsPDF({unit:'pt', format:'a4', compress:true}); const w = pdf.internal.pageSize.getWidth(); const h = pdf.internal.pageSize.getHeight();
+  const dims = await imageDims(imgData); const scale = Math.min(w/dims.w, h/dims.h); const nw = dims.w * scale, nh = dims.h * scale;
+  pdf.addImage(imgData, 0, (h-nh)/2, nw, nh); const blob = pdf.output('blob'); saveBlob(blob, fileStem(f.name)+'.pdf');
+});
+
+_b('#btnMultiPhotoToPdf', async () => {
+  const files = getManyFiles().filter(x=>/\.(png|jpg|jpeg|webp)$/i.test(x.name)); if (!files.length) return alert('Додай фото у «Додаткові файли».');
+  const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4', compress:true}); let first = true;
+  for (const f of files){ const data = await blobToDataURL(f); const dims = await imageDims(data);
+    const w = pdf.internal.pageSize.getWidth(); const h = pdf.internal.pageSize.getHeight(); const scale = Math.min(w/dims.w, h/dims.h);
+    const nw = dims.w * scale, nh = dims.h * scale; if (!first) pdf.addPage(); pdf.addImage(data, 0, (h-nh)/2, nw, nh); first = false; }
+  const blob = pdf.output('blob'); saveBlob(blob, 'photos.pdf');
+});
+
+_b('#btnPdfToImage', async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const buf = await f.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data: buf}).promise; const zip = new JSZip();
+  for (let i=1;i<=pdf.numPages;i++){ const page = await pdf.getPage(i); const vp = page.getViewport({scale:2});
+    const cnv = document.createElement('canvas'); cnv.width = vp.width; cnv.height = vp.height;
+    await page.render({canvasContext: cnv.getContext('2d'), viewport: vp}).promise; const blob = await new Promise(res=>cnv.toBlob(res, 'image/png', 0.95));
+    zip.file(`page-${i}.png`, blob); }
+  zip.generateAsync({type:'blob'}).then(b=>saveBlob(b, fileStem(f.name)+'-pages.zip'));
+});
+
+_b('#btnMerge', async () => {
+  const files = getManyFiles().filter(x=>/\.pdf$/i.test(x.name)); if (files.length < 2) return alert('Додай як мінімум 2 PDF у «Додаткові файли».');
+  const { PDFDocument } = PDFLib; const out = await PDFDocument.create();
+  for (const f of files){ const u8 = new Uint8Array(await f.arrayBuffer()); const doc = await PDFDocument.load(u8);
+    const pages = await out.copyPages(doc, doc.getPageIndices()); pages.forEach(p=>out.addPage(p)); }
+  const u8 = await out.save(); saveBlob(await toBlob(u8), 'merged.pdf');
+});
+
+_b('#btnSplit', async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const ranges = parseRanges($('#splitRange')?.value || '1'); if (!ranges.length) return alert('Вкажи сторінки/діапазони: напр. 1-3,5,8-9');
+  const { PDFDocument } = PDFLib; const src = await PDFDocument.load(await f.arrayBuffer()); let idx = 1;
+  for (const r of ranges){ const out = await PDFDocument.create(); const toCopy = []; for (let i=r[0]-1; i<=r[1]-1; i++) toCopy.push(i);
+    const pages = await out.copyPages(src, toCopy); pages.forEach(p=>out.addPage(p)); const u8 = await out.save(); saveBlob(await toBlob(u8), `${fileStem(f.name)}-part${idx++}.pdf`); }
+});
+
+_b('#btnRemovePages', async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const nums = ($('#removePages')?.value || '').split(',').map(s=>parseInt(s.trim(),10)).filter(Boolean); if (!nums.length) return alert('Вкажи номери сторінок через кому.');
+  const { PDFDocument } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer());
+  nums.sort((a,b)=>b-a).forEach(n=>{ if (n>=1 && n<=pdf.getPageCount()) pdf.removePage(n-1); });
+  const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-removed.pdf');
+  await previewFile(new File([u8], 'temp.pdf', {type:'application/pdf'})); await buildReorderListFromPdf(new File([u8], 'temp.pdf', {type:'application/pdf'}));
+});
+
+let reorderState = [];
+async function buildReorderListFromPdf(file){
+  const buf = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  reorderState = Array.from({length: pdf.numPages}, (_,i)=>i+1);
+}
+function getDragAfterElement(container, y){
+  const els = [...container.querySelectorAll('.page-item:not(.dragging)')];
+  return els.reduce((closest, child)=>{ const box = child.getBoundingClientRect(); const offset = y - box.top - box.height/2;
+    if (offset<0 && offset>closest.offset) return {offset, element: child}; else return closest; }, {offset: Number.NEGATIVE_INFINITY}).element;
+}
+_b('#btnApplyReorder', async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const order = Array.from({length: currPdfPages}, (_,i)=>i);
+  const { PDFDocument } = PDFLib; const src = await PDFDocument.load(await f.arrayBuffer()); const out = await PDFDocument.create();
+  const pages = await out.copyPages(src, order); pages.forEach(p=>out.addPage(p)); const u8 = await out.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-reordered.pdf');
+});
+
+_b('#btnAddText', async () => {
+  const txt = $('#signText')?.value || 'Sign'; const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const { PDFDocument, StandardFonts, rgb } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer()); const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const pages = pdf.getPages(); pages.forEach(p=>{ const { width, height } = p.getSize(); p.drawText(txt, {x: width-200, y: 24, size: 12, font, color: rgb(0.1,0.6,1)}); });
+  const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-signed.pdf');
+});
+
+_b('#btnWatermark', async () => {
+  const txt = $('#wmText')?.value || 'PROOFLY'; const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const { PDFDocument, StandardFonts, rgb } = PDFLib; 
+  const pdf = await PDFDocument.load(await f.arrayBuffer());
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  pdf.getPages().forEach(p=>{ const {width, height} = p.getSize(); p.drawText(txt, { x: width/4, y: height/2, size: 48, font, color: rgb(0.6,0.65,0.9), rotate: PDFLib.degrees(30), opacity: 0.15 }); });
+  const u8 = await pdf.save(); saveBlob(await toBlob(u8), fileStem(f.name)+'-wm.pdf');
+});
+
+_b('#btnCompress', async () => {
+  const f = getMainFile(); if (!f || !/\.pdf$/i.test(f.name)) return alert('Обери PDF у головному файлі');
+  const { PDFDocument } = PDFLib; const pdf = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption:true});
+  const u8 = await pdf.save({useObjectStreams:true}); saveBlob(await toBlob(u8), fileStem(f.name)+'-compressed.pdf');
+});
+
+/* керування з ріббону — як було */
+$('#rb-split').onclick = ()=> $('#btnSplit')?.click();
+$('#rb-merge').onclick = ()=> $('#btnMerge')?.click();
+$('#rb-reorder').onclick = ()=> $('#btnApplyReorder')?.click();
+$('#rb-export').onclick = ()=> $('#btnPdfToImage')?.click();
+$('#rb-compress').onclick = ()=> $('#btnCompress')?.click();
+$('#rb-watermark').onclick = ()=> $('#btnWatermark')?.click();
+</script>
+{% endblock %}

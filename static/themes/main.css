@@ -1,0 +1,128 @@
+/* ===== MAIN THEME — COLORS ONLY (без зміни розмітки) ===== */
+:root{
+  --bg:#0f1115;
+  --ink:#e8eaed;
+
+  --nav-bg:#000000;
+  --line:#1b2131;
+
+  --card:#11141b;
+  --muted:#9fb0d4;
+  --link:#8ab4ff;
+
+  --btn-bg:#1c64ec;         /* сині кнопки */
+  --btn-text:#ffffff;       /* білий текст */
+  --btn-text-hover:#6c63ff; /* фіолетовий текст при hover */
+
+  --canvas-bg:#1a2031;
+  --canvas-border:#2a334a;
+}
+
+/* БАЗА */
+html, body { background: var(--bg); color: var(--ink); }
+a{ color: var(--link); }
+a:hover{ text-decoration: underline; }
+
+/* NAV */
+nav { background: var(--nav-bg); border-bottom: 1px solid var(--line); }
+.nav-btn{
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid transparent;
+  /* без зміни розмірів — лише колір */
+}
+.nav-btn:hover{ color: var(--btn-text-hover); }
+.nav-btn.active{ filter: brightness(1.06); color:#fff; }
+
+/* КАРТКИ / КОНТЕЙНЕРИ (лише фарба, без геометрії) */
+.card, .canvas-wrap, .pe-panel, .pe-canvas, .faq-item{
+  background: color-mix(in srgb, var(--card) 92%, #1b2235 8%);
+  border: 1px solid #293043;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+.card h2, .canvas-wrap h2, .pe-panel h3 { color:#e9ecff; }
+.tip, .help, .note { color: var(--muted); }
+
+/* CANVAS / VIDEO */
+.canvas-wrap canvas, .canvas-wrap video, .pe-canvas .stage{
+  background: var(--canvas-bg);
+  border: 1px solid var(--canvas-border);
+  border-radius: 10px; /* лише візуальний радіус */
+}
+
+/* INPUTS */
+label{ color:#b8c6e8; }
+input[type="text"], input[type="color"], select, textarea{
+  background:#0f1422; color:var(--ink); border:1px solid #2b3551;
+  outline:none;
+}
+input[type="text"]:focus, input[type="color"]:focus, select:focus, textarea:focus{
+  border-color: var(--btn-text-hover);
+  box-shadow: 0 0 0 3px rgba(108,99,255,.18);
+}
+
+/* FILE BUTTON */
+input[type="file"]{ color:#cdd8ff; }
+input[type="file"]::file-selector-button{
+  background: var(--btn-bg); color: var(--btn-text);
+  border: none; /* лише колір */
+}
+input[type="file"]::file-selector-button:hover{ color: var(--btn-text-hover); }
+
+/* RANGE */
+input[type="range"]{ background: transparent; }
+input[type="range"]::-webkit-slider-runnable-track{ background:#2b3551; height:8px; border-radius:999px; }
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none;
+  width:18px; height:18px; border-radius:50%;
+  background: var(--btn-bg); border:2px solid #fff;
+  box-shadow:0 2px 6px rgba(28,100,236,.35); margin-top:-5px;
+}
+input[type="range"]::-moz-range-track{ background:#2b3551; height:8px; border-radius:999px; }
+input[type="range"]::-moz-range-progress{ background: var(--btn-bg); height:8px; border-radius:999px; }
+input[type="range"]::-moz-range-thumb{
+  width:18px; height:18px; border-radius:50%;
+  background: var(--btn-bg); border:2px solid #fff;
+  box-shadow:0 2px 6px rgba(28,100,236,.35);
+}
+
+/* BUTTONS */
+.btn{
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid transparent;
+  /* без зміни відступів/ширин */
+}
+.btn:hover{ color: var(--btn-text-hover); }
+.btn.primary{ background: var(--btn-bg); color: var(--btn-text); }
+.btn.ghost{ background: transparent; color: var(--btn-bg); border-color:#3a4b82; }
+.btn.ghost:hover{ background: rgba(108,99,255,.12); color: var(--btn-text-hover); }
+
+/* EDIT PHOTO — лише кольори */
+.pe-tool{
+  background:#0d1220; border:1px solid #2b3551; color:#d4deff;
+}
+.pe-tool:hover{ background:#121a2d; color:#c8d1ff; }
+.pe-tool.is-active{ background: var(--btn-bg); color:#fff; border-color:transparent; }
+
+.pe-switch{ background:#0f1422; border:1px solid #2b3551; color:#cbd6ff; }
+.pe-switch .dot{ background:#4c5674; }
+.pe-switch.is-on .dot{ background: var(--btn-bg); }
+
+.pe-crop-rect{ border:2px dashed rgba(108,99,255,.9); background: rgba(108,99,255,.12); }
+.pe-crop-handle{ background: var(--btn-bg); border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+
+.pe-badge{ background:#1b2336; color:#d7e0ff; }
+
+/* TOAST / SPINNER */
+.pe-toast .item{ background:#0f1422; color:#e8eaed; border:1px solid #2b3551; }
+.pe-spinner{ border:3px solid #2b3551; border-top-color: var(--btn-bg); }
+
+/* WELCOME */
+.welcome-hero{
+  background: radial-gradient(90% 120% at 10% 0%, #1a2240 0, #12182b 45%, #0f1115 100%);
+  border-bottom: 1px solid #2b3551;
+}
+.welcome-hero h1{ color:#e9ecff; }
+.welcome-hero p, .skip-toggle{ color: var(--muted); }
+.welcome-foot .foot-left{ color:#b9c8f0; }

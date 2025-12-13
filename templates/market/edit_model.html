@@ -1,0 +1,276 @@
+{% extends "market/layout.html" %}
+
+{% block title %}
+Редагувати модель – Proofly Market
+{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="/static/css/edit_model.css">
+<script src="/static/market/js/edit_model.js" defer></script>
+
+<div class="edit-model-page">
+
+    <!-- HEADER -->
+    <header class="edit-header">
+        <div class="edit-header-left">
+            <a href="/market?owner=me" class="edit-back-link">← Мої моделі</a>
+
+            <h1 class="edit-title">Редагувати модель</h1>
+
+            <p class="edit-subtitle">
+                Текст автоматично зберігається у фоновому режимі.
+                Фото та STL оновляться після натискання
+                <strong>«Зберегти всі зміни»</strong>.
+            </p>
+        </div>
+
+        <div class="edit-header-right">
+            <a href="/item/{{ item.id }}" class="btn btn-secondary" target="_blank">
+                Переглянути на маркеті
+            </a>
+        </div>
+    </header>
+
+    <div class="edit-layout">
+
+        <!-- LEFT SIDE – FORM -->
+        <div class="edit-main">
+
+            <form class="edit-form"
+                  action="/market/edit/{{ item.id }}"
+                  method="POST"
+                  enctype="multipart/form-data"
+                  data-item-id="{{ item.id }}">
+
+                <!-- COVER PREVIEW -->
+                <section class="edit-section">
+                    <h2 class="edit-section-title">Превʼю</h2>
+
+                    <div class="edit-preview-row">
+                        <img
+                            class="preview-img"
+                            src="{{
+                                item.preview_url
+                                or item.cover_url
+                                or item.cover
+                                or '/static/img/no-preview.png'
+                            }}"
+                        >
+                    </div>
+                </section>
+
+                <!-- BASIC INFO -->
+                <section class="edit-section">
+                    <h2 class="edit-section-title">Загальна інформація</h2>
+
+                    <!-- TITLE -->
+                    <label class="edit-label">Назва моделі</label>
+                    <input class="edit-input"
+                           type="text"
+                           name="title"
+                           value="{{ item.title }}"
+                           required>
+
+                    <!-- PRICE -->
+                    <div class="edit-row">
+                        <div class="edit-col">
+                            <label class="edit-label">Ціна (0 = безкоштовно)</label>
+                            <input class="edit-input"
+                                   type="number"
+                                   name="price"
+                                   min="0"
+                                   step="0.01"
+                                   value="{{ item.price }}">
+                        </div>
+
+                        <div class="edit-col edit-col--hint">
+                            <p class="edit-hint">
+                                Безкоштовні моделі отримують у 3–7 разів більше завантажень.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- DESCRIPTION -->
+                    <label class="edit-label">Опис моделі</label>
+                    <textarea class="edit-textarea"
+                              name="description">{{ item.description }}</textarea>
+
+                    <!-- TAGS -->
+                    <label class="edit-label">Теги (через кому)</label>
+                    <input class="edit-input"
+                           type="text"
+                           name="tags"
+                           value="{{ item.tags }}"
+                           placeholder="dragon, flexi, fantasy">
+                </section>
+
+                <!-- CATEGORY -->
+                <section class="edit-section">
+                    <h2 class="edit-section-title">Категорія</h2>
+
+                    <label class="edit-label">Категорія</label>
+
+                    {% set _cats = (categories if categories is defined else (g.market_categories if g and g.market_categories is defined else [])) %}
+                    <select class="edit-input"
+                            name="category">
+                        {% for cat in _cats %}
+                            {% set cat_val = (cat.name if cat is not string and cat is not number and cat.name is defined else cat) %}
+                            <option value="{{ cat_val }}"
+                                    {% if item.category == cat_val %}selected{% endif %}>
+                                {{ cat_val }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </section>
+
+                <!-- PHOTOS -->
+                <section class="edit-section">
+                    <h2 class="edit-section-title">Фото</h2>
+
+                    <div class="edit-photos-row">
+
+                        <!-- CURRENT COVER -->
+                        <div class="edit-photo-current">
+                            <p class="edit-label-small">Поточна обкладинка</p>
+
+                            <div class="edit-cover-preview">
+                                <img src="{{ item.cover_url
+                                           or item.cover
+                                           or item.preview_url
+                                           or '/static/img/no-preview.png' }}">
+                            </div>
+                        </div>
+
+                        <!-- NEW PHOTOS -->
+                        <div class="edit-photo-upload">
+                            <p class="edit-label-small">Додати нові фото</p>
+
+                            <label class="edit-dropzone">
+                                <span class="edit-dropzone-text">
+                                    Перетягни JPG / PNG / WebP або натисни
+                                </span>
+                                <input type="file"
+                                       name="gallery_files"
+                                       accept=".jpg,.jpeg,.png,.webp"
+                                       multiple>
+                            </label>
+
+                            <p class="edit-hint">
+                                Рекомендовано 3–6 фото. Додадуться після збереження.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- STL FILE -->
+                <section class="edit-section">
+                    <h2 class="edit-section-title">STL-файл</h2>
+
+                    <div class="edit-row">
+                        <div class="edit-col">
+                            <p class="edit-label-small">Поточний файл:</p>
+
+                            {% if item.stl_main_url or item.url %}
+                                <a class="edit-link"
+                                   target="_blank"
+                                   href="{{ item.stl_main_url or item.url }}">
+                                    Відкрити STL
+                                </a>
+                            {% else %}
+                                <p class="edit-hint">Немає STL файлу.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <label class="edit-label">Замінити STL</label>
+
+                    <label class="edit-dropzone">
+                        <span class="edit-dropzone-text">
+                            Перетягни STL / OBJ / GLTF / PLY або натисни
+                        </span>
+                        <input type="file"
+                               name="stl_file"
+                               accept=".stl,.obj,.ply,.gltf,.glb">
+                    </label>
+
+                    <p class="edit-hint">
+                        Новий STL замінить старий після збереження.
+                    </p>
+                </section>
+
+                <!-- ACTION BUTTONS -->
+                <section class="edit-section">
+
+                    <div class="edit-footer-buttons">
+                        <button class="save-btn" type="submit">
+                            💾 Зберегти всі зміни
+                        </button>
+
+                        <a class="btn btn-secondary"
+                           href="/item/{{ item.id }}"
+                           target="_blank">
+                            Переглянути модель
+                        </a>
+                    </div>
+
+                    <p class="edit-autosave-status" id="editAutosaveStatus">
+                        Зміни не вносилися.
+                    </p>
+                </section>
+            </form>
+
+            <!-- DELETE MODEL -->
+            <form action="/api/item/{{ item.id }}/delete"
+                  method="POST"
+                  onsubmit="return confirm('Точно видалити? Дію не можна скасувати.')">
+                <button class="delete-btn" type="submit">
+                    🗑 Видалити модель
+                </button>
+            </form>
+
+        </div>
+
+
+        <!-- RIGHT SIDE – VIEWER + STATS -->
+        <aside class="edit-sidebar">
+
+            <!-- 3D VIEWER -->
+            <section class="edit-section">
+                <h2 class="edit-section-title">3D-превʼю</h2>
+
+                <div id="editStlViewer"
+                     class="edit-stl-viewer"
+                     data-stl-url="{{ item.stl_main_url or item.url }}">
+                    <p class="edit-hint">Завантаження перегляду…</p>
+                </div>
+            </section>
+
+            <!-- STATS -->
+            <section class="edit-section">
+                <h2 class="edit-section-title">Статистика</h2>
+
+                <ul class="edit-stats-list">
+                    <li>
+                        <span>Завантаження:</span>
+                        <strong>{{ item.downloads or 0 }}</strong>
+                    </li>
+
+                    <li>
+                        <span>Рейтинг:</span>
+                        <strong>{{ item.rating or 0.0 }}</strong>
+                    </li>
+
+                    <li>
+                        <span>ID моделі:</span>
+                        <code>#{{ item.id }}</code>
+                    </li>
+                </ul>
+            </section>
+
+        </aside>
+    </div>
+
+</div>
+
+{% endblock %}

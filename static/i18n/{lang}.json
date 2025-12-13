@@ -1,0 +1,51 @@
+import os, json, time, requests
+from flask import request, jsonify
+
+I18N_DIR = os.path.join("static", "i18n")
+os.makedirs(I18N_DIR, exist_ok=True)
+
+SUPPORTED_LANGS = [
+  "en","pl","de","fr","es","it","pt","ro","cs","sk","hu","tr",
+  "ru","bg","sr","hr","sl","lt","lv","et","nl","sv","da","no","fi",
+  "ar","he","fa","uk","el","id","ja","ko","zh","vi","th","hi","ur","ms","tr"
+]
+LT_URL = os.getenv("LT_URL", "https://libretranslate.de/translate")
+
+def _i18n_path(code): return os.path.join(I18N_DIR, f"{code}.json")
+def _load_dict(code):
+    p = _i18n_path(code)
+    return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else {}
+def _save_dict(code, data):
+    data = dict(sorted(data.items(), key=lambda kv: kv[0]))
+    json.dump(data, open(_i18n_path(code), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+def _lt_translate(text, src, dst):
+    if not text.strip(): return text
+    try:
+        r = requests.post(LT_URL, json={"q": text, "source": src, "target": dst, "format":"text"}, timeout=15)
+        r.raise_for_status()
+        return r.json().get("translatedText", text)
+    except Exception:
+        return text
+
+@app.post("/api/i18n/fill")
+def api_i18n_fill():
+    js = request.get_json(silent=True) or {}
+    src = (js.get("from") or "uk").strip().lower()
+    dst = (js.get("to") or "").strip().lower()
+    arr = js.get("phrases") or []
+    if dst not in SUPPORTED_LANGS:
+        return jsonify({"ok": False, "error": "lang_not_supported"}), 400
+    if not isinstance(arr, list) or not arr:
+        return jsonify({"ok": False, "error": "empty_phrases"}), 400
+
+    dst_dict = _load_dict(dst)
+    new_cnt = 0
+    for original in arr:
+        original = (original or "").strip()
+        if not original or original in dst_dict: continue
+        dst_dict[original] = _lt_translate(original, src, dst)
+        new_cnt += 1
+        time.sleep(0.15)  # throttle
+
+    if new_cnt: _save_dict(dst, dst_dict)
+    return jsonify({"ok": True, "lang": dst, "added": new_cnt})

@@ -1,0 +1,234 @@
+[
+  {
+    "id": "market_list",
+    "title": "STL Market — список моделей",
+    "status": "ok",
+    "root": {
+      "label": "/market",
+      "type": "url"
+    },
+    "nodes": [
+      {
+        "label": "market_bp.index",
+        "type": "route",
+        "file": "market/routes.py"
+      },
+      {
+        "label": "templates/market/index.html",
+        "type": "template",
+        "file": "templates/market/index.html"
+      },
+      {
+        "label": "static/market/js/search.js",
+        "type": "js",
+        "file": "static/market/js/search.js",
+        "functions": ["initSearch()", "applyFilters()", "loadSuggest()"]
+      },
+      {
+        "label": "static/market/js/market_cards.js",
+        "type": "js",
+        "file": "static/market/js/market_cards.js",
+        "functions": ["renderCard()", "renderList()"]
+      },
+      {
+        "label": "static/css/search.css",
+        "type": "css",
+        "file": "static/css/search.css"
+      },
+      {
+        "label": "static/css/market_cards.css",
+        "type": "css",
+        "file": "static/css/market_cards.css"
+      }
+    ],
+    "problems": []
+  },
+
+  {
+    "id": "market_item",
+    "title": "Сторінка моделі",
+    "status": "fix",
+    "root": {
+      "label": "/market/item/<id>",
+      "type": "url"
+    },
+    "nodes": [
+      {
+        "label": "market_bp.item_page",
+        "type": "route",
+        "file": "market/routes.py"
+      },
+      {
+        "label": "templates/market/item.html",
+        "type": "template",
+        "file": "templates/market/item.html"
+      },
+      {
+        "label": "static/js/stl_viewer.js",
+        "type": "js",
+        "file": "static/js/stl_viewer.js",
+        "functions": ["initViewer()", "loadSTL()", "animate()"]
+      },
+      {
+        "label": "static/market/js/related.js",
+        "type": "js",
+        "file": "static/market/js/related.js",
+        "functions": ["loadRelatedItems()"]
+      },
+      {
+        "label": "static/css/viewer.css",
+        "type": "css",
+        "file": "static/css/viewer.css"
+      }
+    ],
+    "problems": [
+      {
+        "id": "p1",
+        "title": "Viewer лагає на мобілці",
+        "file": "static/js/stl_viewer.js",
+        "function": "initViewer",
+        "details": "На слабких пристроях FPS падає до 10–15. Треба увімкнути adaptive pixel ratio.",
+        "status": "fix"
+      }
+    ]
+  },
+
+  {
+    "id": "ai_tools",
+    "title": "AI Tools",
+    "status": "error",
+    "root": {
+      "label": "/ai/tools",
+      "type": "url"
+    },
+    "nodes": [
+      {
+        "label": "ai_bp.tools_page",
+        "type": "route",
+        "file": "ai/ai_api.py"
+      },
+      {
+        "label": "templates/ai_tools.html",
+        "type": "template",
+        "file": "templates/ai_tools.html"
+      },
+      {
+        "label": "static/market/js/ai_tools.js",
+        "type": "js",
+        "file": "static/market/js/ai_tools.js",
+        "functions": ["generateDescription()", "enhanceImage()"]
+      }
+    ],
+    "problems": [
+      {
+        "id": "p1",
+        "title": "AI відповідає 500 error",
+        "file": "ai/ai_api.py",
+        "function": "generate_description",
+        "details": "Помилка при виклику OpenAI API: відсутній ключ або невірний формат JSON.",
+        "status": "error"
+      },
+      {
+        "id": "p2",
+        "title": "Кнопка не відправляє форму",
+        "file": "static/market/js/ai_tools.js",
+        "function": "generateDescription",
+        "details": "fetch() не знаходить endpoint /api/ai/description",
+        "status": "error"
+      }
+    ]
+  },
+
+  {
+    "id": "parametric",
+    "title": "Parametric Generator",
+    "status": "fix",
+    "root": {
+      "label": "/tools/parametric",
+      "type": "url"
+    },
+    "nodes": [
+      {
+        "label": "parametric_bp.index",
+        "type": "route",
+        "file": "parametric/parametric_api.py"
+      },
+      {
+        "label": "templates/parametric.html",
+        "type": "template",
+        "file": "templates/parametric.html"
+      },
+      {
+        "label": "static/market/js/parametric_ui.js",
+        "type": "js",
+        "file": "static/market/js/parametric_ui.js",
+        "functions": ["updateModel()", "renderUI()", "applyParams()"]
+      }
+    ],
+    "problems": [
+      {
+        "id": "p1",
+        "title": "Повзунки не оновлюють прев’ю",
+        "file": "static/market/js/parametric_ui.js",
+        "function": "updateModel",
+        "details": "ModelViewer не перерендерюється після зміни параметрів.",
+        "status": "fix"
+      }
+    ]
+  },
+
+  {
+    "id": "gcode_viewer",
+    "title": "G-Code Viewer",
+    "status": "ok",
+    "root": {
+      "label": "/tools/gcode-viewer",
+      "type": "url"
+    },
+    "nodes": [
+      {
+        "label": "gcode_bp.viewer",
+        "type": "route",
+        "file": "gcode/gcode_viewer.py"
+      },
+      {
+        "label": "templates/gcode_viewer.html",
+        "type": "template",
+        "file": "templates/gcode_viewer.html"
+      },
+      {
+        "label": "static/market/js/gcode_viewer.js",
+        "type": "js",
+        "file": "static/market/js/gcode_viewer.js",
+        "functions": ["parseGcode()", "renderLayer()", "drawLines()"]
+      }
+    ],
+    "problems": []
+  },
+
+  {
+    "id": "unused_file",
+    "title": "Непідключений шаблон",
+    "status": "orphan",
+    "root": {
+      "label": "Файл існує, але не використовується",
+      "type": "orphan"
+    },
+    "nodes": [
+      {
+        "label": "templates/market/old_test_block.html",
+        "type": "template",
+        "file": "templates/market/old_test_block.html"
+      }
+    ],
+    "problems": [
+      {
+        "id": "p1",
+        "title": "Шаблон ніде не підключений",
+        "file": "templates/market/old_test_block.html",
+        "details": "Його треба або видалити, або включити в якусь сторінку.",
+        "status": "orphan"
+      }
+    ]
+  }
+]

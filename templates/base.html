@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ title or 'PXP' }}{% endblock %}</title>
+
+  <!-- 1) Глобальні стилі (каркас без кольорів) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- 2) Додаткові базові стилі (покладаються на змінні теми) -->
+  <style>
+    :root{
+      --bg:#0f1115;
+      --ink:#e8eaed;
+      --line:#1b2131;
+      --card:#11141b;
+      --muted:#9fb0d4;
+      --btn:#1a73e8;
+      --nav-bg:#0b0d12;
+      --link:#8ab4ff;
+    }
+
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:system-ui, Segoe UI, Roboto, Arial;
+    }
+    main{max-width:1100px;margin:16px auto;padding:0 20px}
+    a{color:var(--link);text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* flash */
+    .flash{margin:10px 0}
+    .flash .item{
+      background:color-mix(in srgb, var(--card) 88%, #1f2b45 12%);
+      border:1px solid color-mix(in srgb, var(--line) 85%, #2a3b63 15%);
+      color:color-mix(in srgb, var(--ink) 85%, #dbe5ff 15%);
+      padding:10px;border-radius:10px;margin-bottom:8px
+    }
+  </style>
+
+  <!-- 3) ТЕМА (МАЄ ЙТИ ПІСЛЯ КАРКАСА ТА INLINE-СТИЛЕЙ, щоб переважати кольорами) -->
+  <link id="theme-css" rel="stylesheet" href="{{ url_for('static', filename='themes/main.css') }}">
+  <script>
+    (function(){
+      var saved = localStorage.getItem('theme') || 'main';
+      var map = {
+        main: '{{ url_for("static", filename="themes/main.css") }}',
+        cat: '{{ url_for("static", filename="themes/cat.css") }}',
+        hellowen: '{{ url_for("static", filename="themes/hellowen.css") }}',
+        minecraft: '{{ url_for("static", filename="themes/minecraft.css") }}'
+      };
+      var el = document.getElementById('theme-css');
+      if (el) el.href = map[saved] || map.main;
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
+
+  <!-- === Favicon & app icons (static/icons/) === -->
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/favicon-16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32x32.png') }}">
+  <!-- Apple touch: у репо файл названо favicon-180x180.png -->
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/favicon-180x180.png') }}">
+  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icons/favicon-512x512.png') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='icons/favicon-32x32.png') }}">
+  <meta name="theme-color" content="#0f1724" />
+
+  <!-- ✅ FIX: three.js у браузері (щоб import ... from "three" працював без bundler) -->
+  <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% include 'nav.html' %}
+
+  <main>
+    {% with msgs = get_flashed_messages() %}
+      {% if msgs %}
+        <div class="flash">
+          {% for m in msgs %}<div class="item">{{ m }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+
+  {# ЧАТ БІЛЬШЕ НЕ ВСТАВЛЯЄМО ТУТ.
+     Він уже підключається в nav.html як {% include "chat.html" %} з умовою:
+     not in ["auth.login","auth.register","auth.logout"] #}
+
+  <!-- === i18n ядро: автопереклад усього DOM + підтримка 60+ мов === -->
+  <script src="https://unpkg.com/i18next@23.11.5/dist/umd/i18next.min.js"></script>
+  <script>
+  (function(){
+    const I18N_DIR = "/static/i18n/";
+    const MISSING = new Set();
+    const SKIP_TAGS = new Set(["SCRIPT","STYLE","TEXTAREA","CODE","PRE"]);
+    const ATTRS = ["placeholder","title","aria-label","alt"];
+    const RTL = new Set(["ar","fa","he","ur"]);
+    const norm = s => (s||"").replace(/\s+/g," ").trim();
+
+    function translateNode(node){
+      if (node.nodeType === Node.TEXT_NODE){
+        const raw = norm(node.nodeValue);
+        if (!raw) return;
+        if (i18next.exists(raw)) node.nodeValue = i18next.t(raw);
+        else MISSING.add(raw);
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE || SKIP_TAGS.has(node.tagName)) return;
+
+      for (const a of ATTRS){
+        if (node.hasAttribute(a)){
+          const val = norm(node.getAttribute(a));
+          if (val){
+            if (i18next.exists(val)) node.setAttribute(a, i18next.t(val));
+            else MISSING.add(val);
+          }
+        }
+      }
+      for (const child of Array.from(node.childNodes)) translateNode(child);
+    }
+
+    const applyAll = (root=document.body) => translateNode(root);
+
+    const obs = new MutationObserver(muts=>{
+      for (const m of muts){
+        m.addedNodes?.forEach(n => { if (n.nodeType===1 || n.nodeType===3) applyAll(n); });
+        if (m.type==="attributes" && ATTRS.includes(m.attributeName||"")) applyAll(m.target);
+      }
+    });
+
+    async function loadDict(code){
+      const dict = await fetch(`${I18N_DIR}${code}.json`, {cache:"no-store"})
+        .then(r=>r.ok?r.json():{}).catch(()=>({}));
+      if (!i18next.isInitialized){
+        await i18next.init({
+          lng: code,
+          resources: { [code]: { translation: dict } },
+          keySeparator:false, nsSeparator:false
+        });
+      } else {
+        // повністю оновлюємо бандл для мови
+        i18next.removeResourceBundle(code, "translation");
+        i18next.addResourceBundle(code, "translation", dict, true, true);
+        await i18next.changeLanguage(code);
+      }
+      document.documentElement.setAttribute("lang", code);
+      document.documentElement.setAttribute("dir", RTL.has(code) ? "rtl" : "ltr");
+    }
+
+    (async function start(){
+      let lang = "uk";
+      try{
+        const js = await fetch("/api/lang/me",{cache:"no-store"}).then(r=>r.json());
+        if (js && js.lang) lang = js.lang;
+      }catch(e){}
+      await loadDict(lang);
+      applyAll(document.body);
+      obs.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:ATTRS});
+
+      // Глобальні хуки для свічера у nav.html:
+      window.__i18nSetLang = async code => { await loadDict(code); applyAll(document.body); };
+      window.__i18nMissing = () => Array.from(MISSING.values());
+    })();
+  })();
+  </script>
+
+  <!-- === JS-маячок «живого» відвідувача для /api/visit === -->
+  <script>
+  (function(){
+    function ping(){
+      try{
+        fetch("/api/visit", {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Visit-Beacon": "1"
+          },
+          body: JSON.stringify({ path: location.pathname })
+        });
+      }catch(e){}
+    }
+    // логнемо одразу, коли вкладка видима
+    if (document.visibilityState === "visible") ping();
+    // і ще при поверненні у вкладку
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "visible") ping();
+    });
+  })();
+  </script>
+</body>
+</html>
