@@ -293,6 +293,21 @@ def json_dumps_safe(obj) -> str:
         return "[]"
 
 
+def _safe_json_list(value) -> list:
+    """
+    Safely parse JSON string/list to list, never crashes.
+    Handles NULL, empty strings, invalid JSON, already-parsed lists.
+    """
+    if not value:
+        return []
+    try:
+        if isinstance(value, list):
+            return value
+        return json.loads(value) if value else []
+    except Exception:
+        return []
+
+
 def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     """
     Universal item serialization with consistent cover_url normalization.
@@ -301,13 +316,9 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     # Get cover from cover_url or cover field
     raw_cover = it.get("cover_url") or it.get("cover") or ""
     
-    # Parse gallery_urls (may be JSON string or list)
-    gallery = []
-    raw_gallery = it.get("gallery_urls") or it.get("photos") or "[]"
-    try:
-        gallery = raw_gallery if isinstance(raw_gallery, list) else json.loads(raw_gallery or "[]")
-    except Exception:
-        gallery = []
+    # Parse gallery_urls (may be JSON string or list) - SAFE parsing
+    raw_gallery = it.get("gallery_urls") or it.get("photos")
+    gallery = _safe_json_list(raw_gallery)
     
     # Normalize gallery URLs
     normalized_gallery = []
@@ -1077,13 +1088,7 @@ def api_item_update(item_id: int):
                     {"id": item_id, "uid": uid}
                 ).first()
                 if existing_row:
-                    existing_gallery_str = existing_row[0] or "[]"
-                    try:
-                        existing_gallery = json.loads(existing_gallery_str) if isinstance(existing_gallery_str, str) else existing_gallery_str
-                    except Exception:
-                        existing_gallery = []
-                    if not isinstance(existing_gallery, list):
-                        existing_gallery = []
+                    existing_gallery = _safe_json_list(existing_row[0])
                 else:
                     existing_gallery = []
             except Exception:
@@ -1126,10 +1131,8 @@ def api_item_update(item_id: int):
         if isinstance(tags_val, list):
             tags_str = ",".join([str(t).strip() for t in tags_val if str(t).strip()])
         else:
-            try:
-                val = json.loads(tags_val) if isinstance(tags_val, str) and tags_val.strip().startswith("[") else tags_val
-            except Exception:
-                val = tags_val
+            # Safe parsing - try as JSON array first, then treat as string
+            val = _safe_json_list(tags_val) if isinstance(tags_val, str) and tags_val.strip().startswith("[") else tags_val
             if isinstance(val, list):
                 tags_str = ",".join([str(t).strip() for t in val if str(t).strip()])
             else:
@@ -1146,16 +1149,10 @@ def api_item_update(item_id: int):
 
     if "gallery_urls" in data or "photos" in data:
         g_val = data.get("gallery_urls") or data.get("photos")
-        if isinstance(g_val, str):
-            try:
-                g_val = json.loads(g_val)
-            except Exception:
-                g_val = [g_val]
-        if not isinstance(g_val, list):
-            g_val = []
-        g_val = [str(x) for x in g_val if x]
+        g_list = _safe_json_list(g_val) if isinstance(g_val, str) else (g_val if isinstance(g_val, list) else [])
+        g_list = [str(x) for x in g_list if x]
         if "gallery_urls" not in fields:  # Only if not already set by file upload
-            fields["gallery_urls"] = json_dumps_safe(g_val)
+            fields["gallery_urls"] = json_dumps_safe(g_list)
 
     if "stl_main_url" in data or "url" in data or "file_url" in data:
         url_val = (data.get("stl_main_url") or data.get("url") or data.get("file_url") or "").strip()
@@ -1164,15 +1161,9 @@ def api_item_update(item_id: int):
 
     if "stl_extra_urls" in data or "stl_files" in data:
         s_val = data.get("stl_extra_urls") or data.get("stl_files")
-        if isinstance(s_val, str):
-            try:
-                s_val = json.loads(s_val)
-            except Exception:
-                s_val = [s_val]
-        if not isinstance(s_val, list):
-            s_val = []
-        s_val = [str(x) for x in s_val if x]
-        fields["stl_extra_urls"] = json_dumps_safe(s_val)
+        s_list = _safe_json_list(s_val) if isinstance(s_val, str) else (s_val if isinstance(s_val, list) else [])
+        s_list = [str(x) for x in s_list if x]
+        fields["stl_extra_urls"] = json_dumps_safe(s_list)
 
     if "zip_url" in data:
         fields["zip_url"] = (data.get("zip_url") or "").strip()
@@ -1286,9 +1277,10 @@ def api_upload():
         fmt = (form.get("format") or "stl").strip().lower()
 
         raw_tags = form.get("tags") or ""
-        try:
-            tags_val = json.loads(raw_tags) if raw_tags.strip().startswith("[") else raw_tags
-        except Exception:
+        # Safe tags parsing - can be JSON array or CSV string
+        if raw_tags.strip().startswith("["):
+            tags_val = _safe_json_list(raw_tags)
+        else:
             tags_val = raw_tags
 
         file_url = (form.get("stl_url") or (form.get("url") or "")).strip()
@@ -1507,38 +1499,28 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d.setdefault("author_avatar", "/static/img/user.jpg")
     d.setdefault("author_bio", "3D-дизайнер")
 
+    # Safe parsing of photos/gallery with _safe_json_list
     images: list = []
     stl_files: list = []
-    try:
-        ph = d.get("photos")
-        if isinstance(ph, (dict, list)):
-            data = ph
-        else:
-            data = json.loads(ph or "[]")
-        if isinstance(data, list):
+    
+    ph = d.get("photos")
+    if isinstance(ph, dict):
+        images = [s for s in (ph.get("images") or []) if s]
+        stl_files = [s for s in (ph.get("stl") or []) if s]
+    elif isinstance(ph, list):
+        images = [s for s in ph if s]
+    else:
+        # Try to parse as JSON
+        data = _safe_json_list(ph)
+        if data:
             images = [s for s in data if s]
-        elif isinstance(data, dict):
-            images = [s for s in (data.get("images") or []) if s]
-            stl_files = [s for s in (data.get("stl") or []) if s]
-    except Exception:
-        images, stl_files = [], []
 
     if not images:
-        try:
-            g = d.get("gallery_urls")
-            g_list = g if isinstance(g, list) else json.loads(g or "[]")
-            if isinstance(g_list, list):
-                images = [s for s in g_list if s]
-        except Exception:
-            pass
+        g_list = _safe_json_list(d.get("gallery_urls"))
+        images = [s for s in g_list if s]
     if not stl_files:
-        try:
-            s = d.get("stl_extra_urls")
-            s_list = s if isinstance(s, list) else json.loads(s or "[]")
-            if isinstance(s_list, list):
-                stl_files = [s for s in s_list if s]
-        except Exception:
-            pass
+        s_list = _safe_json_list(d.get("stl_extra_urls"))
+        stl_files = [s for s in s_list if s]
 
     if not d.get("cover"):
         d["cover"] = d.get("cover_url") or d.get("cover") or (images[0] if images else None)
@@ -1553,11 +1535,9 @@ def _fetch_item_with_author(item_id: int) -> Optional[Dict[str, Any]]:
     d["cover_url"] = c
 
     # ensure gallery_urls normalized for detail response
-    try:
-        raw_gallery = d.get("gallery_urls") or d.get("photos") or "[]"
-        gallery_list = raw_gallery if isinstance(raw_gallery, list) else json.loads(raw_gallery or "[]")
-    except Exception:
-        gallery_list = []
+    raw_gallery = d.get("gallery_urls") or d.get("photos")
+    gallery_list = _safe_json_list(raw_gallery)
+    
     normalized_gallery = []
     for g in gallery_list:
         try:
