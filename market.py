@@ -537,142 +537,167 @@ def page_market_edit_item(item_id: int):
 
 @bp.get("/api/items")
 def api_items():
-    raw_q = request.args.get("q") or ""
-    q = raw_q.strip().lower()
-
-    free = _normalize_free(request.args.get("free"))
-    sort = _normalize_sort(request.args.get("sort"))
-    page = max(1, _parse_int(request.args.get("page"), 1))
-    per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
-
-    dialect = db.session.get_bind().dialect.name
-    if dialect == "postgresql":
-        title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
-        tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-        cover_expr = "COALESCE(cover_url, '')"
-        url_expr = "stl_main_url"
-    else:
-        title_expr = "LOWER(COALESCE(title, ''))"
-        tags_expr = "LOWER(COALESCE(tags,  ''))"
-        cover_expr = "COALESCE(cover_url, '')"
-        url_expr = "stl_main_url"
-
-    where, params = [], {}
-    if q:
-        where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
-        params["q"] = f"%{q}%"
-    if free == "free":
-        where.append("price = 0")
-    elif free == "paid":
-        where.append("price > 0")
-    
-    # ✅ Filter only published items in public market
     try:
-        # Check if is_published column exists
-        db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
-        where.append("(is_published = 1 OR is_published IS NULL)")
-    except Exception:
-        db.session.rollback()
-        # Column doesn't exist yet, skip filter
-        pass
-    
-    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+        raw_q = request.args.get("q") or ""
+        q = raw_q.strip().lower()
 
-    if sort == "price_asc":
-        order_sql = "ORDER BY price ASC, created_at DESC"
-    elif sort == "price_desc":
-        order_sql = "ORDER BY price DESC, created_at DESC"
-    elif sort == "downloads":
-        order_sql = "ORDER BY downloads DESC, created_at DESC"
-    else:
-        order_sql = "ORDER BY created_at DESC, id DESC"
+        free = _normalize_free(request.args.get("free"))
+        sort = _normalize_sort(request.args.get("sort"))
+        page = max(1, _parse_int(request.args.get("page"), 1))
+        per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
 
-    offset = (page - 1) * per_page
+        dialect = db.session.get_bind().dialect.name
+        if dialect == "postgresql":
+            title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
+            tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
+            cover_expr = "COALESCE(cover_url, '')"
+            url_expr = "stl_main_url"
+        else:
+            title_expr = "LOWER(COALESCE(title, ''))"
+            tags_expr = "LOWER(COALESCE(tags,  ''))"
+            cover_expr = "COALESCE(cover_url, '')"
+            url_expr = "stl_main_url"
 
-    # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
-    try:
-        # Build SQL with is_published columns - ALL inside try
-        sql_with_publish = f"""
-            SELECT id, title, price, tags,
-                   COALESCE(cover_url, '') AS cover,
-                   COALESCE(gallery_urls, '[]') AS gallery_urls,
-                   COALESCE(rating, 0) AS rating,
-                   COALESCE(downloads, 0) AS downloads,
-                   {url_expr} AS url,
-                   format, user_id, created_at,
-                   is_published, published_at
-            FROM {ITEMS_TBL}
-            {where_sql}
-            {order_sql}
-            LIMIT :limit OFFSET :offset
-        """
+        where, params = [], {}
+        if q:
+            where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
+            params["q"] = f"%{q}%"
+        if free == "free":
+            where.append("price = 0")
+        elif free == "paid":
+            where.append("price > 0")
         
-        rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
-        items = [_row_to_dict(r) for r in rows]
-        total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
-        
-    except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
-        # 🔄 FALLBACK: Column doesn't exist yet
-        if _is_missing_column_error(e):
+        # ✅ Filter only published items in public market
+        try:
+            # Check if is_published column exists
+            db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+            where.append("(is_published = 1 OR is_published IS NULL)")
+        except Exception:
             db.session.rollback()
-            
-            # Rebuild query WITHOUT is_published columns
-            sql_fallback = f"""
+            # Column doesn't exist yet, skip filter
+            pass
+        
+        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+        if sort == "price_asc":
+            order_sql = "ORDER BY price ASC, created_at DESC"
+        elif sort == "price_desc":
+            order_sql = "ORDER BY price DESC, created_at DESC"
+        elif sort == "downloads":
+            order_sql = "ORDER BY downloads DESC, created_at DESC"
+        else:
+            order_sql = "ORDER BY created_at DESC, id DESC"
+
+        offset = (page - 1) * per_page
+
+        # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
+        try:
+            # Build SQL with is_published columns - ALL inside try
+            sql_with_publish = f"""
                 SELECT id, title, price, tags,
                        COALESCE(cover_url, '') AS cover,
                        COALESCE(gallery_urls, '[]') AS gallery_urls,
                        COALESCE(rating, 0) AS rating,
                        COALESCE(downloads, 0) AS downloads,
                        {url_expr} AS url,
-                       format, user_id, created_at
+                       format, user_id, created_at,
+                       is_published, published_at
                 FROM {ITEMS_TBL}
                 {where_sql}
                 {order_sql}
                 LIMIT :limit OFFSET :offset
             """
             
-            try:
-                rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
-                items = [_row_to_dict(r) for r in rows]
-                total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
-            except sa_exc.ProgrammingError:
-                # Last resort: legacy schema with file_url instead of stl_main_url
+            rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+            items = [_row_to_dict(r) for r in rows]
+            total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
+            
+        except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+            # 🔄 FALLBACK: Column doesn't exist yet
+            if _is_missing_column_error(e):
                 db.session.rollback()
-                sql_legacy = f"""
+                
+                # Rebuild query WITHOUT is_published columns
+                sql_fallback = f"""
                     SELECT id, title, price, tags,
-                           COALESCE(cover, '') AS cover,
+                           COALESCE(cover_url, '') AS cover,
                            COALESCE(gallery_urls, '[]') AS gallery_urls,
-                           COALESCE(file_url,'') AS url,
-                           user_id, created_at
+                           COALESCE(rating, 0) AS rating,
+                           COALESCE(downloads, 0) AS downloads,
+                           {url_expr} AS url,
+                           format, user_id, created_at
                     FROM {ITEMS_TBL}
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
                 """
-                rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
-                items = []
-                for r in rows:
-                    d = _row_to_dict(r)
-                    d.setdefault("rating", 0)
-                    d.setdefault("downloads", 0)
-                    items.append(d)
-                total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
-        else:
-            # Other error - re-raise
-            raise
+                
+                try:
+                    rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    items = [_row_to_dict(r) for r in rows]
+                    total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
+                except sa_exc.ProgrammingError:
+                    # Last resort: legacy schema with file_url instead of stl_main_url
+                    db.session.rollback()
+                    sql_legacy = f"""
+                        SELECT id, title, price, tags,
+                               COALESCE(cover, '') AS cover,
+                               COALESCE(gallery_urls, '[]') AS gallery_urls,
+                               COALESCE(file_url,'') AS url,
+                               user_id, created_at
+                        FROM {ITEMS_TBL}
+                        {where_sql}
+                        {order_sql}
+                        LIMIT :limit OFFSET :offset
+                    """
+                    rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    items = []
+                    for r in rows:
+                        d = _row_to_dict(r)
+                        d.setdefault("rating", 0)
+                        d.setdefault("downloads", 0)
+                        items.append(d)
+                    total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
+            else:
+                # Other error - re-raise
+                raise
 
-    # ✅ Use universal serializer for consistent cover_url normalization
-    items = [_item_to_dict(it) for it in items]
+        # ✅ Use universal serializer for consistent cover_url normalization
+        items = [_item_to_dict(it) for it in items]
 
-    return jsonify(
-        {
-            "items": items,
+        return jsonify(
+            {
+                "items": items,
+                "page": page,
+                "per_page": per_page,
+                "pages": math.ceil(total / per_page) if per_page else 1,
+                "total": total,
+            }
+        )
+
+    except Exception as e:
+        # ✅ Bulletproof: log full traceback to Railway, return controlled response
+        current_app.logger.exception("🔥 api_items FAILED: %s", e)
+        
+        # Parse request params for fallback response
+        try:
+            page = max(1, _parse_int(request.args.get("page"), 1))
+            per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
+            sort = _normalize_sort(request.args.get("sort"))
+        except Exception:
+            page, per_page, sort = 1, 24, "new"
+        
+        # Return 200 with empty list - never crash the market
+        return jsonify({
+            "ok": False,
+            "items": [],
             "page": page,
             "per_page": per_page,
-            "pages": math.ceil(total / per_page) if per_page else 1,
-            "total": total,
-        }
-    )
+            "pages": 0,
+            "total": 0,
+            "sort": sort,
+            "error": "api_items_failed"
+        }), 200
 
 
 @bp.get("/api/market/items")
