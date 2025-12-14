@@ -5,6 +5,21 @@
 {% block market_body %}
 <div class="market-main" data-market-root>
 
+  <!-- Author Profile Header (shown when filtering by author_id) -->
+  {% if author_id %}
+  <div id="authorProfileHeader" class="author-profile-header" data-author-id="{{ author_id }}" style="background: var(--card, #11141b); border: 1px solid var(--line, #1b2131); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+    <img id="authorAvatar" src="/static/img/user.jpg" alt="Author" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent, #667eea);">
+    <div style="flex: 1;">
+      <h2 id="authorName" style="margin: 0 0 8px 0; font-size: 1.5rem; font-weight: 700;">Loading...</h2>
+      <div id="authorStats" style="display: flex; gap: 16px; font-size: 0.9rem; color: var(--muted, #9fb0d4);">
+        <span id="authorFollowers">0 followers</span>
+        <span id="authorModels">0 models</span>
+      </div>
+    </div>
+    <button id="authorFollowBtn" class="btn-follow" style="padding: 10px 24px; border: 2px solid var(--accent, #667eea); background: transparent; color: var(--accent, #667eea); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; min-width: 120px;" disabled>Loading...</button>
+  </div>
+  {% endif %}
+
   <!-- Верхня панель: Мої оголошення + Додати модель -->
   <div class="market-top-actions">
     <div class="mta-left">
@@ -99,6 +114,26 @@
 </div>
 
 <style>
+  /* Author Profile Header */
+  #authorFollowBtn:hover:not(:disabled){
+    background: var(--accent, #667eea) !important;
+    color: #fff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+  
+  #authorFollowBtn:disabled{
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  @media (max-width: 640px){
+    .author-profile-header{
+      flex-direction: column !important;
+      text-align: center;
+    }
+  }
+
   .market-main{
     max-width:1280px;
     margin:0 auto;
@@ -320,4 +355,92 @@
     .mc-selects{width:100%; justify-content:flex-start;}
   }
 </style>
+
+{% if author_id %}
+<script type="module">
+// Author Profile Header - load author info and handle follow
+(async () => {
+  const authorId = {{ author_id }};
+  const header = document.getElementById('authorProfileHeader');
+  if (!header) return;
+
+  // Load author info
+  try {
+    const resp = await fetch(`/api/user/${authorId}/mini`);
+    if (!resp.ok) throw new Error('Failed to load author');
+    
+    const data = await resp.json();
+    if (!data.ok || !data.user) throw new Error('Invalid response');
+    
+    const user = data.user;
+    
+    // Update UI
+    document.getElementById('authorAvatar').src = user.avatar_url || '/static/img/user.jpg';
+    document.getElementById('authorName').textContent = user.name || 'Unknown';
+    document.getElementById('authorFollowers').textContent = `${user.followers_count || 0} followers`;
+    document.getElementById('authorModels').textContent = `${user.items_count || 0} models`;
+    
+    // Check follow status
+    let isFollowing = false;
+    try {
+      const followsResp = await fetch('/api/user/follows');
+      if (followsResp.ok) {
+        const followsData = await followsResp.json();
+        if (followsData.ok && Array.isArray(followsData.follows)) {
+          isFollowing = followsData.follows.some(f => f.followed_id === authorId);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load follow status:', e);
+    }
+    
+    // Setup follow button
+    const followBtn = document.getElementById('authorFollowBtn');
+    followBtn.disabled = false;
+    followBtn.textContent = isFollowing ? '✓ Following' : '+ Follow';
+    followBtn.style.background = isFollowing ? 'var(--accent, #667eea)' : 'transparent';
+    followBtn.style.color = isFollowing ? '#fff' : 'var(--accent, #667eea)';
+    
+    followBtn.addEventListener('click', async () => {
+      followBtn.disabled = true;
+      
+      try {
+        const method = isFollowing ? 'DELETE' : 'POST';
+        const toggleResp = await fetch(`/api/follow/${authorId}`, { method });
+        
+        if (toggleResp.status === 401) {
+          window.location.href = '/auth/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+          return;
+        }
+        
+        if (!toggleResp.ok) throw new Error('Follow failed');
+        
+        const toggleData = await toggleResp.json();
+        if (toggleData.ok) {
+          isFollowing = toggleData.following;
+          followBtn.textContent = isFollowing ? '✓ Following' : '+ Follow';
+          followBtn.style.background = isFollowing ? 'var(--accent, #667eea)' : 'transparent';
+          followBtn.style.color = isFollowing ? '#fff' : 'var(--accent, #667eea)';
+          
+          // Update follower count
+          const currentCount = parseInt(document.getElementById('authorFollowers').textContent) || 0;
+          const newCount = isFollowing ? currentCount + 1 : Math.max(0, currentCount - 1);
+          document.getElementById('authorFollowers').textContent = `${newCount} followers`;
+        }
+      } catch (err) {
+        console.error('Follow error:', err);
+        alert('Failed to update follow status');
+      } finally {
+        followBtn.disabled = false;
+      }
+    });
+    
+  } catch (err) {
+    console.error('Error loading author:', err);
+    header.innerHTML = '<p style="color: var(--muted);">Failed to load author information</p>';
+  }
+})();
+</script>
+{% endif %}
+
 {% endblock %}

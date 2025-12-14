@@ -730,7 +730,10 @@ def page_market():
     owner = (request.args.get("owner") or "").strip().lower()
     if owner in ("me", "my", "mine"):
         return render_template("market/my-ads.html")
-    return render_template("market/index.html")
+    
+    # Pass author_id to template if filtering by author
+    author_id = _parse_int(request.args.get("author_id"), 0)
+    return render_template("market/index.html", author_id=author_id or None)
 
 
 @bp.get("/market/top-prints")
@@ -1377,6 +1380,53 @@ def api_item_download(item_id: int):
 
 
 # ───────────────────────────── Follow API ─────────────────────────────
+@bp.get("/api/user/<int:user_id>/mini")
+def api_get_user_mini(user_id: int):
+    """Get basic user info for author profile header"""
+    try:
+        sql = f"""
+            SELECT id, name, 
+                   COALESCE(avatar_url, '/static/img/user.jpg') AS avatar_url
+            FROM {USERS_TBL}
+            WHERE id = :user_id
+            LIMIT 1
+        """
+        
+        row = db.session.execute(text(sql), {"user_id": user_id}).fetchone()
+        
+        if not row:
+            return jsonify({"ok": False, "error": "user_not_found"}), 404
+        
+        user_data = _row_to_dict(row)
+        
+        # Get follower count
+        try:
+            follower_count = db.session.execute(
+                text("SELECT COUNT(*) FROM user_follows WHERE author_id = :uid"),
+                {"uid": user_id}
+            ).scalar() or 0
+        except Exception:
+            follower_count = 0
+        
+        # Get items count
+        try:
+            items_count = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {ITEMS_TBL} WHERE user_id = :uid"),
+                {"uid": user_id}
+            ).scalar() or 0
+        except Exception:
+            items_count = 0
+        
+        user_data["followers_count"] = follower_count
+        user_data["items_count"] = items_count
+        
+        return jsonify({"ok": True, "user": user_data})
+        
+    except Exception as e:
+        current_app.logger.error(f"Get user mini error: {e}")
+        return jsonify({"ok": False, "error": "server"}), 500
+
+
 @bp.get("/api/user/follows")
 def api_get_user_follows():
     """Get list of authors current user follows"""
