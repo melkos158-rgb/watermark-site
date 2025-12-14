@@ -97,14 +97,41 @@ def _is_missing_column_error(e: Exception) -> bool:
     )
 
 
+def _is_missing_table_error(e: Exception) -> bool:
+    """Check if exception is due to missing table in DB (e.g. item_makes)"""
+    msg = str(e).lower()
+    return (
+        "no such table" in msg  # SQLite: no such table: item_makes
+        or 'relation "item_makes" does not exist' in msg  # PostgreSQL
+        or "table 'item_makes' doesn't exist" in msg  # MySQL
+        or "item_makes" in msg and "does not exist" in msg  # Generic Postgres pattern
+    )
+
+
 def _normalize_free(value: Optional[str]) -> str:
     v = (value or "all").lower()
     return v if v in ("all", "free", "paid") else "all"
 
 
+# ======================================================================
+# SORTING: "Top by Real Prints" Feature
+# ======================================================================
+# Сортування "prints" ранжує моделі за кількістю реальних роздрукувань
+# (item_makes.item_id → COUNT), показуючи найбільш перевірені/популярні моделі.
+#
+# Реалізація:
+# 1. _normalize_sort() приймає "prints" як валідне значення
+# 2. api_items() робить LEFT JOIN на агрегований підзапит item_makes:
+#    SELECT item_id, COUNT(*) AS prints_count FROM item_makes GROUP BY item_id
+# 3. Додає prints_count до SELECT та ORDER BY prints_count DESC
+# 4. Fallback: якщо таблиця item_makes відсутня → prints_count = 0
+# 5. _item_to_dict() повертає prints_count у JSON відповіді
+# 6. Frontend: option "Top prints" у _filters.html, бейдж 🖨️ на картках
+# ======================================================================
+
 def _normalize_sort(value: Optional[str]) -> str:
     v = (value or "new").lower()
-    return v if v in ("new", "price_asc", "price_desc", "downloads") else "new"
+    return v if v in ("new", "price_asc", "price_desc", "downloads", "prints") else "new"
 
 
 def _uploads_root() -> str:
@@ -365,6 +392,7 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
         "is_published": is_published,
         "published_at": published_at,
         "status": status,
+        "prints_count": it.get("prints_count", 0),  # ✅ Number of real prints (makes)
     }
 
 
@@ -778,6 +806,8 @@ def api_items():
             order_sql = "ORDER BY price DESC, created_at DESC"
         elif sort == "downloads":
             order_sql = "ORDER BY downloads DESC, created_at DESC"
+        elif sort == "prints":
+            order_sql = "ORDER BY prints_count DESC, created_at DESC"
         else:
             order_sql = "ORDER BY created_at DESC, id DESC"
 
@@ -786,22 +816,53 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             # Build SQL with is_published columns - ALL inside try
-            sql_with_publish = f"""
-                SELECT id, title, price, tags,
-                       COALESCE(cover_url, '') AS cover,
-                       COALESCE(gallery_urls, '[]') AS gallery_urls,
-                       COALESCE(rating, 0) AS rating,
-                       COALESCE(downloads, 0) AS downloads,
-                       {url_expr} AS url,
-                       format, user_id, created_at,
-                       is_published, published_at
-                FROM {ITEMS_TBL}
-                {where_sql}
-                {order_sql}
-                LIMIT :limit OFFSET :offset
-            """
+            # Try with item_makes LEFT JOIN first
+            try:
+                sql_with_publish = f"""
+                    SELECT i.id, i.title, i.price, i.tags,
+                           COALESCE(i.cover_url, '') AS cover,
+                           COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                           COALESCE(i.rating, 0) AS rating,
+                           COALESCE(i.downloads, 0) AS downloads,
+                           {url_expr.replace('stl_main_url', 'i.stl_main_url')} AS url,
+                           i.format, i.user_id, i.created_at,
+                           i.is_published, i.published_at,
+                           COALESCE(pm.prints_count, 0) AS prints_count
+                    FROM {ITEMS_TBL} i
+                    LEFT JOIN (
+                        SELECT item_id, COUNT(*) AS prints_count
+                        FROM item_makes
+                        GROUP BY item_id
+                    ) pm ON pm.item_id = i.id
+                    {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
+                    {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
+                    LIMIT :limit OFFSET :offset
+                """
+                rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+            except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
+                if _is_missing_table_error(e):
+                    db.session.rollback()
+                    sql_with_publish = f"""
+                        SELECT id, title, price, tags,
+                               COALESCE(cover_url, '') AS cover,
+                               COALESCE(gallery_urls, '[]') AS gallery_urls,
+                               COALESCE(rating, 0) AS rating,
+                               COALESCE(downloads, 0) AS downloads,
+                               {url_expr} AS url,
+                               format, user_id, created_at,
+                               is_published, published_at,
+                               0 AS prints_count
+                        FROM {ITEMS_TBL}
+                        {where_sql}
+                        {order_sql}
+                        LIMIT :limit OFFSET :offset
+                    """
+                    rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+                else:
+                    # Re-raise if it's not a missing table error
+                    raise
             
-            rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
             items = [_row_to_dict(r) for r in rows]
             total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
             
@@ -818,7 +879,8 @@ def api_items():
                            COALESCE(rating, 0) AS rating,
                            COALESCE(downloads, 0) AS downloads,
                            {url_expr} AS url,
-                           format, user_id, created_at
+                           format, user_id, created_at,
+                           0 AS prints_count
                     FROM {ITEMS_TBL}
                     {where_sql}
                     {order_sql}
@@ -837,7 +899,8 @@ def api_items():
                                COALESCE(cover_url, '') AS cover,
                                COALESCE(gallery_urls, '[]') AS gallery_urls,
                                COALESCE(file_url,'') AS url,
-                               user_id, created_at
+                               user_id, created_at,
+                               0 AS prints_count
                         FROM {ITEMS_TBL}
                         {where_sql}
                         {order_sql}
@@ -1590,17 +1653,22 @@ def recalc_item_rating(item_id: int):
 
 @bp.get("/api/item/<int:item_id>/reviews")
 def api_get_reviews(item_id: int):
-    """Get reviews for an item with author info"""
+    """Get reviews for an item with author info + verified badge"""
     limit = min(50, max(1, _parse_int(request.args.get("limit"), 50)))
     
     uid = _parse_int(session.get("user_id"), 0)
     
     try:
-        # Fetch reviews with author info via JOIN
+        # Fetch reviews with author info + verified check
+        # Using subquery to avoid duplicates if user has multiple makes
         sql = f"""
             SELECT r.id, r.user_id, r.item_id, r.rating, r.text, r.image_url, r.created_at,
                    u.name AS author_name,
-                   COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar
+                   COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar,
+                   CASE WHEN EXISTS (
+                       SELECT 1 FROM item_makes m 
+                       WHERE m.item_id = r.item_id AND m.user_id = r.user_id
+                   ) THEN 1 ELSE 0 END AS verified
             FROM market_reviews r
             LEFT JOIN {USERS_TBL} u ON u.id = r.user_id
             WHERE r.item_id = :item_id
@@ -1617,6 +1685,7 @@ def api_get_reviews(item_id: int):
         for r in rows:
             d = _row_to_dict(r)
             d["is_owner"] = (d.get("user_id") == uid)
+            d["verified"] = bool(d.get("verified", 0))
             reviews.append(d)
         
         return jsonify({"ok": True, "reviews": reviews})

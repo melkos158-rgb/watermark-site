@@ -403,3 +403,12 @@
 .my-market-page .market-card.my-card .market-card-downloads {
   opacity: .85;
 }
+/* ========== PRINTS BADGE ========== */
+.model-card .stats .s.prints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9em;
+  color: var(--mkt-card-muted);
+  opacity: 0.9;
+}

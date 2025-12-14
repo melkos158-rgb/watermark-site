@@ -119,6 +119,15 @@
     authorName.textContent = review.author_name || 'Anonymous';
     authorInfo.appendChild(authorName);
 
+    // Verified badge (if user has uploaded a make/print)
+    if (review.verified) {
+      const verifiedBadge = document.createElement('span');
+      verifiedBadge.className = 'review-verified-badge';
+      verifiedBadge.textContent = '✔ Verified print';
+      verifiedBadge.title = 'This user has printed this model';
+      authorInfo.appendChild(verifiedBadge);
+    }
+
     // Date
     if (review.created_at) {
       const date = document.createElement('div');
