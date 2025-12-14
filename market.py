@@ -70,10 +70,15 @@ COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
 
 
 def _row_to_dict(row) -> Dict[str, Any]:
-    try:
+    """Convert SQLAlchemy Row to dict, safe for None and edge cases"""
+    if row is None:
+        return {}
+    if hasattr(row, "_mapping"):
         return dict(row._mapping)
-    except Exception:
+    try:
         return dict(row)
+    except Exception:
+        return {}
 
 
 def _parse_int(v, default=0):
@@ -345,11 +350,26 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     Universal item serialization with consistent cover_url normalization.
     Use this for all API responses to avoid cover/preview mismatches.
     """
+    # Universal accessor for dict or SQLAlchemy Row
+    if hasattr(it, "_mapping"):
+        m = it._mapping
+    else:
+        m = it
+    
+    # Safe get helper
+    def safe_get(key, default=None):
+        if hasattr(m, "get"):
+            return m.get(key, default)
+        try:
+            return m[key] if key in m else default
+        except (KeyError, TypeError):
+            return default
+    
     # Get cover from cover_url or cover field
-    raw_cover = it.get("cover_url") or it.get("cover") or ""
+    raw_cover = safe_get("cover_url") or safe_get("cover") or ""
     
     # Parse gallery_urls (may be JSON string or list) - SAFE parsing
-    raw_gallery = it.get("gallery_urls") or it.get("photos")
+    raw_gallery = safe_get("gallery_urls") or safe_get("photos")
     gallery = _safe_json_list(raw_gallery)
     
     # Normalize gallery URLs
@@ -370,36 +390,40 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
         cover_url = normalized_gallery[0]
     
     # Parse publishing fields
-    is_published = it.get("is_published")
+    is_published = safe_get("is_published")
     if is_published is None:
         is_published = True  # default for legacy items
     else:
         is_published = bool(is_published)
     
-    published_at = it.get("published_at")
+    published_at = safe_get("published_at")
     status = "published" if is_published else "draft"
     
+    # Safe price calculation
+    price = safe_get("price", 0)
+    price_cents = safe_get("price_cents") or (int(price * 100) if price else 0)
+    
     return {
-        "id": it.get("id"),
-        "title": it.get("title"),
-        "price": it.get("price"),
-        "tags": it.get("tags"),
+        "id": safe_get("id"),
+        "title": safe_get("title"),
+        "price": price,
+        "tags": safe_get("tags"),
         "cover_url": cover_url,  # ✅ Always normalized, never "no image"
         "gallery_urls": normalized_gallery,
-        "rating": it.get("rating", 0),
-        "downloads": it.get("downloads", 0),
-        "url": it.get("url") or it.get("stl_main_url"),
-        "format": it.get("format"),
-        "user_id": it.get("user_id"),
-        "author_name": it.get("author_name"),  # ✅ Author display name
-        "author_avatar": it.get("author_avatar"),  # ✅ Author avatar URL
-        "created_at": it.get("created_at"),
-        "price_cents": it.get("price_cents") or (int(it.get("price", 0) * 100) if it.get("price") else 0),
-        "is_free": it.get("is_free") or (it.get("price", 0) == 0),
+        "rating": safe_get("rating", 0),
+        "downloads": safe_get("downloads", 0),
+        "url": safe_get("url") or safe_get("stl_main_url"),
+        "format": safe_get("format"),
+        "user_id": safe_get("user_id"),
+        "author_name": safe_get("author_name"),  # ✅ Author display name
+        "author_avatar": safe_get("author_avatar"),  # ✅ Author avatar URL
+        "created_at": safe_get("created_at"),
+        "price_cents": price_cents,
+        "is_free": safe_get("is_free") or (price == 0),
         "is_published": is_published,
         "published_at": published_at,
         "status": status,
-        "prints_count": it.get("prints_count", 0),  # ✅ Number of real prints (makes)
+        "prints_count": safe_get("prints_count", 0),  # ✅ Number of real prints (makes)
     }
 
 
@@ -1805,7 +1829,7 @@ def api_top_prints():
                 {"limit": per_page, "offset": offset}
             ).fetchall()
             
-            items = [_item_to_dict(r) for r in rows]
+            items = [_item_to_dict(_row_to_dict(r)) for r in rows]
             
             # Fetch top authors (sum of prints across all their items)
             top_authors = []
@@ -1863,11 +1887,11 @@ def api_top_prints():
                 "pages": math.ceil(total / per_page) if per_page else 1,
             })
             
-        excecurrent_app.logger.warning(f"[TOP_PRINTS] Main query failed: {type(e).__name__}: {e}")
-            if _is_missing_table_error(e):
-                current_app.logger.info("[TOP_PRINTS] Fallback: Using downloads-based query (missing item_makes)")a_exc.ProgrammingError) as e:
+        except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
             # Fallback: item_makes table doesn't exist - show top by downloads instead
+            current_app.logger.warning(f"[TOP_PRINTS] Main query failed: {type(e).__name__}: {e}")
             if _is_missing_table_error(e):
+                current_app.logger.info("[TOP_PRINTS] Fallback: Using downloads-based query (missing item_makes)")
                 db.session.rollback()
                 
                 # Get top items by downloads (no prints data available)
@@ -1899,7 +1923,7 @@ def api_top_prints():
                     {"limit": per_page, "offset": offset}
                 ).fetchall()
                 
-                fallback_items = [_item_to_dict(r) for r in fallback_rows]
+                fallback_items = [_item_to_dict(_row_to_dict(r)) for r in fallback_rows]
                 
                 # Total count
                 total_fallback = db.session.execute(
@@ -1913,6 +1937,10 @@ def api_top_prints():
                     "range": range_param,
                     "page": page,
                     "per_page": per_page,
+                    "total": total_fallback,
+                    "pages": math.ceil(total_fallback / per_page) if per_page else 1,
+                })
+            else:
                 current_app.logger.error(f"[TOP_PRINTS] Non-fallback DB error, re-raising")
                 raise
                 
@@ -1920,11 +1948,7 @@ def api_top_prints():
         # 🔍 DIAGNOSTIC: Log full exception with traceback
         import traceback
         current_app.logger.exception(f"[TOP_PRINTS] FATAL ERROR: {type(e).__name__}: {e}")
-        current_app.logger.error(f"[TOP_PRINTS] Traceback:\n{traceback.format_exc()
-                raise
-                
-    except Exception as e:
-        current_app.logger.error(f"Top prints API error: {e}")
+        current_app.logger.error(f"[TOP_PRINTS] Traceback:\n{traceback.format_exc()}")
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
 
