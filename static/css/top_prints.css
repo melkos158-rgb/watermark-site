@@ -1,6 +1,10 @@
 /* static/css/top_prints.css */
 /* Top Prints Leaderboard Styles */
 
+:root {
+  --accent-soft: rgba(102, 126, 234, 0.1);
+}
+
 .top-prints-page {
   max-width: 1400px;
   margin: 0 auto;
@@ -103,6 +107,15 @@
   transform: translateY(-2px);
 }
 
+.author-avatar-link {
+  display: block;
+  transition: transform 0.2s;
+}
+
+.author-avatar-link:hover {
+  transform: scale(1.05);
+}
+
 .author-avatar {
   width: 80px;
   height: 80px;
@@ -114,6 +127,7 @@
 .author-info {
   text-align: center;
   flex: 1;
+  width: 100%;
 }
 
 .author-name {
@@ -122,12 +136,43 @@
   margin-bottom: 8px;
 }
 
+.author-name a {
+  color: var(--text);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.author-name a:hover {
+  color: var(--accent);
+}
+
 .author-stats {
   display: flex;
   gap: 12px;
   justify-content: center;
   font-size: 0.9rem;
   color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.btn-view-models {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-view-models:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .btn-follow {

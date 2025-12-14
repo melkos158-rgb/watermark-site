@@ -31,6 +31,7 @@ const state = {
   category: null,   // slug категорії
   free: null,       // null / 1 / 0
   tag: null,        // швидкий тег із .mqf-chip (dragon / stand / toy / cosplay / other)
+  author_id: null,  // filter by author (from URL params)
 };
 
 // id останнього запиту — щоб ігнорувати повільні старі респонси
@@ -196,6 +197,7 @@ async function loadPage(page = 1) {
     sort: state.sort,
     category: state.category || undefined,
     free: state.free === null ? undefined : state.free ? 1 : 0,
+    author_id: state.author_id || undefined,
     // tag спеціально не відправляємо — наразі фільтруємо на фронті
   };
 
@@ -600,12 +602,23 @@ function bindUI() {
  * 9) ІНІЦІАЛІЗАЦІЯ
  * ============================== */
 
+// Read URL params on page load
+function initFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const authorId = params.get('author_id');
+  if (authorId) {
+    state.author_id = parseInt(authorId, 10) || null;
+  }
+}
+
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
+    initFromURL();
     bindUI();
     loadPage(1);
   });
 } else {
+  initFromURL();
   bindUI();
   loadPage(1);
 }

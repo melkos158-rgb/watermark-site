@@ -81,17 +81,26 @@ async function toggleFollow(authorId) {
 
 // ========== Render Functions ==========
 function renderAuthorCard(author) {
+  // Note: profile route is /profile (own profile) or we link to market filtered by author
+  const profileUrl = `/market?author_id=${author.id}`;
+  const modelsUrl = `/market?author_id=${author.id}`;
+  
   // If follows not yet loaded, show disabled button
   if (currentUserFollows === null) {
     return `
       <div class="author-card">
-        <img src="${author.avatar_url}" alt="${author.name}" class="author-avatar">
+        <a href="${profileUrl}" class="author-avatar-link">
+          <img src="${author.avatar_url}" alt="${author.name}" class="author-avatar">
+        </a>
         <div class="author-info">
-          <h3 class="author-name">${escapeHtml(author.name)}</h3>
+          <h3 class="author-name">
+            <a href="${profileUrl}">${escapeHtml(author.name)}</a>
+          </h3>
           <div class="author-stats">
             <span>🖨️ ${author.total_prints} prints</span>
             <span>📦 ${author.items_count} models</span>
           </div>
+          <a href="${modelsUrl}" class="btn-view-models">View models →</a>
         </div>
         <button class="btn-follow" data-author-id="${author.id}" disabled>…</button>
       </div>
@@ -102,13 +111,18 @@ function renderAuthorCard(author) {
   
   return `
     <div class="author-card">
-      <img src="${author.avatar_url}" alt="${author.name}" class="author-avatar">
+      <a href="${profileUrl}" class="author-avatar-link">
+        <img src="${author.avatar_url}" alt="${author.name}" class="author-avatar">
+      </a>
       <div class="author-info">
-        <h3 class="author-name">${escapeHtml(author.name)}</h3>
+        <h3 class="author-name">
+          <a href="${profileUrl}">${escapeHtml(author.name)}</a>
+        </h3>
         <div class="author-stats">
           <span>🖨️ ${author.total_prints} prints</span>
           <span>📦 ${author.items_count} models</span>
         </div>
+        <a href="${modelsUrl}" class="btn-view-models">View models →</a>
       </div>
       <button 
         class="btn-follow ${isFollowing ? 'is-following' : ''}" 

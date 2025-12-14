@@ -494,6 +494,7 @@ def _ensure_publishing_columns():
 # ───────────────────────────── NEW: категорії в g ─────────────────────────────
 _follow_migration_done = False
 _makes_migration_done = False
+_makes_verified_migration_done = False
 _review_image_migration_done = False
 
 @bp.before_app_request
@@ -659,6 +660,51 @@ def _ensure_review_image_column():
     except Exception as e:
         db.session.rollback()
         current_app.logger.warning(f"⚠️ review image column ensure failed: {e}")
+
+
+@bp.before_app_request
+def _ensure_makes_verified_column():
+    """
+    Safe migration: add verified column to item_makes if it doesn't exist.
+    """
+    global _makes_verified_migration_done
+    if _makes_verified_migration_done:
+        return
+
+    p = request.path or ""
+    if not (p.startswith("/market") or p.startswith("/api/")):
+        return
+
+    _makes_verified_migration_done = True
+
+    try:
+        dialect = db.session.get_bind().dialect.name
+        
+        if dialect == "postgresql":
+            # PostgreSQL supports IF NOT EXISTS
+            db.session.execute(text("""
+                ALTER TABLE item_makes 
+                ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT FALSE
+            """))
+        else:
+            # SQLite doesn't support IF NOT EXISTS, need try/except
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE item_makes 
+                    ADD COLUMN verified INTEGER NOT NULL DEFAULT 0
+                """))
+            except sa_exc.OperationalError as e:
+                # Column already exists
+                if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                    db.session.rollback()
+                else:
+                    raise
+
+        db.session.commit()
+        current_app.logger.info("✅ item_makes.verified column ensured")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"⚠️ makes verified column ensure failed: {e}")
 
 
 @bp.before_app_request
@@ -859,6 +905,9 @@ def api_items():
         sort = _normalize_sort(request.args.get("sort"))
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
+        
+        # Author filter for leaderboard links
+        author_id = _parse_int(request.args.get("author_id"), 0)
 
         dialect = db.session.get_bind().dialect.name
         if dialect == "postgresql":
@@ -880,6 +929,11 @@ def api_items():
             where.append("price = 0")
         elif free == "paid":
             where.append("price > 0")
+        
+        # Author filter
+        if author_id > 0:
+            where.append("user_id = :author_id")
+            params["author_id"] = author_id
         
         # ✅ Filter only published items in public market
         try:
@@ -1962,9 +2016,19 @@ def api_get_makes(item_id: int):
     uid = _parse_int(session.get("user_id"), 0)
     
     try:
+        dialect = db.session.get_bind().dialect.name
+        
+        # Handle verified column - may not exist yet or different types (BOOLEAN/INTEGER)
+        if dialect == "postgresql":
+            verified_expr = "COALESCE(m.verified, FALSE)"
+        else:
+            # SQLite: INTEGER (0/1), convert to boolean-like
+            verified_expr = "COALESCE(m.verified, 0)"
+        
         # Fetch makes with author info via JOIN
         sql = f"""
             SELECT m.id, m.item_id, m.user_id, m.image_url, m.caption, m.created_at,
+                   {verified_expr} AS verified,
                    u.name AS author_name,
                    COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar
             FROM item_makes m
@@ -1983,10 +2047,49 @@ def api_get_makes(item_id: int):
         for r in rows:
             d = _row_to_dict(r)
             d["is_owner"] = (d.get("user_id") == uid)
+            # Ensure verified is boolean (SQLite returns 0/1)
+            if "verified" in d:
+                d["verified"] = bool(d["verified"])
+            else:
+                d["verified"] = False
             makes.append(d)
         
         return jsonify({"ok": True, "makes": makes})
         
+    except sa_exc.OperationalError as e:
+        # Handle case where verified column doesn't exist yet
+        if "no such column" in str(e).lower() or "column" in str(e).lower():
+            current_app.logger.warning(f"Makes API: verified column not ready: {e}")
+            # Retry without verified column
+            try:
+                sql_fallback = f"""
+                    SELECT m.id, m.item_id, m.user_id, m.image_url, m.caption, m.created_at,
+                           u.name AS author_name,
+                           COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar
+                    FROM item_makes m
+                    LEFT JOIN {USERS_TBL} u ON u.id = m.user_id
+                    WHERE m.item_id = :item_id
+                    ORDER BY m.created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """
+                rows = db.session.execute(
+                    text(sql_fallback),
+                    {"item_id": item_id, "limit": limit, "offset": offset}
+                ).fetchall()
+                
+                makes = []
+                for r in rows:
+                    d = _row_to_dict(r)
+                    d["is_owner"] = (d.get("user_id") == uid)
+                    d["verified"] = False  # Default when column missing
+                    makes.append(d)
+                
+                return jsonify({"ok": True, "makes": makes})
+            except Exception as retry_err:
+                current_app.logger.error(f"Makes API fallback failed: {retry_err}")
+                return jsonify({"ok": False, "error": "server"}), 500
+        else:
+            raise
     except Exception as e:
         current_app.logger.error(f"Get makes error: {e}")
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500

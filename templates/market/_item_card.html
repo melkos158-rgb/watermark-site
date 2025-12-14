@@ -83,7 +83,7 @@
     
     {# Prints badge - only if > 0 #}
     {% if (it.prints_count or 0) > 0 %}
-      <span class="badge prints-badge" title="Real prints from community">
+      <span class="badge prints-badge" title="Real community prints" aria-label="Real community prints">
         🖨️ {{ it.prints_count }}
       </span>
     {% endif %}

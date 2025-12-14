@@ -124,6 +124,15 @@
     authorName.textContent = make.author_name || 'Anonymous';
     author.appendChild(authorName);
 
+    // Verified badge (if make is verified)
+    if (make.verified) {
+      const verifiedBadge = document.createElement('span');
+      verifiedBadge.className = 'make-verified-badge';
+      verifiedBadge.title = 'Verified print';
+      verifiedBadge.textContent = '✔ Verified';
+      author.appendChild(verifiedBadge);
+    }
+
     body.appendChild(author);
 
     // Caption (if exists)
