@@ -7,16 +7,27 @@
 
   <!-- Author Profile Header (shown when filtering by author_id) -->
   {% if author_id %}
-  <div id="authorProfileHeader" class="author-profile-header" data-author-id="{{ author_id }}" style="background: var(--card, #11141b); border: 1px solid var(--line, #1b2131); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+  <div id="authorProfileHeader" class="author-profile-header" data-author-id="{{ author_id }}" 
+       data-i18n-showing="{{ _('Showing models by') }}"
+       data-i18n-followers="{{ _('followers') }}"
+       data-i18n-models="{{ _('models') }}"
+       data-i18n-follow="{{ _('Follow') }}"
+       data-i18n-following="{{ _('Following') }}"
+       data-i18n-clear="{{ _('Clear filter') }}"
+       style="background: var(--card, #11141b); border: 1px solid var(--line, #1b2131); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
     <img id="authorAvatar" src="/static/img/user.jpg" alt="Author" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent, #667eea);">
     <div style="flex: 1;">
+      <div id="authorShowingText" style="font-size: 0.85rem; color: var(--muted, #9fb0d4); margin-bottom: 4px;">{{ _('Showing models by') }}</div>
       <h2 id="authorName" style="margin: 0 0 8px 0; font-size: 1.5rem; font-weight: 700;">Loading...</h2>
       <div id="authorStats" style="display: flex; gap: 16px; font-size: 0.9rem; color: var(--muted, #9fb0d4);">
-        <span id="authorFollowers">0 followers</span>
-        <span id="authorModels">0 models</span>
+        <span id="authorFollowers" data-count="0">0 {{ _('followers') }}</span>
+        <span id="authorModels" data-count="0">0 {{ _('models') }}</span>
       </div>
     </div>
-    <button id="authorFollowBtn" class="btn-follow" style="padding: 10px 24px; border: 2px solid var(--accent, #667eea); background: transparent; color: var(--accent, #667eea); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; min-width: 120px;" disabled>Loading...</button>
+    <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+      <button id="authorFollowBtn" class="btn-follow" style="padding: 10px 24px; border: 2px solid var(--accent, #667eea); background: transparent; color: var(--accent, #667eea); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; min-width: 120px;" disabled>Loading...</button>
+      <a href="/market" id="authorClearFilter" style="font-size: 0.85rem; color: var(--muted, #9fb0d4); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent, #667eea)'" onmouseout="this.style.color='var(--muted, #9fb0d4)'">✕ {{ _('Clear filter') }}</a>
+    </div>
   </div>
   {% endif %}
 
@@ -131,6 +142,16 @@
     .author-profile-header{
       flex-direction: column !important;
       text-align: center;
+    }
+    
+    .author-profile-header > div:last-child{
+      width: 100%;
+      align-items: center !important;
+    }
+    
+    #authorFollowBtn{
+      width: 100%;
+      max-width: 240px;
     }
   }
 
@@ -364,6 +385,14 @@
   const header = document.getElementById('authorProfileHeader');
   if (!header) return;
 
+  // Get i18n labels from data attributes
+  const i18n = {
+    followers: header.dataset.i18nFollowers || 'followers',
+    models: header.dataset.i18nModels || 'models',
+    follow: header.dataset.i18nFollow || 'Follow',
+    following: header.dataset.i18nFollowing || 'Following'
+  };
+
   // Load author info
   try {
     const resp = await fetch(`/api/user/${authorId}/mini`);
@@ -374,11 +403,26 @@
     
     const user = data.user;
     
-    // Update UI
-    document.getElementById('authorAvatar').src = user.avatar_url || '/static/img/user.jpg';
-    document.getElementById('authorName').textContent = user.name || 'Unknown';
-    document.getElementById('authorFollowers').textContent = `${user.followers_count || 0} followers`;
-    document.getElementById('authorModels').textContent = `${user.items_count || 0} models`;
+    // Update UI with i18n
+    const avatarEl = document.getElementById('authorAvatar');
+    const nameEl = document.getElementById('authorName');
+    const followersEl = document.getElementById('authorFollowers');
+    const modelsEl = document.getElementById('authorModels');
+    
+    if (avatarEl) avatarEl.src = user.avatar_url || '/static/img/user.jpg';
+    if (nameEl) nameEl.textContent = user.name || 'Unknown';
+    
+    if (followersEl) {
+      const count = Number(user.followers_count) || 0;
+      followersEl.dataset.count = count;
+      followersEl.textContent = `${count} ${i18n.followers}`;
+    }
+    
+    if (modelsEl) {
+      const count = Number(user.items_count) || 0;
+      modelsEl.dataset.count = count;
+      modelsEl.textContent = `${count} ${i18n.models}`;
+    }
     
     // Check follow status
     let isFollowing = false;
@@ -394,10 +438,12 @@
       console.warn('Could not load follow status:', e);
     }
     
-    // Setup follow button
+    // Setup follow button with i18n
     const followBtn = document.getElementById('authorFollowBtn');
+    if (!followBtn) return;
+    
     followBtn.disabled = false;
-    followBtn.textContent = isFollowing ? '✓ Following' : '+ Follow';
+    followBtn.textContent = isFollowing ? `✓ ${i18n.following}` : `+ ${i18n.follow}`;
     followBtn.style.background = isFollowing ? 'var(--accent, #667eea)' : 'transparent';
     followBtn.style.color = isFollowing ? '#fff' : 'var(--accent, #667eea)';
     
@@ -418,14 +464,17 @@
         const toggleData = await toggleResp.json();
         if (toggleData.ok) {
           isFollowing = toggleData.following;
-          followBtn.textContent = isFollowing ? '✓ Following' : '+ Follow';
+          followBtn.textContent = isFollowing ? `✓ ${i18n.following}` : `+ ${i18n.follow}`;
           followBtn.style.background = isFollowing ? 'var(--accent, #667eea)' : 'transparent';
           followBtn.style.color = isFollowing ? '#fff' : 'var(--accent, #667eea)';
           
-          // Update follower count
-          const currentCount = parseInt(document.getElementById('authorFollowers').textContent) || 0;
-          const newCount = isFollowing ? currentCount + 1 : Math.max(0, currentCount - 1);
-          document.getElementById('authorFollowers').textContent = `${newCount} followers`;
+          // Update follower count with guard and i18n
+          const followerEl = document.getElementById('authorFollowers');
+          if (followerEl && typeof toggleData.followers_count === 'number') {
+            const newCount = toggleData.followers_count;
+            followerEl.dataset.count = newCount;
+            followerEl.textContent = `${newCount} ${i18n.followers}`;
+          }
         }
       } catch (err) {
         console.error('Follow error:', err);

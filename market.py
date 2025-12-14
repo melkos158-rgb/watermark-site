@@ -2049,10 +2049,12 @@ def api_top_prints():
                 raise
                 
     except Exception as e:
-        # 🔍 DIAGNOSTIC: Log full exception with traceback
+        # 🔍 DIAGNOSTIC: Log full exception with traceback (only in debug mode)
         import traceback
         current_app.logger.exception(f"[TOP_PRINTS] FATAL ERROR: {type(e).__name__}: {e}")
-        current_app.logger.error(f"[TOP_PRINTS] Traceback:\n{traceback.format_exc()}")
+        if current_app.debug:
+            # Only log full traceback in debug mode to avoid log spam in production
+            current_app.logger.error(f"[TOP_PRINTS] Traceback:\n{traceback.format_exc()}")
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
 

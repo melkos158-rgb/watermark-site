@@ -23,5 +23,11 @@
   "Увійти": "Login",
   "Search language...": "Search language...",
   "На головну": "Home",
-  "Language": "Language"
+  "Language": "Language",
+  "followers": "followers",
+  "models": "models",
+  "Showing models by": "Showing models by",
+  "Clear filter": "Clear filter",
+  "Follow": "Follow",
+  "Following": "Following"
 }
