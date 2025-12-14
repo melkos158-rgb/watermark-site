@@ -536,6 +536,15 @@ def page_market_my():
     return render_template("market/my.html")
 
 
+@bp.get("/market/following")
+def page_market_following():
+    """Feed from followed authors"""
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return redirect(url_for("auth.login", next=request.path))
+    return render_template("market/following.html")
+
+
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
     it = _fetch_item_with_author(item_id)
@@ -1115,6 +1124,116 @@ def api_unfollow(author_id: int):
     ).scalar() or 0
 
     return jsonify({"ok": True, "following": False, "followers_count": int(followers_count)})
+
+
+# ───────────────────────────── Feed API ─────────────────────────────
+@bp.get("/api/feed/following")
+def api_feed_following():
+    """Get items from followed authors"""
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    page = max(1, _parse_int(request.args.get("page"), 1))
+    per_page = min(100, max(1, _parse_int(request.args.get("per_page"), 24)))
+    offset = (page - 1) * per_page
+
+    dialect = db.session.get_bind().dialect.name
+    
+    # ✅ Try query WITH is_published/published_at columns
+    try:
+        # COUNT total
+        count_sql = f"""
+            SELECT COUNT(DISTINCT i.id)
+            FROM {ITEMS_TBL} i
+            INNER JOIN user_follows uf ON i.user_id = uf.author_id
+            WHERE uf.follower_id = :uid
+              AND (i.is_published IS NULL OR i.is_published = {'TRUE' if dialect == 'postgresql' else '1'})
+        """
+        total = db.session.execute(text(count_sql), {"uid": uid}).scalar() or 0
+        
+        # SELECT items
+        items_sql = f"""
+            SELECT i.id, i.title, i.price, i.tags, i.cover_url, i.user_id,
+                   i.rating, i.downloads, i.format, i.created_at,
+                   i.is_published, i.published_at,
+                   COALESCE(i.published_at, i.created_at) as sort_date
+            FROM {ITEMS_TBL} i
+            INNER JOIN user_follows uf ON i.user_id = uf.author_id
+            WHERE uf.follower_id = :uid
+              AND (i.is_published IS NULL OR i.is_published = {'TRUE' if dialect == 'postgresql' else '1'})
+            ORDER BY sort_date DESC
+            LIMIT :limit OFFSET :offset
+        """
+        
+        rows = db.session.execute(
+            text(items_sql),
+            {"uid": uid, "limit": per_page, "offset": offset}
+        ).fetchall()
+        
+        items = [_item_to_dict(_row_to_dict(r)) for r in rows]
+        pages = math.ceil(total / per_page) if per_page > 0 else 1
+        
+        return jsonify({
+            "ok": True,
+            "items": items,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": pages
+        })
+        
+    except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+        # 🔄 FALLBACK: Column doesn't exist yet (old schema)
+        if _is_missing_column_error(e):
+            db.session.rollback()
+            
+            try:
+                # COUNT without is_published filter
+                count_sql_fallback = f"""
+                    SELECT COUNT(DISTINCT i.id)
+                    FROM {ITEMS_TBL} i
+                    INNER JOIN user_follows uf ON i.user_id = uf.author_id
+                    WHERE uf.follower_id = :uid
+                """
+                total = db.session.execute(text(count_sql_fallback), {"uid": uid}).scalar() or 0
+                
+                # SELECT items without is_published/published_at
+                items_sql_fallback = f"""
+                    SELECT i.id, i.title, i.price, i.tags, i.cover_url, i.user_id,
+                           i.rating, i.downloads, i.format, i.created_at
+                    FROM {ITEMS_TBL} i
+                    INNER JOIN user_follows uf ON i.user_id = uf.author_id
+                    WHERE uf.follower_id = :uid
+                    ORDER BY i.created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """
+                
+                rows = db.session.execute(
+                    text(items_sql_fallback),
+                    {"uid": uid, "limit": per_page, "offset": offset}
+                ).fetchall()
+                
+                items = [_item_to_dict(_row_to_dict(r)) for r in rows]
+                pages = math.ceil(total / per_page) if per_page > 0 else 1
+                
+                return jsonify({
+                    "ok": True,
+                    "items": items,
+                    "total": total,
+                    "page": page,
+                    "per_page": per_page,
+                    "pages": pages
+                })
+            except Exception as fallback_err:
+                current_app.logger.error(f"Feed fallback error: {fallback_err}")
+                return jsonify({"ok": False, "error": "server", "detail": str(fallback_err)}), 500
+        else:
+            current_app.logger.error(f"Feed following error: {e}")
+            return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
+    except Exception as e:
+        current_app.logger.error(f"Feed following error: {e}")
+        return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
 
 @bp.post("/api/item/<int:item_id>/delete")
