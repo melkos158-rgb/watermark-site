@@ -561,12 +561,12 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
+            cover_expr = "COALESCE(cover, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
+            cover_expr = "COALESCE(cover, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -606,7 +606,7 @@ def api_items():
             # Build SQL with is_published columns - ALL inside try
             sql_with_publish = f"""
                 SELECT id, title, price, tags,
-                       COALESCE(cover_url, '') AS cover,
+                       COALESCE(cover, '') AS cover,
                        COALESCE(gallery_urls, '[]') AS gallery_urls,
                        COALESCE(rating, 0) AS rating,
                        COALESCE(downloads, 0) AS downloads,
@@ -631,7 +631,7 @@ def api_items():
                 # Rebuild query WITHOUT is_published columns
                 sql_fallback = f"""
                     SELECT id, title, price, tags,
-                           COALESCE(cover_url, '') AS cover,
+                           COALESCE(cover, '') AS cover,
                            COALESCE(gallery_urls, '[]') AS gallery_urls,
                            COALESCE(rating, 0) AS rating,
                            COALESCE(downloads, 0) AS downloads,
@@ -652,7 +652,7 @@ def api_items():
                     db.session.rollback()
                     sql_legacy = f"""
                         SELECT id, title, price, tags,
-                               COALESCE(cover_url, '') AS cover,
+                               COALESCE(cover, '') AS cover,
                                COALESCE(gallery_urls, '[]') AS gallery_urls,
                                COALESCE(file_url,'') AS url,
                                user_id, created_at
@@ -732,7 +732,7 @@ def api_my_items():
     try:
         sql_with_publish = f"""
             SELECT id, title, price, tags,
-                   COALESCE(cover_url, '') AS cover,
+                   COALESCE(cover, '') AS cover,
                    COALESCE(gallery_urls, '[]') AS gallery_urls,
                    COALESCE(rating, 0) AS rating,
                    COALESCE(downloads, 0) AS downloads,
@@ -757,7 +757,7 @@ def api_my_items():
             # Rebuild query WITHOUT is_published columns
             sql_fallback = f"""
                 SELECT id, title, price, tags,
-                       COALESCE(cover_url, '') AS cover,
+                       COALESCE(cover, '') AS cover,
                        COALESCE(gallery_urls, '[]') AS gallery_urls,
                        COALESCE(rating, 0) AS rating,
                        COALESCE(downloads, 0) AS downloads,
@@ -848,7 +848,7 @@ def api_related_items():
         try:
             sql = f"""
                 SELECT id, title, price, tags,
-                       COALESCE(cover_url, '') AS cover,
+                       COALESCE(cover, '') AS cover,
                        COALESCE(rating, 0) AS rating,
                        COALESCE(downloads, 0) AS downloads
                 FROM {ITEMS_TBL}
@@ -901,7 +901,7 @@ def api_related_items():
         
         sql = f"""
             SELECT id, title, price, tags,
-                   COALESCE(cover_url, '') AS cover,
+                   COALESCE(cover, '') AS cover,
                    COALESCE(rating, 0) AS rating,
                    COALESCE(downloads, 0) AS downloads
             FROM {ITEMS_TBL}
