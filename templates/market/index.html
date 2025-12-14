@@ -381,7 +381,10 @@
 <script type="module">
 // Author Profile Header - load author info and handle follow
 (async () => {
-  const authorId = {{ author_id }};
+  // Get authorId from Jinja (server-side) or URL (client-side fallback)
+  const authorId = {{ author_id }} || Number(new URLSearchParams(location.search).get('author_id')) || 0;
+  if (!authorId) return;
+  
   const header = document.getElementById('authorProfileHeader');
   if (!header) return;
 
@@ -424,14 +427,22 @@
       modelsEl.textContent = `${count} ${i18n.models}`;
     }
     
-    // Check follow status
+    // Check follow status with robust parsing
     let isFollowing = false;
     try {
       const followsResp = await fetch('/api/user/follows');
       if (followsResp.ok) {
         const followsData = await followsResp.json();
-        if (followsData.ok && Array.isArray(followsData.follows)) {
-          isFollowing = followsData.follows.some(f => f.followed_id === authorId);
+        if (followsData.ok && followsData.follows) {
+          // Support both array formats: [3, 5, 7] or [{followed_id: 3}, ...]
+          const followsRaw = Array.isArray(followsData.follows) ? followsData.follows : [];
+          const followIds = followsRaw.map(x => {
+            if (typeof x === "number") return x;
+            if (x && typeof x === "object") return Number(x.followed_id ?? x.author_id ?? x.id);
+            return NaN;
+          }).filter(n => Number.isFinite(n));
+          
+          isFollowing = followIds.includes(authorId);
         }
       }
     } catch (e) {
