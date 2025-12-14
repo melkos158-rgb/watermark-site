@@ -606,7 +606,7 @@ def api_items():
             # Build SQL with is_published columns - ALL inside try
             sql_with_publish = f"""
                 SELECT id, title, price, tags,
-                       COALESCE(cover, '') AS cover,
+                       COALESCE(cover_url, '') AS cover,
                        COALESCE(gallery_urls, '[]') AS gallery_urls,
                        COALESCE(rating, 0) AS rating,
                        COALESCE(downloads, 0) AS downloads,
@@ -631,7 +631,7 @@ def api_items():
                 # Rebuild query WITHOUT is_published columns
                 sql_fallback = f"""
                     SELECT id, title, price, tags,
-                           COALESCE(cover, '') AS cover,
+                           COALESCE(cover_url, '') AS cover,
                            COALESCE(gallery_urls, '[]') AS gallery_urls,
                            COALESCE(rating, 0) AS rating,
                            COALESCE(downloads, 0) AS downloads,
@@ -652,7 +652,7 @@ def api_items():
                     db.session.rollback()
                     sql_legacy = f"""
                         SELECT id, title, price, tags,
-                               COALESCE(cover, '') AS cover,
+                               COALESCE(cover_url, '') AS cover,
                                COALESCE(gallery_urls, '[]') AS gallery_urls,
                                COALESCE(file_url,'') AS url,
                                user_id, created_at
@@ -848,7 +848,7 @@ def api_related_items():
         try:
             sql = f"""
                 SELECT id, title, price, tags,
-                       COALESCE(cover, '') AS cover,
+                       COALESCE(cover_url, '') AS cover,
                        COALESCE(rating, 0) AS rating,
                        COALESCE(downloads, 0) AS downloads
                 FROM {ITEMS_TBL}
@@ -901,7 +901,7 @@ def api_related_items():
         
         sql = f"""
             SELECT id, title, price, tags,
-                   COALESCE(cover, '') AS cover,
+                   COALESCE(cover_url, '') AS cover,
                    COALESCE(rating, 0) AS rating,
                    COALESCE(downloads, 0) AS downloads
             FROM {ITEMS_TBL}
