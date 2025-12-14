@@ -337,6 +337,8 @@
     }
 
     var current = ((root.dataset.current||'en') || localStorage.getItem('lng') || 'en').toLowerCase();
+    // ✅ Нормалізація ua -> uk (якщо base.html ще не завантажився)
+    if(current === 'ua') current = 'uk';
     if(!LANGS[current]) current = 'en';
 
     function renderBtn(){
@@ -377,6 +379,8 @@
     }
 
     function onPick(code){
+      // ✅ Нормалізація перед збереженням
+      if(code === 'ua') code = 'uk';
       current = code;
       localStorage.setItem('lng', code);
       renderBtn();
@@ -409,7 +413,10 @@
 
     fetch('/api/lang/me').then(function(r){ return r.json(); }).then(function(js){
       if(js && js.lang && LANGS[js.lang]){
-        current = js.lang;
+        var lang = js.lang;
+        // ✅ Нормалізація отриманої мови
+        if(lang === 'ua') lang = 'uk';
+        current = lang;
         localStorage.setItem('lng', current);
         renderBtn();
         if(window.i18next){

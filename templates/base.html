@@ -110,6 +110,9 @@
       return;
     }
 
+    // ▼ Нормалізація мовного коду (ua -> uk)
+    const normalizeLng = (lng) => (lng === 'ua' ? 'uk' : lng);
+
     const I18N_DIR = "/static/i18n/";
     const MISSING = new Set();
     const SKIP_TAGS = new Set(["SCRIPT","STYLE","TEXTAREA","CODE","PRE"]);
@@ -149,28 +152,22 @@
     });
 
     async function loadDict(code){
+      code = normalizeLng(code); // ✅ нормалізація ua -> uk
       const dict = await fetch(`${I18N_DIR}${code}.json`, {cache:"no-store"})
         .then(r=>r.ok?r.json():{}).catch(()=>({}));
       if (!i18next.isInitialized){
         await i18next.init({
           lng: code,
-          ns: ['translation', 'common'],
+          ns: ['translation'],
           defaultNS: 'translation',
-          resources: { 
-            [code]: { 
-              translation: dict,
-              common: dict
-            } 
-          },
+          resources: { [code]: { translation: dict } },
           keySeparator: false,
-          nsSeparator: ':'
+          nsSeparator: false
         });
       } else {
         // повністю оновлюємо бандл для мови
         i18next.removeResourceBundle(code, "translation");
-        i18next.removeResourceBundle(code, "common");
         i18next.addResourceBundle(code, "translation", dict, true, true);
-        i18next.addResourceBundle(code, "common", dict, true, true);
         await i18next.changeLanguage(code);
       }
       document.documentElement.setAttribute("lang", code);
@@ -190,6 +187,7 @@
       // Глобальні хуки для свічера у nav.html:
       window.__i18nSetLang = async code => { await loadDict(code); applyAll(document.body); };
       window.__i18nMissing = () => Array.from(MISSING.values());
+      window.__normalizeLng = normalizeLng; // ✅ експортуємо для nav.html
     })();
   });
   </script>
