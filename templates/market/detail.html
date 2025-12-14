@@ -114,6 +114,37 @@
           </a>
         {% endif %}
       </div>
+
+      {# Why this model? - Social proof #}
+      {% set has_social_proof = (item.prints_count or 0) > 0 or (item.reviews_count or 0) > 0 or (item.followers_count or 0) > 0 %}
+      {% if has_social_proof %}
+        <div class="social-proof" style="margin-top: 1rem; padding: 1rem; background: rgba(102, 126, 234, 0.05); border-radius: 8px; border-left: 3px solid #667eea;">
+          <div style="font-weight: 600; margin-bottom: 0.5rem; color: #667eea;">✨ Why this model?</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.9rem;">
+            {% if (item.prints_count or 0) > 0 %}
+              <span style="display: flex; align-items: center; gap: 0.25rem;">
+                <span style="filter: grayscale(0);">🖨️</span>
+                <strong>{{ item.prints_count }}</strong> real print{{ 's' if item.prints_count != 1 else '' }}
+              </span>
+            {% endif %}
+            {% if (item.reviews_count or 0) > 0 %}
+              <span style="display: flex; align-items: center; gap: 0.25rem;">
+                <span>⭐</span>
+                <strong>{{ item.reviews_count }}</strong> review{{ 's' if item.reviews_count != 1 else '' }}
+                {% if (item.verified_reviews_count or 0) > 0 %}
+                  <span style="color: #10b981; font-size: 0.85em;">({{ item.verified_reviews_count }} ✓ verified)</span>
+                {% endif %}
+              </span>
+            {% endif %}
+            {% if (item.followers_count or 0) > 0 %}
+              <span style="display: flex; align-items: center; gap: 0.25rem;">
+                <span>👤</span>
+                <strong>{{ item.followers_count }}</strong> follower{{ 's' if item.followers_count != 1 else '' }}
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
     </section>
 
     <!-- ====== ОПИС + ГАЛЕРЕЯ ====== -->

@@ -721,6 +721,62 @@ def page_item(item_id: int):
     uid = _parse_int(session.get("user_id"), 0)
     d["is_owner"] = uid and uid == d.get("author_id")
 
+    # Social proof metrics
+    d["prints_count"] = 0
+    d["reviews_count"] = 0
+    d["verified_reviews_count"] = 0
+    d["followers_count"] = 0
+    
+    try:
+        # Prints count
+        prints = db.session.execute(
+            text("SELECT COUNT(*) FROM item_makes WHERE item_id = :item_id"),
+            {"item_id": item_id}
+        ).scalar()
+        d["prints_count"] = int(prints or 0)
+    except (ProgrammingError, OperationalError) as e:
+        if not _is_missing_table_error(e):
+            current_app.logger.error(f"Prints count error: {e}")
+    
+    try:
+        # Reviews count
+        reviews_total = db.session.execute(
+            text("SELECT COUNT(*) FROM market_reviews WHERE item_id = :item_id"),
+            {"item_id": item_id}
+        ).scalar()
+        d["reviews_count"] = int(reviews_total or 0)
+        
+        # Verified reviews count (users who have made prints)
+        verified = db.session.execute(
+            text("""
+                SELECT COUNT(DISTINCT r.id)
+                FROM market_reviews r
+                WHERE r.item_id = :item_id
+                AND EXISTS (
+                    SELECT 1 FROM item_makes m
+                    WHERE m.item_id = r.item_id AND m.user_id = r.user_id
+                )
+            """),
+            {"item_id": item_id}
+        ).scalar()
+        d["verified_reviews_count"] = int(verified or 0)
+    except (ProgrammingError, OperationalError) as e:
+        if not _is_missing_table_error(e):
+            current_app.logger.error(f"Reviews count error: {e}")
+    
+    try:
+        # Followers count for this item's author
+        author_id = d.get("author_id")
+        if author_id:
+            followers = db.session.execute(
+                text("SELECT COUNT(*) FROM user_follows WHERE author_id = :author_id"),
+                {"author_id": author_id}
+            ).scalar()
+            d["followers_count"] = int(followers or 0)
+    except (ProgrammingError, OperationalError) as e:
+        if not _is_missing_table_error(e):
+            current_app.logger.error(f"Followers count error: {e}")
+
     try:
         reviews = (
             MarketReview.query.filter_by(item_id=item_id)
