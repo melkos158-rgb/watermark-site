@@ -379,24 +379,26 @@
     }
 
     function onPick(code){
-      // ✅ Нормалізація перед збереженням
+      // ✅ Нормалізація перед збереженням і використанням
       if(code === 'ua') code = 'uk';
-      current = code;
-      localStorage.setItem('lng', code);
+      // Використовуємо глобальну функцію нормалізації з base.html
+      var normalizedCode = window.__normalizeLng ? window.__normalizeLng(code) : code;
+      current = normalizedCode;
+      localStorage.setItem('lng', normalizedCode);
       renderBtn();
       closeMenu();
       fetch('/api/lang/set', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ lang: code })
+        body: JSON.stringify({ lang: normalizedCode })
       }).catch(function(){});
       if(window.i18next){
-        i18next.changeLanguage(code).then(function(){
+        i18next.changeLanguage(normalizedCode).then(function(){
           document.querySelectorAll('[data-i18n]').forEach(function(el){
             el.textContent = i18next.t(el.getAttribute('data-i18n'));
           });
         });
       }
-      if (window.__i18nSetLang) { window.__i18nSetLang(code); }
+      if (window.__i18nSetLang) { window.__i18nSetLang(normalizedCode); }
     }
 
     btn && btn.addEventListener('click', function(e){ e.stopPropagation(); toggleMenu(); });
@@ -414,19 +416,20 @@
     fetch('/api/lang/me').then(function(r){ return r.json(); }).then(function(js){
       if(js && js.lang && LANGS[js.lang]){
         var lang = js.lang;
-        // ✅ Нормалізація отриманої мови
+        // ✅ Нормалізація отриманої мови через глобальну функцію
         if(lang === 'ua') lang = 'uk';
-        current = lang;
-        localStorage.setItem('lng', current);
+        var normalizedLang = window.__normalizeLng ? window.__normalizeLng(lang) : lang;
+        current = normalizedLang;
+        localStorage.setItem('lng', normalizedLang);
         renderBtn();
         if(window.i18next){
-          i18next.changeLanguage(current).then(function(){
+          i18next.changeLanguage(normalizedLang).then(function(){
             document.querySelectorAll('[data-i18n]').forEach(function(el){
               el.textContent = i18next.t(el.getAttribute('data-i18n'));
             });
           });
         }
-        if (window.__i18nSetLang) { window.__i18nSetLang(current); }
+        if (window.__i18nSetLang) { window.__i18nSetLang(normalizedLang); }
       }
     }).catch(function(){});
   })();

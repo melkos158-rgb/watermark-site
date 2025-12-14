@@ -188,6 +188,7 @@
       window.__i18nSetLang = async code => { await loadDict(code); applyAll(document.body); };
       window.__i18nMissing = () => Array.from(MISSING.values());
       window.__normalizeLng = normalizeLng; // ✅ експортуємо для nav.html
+      window.__i18nTranslate = applyAll; // ✅ для динамічного DOM (AJAX, фільтри, пагінація)
     })();
   });
   </script>
