@@ -154,13 +154,23 @@
       if (!i18next.isInitialized){
         await i18next.init({
           lng: code,
-          resources: { [code]: { translation: dict } },
-          keySeparator:false, nsSeparator:false
+          ns: ['translation', 'common'],
+          defaultNS: 'translation',
+          resources: { 
+            [code]: { 
+              translation: dict,
+              common: dict
+            } 
+          },
+          keySeparator: false,
+          nsSeparator: ':'
         });
       } else {
         // повністю оновлюємо бандл для мови
         i18next.removeResourceBundle(code, "translation");
+        i18next.removeResourceBundle(code, "common");
         i18next.addResourceBundle(code, "translation", dict, true, true);
+        i18next.addResourceBundle(code, "common", dict, true, true);
         await i18next.changeLanguage(code);
       }
       document.documentElement.setAttribute("lang", code);
