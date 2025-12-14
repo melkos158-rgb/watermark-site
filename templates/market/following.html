@@ -6,7 +6,7 @@
   <!-- Header -->
   <header class="page-header">
     <h1>Following Feed</h1>
-    <p class="subtitle">New items from authors you follow</p>
+    <p class="subtitle">Latest activity from authors you follow</p>
   </header>
 
   <!-- Loading state -->
@@ -15,14 +15,14 @@
     <p>Loading feed...</p>
   </div>
 
-  <!-- Items grid -->
+  <!-- Activity feed grid -->
   <div class="market-grid" id="feedGrid"></div>
 
   <!-- Empty state -->
   <div class="empty-state" id="emptyState" style="display:none;">
     <div class="empty-icon">📭</div>
-    <h2>No new items from subscriptions</h2>
-    <p>Follow some authors to see their latest items here</p>
+    <h2>No activity yet</h2>
+    <p>Follow some authors to see their latest models, prints, and reviews here</p>
     <a href="{{ url_for('market.page_market') }}" class="btn">Browse Market</a>
   </div>
 
@@ -31,5 +31,107 @@
 </div>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/following.css') }}">
-<script src="{{ url_for('static', filename='market/js/feed_following.js') }}"></script>
+<style>
+/* Activity card styles */
+.activity-card {
+  display: block;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+}
+
+.activity-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.activity-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 10;
+  background: rgba(255,255,255,0.95);
+}
+
+.activity-badge.new-item { color: #667eea; }
+.activity-badge.new-make { color: #f59e0b; }
+.activity-badge.new-review { color: #10b981; }
+
+.activity-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.activity-content {
+  padding: 12px;
+}
+
+.activity-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+  color: #666;
+}
+
+.author-avatar-mini {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.activity-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.activity-rating {
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.verified-badge {
+  font-size: 0.75rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.activity-caption {
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.activity-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.activity-time {
+  color: #999;
+}
+</style>
+<script src="{{ url_for('static', filename='market/js/feed_activity.js') }}"></script>
 {% endblock %}

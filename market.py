@@ -734,7 +734,7 @@ def page_item(item_id: int):
             {"item_id": item_id}
         ).scalar()
         d["prints_count"] = int(prints or 0)
-    except (ProgrammingError, OperationalError) as e:
+    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
         if not _is_missing_table_error(e):
             current_app.logger.error(f"Prints count error: {e}")
     
@@ -760,7 +760,7 @@ def page_item(item_id: int):
             {"item_id": item_id}
         ).scalar()
         d["verified_reviews_count"] = int(verified or 0)
-    except (ProgrammingError, OperationalError) as e:
+    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
         if not _is_missing_table_error(e):
             current_app.logger.error(f"Reviews count error: {e}")
     
@@ -773,7 +773,7 @@ def page_item(item_id: int):
                 {"author_id": author_id}
             ).scalar()
             d["followers_count"] = int(followers or 0)
-    except (ProgrammingError, OperationalError) as e:
+    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
         if not _is_missing_table_error(e):
             current_app.logger.error(f"Followers count error: {e}")
 
@@ -1314,7 +1314,7 @@ def api_get_user_follows():
         
         follows = [{"followed_id": r.author_id} for r in rows]
         return jsonify({"ok": True, "follows": follows})
-    except (ProgrammingError, OperationalError) as e:
+    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
         if _is_missing_table_error(e):
             # Table doesn't exist on old schema - return empty list
             return jsonify({"ok": True, "follows": []})
@@ -1410,6 +1410,204 @@ def api_unfollow(author_id: int):
 
 
 # ───────────────────────────── Feed API ─────────────────────────────
+@bp.get("/api/feed/activity")
+def api_feed_activity():
+    """Get unified activity feed from followed authors (items, makes, reviews)"""
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    page = max(1, _parse_int(request.args.get("page"), 1))
+    per_page = min(100, max(1, _parse_int(request.args.get("per_page"), 24)))
+    offset = (page - 1) * per_page
+
+    # Get followed authors
+    try:
+        followed_rows = db.session.execute(
+            text("SELECT author_id FROM user_follows WHERE follower_id = :uid"),
+            {"uid": uid}
+        ).fetchall()
+        followed_ids = [r.author_id for r in followed_rows]
+        
+        if not followed_ids:
+            return jsonify({"ok": True, "events": [], "total": 0, "page": page, "pages": 0})
+    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
+        if _is_missing_table_error(e):
+            # user_follows table doesn't exist - return empty
+            return jsonify({"ok": True, "events": [], "total": 0, "page": page, "pages": 0})
+        raise
+
+    # Build events list
+    events = []
+    
+    # 1. New items (published items from followed authors)
+    try:
+        dialect = db.session.get_bind().dialect.name
+        items_sql = f"""
+            SELECT i.id, i.title, i.cover_url, i.created_at, i.user_id,
+                   u.name AS author_name,
+                   COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar
+            FROM {ITEMS_TBL} i
+            LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+            WHERE i.user_id IN :author_ids
+              AND (i.is_published IS NULL OR i.is_published = {'TRUE' if dialect == 'postgresql' else '1'})
+            ORDER BY i.created_at DESC
+            LIMIT 100
+        """
+        
+        items_rows = db.session.execute(
+            text(items_sql),
+            {"author_ids": tuple(followed_ids)}
+        ).fetchall()
+        
+        for r in items_rows:
+            events.append({
+                "type": "new_item",
+                "created_at": r.created_at.isoformat() if hasattr(r.created_at, 'isoformat') else str(r.created_at),
+                "author": {
+                    "id": r.user_id,
+                    "username": r.author_name or "Unknown",
+                    "avatar_url": r.author_avatar
+                },
+                "item": {
+                    "id": r.id,
+                    "title": r.title,
+                    "cover_url": r.cover_url or "/static/img/placeholder_stl.jpg",
+                    "url": f"/item/{r.id}"
+                }
+            })
+    except Exception as e:
+        current_app.logger.error(f"New items fetch error: {e}")
+    
+    # 2. New makes (prints from followed authors' items)
+    try:
+        makes_sql = f"""
+            SELECT m.id, m.image_url, m.caption, m.created_at, m.user_id,
+                   i.id AS item_id, i.title AS item_title, i.cover_url AS item_cover,
+                   i.user_id AS author_id,
+                   u_make.name AS make_user_name,
+                   u_author.name AS author_name,
+                   COALESCE(u_author.avatar_url, '/static/img/user.jpg') AS author_avatar
+            FROM item_makes m
+            INNER JOIN {ITEMS_TBL} i ON i.id = m.item_id
+            LEFT JOIN {USERS_TBL} u_make ON u_make.id = m.user_id
+            LEFT JOIN {USERS_TBL} u_author ON u_author.id = i.user_id
+            WHERE i.user_id IN :author_ids
+            ORDER BY m.created_at DESC
+            LIMIT 100
+        """
+        
+        makes_rows = db.session.execute(
+            text(makes_sql),
+            {"author_ids": tuple(followed_ids)}
+        ).fetchall()
+        
+        for r in makes_rows:
+            events.append({
+                "type": "new_make",
+                "created_at": r.created_at.isoformat() if hasattr(r.created_at, 'isoformat') else str(r.created_at),
+                "author": {
+                    "id": r.author_id,
+                    "username": r.author_name or "Unknown",
+                    "avatar_url": r.author_avatar
+                },
+                "item": {
+                    "id": r.item_id,
+                    "title": r.item_title,
+                    "cover_url": r.item_cover or "/static/img/placeholder_stl.jpg",
+                    "url": f"/item/{r.item_id}"
+                },
+                "make": {
+                    "id": r.id,
+                    "image_url": r.image_url,
+                    "caption": r.caption or "",
+                    "user": {
+                        "id": r.user_id,
+                        "username": r.make_user_name or "Anonymous"
+                    }
+                }
+            })
+    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
+        if not _is_missing_table_error(e):
+            current_app.logger.error(f"Makes fetch error: {e}")
+    
+    # 3. New reviews (reviews on followed authors' items)
+    try:
+        # Check if review has verified status (user printed the item)
+        reviews_sql = f"""
+            SELECT r.id, r.rating, r.text, r.image_url, r.created_at, r.user_id,
+                   i.id AS item_id, i.title AS item_title, i.cover_url AS item_cover,
+                   i.user_id AS author_id,
+                   u_review.name AS review_user_name,
+                   u_author.name AS author_name,
+                   COALESCE(u_author.avatar_url, '/static/img/user.jpg') AS author_avatar,
+                   EXISTS (
+                       SELECT 1 FROM item_makes m
+                       WHERE m.item_id = r.item_id AND m.user_id = r.user_id
+                   ) AS verified
+            FROM market_reviews r
+            INNER JOIN {ITEMS_TBL} i ON i.id = r.item_id
+            LEFT JOIN {USERS_TBL} u_review ON u_review.id = r.user_id
+            LEFT JOIN {USERS_TBL} u_author ON u_author.id = i.user_id
+            WHERE i.user_id IN :author_ids
+            ORDER BY r.created_at DESC
+            LIMIT 100
+        """
+        
+        reviews_rows = db.session.execute(
+            text(reviews_sql),
+            {"author_ids": tuple(followed_ids)}
+        ).fetchall()
+        
+        for r in reviews_rows:
+            events.append({
+                "type": "new_review",
+                "created_at": r.created_at.isoformat() if hasattr(r.created_at, 'isoformat') else str(r.created_at),
+                "author": {
+                    "id": r.author_id,
+                    "username": r.author_name or "Unknown",
+                    "avatar_url": r.author_avatar
+                },
+                "item": {
+                    "id": r.item_id,
+                    "title": r.item_title,
+                    "cover_url": r.item_cover or "/static/img/placeholder_stl.jpg",
+                    "url": f"/item/{r.item_id}"
+                },
+                "review": {
+                    "id": r.id,
+                    "rating": r.rating,
+                    "text": r.text or "",
+                    "photo_url": r.image_url,
+                    "user": {
+                        "id": r.user_id,
+                        "username": r.review_user_name or "Anonymous"
+                    },
+                    "verified": bool(r.verified)
+                }
+            })
+    except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
+        if not _is_missing_table_error(e):
+            current_app.logger.error(f"Reviews fetch error: {e}")
+    
+    # Sort all events by created_at (most recent first)
+    events.sort(key=lambda x: x["created_at"], reverse=True)
+    
+    # Paginate
+    total = len(events)
+    events_page = events[offset:offset + per_page]
+    pages = math.ceil(total / per_page) if per_page > 0 else 1
+    
+    return jsonify({
+        "ok": True,
+        "events": events_page,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages
+    })
+
+
 @bp.get("/api/feed/following")
 def api_feed_following():
     """Get items from followed authors"""
