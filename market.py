@@ -114,13 +114,18 @@ def _normalize_free(value: Optional[str]) -> str:
 
 
 # ======================================================================
-# SORTING: "Top by Real Prints" Feature
+# SORTING: "Top by Real Prints" Feature + Trending Prints
 # ======================================================================
 # Сортування "prints" ранжує моделі за кількістю реальних роздрукувань
 # (item_makes.item_id → COUNT), показуючи найбільш перевірені/популярні моделі.
 #
+# Trending Prints (prints_7d / prints_30d):
+# - prints_7d: моделі з найбільшою кількістю роздрукувань за останні 7 днів
+# - prints_30d: моделі з найбільшою кількістю роздрукувань за останні 30 днів
+# - WHERE created_at >= cutoff (PostgreSQL: NOW() - INTERVAL, SQLite: datetime('now', '-N days'))
+#
 # Реалізація:
-# 1. _normalize_sort() приймає "prints" як валідне значення
+# 1. _normalize_sort() приймає "prints", "prints_7d", "prints_30d" як валідні значення
 # 2. api_items() робить LEFT JOIN на агрегований підзапит item_makes:
 #    SELECT item_id, COUNT(*) AS prints_count FROM item_makes GROUP BY item_id
 # 3. Додає prints_count до SELECT та ORDER BY prints_count DESC
@@ -131,7 +136,7 @@ def _normalize_free(value: Optional[str]) -> str:
 
 def _normalize_sort(value: Optional[str]) -> str:
     v = (value or "new").lower()
-    return v if v in ("new", "price_asc", "price_desc", "downloads", "prints") else "new"
+    return v if v in ("new", "price_asc", "price_desc", "downloads", "prints", "prints_7d", "prints_30d") else "new"
 
 
 def _uploads_root() -> str:
@@ -386,6 +391,8 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
         "url": it.get("url") or it.get("stl_main_url"),
         "format": it.get("format"),
         "user_id": it.get("user_id"),
+        "author_name": it.get("author_name"),  # ✅ Author display name
+        "author_avatar": it.get("author_avatar"),  # ✅ Author avatar URL
         "created_at": it.get("created_at"),
         "price_cents": it.get("price_cents") or (int(it.get("price", 0) * 100) if it.get("price") else 0),
         "is_free": it.get("is_free") or (it.get("price", 0) == 0),
@@ -656,6 +663,12 @@ def page_market():
     return render_template("market/index.html")
 
 
+@bp.get("/market/top-prints")
+def page_market_top_prints():
+    """Top Prints Leaderboard - dedicated page with top models and authors"""
+    return render_template("market/top_prints.html")
+
+
 @bp.get("/market/mine")
 def page_market_mine():
     return render_template("market_mine.html")
@@ -808,6 +821,10 @@ def api_items():
             order_sql = "ORDER BY downloads DESC, created_at DESC"
         elif sort == "prints":
             order_sql = "ORDER BY prints_count DESC, created_at DESC"
+        elif sort == "prints_7d":
+            order_sql = "ORDER BY prints_count DESC, created_at DESC"
+        elif sort == "prints_30d":
+            order_sql = "ORDER BY prints_count DESC, created_at DESC"
         else:
             order_sql = "ORDER BY created_at DESC, id DESC"
 
@@ -818,6 +835,19 @@ def api_items():
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
+                # Determine date filter for trending prints
+                date_filter = ""
+                if sort == "prints_7d":
+                    if dialect == "postgresql":
+                        date_filter = "WHERE m.created_at >= NOW() - INTERVAL '7 days'"
+                    else:  # SQLite
+                        date_filter = "WHERE m.created_at >= datetime('now', '-7 days')"
+                elif sort == "prints_30d":
+                    if dialect == "postgresql":
+                        date_filter = "WHERE m.created_at >= NOW() - INTERVAL '30 days'"
+                    else:  # SQLite
+                        date_filter = "WHERE m.created_at >= datetime('now', '-30 days')"
+                
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -831,7 +861,8 @@ def api_items():
                     FROM {ITEMS_TBL} i
                     LEFT JOIN (
                         SELECT item_id, COUNT(*) AS prints_count
-                        FROM item_makes
+                        FROM item_makes m
+                        {date_filter}
                         GROUP BY item_id
                     ) pm ON pm.item_id = i.id
                     {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
@@ -1212,6 +1243,32 @@ def api_item_download(item_id: int):
 
 
 # ───────────────────────────── Follow API ─────────────────────────────
+@bp.get("/api/user/follows")
+def api_get_user_follows():
+    """Get list of authors current user follows"""
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"ok": True, "follows": []})
+    
+    try:
+        rows = db.session.execute(
+            text("SELECT author_id FROM user_follows WHERE follower_id = :uid"),
+            {"uid": uid}
+        ).fetchall()
+        
+        follows = [{"followed_id": r.author_id} for r in rows]
+        return jsonify({"ok": True, "follows": follows})
+    except (ProgrammingError, OperationalError) as e:
+        if _is_missing_table_error(e):
+            # Table doesn't exist on old schema - return empty list
+            return jsonify({"ok": True, "follows": []})
+        current_app.logger.error(f"Get follows error: {e}")
+        return jsonify({"ok": False, "error": "server"}), 500
+    except Exception as e:
+        current_app.logger.error(f"Get follows error: {e}")
+        return jsonify({"ok": False, "error": "server"}), 500
+
+
 @bp.get("/api/follow/status/<int:author_id>")
 def api_follow_status(author_id: int):
     """Get follow status for an author"""
@@ -1422,6 +1479,185 @@ def api_item_delete(item_id: int):
         return jsonify({"ok": True})
     except Exception as e:
         db.session.rollback()
+        return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
+
+
+# ───────────────────────────── TOP PRINTS API ─────────────────────────────
+@bp.get("/api/top-prints")
+def api_top_prints():
+    """Top Prints Leaderboard: items + top authors by prints count"""
+    try:
+        range_param = (request.args.get("range") or "all").lower()
+        range_param = range_param if range_param in ("all", "7d", "30d") else "all"
+        
+        page = max(1, _parse_int(request.args.get("page"), 1))
+        per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
+        offset = (page - 1) * per_page
+        
+        dialect = db.session.get_bind().dialect.name
+        
+        # Determine date filter for trending
+        date_filter = ""
+        if range_param == "7d":
+            if dialect == "postgresql":
+                date_filter = "WHERE m.created_at >= NOW() - INTERVAL '7 days'"
+            else:  # SQLite
+                date_filter = "WHERE m.created_at >= datetime('now', '-7 days')"
+        elif range_param == "30d":
+            if dialect == "postgresql":
+                date_filter = "WHERE m.created_at >= NOW() - INTERVAL '30 days'"
+            else:  # SQLite
+                date_filter = "WHERE m.created_at >= datetime('now', '-30 days')"
+        
+        # Try to fetch top items with prints count
+        try:
+            # Fetch top models
+            if dialect == "postgresql":
+                url_expr = "i.stl_main_url"
+            else:
+                url_expr = "i.stl_main_url"
+            
+            sql_items = f"""
+                SELECT i.id, i.title, i.price, i.tags,
+                       COALESCE(i.cover_url, '') AS cover_url,
+                       COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                       COALESCE(i.rating, 0) AS rating,
+                       COALESCE(i.downloads, 0) AS downloads,
+                       {url_expr} AS url,
+                       i.format, i.user_id, i.created_at,
+                       COALESCE(pm.prints_count, 0) AS prints_count,
+                       u.name AS author_name,
+                       COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar
+                FROM {ITEMS_TBL} i
+                LEFT JOIN (
+                    SELECT item_id, COUNT(*) AS prints_count
+                    FROM item_makes m
+                    {date_filter}
+                    GROUP BY item_id
+                ) pm ON pm.item_id = i.id
+                LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                WHERE COALESCE(pm.prints_count, 0) > 0
+                ORDER BY prints_count DESC, i.created_at DESC
+                LIMIT :limit OFFSET :offset
+            """
+            
+            rows = db.session.execute(
+                text(sql_items),
+                {"limit": per_page, "offset": offset}
+            ).fetchall()
+            
+            items = [_item_to_dict(r) for r in rows]
+            
+            # Fetch top authors (sum of prints across all their items)
+            top_authors = []
+            try:
+                sql_authors = f"""
+                    SELECT u.id, u.name, 
+                           COALESCE(u.avatar_url, '/static/img/user.jpg') AS avatar_url,
+                           COUNT(DISTINCT m.id) AS total_prints,
+                           COUNT(DISTINCT i.id) AS items_count
+                FROM {USERS_TBL} u
+                INNER JOIN {ITEMS_TBL} i ON i.user_id = u.id
+                INNER JOIN item_makes m ON m.item_id = i.id
+                {date_filter.replace('WHERE', 'WHERE' if not date_filter else 'AND')}
+                GROUP BY u.id, u.name, u.avatar_url
+                HAVING COUNT(DISTINCT m.id) > 0
+                ORDER BY total_prints DESC
+                LIMIT 10
+            """
+            
+                author_rows = db.session.execute(text(sql_authors)).fetchall()
+                for ar in author_rows:
+                    top_authors.append({
+                        "id": ar.id,
+                        "name": ar.name,
+                        "avatar_url": ar.avatar_url,
+                        "total_prints": ar.total_prints,
+                        "items_count": ar.items_count,
+                    })
+            except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e_auth:
+                # Graceful fallback if table doesn't exist
+                if _is_missing_table_error(e_auth):
+                    top_authors = []
+                else:
+                    raise  # Re-raise if not a missing table error
+            
+            # Total count for pagination
+            sql_total = f"""
+                SELECT COUNT(DISTINCT i.id)
+                FROM {ITEMS_TBL} i
+                INNER JOIN item_makes m ON m.item_id = i.id
+                {date_filter}
+            """
+            total = db.session.execute(text(sql_total)).scalar() or 0
+            
+            return jsonify({
+                "ok": True,
+                "items": items,
+                "top_authors": top_authors,
+                "range": range_param,
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": math.ceil(total / per_page) if per_page else 1,
+            })
+            
+        except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+            # Fallback: item_makes table doesn't exist - show top by downloads instead
+            if _is_missing_table_error(e):
+                db.session.rollback()
+                
+                # Get top items by downloads (no prints data available)
+                dialect = db.session.get_bind().dialect.name
+                if dialect == "postgresql":
+                    url_expr = "i.stl_main_url"
+                else:
+                    url_expr = "i.stl_main_url"
+                
+                sql_fallback = f"""
+                    SELECT i.id, i.title, i.price, i.tags,
+                           COALESCE(i.cover_url, '') AS cover_url,
+                           COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                           COALESCE(i.rating, 0) AS rating,
+                           COALESCE(i.downloads, 0) AS downloads,
+                           {url_expr} AS url,
+                           i.format, i.user_id, i.created_at,
+                           0 AS prints_count,
+                           u.name AS author_name,
+                           COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar
+                    FROM {ITEMS_TBL} i
+                    LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                    ORDER BY i.downloads DESC, i.created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """
+                
+                fallback_rows = db.session.execute(
+                    text(sql_fallback),
+                    {"limit": per_page, "offset": offset}
+                ).fetchall()
+                
+                fallback_items = [_item_to_dict(r) for r in fallback_rows]
+                
+                # Total count
+                total_fallback = db.session.execute(
+                    text(f"SELECT COUNT(*) FROM {ITEMS_TBL}")
+                ).scalar() or 0
+                
+                return jsonify({
+                    "ok": True,
+                    "items": fallback_items,
+                    "top_authors": [],
+                    "range": range_param,
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total_fallback,
+                    "pages": math.ceil(total_fallback / per_page) if per_page else 1,
+                })
+            else:
+                raise
+                
+    except Exception as e:
+        current_app.logger.error(f"Top prints API error: {e}")
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
 

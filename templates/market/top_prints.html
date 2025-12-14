@@ -1,0 +1,41 @@
+{% extends "market/layout.html" %}
+{% set market_page = 'top-prints' %}
+
+{% block market_body %}
+<div class="top-prints-page">
+  <!-- Header -->
+  <div class="tp-header">
+    <h1>🏆 Top Prints Leaderboard</h1>
+    <p class="subtitle">Models ranked by real prints from the community</p>
+  </div>
+
+  <!-- Range Selector -->
+  <div class="tp-range-selector">
+    <button class="range-btn active" data-range="all">All Time</button>
+    <button class="range-btn" data-range="7d">🔥 Last 7 Days</button>
+    <button class="range-btn" data-range="30d">📈 Last 30 Days</button>
+  </div>
+
+  <!-- Top Authors Section -->
+  <section class="tp-authors-section">
+    <h2>👥 Top Authors</h2>
+    <div id="topAuthorsList" class="tp-authors-grid">
+      <div class="tp-loading">Loading authors...</div>
+    </div>
+  </section>
+
+  <!-- Top Models Section -->
+  <section class="tp-models-section">
+    <h2>🖨️ Top Printed Models</h2>
+    <div id="topModelsList" class="market-grid">
+      <div class="tp-loading">Loading models...</div>
+    </div>
+  </section>
+
+  <!-- Pagination -->
+  <div id="topPrintsPagination" class="market-pagination"></div>
+</div>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/top_prints.css') }}">
+<script type="module" src="{{ url_for('static', filename='market/js/top_prints.js') }}"></script>
+{% endblock %}

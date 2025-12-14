@@ -11,14 +11,19 @@
     <label>
       <span>{{ _('Сортувати') }}</span>
       {% set cur = request.args.get('sort','new') %}
-      <select id="sort">
-        <option value="new"     {{ 'selected' if cur=='new' }}>Нові</option>
-        <option value="popular" {{ 'selected' if cur=='popular' }}>Популярні</option>
-        <option value="rating"  {{ 'selected' if cur=='rating' }}>Рейтинг</option>
-        <option value="prints"  {{ 'selected' if cur=='prints' }}>Top prints</option>
-        <option value="price"   {{ 'selected' if cur=='price' }}>Ціна</option>
+      <select id="sort" data-filter-sort>
+        <option value="new"       {{ 'selected' if cur=='new' }}>Нові</option>
+        <option value="popular"   {{ 'selected' if cur=='popular' }}>Популярні</option>
+        <option value="rating"    {{ 'selected' if cur=='rating' }}>Рейтинг</option>
+        <option value="prints"    {{ 'selected' if cur=='prints' }}>Top prints (всі)</option>
+        <option value="prints_7d" {{ 'selected' if cur=='prints_7d' }}>🔥 Trending 7d</option>
+        <option value="prints_30d" {{ 'selected' if cur=='prints_30d' }}>📈 Trending 30d</option>
+        <option value="price"     {{ 'selected' if cur=='price' }}>Ціна</option>
       </select>
     </label>
+    <a href="/market/top-prints" class="tag-btn top-prints-btn" title="Моделі з найбільшою кількістю роздрукувань">
+      🖨️ Top Prints
+    </a>
   </div>
 </div>
 
@@ -61,6 +66,18 @@
   color:var(--text);
   border-radius:8px;
   padding:6px 10px;
+}
+.top-prints-btn{
+  background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color:#fff;
+  font-weight:600;
+  box-shadow:0 2px 8px rgba(102,126,234,.3);
+  text-decoration:none;
+}
+.top-prints-btn:hover{
+  background:linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  box-shadow:0 4px 12px rgba(102,126,234,.5);
+  transform:translateY(-1px);
 }
 </style>
 

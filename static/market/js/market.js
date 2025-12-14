@@ -27,7 +27,7 @@ const state = {
   q: "",
   page: 1,
   per_page: 24,
-  sort: "new",      // new | popular | top | price_asc | price_desc | prints
+  sort: "new",      // new | popular | top | price_asc | price_desc | prints | prints_7d | prints_30d
   category: null,   // slug категорії
   free: null,       // null / 1 / 0
   tag: null,        // швидкий тег із .mqf-chip (dragon / stand / toy / cosplay / other)
