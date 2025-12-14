@@ -209,6 +209,12 @@
       <div class="bio muted">
         {{ item.owner.bio if item.owner and item.owner.bio else '3D-дизайнер' }}
       </div>
+      {% if item.author_id %}
+        <div class="author-actions">
+          <span class="followers-count" data-author-id="{{ item.author_id }}">0 followers</span>
+          <button class="follow-btn" data-author-id="{{ item.author_id }}">Follow</button>
+        </div>
+      {% endif %}
     </div>
   </section>
 
@@ -461,6 +467,47 @@
   .a-meta .name{
     font-weight:600;
     margin-bottom:2px;
+  }
+  .author-actions{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-top:8px;
+  }
+  .followers-count{
+    font-size:13px;
+    color:var(--muted,#9fb0d4);
+  }
+  .follow-btn{
+    padding:6px 16px;
+    border-radius:8px;
+    border:1px solid var(--btn,#1a73e8);
+    background:transparent;
+    color:var(--btn,#1a73e8);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+    transition:all 0.2s;
+  }
+  .follow-btn:hover{
+    background:var(--btn,#1a73e8);
+    color:white;
+  }
+  .follow-btn.following{
+    background:var(--btn,#1a73e8);
+    color:white;
+    border-color:var(--btn,#1a73e8);
+  }
+  .follow-btn:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+  }
+  .follow-btn.self-follow{
+    background:var(--muted,#9fb0d4);
+    border-color:var(--muted,#9fb0d4);
+    color:var(--bg,#0f1115);
+    cursor:default;
+    opacity:0.7;
   }
 
   .related{
@@ -768,4 +815,7 @@
     statusEl.textContent = 'STL-файл відсутній.';
   }
 </script>
+
+<!-- Follow functionality -->
+<script src="{{ url_for('static', filename='market/js/follow.js') }}"></script>
 {% endblock %}

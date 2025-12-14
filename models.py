@@ -29,7 +29,7 @@ db = _DBProxy()
 # ✅ також експортуємо User як просто посилання на клас із db.py
 User = _User
 
-__all__ = ["db", "MarketItem", "MarketFavorite", "MarketReview", "User"]
+__all__ = ["db", "MarketItem", "MarketFavorite", "MarketReview", "UserFollow", "User"]
 
 
 class MarketItem(_db.Model):
@@ -219,3 +219,28 @@ class MarketReview(_db.Model):
 
     def __repr__(self) -> str:
         return f"<MarketReview user={self.user_id} item={self.item_id} rating={self.rating}>"
+
+
+class UserFollow(_db.Model):
+    """
+    Модель для підписок користувачів на авторів.
+    follower_id — хто підписується
+    author_id — на кого підписуються
+    """
+    __tablename__ = "user_follows"
+
+    id = _db.Column(_db.Integer, primary_key=True)
+
+    follower_id = _db.Column(_db.Integer, _db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    author_id   = _db.Column(_db.Integer, _db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    created_at = _db.Column(_db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        _db.UniqueConstraint("follower_id", "author_id", name="uq_user_follows_pair"),
+        _db.Index("ix_user_follows_follower", "follower_id"),
+        _db.Index("ix_user_follows_author", "author_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserFollow follower={self.follower_id} -> author={self.author_id}>"
