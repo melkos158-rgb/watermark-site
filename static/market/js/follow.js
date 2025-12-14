@@ -8,6 +8,9 @@
 
   // Load follow status for all buttons on page load
   followButtons.forEach((btn) => {
+    // Skip disabled buttons (own items)
+    if (btn.hasAttribute("disabled")) return;
+    
     const authorId = parseInt(btn.dataset.authorId, 10);
     if (!authorId) return;
 

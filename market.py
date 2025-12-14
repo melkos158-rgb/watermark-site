@@ -560,6 +560,10 @@ def page_item(item_id: int):
     d["main_model_url"] = d.get("stl_main_url") or d.get("url")
     d["cover_url"] = _normalize_cover_url(d.get("cover_url") or d.get("cover"))
 
+    # Перевірка чи це власний item
+    uid = _parse_int(session.get("user_id"), 0)
+    d["is_owner"] = uid and uid == d.get("author_id")
+
     try:
         reviews = (
             MarketReview.query.filter_by(item_id=item_id)

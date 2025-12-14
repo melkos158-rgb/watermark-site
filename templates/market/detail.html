@@ -212,7 +212,11 @@
       {% if item.author_id %}
         <div class="author-actions">
           <span class="followers-count" data-author-id="{{ item.author_id }}">0 followers</span>
-          <button class="follow-btn" data-author-id="{{ item.author_id }}">Follow</button>
+          {% if item.is_owner %}
+            <button class="follow-btn" disabled>Your model</button>
+          {% else %}
+            <button class="follow-btn" data-author-id="{{ item.author_id }}">Follow</button>
+          {% endif %}
         </div>
       {% endif %}
     </div>
@@ -499,8 +503,14 @@
     border-color:var(--btn,#1a73e8);
   }
   .follow-btn:disabled{
-    opacity:0.5;
+    opacity:0.6;
     cursor:not-allowed;
+    background:var(--card,#11141b);
+    border-color:var(--line,#1b2131);
+    color:var(--muted,#9fb0d4);
+  }
+  .follow-btn:disabled:hover{
+    background:var(--card,#11141b);
   }
   .follow-btn.self-follow{
     background:var(--muted,#9fb0d4);
