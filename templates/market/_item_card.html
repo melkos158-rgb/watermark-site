@@ -80,6 +80,13 @@
     {% elif it.created_at and it.created_at >= (now - timedelta(days=7)) %}
       <span class="badge new">NEW</span>
     {% endif %}
+    
+    {# Prints badge - only if > 0 #}
+    {% if (it.prints_count or 0) > 0 %}
+      <span class="badge prints-badge" title="Real prints from community">
+        🖨️ {{ it.prints_count }}
+      </span>
+    {% endif %}
 
     <img
       src="{{ cover_src }}"
@@ -106,11 +113,6 @@
         <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z"/></svg>
         {{ it.downloads or 0 }}
       </div>
-      {% if it.prints_count and it.prints_count > 0 %}
-      <div class="s prints">
-        🖨️ {{ it.prints_count }}
-      </div>
-      {% endif %}
 
       <strong class="price">
         {% if it.is_free %}
