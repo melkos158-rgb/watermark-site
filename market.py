@@ -1741,12 +1741,17 @@ def api_item_delete(item_id: int):
 def api_top_prints():
     """Top Prints Leaderboard: items + top authors by prints count"""
     try:
+        # 🔍 DIAGNOSTIC: Log incoming params
+        current_app.logger.info(f"[TOP_PRINTS] Query params: range={request.args.get('range')}, page={request.args.get('page')}, per_page={request.args.get('per_page')}")
+        
         range_param = (request.args.get("range") or "all").lower()
         range_param = range_param if range_param in ("all", "7d", "30d") else "all"
         
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
         offset = (page - 1) * per_page
+        
+        current_app.logger.info(f"[TOP_PRINTS] Parsed: range={range_param}, page={page}, per_page={per_page}, offset={offset}")
         
         dialect = db.session.get_bind().dialect.name
         
@@ -1831,7 +1836,9 @@ def api_top_prints():
                     })
             except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e_auth:
                 # Graceful fallback if table doesn't exist
+                current_app.logger.warning(f"[TOP_PRINTS] Authors query failed: {type(e_auth).__name__}: {e_auth}")
                 if _is_missing_table_error(e_auth):
+                    current_app.logger.info("[TOP_PRINTS] Fallback: top_authors = [] (missing table)")
                     top_authors = []
                 else:
                     raise  # Re-raise if not a missing table error
@@ -1856,7 +1863,9 @@ def api_top_prints():
                 "pages": math.ceil(total / per_page) if per_page else 1,
             })
             
-        except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+        excecurrent_app.logger.warning(f"[TOP_PRINTS] Main query failed: {type(e).__name__}: {e}")
+            if _is_missing_table_error(e):
+                current_app.logger.info("[TOP_PRINTS] Fallback: Using downloads-based query (missing item_makes)")a_exc.ProgrammingError) as e:
             # Fallback: item_makes table doesn't exist - show top by downloads instead
             if _is_missing_table_error(e):
                 db.session.rollback()
@@ -1904,10 +1913,14 @@ def api_top_prints():
                     "range": range_param,
                     "page": page,
                     "per_page": per_page,
-                    "total": total_fallback,
-                    "pages": math.ceil(total_fallback / per_page) if per_page else 1,
-                })
-            else:
+                current_app.logger.error(f"[TOP_PRINTS] Non-fallback DB error, re-raising")
+                raise
+                
+    except Exception as e:
+        # 🔍 DIAGNOSTIC: Log full exception with traceback
+        import traceback
+        current_app.logger.exception(f"[TOP_PRINTS] FATAL ERROR: {type(e).__name__}: {e}")
+        current_app.logger.error(f"[TOP_PRINTS] Traceback:\n{traceback.format_exc()
                 raise
                 
     except Exception as e:
