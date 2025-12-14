@@ -338,6 +338,16 @@ def create_app():
             finally:
                 app.config[_tables_ready_key] = True
 
+    # ========= CACHE HEADERS FOR STATIC FILES =========
+    @app.after_request
+    def add_static_cache_headers(resp):
+        path = request.path or ""
+        if path.startswith("/static/vendor/"):
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path.startswith("/static/") and (path.endswith(".css") or path.endswith(".js") or path.endswith(".woff2")):
+            resp.headers["Cache-Control"] = "public, max-age=604800"
+        return resp
+
     # ========= реєстрація blueprints =========
     import auth, profile, chat, market
 

@@ -42,6 +42,20 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   if (!container) throw new Error(`Container #${containerId} not found`);
   const statusEl = $(statusId);
 
+  // ── ERROR OVERLAY (fallback UI якщо модель не завантажилась)
+  const errorOverlay = document.createElement('div');
+  errorOverlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);color:#fff;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:1000;';
+  errorOverlay.innerHTML = '<div style="text-align:center;padding:20px;"><h3 style="margin:0 0 12px 0;">Модель недоступна</h3><p style="margin:0 0 16px 0;opacity:0.8;">Не вдалося завантажити 3D-файл</p><button onclick="location.reload()" style="padding:10px 20px;cursor:pointer;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:14px;">Оновити сторінку</button></div>';
+  container.style.position = 'relative';
+  container.appendChild(errorOverlay);
+
+  function showError(msg) {
+    console.error('[Viewer Error]:', msg);
+    errorOverlay.style.display = 'flex';
+    if (statusEl) statusEl.textContent = 'Помилка завантаження';
+  }
+
+
   // ── СЦЕНА
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x111111);
@@ -304,6 +318,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
 
     const onError = (err) => {
       console.error("Load error:", err);
+      showError(err?.message || "Не вдалося прочитати файл");
       alert("Не вдалося прочитати файл. Підтримка: STL, OBJ, PLY, glTF/GLB.");
       done();
     };
@@ -530,6 +545,9 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
       setSnap,
       focus: focusSelection,
     },
+
+    // ▼▼ Error handling
+    showError,
   };
 
   // [ДОДАНО] потрібно для експортерів (new ctx.THREE.Group() тощо)

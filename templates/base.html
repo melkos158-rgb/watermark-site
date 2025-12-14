@@ -102,7 +102,7 @@
      not in ["auth.login","auth.register","auth.logout"] #}
 
   <!-- === i18n ядро: автопереклад усього DOM + підтримка 60+ мов === -->
-  <script src="{{ url_for('static', filename='vendor/i18next.min.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='vendor/i18next.min.js') }}"></script>
   <script>
   (function(){
     const I18N_DIR = "/static/i18n/";
