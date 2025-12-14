@@ -104,7 +104,12 @@
   <!-- === i18n ядро: автопереклад усього DOM + підтримка 60+ мов === -->
   <script defer src="{{ url_for('static', filename='vendor/i18next.min.js') }}"></script>
   <script>
-  (function(){
+  window.addEventListener("DOMContentLoaded", () => {
+    if (!window.i18next) {
+      console.error("i18next missing (script not loaded) — skip translate init");
+      return;
+    }
+
     const I18N_DIR = "/static/i18n/";
     const MISSING = new Set();
     const SKIP_TAGS = new Set(["SCRIPT","STYLE","TEXTAREA","CODE","PRE"]);
@@ -176,7 +181,7 @@
       window.__i18nSetLang = async code => { await loadDict(code); applyAll(document.body); };
       window.__i18nMissing = () => Array.from(MISSING.values());
     })();
-  })();
+  });
   </script>
 
   <!-- === JS-маячок «живого» відвідувача для /api/visit === -->
