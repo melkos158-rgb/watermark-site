@@ -222,6 +222,39 @@
     </div>
   </section>
 
+  <!-- ====== PRINTED BY USERS (MAKES) ====== -->
+  <section class="makes-section" id="makes-section" data-item-id="{{ item.id }}">
+    <h2>Printed by Users</h2>
+    <p class="subtitle">Community prints of this model</p>
+    
+    <!-- Upload form (visible only if logged in) -->
+    {% if session.get('user_id') %}
+    <div class="make-upload-form">
+      <h3>Share your print!</h3>
+      <form id="makeUploadForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="makeImage">Photo of your print</label>
+          <input type="file" id="makeImage" name="image" accept="image/*" required>
+        </div>
+        <div class="form-group">
+          <label for="makeCaption">Caption (optional)</label>
+          <textarea id="makeCaption" name="caption" rows="3" maxlength="500" placeholder="Tell us about your print..."></textarea>
+        </div>
+        <button type="submit" class="btn-primary">Add Make</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- Makes grid -->
+    <div id="makesGrid" class="makes-grid"></div>
+    
+    <!-- Empty state -->
+    <div id="makesEmpty" class="makes-empty" style="display:none;">
+      <div class="empty-icon">📷</div>
+      <p>No prints yet. Be the first to share!</p>
+    </div>
+  </section>
+
   <!-- ====== СХОЖІ МОДЕЛІ ====== -->
   <section class="related">
     <h2>Схожі моделі</h2>
@@ -584,6 +617,8 @@
   }
 </style>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/makes.css') }}">
+
 <script type="module">
   const viewerEl   = document.getElementById('viewer');
   const statusEl   = document.getElementById('status');
@@ -825,6 +860,9 @@
     statusEl.textContent = 'STL-файл відсутній.';
   }
 </script>
+
+<!-- Makes functionality -->
+<script src="{{ url_for('static', filename='market/js/makes.js') }}"></script>
 
 <!-- Follow functionality -->
 <script src="{{ url_for('static', filename='market/js/follow.js') }}"></script>
