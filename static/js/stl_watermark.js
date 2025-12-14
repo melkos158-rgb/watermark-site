@@ -7,7 +7,7 @@ import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 
 
-const FONT_URL = "https://cdn.jsdelivr.net/npm/three@0.160/examples/fonts/helvetiker_regular.typeface.json";
+const FONT_URL = "/static/vendor/three/examples/fonts/helvetiker_regular.typeface.json";
 
 export function initWatermark(ctx, { autoBindButtons = true } = {}) {
   if (!ctx || !ctx.scene || !ctx.modelRoot || !ctx.watermarkGroup) {

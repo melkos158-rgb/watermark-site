@@ -561,12 +561,12 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover, '')"
+            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover, '')"
+            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
