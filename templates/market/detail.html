@@ -255,6 +255,50 @@
     </div>
   </section>
 
+  <!-- ====== REVIEWS V2 ====== -->
+  <section class="reviews-section" id="reviews-section" data-item-id="{{ item.id }}">
+    <h2>Reviews</h2>
+    <p class="subtitle">What users think about this model</p>
+    
+    <!-- Review form (visible only if logged in) -->
+    {% if session.get('user_id') %}
+    <div class="review-form-container">
+      <h3>Leave a review</h3>
+      <form id="reviewForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="reviewRating">Rating</label>
+          <select id="reviewRating" name="rating" required>
+            <option value="">Select rating</option>
+            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+            <option value="4">⭐⭐⭐⭐ Good</option>
+            <option value="3">⭐⭐⭐ Average</option>
+            <option value="2">⭐⭐ Poor</option>
+            <option value="1">⭐ Bad</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reviewText">Your review</label>
+          <textarea id="reviewText" name="text" rows="4" maxlength="1000" placeholder="Share your experience with this model..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="reviewImage">Add photo (optional)</label>
+          <input type="file" id="reviewImage" name="image" accept="image/*">
+        </div>
+        <button type="submit" class="btn-primary">Submit Review</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- Reviews list -->
+    <div id="reviewsList" class="reviews-list"></div>
+    
+    <!-- Empty state -->
+    <div id="reviewsEmpty" class="reviews-empty" style="display:none;">
+      <div class="empty-icon">💬</div>
+      <p>No reviews yet. Be the first to review!</p>
+    </div>
+  </section>
+
   <!-- ====== СХОЖІ МОДЕЛІ ====== -->
   <section class="related">
     <h2>Схожі моделі</h2>
@@ -863,6 +907,10 @@
 
 <!-- Makes functionality -->
 <script src="{{ url_for('static', filename='market/js/makes.js') }}"></script>
+
+<!-- Reviews functionality -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reviews.css') }}">
+<script src="{{ url_for('static', filename='market/js/reviews_v2.js') }}"></script>
 
 <!-- Follow functionality -->
 <script src="{{ url_for('static', filename='market/js/follow.js') }}"></script>

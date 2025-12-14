@@ -435,6 +435,7 @@ def _ensure_publishing_columns():
 # ───────────────────────────── NEW: категорії в g ─────────────────────────────
 _follow_migration_done = False
 _makes_migration_done = False
+_review_image_migration_done = False
 
 @bp.before_app_request
 def _ensure_follow_table():
@@ -554,6 +555,51 @@ def _ensure_item_makes_table():
     except Exception as e:
         db.session.rollback()
         current_app.logger.warning(f"⚠️ makes table ensure failed: {e}")
+
+
+@bp.before_app_request
+def _ensure_review_image_column():
+    """
+    Safe migration: add image_url column to market_reviews if it doesn't exist.
+    """
+    global _review_image_migration_done
+    if _review_image_migration_done:
+        return
+
+    p = request.path or ""
+    if not (p.startswith("/market") or p.startswith("/api/")):
+        return
+
+    _review_image_migration_done = True
+
+    try:
+        dialect = db.session.get_bind().dialect.name
+        
+        if dialect == "postgresql":
+            # PostgreSQL supports IF NOT EXISTS
+            db.session.execute(text("""
+                ALTER TABLE market_reviews 
+                ADD COLUMN IF NOT EXISTS image_url TEXT
+            """))
+        else:
+            # SQLite doesn't support IF NOT EXISTS, need try/except
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE market_reviews 
+                    ADD COLUMN image_url TEXT
+                """))
+            except sa_exc.OperationalError as e:
+                # Column already exists
+                if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                    db.session.rollback()
+                else:
+                    raise
+
+        db.session.commit()
+        current_app.logger.info("✅ market_reviews.image_url column ensured")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"⚠️ review image column ensure failed: {e}")
 
 
 @bp.before_app_request
@@ -1480,6 +1526,210 @@ def api_delete_make(make_id: int):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Delete make error: {e}")
+        return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
+
+
+# ───────────────────────────── REVIEWS API v2 ─────────────────────────────
+def recalc_item_rating(item_id: int):
+    """
+    Recalculate and update item rating based on reviews.
+    Updates items.rating and ratings_cnt (if column exists).
+    """
+    try:
+        # Calculate AVG and COUNT from reviews
+        stats_sql = """
+            SELECT AVG(rating) as avg_rating, COUNT(*) as count
+            FROM market_reviews
+            WHERE item_id = :item_id
+        """
+        stats = db.session.execute(text(stats_sql), {"item_id": item_id}).fetchone()
+        
+        avg_rating = float(stats[0]) if stats and stats[0] else 0.0
+        review_count = int(stats[1]) if stats and stats[1] else 0
+        
+        # Check if ratings_cnt column exists
+        dialect = db.session.get_bind().dialect.name
+        has_ratings_cnt = False
+        
+        try:
+            # Quick check for column existence
+            db.session.execute(text(f"SELECT ratings_cnt FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+            has_ratings_cnt = True
+        except (sa_exc.OperationalError, sa_exc.ProgrammingError):
+            db.session.rollback()
+        
+        # Update rating (with or without ratings_cnt)
+        if has_ratings_cnt:
+            update_sql = f"""
+                UPDATE {ITEMS_TBL}
+                SET rating = :rating, ratings_cnt = :count
+                WHERE id = :item_id
+            """
+            db.session.execute(
+                text(update_sql),
+                {"rating": avg_rating, "count": review_count, "item_id": item_id}
+            )
+        else:
+            update_sql = f"""
+                UPDATE {ITEMS_TBL}
+                SET rating = :rating
+                WHERE id = :item_id
+            """
+            db.session.execute(
+                text(update_sql),
+                {"rating": avg_rating, "item_id": item_id}
+            )
+        
+        db.session.commit()
+        current_app.logger.info(f"✅ Recalculated rating for item {item_id}: {avg_rating:.2f} ({review_count} reviews)")
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Recalc rating error for item {item_id}: {e}")
+
+
+@bp.get("/api/item/<int:item_id>/reviews")
+def api_get_reviews(item_id: int):
+    """Get reviews for an item with author info"""
+    limit = min(50, max(1, _parse_int(request.args.get("limit"), 50)))
+    
+    uid = _parse_int(session.get("user_id"), 0)
+    
+    try:
+        # Fetch reviews with author info via JOIN
+        sql = f"""
+            SELECT r.id, r.user_id, r.item_id, r.rating, r.text, r.image_url, r.created_at,
+                   u.name AS author_name,
+                   COALESCE(u.avatar_url, '/static/img/user.jpg') AS author_avatar
+            FROM market_reviews r
+            LEFT JOIN {USERS_TBL} u ON u.id = r.user_id
+            WHERE r.item_id = :item_id
+            ORDER BY r.created_at DESC
+            LIMIT :limit
+        """
+        
+        rows = db.session.execute(
+            text(sql),
+            {"item_id": item_id, "limit": limit}
+        ).fetchall()
+        
+        reviews = []
+        for r in rows:
+            d = _row_to_dict(r)
+            d["is_owner"] = (d.get("user_id") == uid)
+            reviews.append(d)
+        
+        return jsonify({"ok": True, "reviews": reviews})
+        
+    except Exception as e:
+        current_app.logger.error(f"Get reviews error: {e}")
+        return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
+
+
+@bp.post("/api/item/<int:item_id>/reviews")
+def api_create_review(item_id: int):
+    """Create a new review for an item"""
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    
+    try:
+        # Validate item exists
+        item_check = db.session.execute(
+            text(f"SELECT id FROM {ITEMS_TBL} WHERE id = :id"),
+            {"id": item_id}
+        ).fetchone()
+        
+        if not item_check:
+            return jsonify({"ok": False, "error": "item_not_found"}), 404
+        
+        # Check if user already reviewed this item (prevent duplicate reviews)
+        existing_review = db.session.execute(
+            text("SELECT id FROM market_reviews WHERE item_id = :item_id AND user_id = :uid"),
+            {"item_id": item_id, "uid": uid}
+        ).fetchone()
+        
+        if existing_review:
+            return jsonify({"ok": False, "error": "already_reviewed"}), 400
+        
+        # Get rating (required)
+        rating = _parse_int(request.form.get("rating"), 0)
+        if rating < 1 or rating > 5:
+            return jsonify({"ok": False, "error": "invalid_rating"}), 400
+        
+        # Get text (optional)
+        text = (request.form.get("text") or "").strip()
+        if len(text) > 1000:
+            text = text[:1000]
+        
+        # Get optional image
+        image_url = None
+        image_file = request.files.get("image")
+        if image_file:
+            image_url = _save_upload(image_file, f"user_{uid}/reviews", ALLOWED_IMAGE_EXT)
+        
+        # Insert review (same SQL for both dialects)
+        sql = """
+            INSERT INTO market_reviews (item_id, user_id, rating, text, image_url)
+            VALUES (:item_id, :user_id, :rating, :text, :image_url)
+        """
+        db.session.execute(
+            text(sql),
+            {
+                "item_id": item_id,
+                "user_id": uid,
+                "rating": rating,
+                "text": text or None,
+                "image_url": image_url
+            }
+        )
+        db.session.commit()
+        
+        # Recalculate item rating
+        recalc_item_rating(item_id)
+        
+        return jsonify({"ok": True})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Create review error: {e}")
+        return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
+
+
+@bp.delete("/api/review/<int:review_id>")
+def api_delete_review(review_id: int):
+    """Delete a review - only owner can delete"""
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    
+    try:
+        # Get item_id before delete (for recalc)
+        review = db.session.execute(
+            text("SELECT item_id FROM market_reviews WHERE id = :id AND user_id = :uid"),
+            {"id": review_id, "uid": uid}
+        ).fetchone()
+        
+        if not review:
+            return jsonify({"ok": False, "error": "forbidden"}), 403
+        
+        item_id = review[0]
+        
+        # Delete review
+        db.session.execute(
+            text("DELETE FROM market_reviews WHERE id = :id"),
+            {"id": review_id}
+        )
+        db.session.commit()
+        
+        # Recalculate item rating
+        recalc_item_rating(item_id)
+        
+        return jsonify({"ok": True})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Delete review error: {e}")
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
 
 
