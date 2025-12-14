@@ -188,7 +188,10 @@
       window.__i18nSetLang = async code => { await loadDict(code); applyAll(document.body); };
       window.__i18nMissing = () => Array.from(MISSING.values());
       window.__normalizeLng = normalizeLng; // ✅ експортуємо для nav.html
-      window.__i18nTranslate = applyAll; // ✅ для динамічного DOM (AJAX, фільтри, пагінація)
+      // ✅ Безпечний експорт з root-параметром (щоб не сканувати весь DOM кожен раз)
+      window.__i18nTranslate = (root = document.body) => {
+        try { applyAll(root); } catch (e) { console.warn('i18n translate failed', e); }
+      };
     })();
   });
   </script>

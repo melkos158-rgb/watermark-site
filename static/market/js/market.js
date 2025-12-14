@@ -221,7 +221,7 @@ async function loadPage(page = 1) {
       `<button type="button" class="btn" id="market-retry">Спробувати ще раз</button>` +
       `</div>`;
     // ✅ Перекладаємо повідомлення про помилку
-    if (window.__i18nTranslate) window.__i18nTranslate(grid);
+    window.__i18nTranslate?.(grid);
     const retry = document.getElementById("market-retry");
     if (retry) {
       retry.addEventListener("click", () => loadPage(state.page));
@@ -262,7 +262,7 @@ async function loadPage(page = 1) {
       `Поки що немає моделей за цим запитом.` +
       `</div>`;
     // ✅ Перекладаємо повідомлення про порожній результат
-    if (window.__i18nTranslate) window.__i18nTranslate(grid);
+    window.__i18nTranslate?.(grid);
     setNotice("Поки що немає моделей за цим запитом.", "");
     if (PAGE_TYPE === "my" && emptyBlock) {
       emptyBlock.style.display = "";
@@ -270,7 +270,7 @@ async function loadPage(page = 1) {
   } else {
     grid.innerHTML = items.map(renderItemCard).join("");
     // ✅ Перекладаємо динамічно вставлений DOM
-    if (window.__i18nTranslate) window.__i18nTranslate(grid);
+    window.__i18nTranslate?.(grid);
     setNotice("", "");
     if (PAGE_TYPE === "my" && emptyBlock) {
       emptyBlock.style.display = "none";
@@ -289,7 +289,7 @@ async function loadPage(page = 1) {
   if (pag && pagesResp > 1) {
     pag.innerHTML = renderPagination(pageResp, pagesResp);
     // ✅ Перекладаємо пагінацію
-    if (window.__i18nTranslate) window.__i18nTranslate(pag);
+    window.__i18nTranslate?.(pag);
     pag.querySelectorAll("[data-page]").forEach((btn) => {
       btn.addEventListener("click", (ev) => {
         ev.preventDefault();

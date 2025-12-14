@@ -189,7 +189,7 @@ function showSuggest(input, list) {
       .join("") +
     "</ul>";
   // ✅ Перекладаємо автозаповнення
-  if (window.__i18nTranslate) window.__i18nTranslate(box);
+  window.__i18nTranslate?.(box);
 
   box.style.display = "block";
 
