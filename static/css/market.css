@@ -139,6 +139,45 @@
   color: var(--mkt-muted);
 }
 
+.profile-selectors {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.profile-select-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-select-group label {
+  font-size: 0.9rem;
+  color: var(--mkt-text);
+  font-weight: 500;
+}
+
+.profile-select {
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--mkt-line);
+  background: var(--mkt-card-soft);
+  color: var(--mkt-text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.profile-select:hover {
+  border-color: var(--mkt-accent);
+}
+
+.profile-select:focus {
+  outline: none;
+  border-color: var(--mkt-accent);
+}
+
 .print-settings-body {
   margin-bottom: 1rem;
 }

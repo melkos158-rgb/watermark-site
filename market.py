@@ -3568,14 +3568,19 @@ def api_slice_hints(item_id):
 @bp.get('/api/item/<int:item_id>/slice-hints/preset')
 def api_slice_hints_preset(item_id):
     """
-    GET /api/item/123/slice-hints/preset?target=cura|prusa
+    GET /api/item/123/slice-hints/preset?target=cura|prusa&nozzle=0.4|0.6&quality=draft|normal|fine
     
     Downloads slicer preset file generated from slice hints.
     Supports Cura and PrusaSlicer formats.
+    Optional profile params (nozzle, quality) adjust settings.
     """
     target = request.args.get('target', 'cura').lower()
     if target not in {'cura', 'prusa'}:
         return jsonify({"ok": False, "error": "Invalid target. Use 'cura' or 'prusa'"}), 400
+    
+    # Optional profile params (safe parsing)
+    nozzle = request.args.get('nozzle', '0.4')
+    quality = request.args.get('quality', 'normal').lower()
     
     try:
         # 1. Get or generate slice hints (reuse existing logic)
@@ -3649,16 +3654,19 @@ def api_slice_hints_preset(item_id):
                     current_app.logger.warning(f"Failed to save slice hints during preset download: {save_err}")
                     db.session.rollback()
         
-        # 2. Build preset file content
-        preset_content = _build_preset_content(hints, target, title or f"item_{item_id}")
+        # 2. Apply profile modifiers (nozzle, quality)
+        modified_hints = _apply_profile_modifiers(hints, nozzle, quality)
         
-        # 3. Create response with download headers
+        # 3. Build preset file content
+        preset_content = _build_preset_content(modified_hints, target, title or f"item_{item_id}")
+        
+        # 4. Create response with download headers
         safe_title = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in (title or f"item_{item_id}"))[:50]
         
         if target == 'cura':
             filename = f"{safe_title}_cura.curaprofile"
         else:  # prusa
-            filename = f"{safe_title}_prusa.ini"
+            filename = f"{safe_title}_prusa.prusapreset"
         
         resp = make_response(preset_content)
         resp.headers['Content-Type'] = 'text/plain; charset=utf-8'
@@ -3669,6 +3677,54 @@ def api_slice_hints_preset(item_id):
     except Exception as e:
         current_app.logger.error(f"Preset download failed for item {item_id}: {e}")
         return jsonify({"ok": False, "error": "preset_generation_failed", "detail": str(e)}), 500
+
+
+def _apply_profile_modifiers(hints, nozzle_str, quality):
+    """
+    Apply profile modifiers (nozzle size, quality) to slice hints.
+    Returns a modified copy of hints dict.
+    
+    Args:
+        hints: Original hints dict
+        nozzle_str: "0.4" or "0.6" (or other)
+        quality: "draft", "normal", or "fine"
+    
+    Returns:
+        Modified hints dict
+    """
+    # Work on a copy to avoid mutating original
+    modified = hints.copy()
+    
+    # Parse nozzle safely
+    try:
+        nozzle = float(nozzle_str)
+    except (ValueError, TypeError):
+        nozzle = 0.4
+    
+    # Get base layer height
+    layer_height = modified.get('layer_height', 0.2)
+    estimated_time = modified.get('estimated_time_hours', 0)
+    
+    # Apply quality modifier
+    if quality == 'fine':
+        layer_height *= 0.8
+    elif quality == 'draft':
+        layer_height *= 1.2
+    # 'normal' -> no change
+    
+    # Apply nozzle modifier
+    if abs(nozzle - 0.6) < 0.01:  # nozzle == 0.6
+        layer_height = min(layer_height + 0.04, 0.32)
+        estimated_time *= 0.85
+    
+    # Clamp layer height
+    layer_height = max(0.12, min(layer_height, 0.32))
+    
+    # Update modified hints
+    modified['layer_height'] = round(layer_height, 2)
+    modified['estimated_time_hours'] = round(estimated_time, 1)
+    
+    return modified
 
 
 def _build_preset_content(hints, target, title):

@@ -16,12 +16,22 @@
   const copyBtn = document.getElementById('btn-copy-slice-hints');
   const curaBtn = document.getElementById('btn-download-cura');
   const prusaBtn = document.getElementById('btn-download-prusa');
+  const nozzleSelect = document.getElementById('slice-nozzle');
+  const qualitySelect = document.getElementById('slice-quality');
 
   let cachedHints = null;
 
   // Setup copy button event listener once
   if (copyBtn) {
     copyBtn.addEventListener('click', copyHintsToClipboard);
+  }
+
+  // Setup profile selector listeners once
+  if (nozzleSelect) {
+    nozzleSelect.addEventListener('change', onProfileChange);
+  }
+  if (qualitySelect) {
+    qualitySelect.addEventListener('change', onProfileChange);
   }
 
   // Load slice hints on page load
@@ -55,17 +65,65 @@
   }
 
   function enableDownloadButtons() {
+    updateDownloadUrls();
+  }
+
+  function updateDownloadUrls() {
+    const nozzle = nozzleSelect ? nozzleSelect.value : '0.4';
+    const quality = qualitySelect ? qualitySelect.value : 'normal';
+    const params = `&nozzle=${nozzle}&quality=${quality}`;
+    
     if (curaBtn) {
-      curaBtn.href = `/api/item/${itemId}/slice-hints/preset?target=cura`;
+      curaBtn.href = `/api/item/${itemId}/slice-hints/preset?target=cura${params}`;
       curaBtn.style.pointerEvents = 'auto';
       curaBtn.style.opacity = '1';
     }
     
     if (prusaBtn) {
-      prusaBtn.href = `/api/item/${itemId}/slice-hints/preset?target=prusa`;
+      prusaBtn.href = `/api/item/${itemId}/slice-hints/preset?target=prusa${params}`;
       prusaBtn.style.pointerEvents = 'auto';
       prusaBtn.style.opacity = '1';
     }
+  }
+
+  function onProfileChange() {
+    if (!cachedHints) return;
+    
+    // Apply modifiers and re-render
+    const modified = applyProfileModifiers(cachedHints);
+    renderHints(modified);
+    updateDownloadUrls();
+  }
+
+  function applyProfileModifiers(hints) {
+    const modified = Object.assign({}, hints);
+    
+    const nozzle = parseFloat(nozzleSelect ? nozzleSelect.value : '0.4');
+    const quality = qualitySelect ? qualitySelect.value : 'normal';
+    
+    let layerHeight = modified.layer_height || 0.2;
+    let estimatedTime = modified.estimated_time_hours || 0;
+    
+    // Apply quality modifier
+    if (quality === 'fine') {
+      layerHeight *= 0.8;
+    } else if (quality === 'draft') {
+      layerHeight *= 1.2;
+    }
+    
+    // Apply nozzle modifier
+    if (Math.abs(nozzle - 0.6) < 0.01) { // nozzle == 0.6
+      layerHeight = Math.min(layerHeight + 0.04, 0.32);
+      estimatedTime *= 0.85;
+    }
+    
+    // Clamp layer height
+    layerHeight = Math.max(0.12, Math.min(layerHeight, 0.32));
+    
+    modified.layer_height = Math.round(layerHeight * 100) / 100;
+    modified.estimated_time_hours = Math.round(estimatedTime * 10) / 10;
+    
+    return modified;
   }
 
   function showNoData() {
