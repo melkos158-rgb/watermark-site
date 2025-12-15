@@ -1223,8 +1223,10 @@ def api_items():
                            i.is_published, i.published_at,
                            COALESCE(pm.prints_count, 0) AS prints_count,
                            i.proof_score,
-                           i.slice_hints_json
+                           i.slice_hints_json,
+                           u.name AS author_name
                     FROM {ITEMS_TBL} i
+                    LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                     LEFT JOIN (
                         SELECT item_id, COUNT(*) AS prints_count
                         FROM item_makes m
@@ -1241,20 +1243,22 @@ def api_items():
                 if _is_missing_table_error(e):
                     db.session.rollback()
                     sql_with_publish = f"""
-                        SELECT id, title, price, tags,
-                               COALESCE(cover_url, '') AS cover,
-                               COALESCE(gallery_urls, '[]') AS gallery_urls,
-                               COALESCE(rating, 0) AS rating,
-                               COALESCE(downloads, 0) AS downloads,
-                               {url_expr} AS url,
-                               format, user_id, created_at,
-                               is_published, published_at,
+                        SELECT i.id, i.title, i.price, i.tags,
+                               COALESCE(i.cover_url, '') AS cover,
+                               COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                               COALESCE(i.rating, 0) AS rating,
+                               COALESCE(i.downloads, 0) AS downloads,
+                               {url_expr.replace('stl_main_url', 'i.stl_main_url')} AS url,
+                               i.format, i.user_id, i.created_at,
+                               i.is_published, i.published_at,
                                0 AS prints_count,
-                               proof_score,
-                               slice_hints_json
-                        FROM {ITEMS_TBL}
-                        {where_sql}
-                        {order_sql}
+                               i.proof_score,
+                               i.slice_hints_json,
+                               u.name AS author_name
+                        FROM {ITEMS_TBL} i
+                        LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                        {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
+                        {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
                         LIMIT :limit OFFSET :offset
                     """
                     rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
@@ -1283,21 +1287,23 @@ def api_items():
             if _is_missing_column_error(e):
                 db.session.rollback()
                 
-                # Rebuild query WITHOUT is_published columns
+                # Rebuild query WITHOUT is_published columns but WITH author_name
                 sql_fallback = f"""
-                    SELECT id, title, price, tags,
-                           COALESCE(cover_url, '') AS cover,
-                           COALESCE(gallery_urls, '[]') AS gallery_urls,
-                           COALESCE(rating, 0) AS rating,
-                           COALESCE(downloads, 0) AS downloads,
-                           {url_expr} AS url,
-                           format, user_id, created_at,
+                    SELECT i.id, i.title, i.price, i.tags,
+                           COALESCE(i.cover_url, '') AS cover,
+                           COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                           COALESCE(i.rating, 0) AS rating,
+                           COALESCE(i.downloads, 0) AS downloads,
+                           {url_expr.replace('stl_main_url', 'i.stl_main_url')} AS url,
+                           i.format, i.user_id, i.created_at,
                            0 AS prints_count,
                            NULL AS proof_score,
-                           NULL AS slice_hints_json
-                    FROM {ITEMS_TBL}
-                    {where_sql}
-                    {order_sql}
+                           NULL AS slice_hints_json,
+                           u.name AS author_name
+                    FROM {ITEMS_TBL} i
+                    LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                    {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
+                    {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
                     LIMIT :limit OFFSET :offset
                 """
                 
@@ -1308,20 +1314,26 @@ def api_items():
                         item = _row_to_dict(r)
                         item['has_slice_hints'] = False  # Fallback: columns don't exist
                         items.append(item)
-                    total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
+                    # COUNT query also needs table alias
+                    total = db.session.execute(
+                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}"), 
+                        params
+                    ).scalar() or 0
                 except sa_exc.ProgrammingError:
                     # Last resort: legacy schema with file_url instead of stl_main_url
                     db.session.rollback()
                     sql_legacy = f"""
-                        SELECT id, title, price, tags,
-                               COALESCE(cover_url, '') AS cover,
-                               COALESCE(gallery_urls, '[]') AS gallery_urls,
-                               COALESCE(file_url,'') AS url,
-                               user_id, created_at,
-                               0 AS prints_count
-                        FROM {ITEMS_TBL}
-                        {where_sql}
-                        {order_sql}
+                        SELECT i.id, i.title, i.price, i.tags,
+                               COALESCE(i.cover_url, '') AS cover,
+                               COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                               COALESCE(i.file_url,'') AS url,
+                               i.user_id, i.created_at,
+                               0 AS prints_count,
+                               u.name AS author_name
+                        FROM {ITEMS_TBL} i
+                        LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                        {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
+                        {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
                         LIMIT :limit OFFSET :offset
                     """
                     rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
@@ -1333,7 +1345,10 @@ def api_items():
                         d.setdefault("proof_score", None)
                         d["has_slice_hints"] = False
                         items.append(d)
-                    total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
+                    total = db.session.execute(
+                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}"), 
+                        params
+                    ).scalar() or 0
             else:
                 # Other error - re-raise
                 raise
@@ -1810,6 +1825,144 @@ def api_get_creator_stats(username: str):
         
     except Exception as e:
         current_app.logger.error(f"Get creator stats error: {e}")
+        return jsonify({"ok": False, "error": "server"}), 500
+
+
+@bp.get("/api/creators/stats")
+def api_get_creators_stats_batch():
+    """Batch endpoint: get stats for multiple creators (no N+1)"""
+    try:
+        users_param = request.args.get("users", "")
+        if not users_param:
+            return jsonify({"ok": False, "error": "missing_users_param"}), 400
+        
+        # Parse comma-separated usernames with strict sanitization
+        import re
+        raw_usernames = [u.strip() for u in users_param.split(",") if u.strip()]
+        
+        # Allowlist: alphanumeric, underscore, hyphen, max 50 chars
+        username_pattern = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
+        usernames = [u for u in raw_usernames if username_pattern.match(u)][:50]
+        
+        if not usernames:
+            return jsonify({"ok": False, "error": "no_valid_usernames"}), 400
+        
+        # Single grouped query for all creators
+        try:
+            # First, get user_id mapping - build IN clause manually
+            placeholders = ','.join([f':name{i}' for i in range(len(usernames))])
+            bind_params = {f'name{i}': name for i, name in enumerate(usernames)}
+            
+            user_rows = db.session.execute(
+                text(f"SELECT id, name FROM {USERS_TBL} WHERE name IN ({placeholders})"),
+                bind_params
+            ).fetchall()
+            
+            user_map = {row.name: row.id for row in user_rows}
+            
+            if not user_map:
+                return jsonify({"ok": True, "stats": {}})
+            
+            # Grouped aggregation query - build IN clause for user_ids
+            user_ids = list(user_map.values())
+            id_placeholders = ','.join([f':uid{i}' for i in range(len(user_ids))])
+            id_bind_params = {f'uid{i}': uid for i, uid in enumerate(user_ids)}
+            
+            stats_rows = db.session.execute(
+                text(f"""
+                    SELECT 
+                        i.user_id,
+                        COUNT(DISTINCT i.id) as total_items,
+                        COALESCE(AVG(i.proof_score), 0) as avg_proof_score,
+                        SUM(CASE 
+                            WHEN i.slice_hints_json IS NOT NULL 
+                                AND i.slice_hints_json != '' 
+                                AND i.slice_hints_json != '{{}}' 
+                                AND LOWER(i.slice_hints_json) != 'null'
+                            THEN 1 ELSE 0 
+                        END) as presets_count
+                    FROM {ITEMS_TBL} i
+                    WHERE i.user_id IN ({id_placeholders}) AND i.is_published = 1
+                    GROUP BY i.user_id
+                """),
+                id_bind_params
+            ).fetchall()
+            
+            # Build stats map keyed by username
+            stats_by_user_id = {}
+            for row in stats_rows:
+                total = row.total_items or 0
+                avg_ps = round(row.avg_proof_score, 1) if row.avg_proof_score else 0
+                presets_cnt = row.presets_count or 0
+                coverage = round((presets_cnt / total * 100), 1) if total > 0 else 0
+                
+                stats_by_user_id[row.user_id] = {
+                    "total_items": total,
+                    "avg_proof_score": avg_ps,
+                    "presets_coverage_percent": coverage
+                }
+            
+            # Map back to usernames
+            result = {}
+            for username, user_id in user_map.items():
+                if user_id in stats_by_user_id:
+                    result[username] = stats_by_user_id[user_id]
+                else:
+                    # User has no published items
+                    result[username] = {
+                        "total_items": 0,
+                        "avg_proof_score": 0,
+                        "presets_coverage_percent": 0
+                    }
+            
+        except Exception as col_err:
+            # Fallback if proof_score/slice_hints columns missing
+            current_app.logger.warning(f"Batch creator stats fallback: {col_err}")
+            
+            # Just return counts without metrics (reuse sanitized usernames)
+            placeholders = ','.join([f':name{i}' for i in range(len(usernames))])
+            bind_params = {f'name{i}': name for i, name in enumerate(usernames)}
+            
+            user_rows = db.session.execute(
+                text(f"SELECT id, name FROM {USERS_TBL} WHERE name IN ({placeholders})"),
+                bind_params
+            ).fetchall()
+            
+            user_map = {row.name: row.id for row in user_rows}
+            
+            if user_map:
+                user_ids = list(user_map.values())
+                id_placeholders = ','.join([f':uid{i}' for i in range(len(user_ids))])
+                id_bind_params = {f'uid{i}': uid for i, uid in enumerate(user_ids)}
+                
+                count_rows = db.session.execute(
+                    text(f"""
+                        SELECT user_id, COUNT(DISTINCT id) as total
+                        FROM {ITEMS_TBL}
+                        WHERE user_id IN ({id_placeholders}) AND is_published = 1
+                        GROUP BY user_id
+                    """),
+                    id_bind_params
+                ).fetchall()
+            else:
+                count_rows = []
+            
+            counts_map = {row.user_id: row.total for row in count_rows}
+            
+            result = {}
+            for username, user_id in user_map.items():
+                result[username] = {
+                    "total_items": counts_map.get(user_id, 0),
+                    "avg_proof_score": None,
+                    "presets_coverage_percent": None
+                }
+        
+        resp = jsonify({"ok": True, "stats": result})
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
+        
+    except Exception as e:
+        current_app.logger.error(f"Batch creator stats error: {e}")
         return jsonify({"ok": False, "error": "server"}), 500
 
 

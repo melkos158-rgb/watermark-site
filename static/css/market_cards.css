@@ -509,3 +509,34 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, .4);
 }
+
+/* Creator mini-stats in item card */
+.creator-mini-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+  font-size: 0.8rem;
+  color: var(--mkt-card-muted);
+}
+
+.creator-mini-stats .creator-quality,
+.creator-mini-stats .creator-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: rgba(91, 102, 255, 0.12);
+  border: 1px solid rgba(91, 102, 255, 0.25);
+  border-radius: 4px;
+  font-weight: 600;
+  color: var(--mkt-card-accent);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.creator-mini-stats .creator-quality:hover,
+.creator-mini-stats .creator-presets:hover {
+  background: rgba(91, 102, 255, 0.2);
+  border-color: rgba(91, 102, 255, 0.4);
+}

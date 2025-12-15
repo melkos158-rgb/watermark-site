@@ -338,6 +338,65 @@ async function loadPage(page = 1) {
       });
     });
   }
+  
+  // Batch load creator stats for all visible cards
+  loadCreatorStatsBatch();
+}
+
+/* ==============================
+ * 4.5) BATCH LOAD CREATOR STATS
+ * ============================== */
+
+async function loadCreatorStatsBatch() {
+  const statsEls = document.querySelectorAll('.creator-mini-stats[data-creator]');
+  if (statsEls.length === 0) return;
+  
+  // Collect unique creator usernames
+  const creators = new Set();
+  statsEls.forEach(el => {
+    const creator = el.dataset.creator;
+    if (creator && creator.trim()) {
+      creators.add(creator.trim());
+    }
+  });
+  
+  if (creators.size === 0) return;
+  
+  try {
+    const usersParam = Array.from(creators).join(',');
+    const res = await fetch(`/api/creators/stats?users=${encodeURIComponent(usersParam)}`);
+    const data = await res.json();
+    
+    if (!data.ok || !data.stats) return;
+    
+    // Fill each placeholder
+    statsEls.forEach(el => {
+      const creator = el.dataset.creator;
+      if (!creator) return;
+      
+      const stats = data.stats[creator];
+      if (!stats) return;
+      
+      // Build mini-stats HTML
+      const parts = [];
+      
+      if (stats.avg_proof_score && stats.avg_proof_score > 0) {
+        parts.push(`<span class="creator-quality" title="Average Proof Score">⭐ ${stats.avg_proof_score}</span>`);
+      }
+      
+      if (stats.presets_coverage_percent && stats.presets_coverage_percent > 0) {
+        parts.push(`<span class="creator-presets" title="Auto Presets Coverage">🎯 ${stats.presets_coverage_percent}%</span>`);
+      }
+      
+      if (parts.length > 0) {
+        el.innerHTML = parts.join(' • ');
+        el.style.display = 'block';
+      }
+    });
+    
+  } catch (err) {
+    console.warn('Failed to load batch creator stats:', err);
+  }
 }
 
 /* ==============================
@@ -651,9 +710,15 @@ function bindUI() {
       if (chip.dataset.mode === "top") {
         state.mode = "top";
         state.tag = null;  // Clear tag filter when in top mode
+        // Show helper text
+        const hint = document.querySelector('.top-mode-hint');
+        if (hint) hint.style.display = 'inline';
       } else if (chip.dataset.filterTag) {
         // This is a tag filter chip, clear mode
         state.mode = null;
+        // Hide helper text
+        const hint = document.querySelector('.top-mode-hint');
+        if (hint) hint.style.display = 'none';
         // tag will be read from buildStateFromDOM
       }
 
@@ -684,6 +749,9 @@ function initFromURL() {
       document.querySelectorAll('.mqf-chip').forEach(c => c.classList.remove('is-active'));
       topChip.classList.add('is-active');
     }
+    // Show helper text
+    const hint = document.querySelector('.top-mode-hint');
+    if (hint) hint.style.display = 'inline';
   }
   
   const minProofScore = params.get('min_proof_score');
