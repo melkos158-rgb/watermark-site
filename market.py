@@ -1073,6 +1073,10 @@ def api_items():
         
         # Author filter for leaderboard links
         author_id = _parse_int(request.args.get("author_id"), 0)
+        
+        # Proof Score / Slice Hints filters
+        auto_presets = request.args.get("auto_presets") == "1"
+        min_proof_score = _parse_int(request.args.get("min_proof_score"), 0)
 
         dialect = db.session.get_bind().dialect.name
         if dialect == "postgresql":
@@ -1099,6 +1103,20 @@ def api_items():
         if author_id > 0:
             where.append("user_id = :author_id")
             params["author_id"] = author_id
+        
+        # Proof Score filter
+        if min_proof_score > 0:
+            where.append("proof_score >= :min_proof_score")
+            params["min_proof_score"] = min_proof_score
+        
+        # Auto presets filter (has slice hints)
+        if auto_presets:
+            where.append(
+                "slice_hints_json IS NOT NULL "
+                "AND slice_hints_json != '' "
+                "AND slice_hints_json != '{}' "
+                "AND LOWER(slice_hints_json) != 'null'"
+            )
         
         # ✅ Filter only published items in public market
         try:
@@ -1157,7 +1175,8 @@ def api_items():
                            i.format, i.user_id, i.created_at,
                            i.is_published, i.published_at,
                            COALESCE(pm.prints_count, 0) AS prints_count,
-                           i.proof_score
+                           i.proof_score,
+                           i.slice_hints_json
                     FROM {ITEMS_TBL} i
                     LEFT JOIN (
                         SELECT item_id, COUNT(*) AS prints_count
@@ -1184,7 +1203,8 @@ def api_items():
                                format, user_id, created_at,
                                is_published, published_at,
                                0 AS prints_count,
-                               proof_score
+                               proof_score,
+                               slice_hints_json
                         FROM {ITEMS_TBL}
                         {where_sql}
                         {order_sql}
@@ -1195,7 +1215,20 @@ def api_items():
                     # Re-raise if it's not a missing table error
                     raise
             
-            items = [_row_to_dict(r) for r in rows]
+            # Add has_slice_hints derived field
+            items = []
+            for r in rows:
+                item = _row_to_dict(r)
+                slice_hints = item.get('slice_hints_json')
+                # Check if slice_hints is valid: not None, not empty, not "null" string, not "{}"
+                item['has_slice_hints'] = bool(
+                    slice_hints 
+                    and isinstance(slice_hints, str) 
+                    and slice_hints.strip() 
+                    and slice_hints.strip().lower() not in ('null', '{}', '')
+                )
+                items.append(item)
+            
             total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
             
         except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
@@ -1213,7 +1246,8 @@ def api_items():
                            {url_expr} AS url,
                            format, user_id, created_at,
                            0 AS prints_count,
-                           NULL AS proof_score
+                           NULL AS proof_score,
+                           NULL AS slice_hints_json
                     FROM {ITEMS_TBL}
                     {where_sql}
                     {order_sql}
@@ -1222,7 +1256,11 @@ def api_items():
                 
                 try:
                     rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
-                    items = [_row_to_dict(r) for r in rows]
+                    items = []
+                    for r in rows:
+                        item = _row_to_dict(r)
+                        item['has_slice_hints'] = False  # Fallback: columns don't exist
+                        items.append(item)
                     total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
                 except sa_exc.ProgrammingError:
                     # Last resort: legacy schema with file_url instead of stl_main_url
@@ -1245,6 +1283,8 @@ def api_items():
                         d = _row_to_dict(r)
                         d.setdefault("rating", 0)
                         d.setdefault("downloads", 0)
+                        d.setdefault("proof_score", None)
+                        d["has_slice_hints"] = False
                         items.append(d)
                     total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
             else:

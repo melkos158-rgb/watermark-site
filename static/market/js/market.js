@@ -32,6 +32,8 @@ const state = {
   free: null,       // null / 1 / 0
   tag: null,        // швидкий тег із .mqf-chip (dragon / stand / toy / cosplay / other)
   author_id: null,  // filter by author (from URL params)
+  min_proof_score: null,  // minimum proof score filter
+  auto_presets: null,     // auto presets filter (1 or null)
 };
 
 // id останнього запиту — щоб ігнорувати повільні старі респонси
@@ -102,6 +104,19 @@ function buildStateFromDOM() {
     if (v === "free") state.free = 1;
     else if (v === "paid") state.free = 0;
     else state.free = null;
+  }
+
+  // Proof Score filter
+  const proofScoreSelect = document.querySelector("[data-filter-proof-score]");
+  if (proofScoreSelect && proofScoreSelect.value) {
+    const v = parseInt(proofScoreSelect.value, 10) || 0;
+    state.min_proof_score = v > 0 ? v : null;
+  }
+
+  // Auto Presets checkbox
+  const autoPresetsCheckbox = document.querySelector("[data-filter-auto-presets]");
+  if (autoPresetsCheckbox) {
+    state.auto_presets = autoPresetsCheckbox.checked ? 1 : null;
   }
 
   // чіпси "усі / free / paid" на my.html
@@ -198,6 +213,8 @@ async function loadPage(page = 1) {
     category: state.category || undefined,
     free: state.free === null ? undefined : state.free ? 1 : 0,
     author_id: state.author_id || undefined,
+    min_proof_score: state.min_proof_score || undefined,
+    auto_presets: state.auto_presets || undefined,
     // tag спеціально не відправляємо — наразі фільтруємо на фронті
   };
 
@@ -543,6 +560,25 @@ function bindUI() {
     });
   }
 
+  // Proof Score filter dropdown
+  const proofScoreSelect = document.querySelector("[data-filter-proof-score]");
+  if (proofScoreSelect) {
+    proofScoreSelect.addEventListener("change", () => {
+      const v = parseInt(proofScoreSelect.value, 10) || 0;
+      state.min_proof_score = v > 0 ? v : null;
+      loadPage(1);
+    });
+  }
+
+  // Auto Presets checkbox
+  const autoPresetsCheckbox = document.querySelector("[data-filter-auto-presets]");
+  if (autoPresetsCheckbox) {
+    autoPresetsCheckbox.addEventListener("change", () => {
+      state.auto_presets = autoPresetsCheckbox.checked ? 1 : null;
+      loadPage(1);
+    });
+  }
+
   // чіпси "усі / free / paid" на my.html
   const myFreeGroup = document.getElementById("my-free-filter");
   if (myFreeGroup) {
@@ -605,9 +641,31 @@ function bindUI() {
 // Read URL params on page load
 function initFromURL() {
   const params = new URLSearchParams(window.location.search);
+  
   const authorId = params.get('author_id');
   if (authorId) {
     state.author_id = parseInt(authorId, 10) || null;
+  }
+  
+  const minProofScore = params.get('min_proof_score');
+  if (minProofScore) {
+    const val = parseInt(minProofScore, 10);
+    state.min_proof_score = val > 0 ? val : null;
+    // Set dropdown value
+    const proofScoreSelect = document.querySelector("[data-filter-proof-score]");
+    if (proofScoreSelect) {
+      proofScoreSelect.value = minProofScore;
+    }
+  }
+  
+  const autoPresets = params.get('auto_presets');
+  if (autoPresets === '1') {
+    state.auto_presets = 1;
+    // Set checkbox checked
+    const autoPresetsCheckbox = document.querySelector("[data-filter-auto-presets]");
+    if (autoPresetsCheckbox) {
+      autoPresetsCheckbox.checked = true;
+    }
   }
 }
 

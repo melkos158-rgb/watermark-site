@@ -105,6 +105,13 @@
       {% endif %}
     {% endif %}
 
+    {# Auto presets badge - if slice hints exist #}
+    {% if it.has_slice_hints %}
+      <span class="badge presets" title="Auto-generated slicer presets available">
+        ⚙️ Auto presets
+      </span>
+    {% endif %}
+
     <img
       src="{{ cover_src }}"
       loading="lazy"

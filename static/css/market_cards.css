@@ -201,6 +201,33 @@
   color: #fff;
 }
 
+/* Auto presets badge - positioned on LEFT to avoid overlap with PS badge on right */
+.badge.presets {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  background: rgba(91, 102, 255, 0.2);
+  color: var(--mkt-accent, #5b66ff);
+  border: 1px solid var(--mkt-accent, #5b66ff);
+  backdrop-filter: blur(8px);
+}
+
+/* Mobile: stack badges vertically to prevent overlap */
+@media (max-width: 480px) {
+  .badge.presets {
+    bottom: 36px;
+    left: 10px;
+  }
+  .badge.proof {
+    bottom: 10px;
+    right: 10px;
+  }
+}
+
 /* ================== ШВИДКІ ДІЇ (кнопки) ================== */
 
 .market-card-actions {
