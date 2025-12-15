@@ -196,7 +196,9 @@
 .print-settings-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
   padding-top: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .print-settings-footer .btn {
@@ -206,6 +208,8 @@
   cursor: pointer;
   border: none;
   transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .print-settings-footer .btn-secondary {

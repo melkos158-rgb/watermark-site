@@ -14,6 +14,8 @@
 
   const bodyEl = document.getElementById('print-settings-body');
   const copyBtn = document.getElementById('btn-copy-slice-hints');
+  const curaBtn = document.getElementById('btn-download-cura');
+  const prusaBtn = document.getElementById('btn-download-prusa');
 
   let cachedHints = null;
 
@@ -42,10 +44,27 @@
       if (copyBtn) {
         copyBtn.disabled = false;
       }
+      
+      // Enable download buttons with correct URLs
+      enableDownloadButtons();
 
     } catch (err) {
       console.error('Failed to load slice hints:', err);
       showError();
+    }
+  }
+
+  function enableDownloadButtons() {
+    if (curaBtn) {
+      curaBtn.href = `/api/item/${itemId}/slice-hints/preset?target=cura`;
+      curaBtn.style.pointerEvents = 'auto';
+      curaBtn.style.opacity = '1';
+    }
+    
+    if (prusaBtn) {
+      prusaBtn.href = `/api/item/${itemId}/slice-hints/preset?target=prusa`;
+      prusaBtn.style.pointerEvents = 'auto';
+      prusaBtn.style.opacity = '1';
     }
   }
 

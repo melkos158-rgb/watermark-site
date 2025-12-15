@@ -18,6 +18,7 @@ from flask import (
     redirect,
     g,
     url_for,
+    make_response,
 )
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
@@ -3562,6 +3563,190 @@ def api_slice_hints(item_id):
         })
         resp.headers["Cache-Control"] = "no-store"
         return resp
+
+
+@bp.get('/api/item/<int:item_id>/slice-hints/preset')
+def api_slice_hints_preset(item_id):
+    """
+    GET /api/item/123/slice-hints/preset?target=cura|prusa
+    
+    Downloads slicer preset file generated from slice hints.
+    Supports Cura and PrusaSlicer formats.
+    """
+    target = request.args.get('target', 'cura').lower()
+    if target not in {'cura', 'prusa'}:
+        return jsonify({"ok": False, "error": "Invalid target. Use 'cura' or 'prusa'"}), 400
+    
+    try:
+        # 1. Get or generate slice hints (reuse existing logic)
+        has_slice_cols = _has_column(ITEMS_TBL, "slice_hints_json")
+        
+        if has_slice_cols:
+            row = db.session.execute(
+                text(f"""
+                    SELECT title, printability_json, proof_score, slice_hints_json 
+                    FROM {ITEMS_TBL} 
+                    WHERE id = :id
+                """),
+                {"id": item_id}
+            ).first()
+        else:
+            row = db.session.execute(
+                text(f"""
+                    SELECT title, printability_json, proof_score 
+                    FROM {ITEMS_TBL} 
+                    WHERE id = :id
+                """),
+                {"id": item_id}
+            ).first()
+        
+        if not row:
+            return jsonify({"ok": False, "error": "item_not_found"}), 404
+        
+        # Parse row
+        if has_slice_cols and len(row) >= 4:
+            title, printability_json, proof_score, cached_hints = row
+        else:
+            title, printability_json, proof_score = row[0], row[1], row[2]
+            cached_hints = None
+        
+        # Get hints (cached or generate)
+        hints = None
+        if cached_hints:
+            hints = json.loads(cached_hints) if isinstance(cached_hints, str) else cached_hints
+        
+        if not hints or not isinstance(hints, dict) or len(hints) == 0:
+            # Generate fresh hints
+            from utils.slice_hints import generate_slice_hints
+            
+            printability = None
+            if printability_json:
+                try:
+                    printability = json.loads(printability_json) if isinstance(printability_json, str) else printability_json
+                except:
+                    printability = None
+            
+            hints = generate_slice_hints(printability, proof_score)
+            
+            # Save to DB if columns exist
+            if has_slice_cols and hints:
+                try:
+                    db.session.execute(
+                        text(f"""
+                            UPDATE {ITEMS_TBL}
+                            SET slice_hints_json = :hints,
+                                slice_hints_at = :at
+                            WHERE id = :id
+                        """),
+                        {
+                            "hints": json.dumps(hints),
+                            "at": datetime.utcnow(),
+                            "id": item_id
+                        }
+                    )
+                    db.session.commit()
+                except Exception as save_err:
+                    current_app.logger.warning(f"Failed to save slice hints during preset download: {save_err}")
+                    db.session.rollback()
+        
+        # 2. Build preset file content
+        preset_content = _build_preset_content(hints, target, title or f"item_{item_id}")
+        
+        # 3. Create response with download headers
+        safe_title = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in (title or f"item_{item_id}"))[:50]
+        
+        if target == 'cura':
+            filename = f"{safe_title}_cura.curaprofile"
+        else:  # prusa
+            filename = f"{safe_title}_prusa.ini"
+        
+        resp = make_response(preset_content)
+        resp.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        resp.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        resp.headers['Cache-Control'] = 'no-store'
+        return resp
+        
+    except Exception as e:
+        current_app.logger.error(f"Preset download failed for item {item_id}: {e}")
+        return jsonify({"ok": False, "error": "preset_generation_failed", "detail": str(e)}), 500
+
+
+def _build_preset_content(hints, target, title):
+    """
+    Build slicer preset file content from slice hints.
+    
+    Args:
+        hints: Dict with layer_height, infill_percent, supports, material, etc.
+        target: 'cura' or 'prusa'
+        title: Item title for comments
+    
+    Returns:
+        String with preset file content
+    """
+    # Sanitize title for safe inclusion in comments
+    safe_title = title.replace('\n', ' ').replace('\r', ' ')[:100]
+    
+    layer_height = hints.get('layer_height', 0.2)
+    infill = hints.get('infill_percent', 15)
+    supports = hints.get('supports', 'none')
+    material = hints.get('material', 'PLA')
+    
+    if target == 'cura':
+        # Cura preset format (INI-like)
+        lines = [
+            f"# Proofly Auto-Generated Preset for {safe_title}",
+            f"# Material: {material}",
+            f"# Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+            "",
+            "[general]",
+            "version = 4",
+            "name = Proofly Auto",
+            "definition = fdmprinter",
+            "",
+            "[metadata]",
+            f"quality_type = proofly",
+            f"material = {material.lower()}",
+            "",
+            "[values]",
+            f"layer_height = {layer_height}",
+            f"infill_sparse_density = {infill}",
+        ]
+        
+        # Support settings
+        if supports == 'none':
+            lines.append("support_enable = False")
+        elif supports == 'buildplate':
+            lines.append("support_enable = True")
+            lines.append("support_type = buildplate")
+        else:  # everywhere
+            lines.append("support_enable = True")
+            lines.append("support_type = everywhere")
+        
+        return "\n".join(lines)
+    
+    else:  # prusa
+        # PrusaSlicer preset format (INI sections)
+        lines = [
+            f"# Proofly Auto-Generated Preset for {safe_title}",
+            f"# Material: {material}",
+            f"# Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+            "",
+            "[print:Proofly Auto]",
+            f"layer_height = {layer_height}",
+            f"fill_density = {infill}%",
+        ]
+        
+        # Support settings
+        if supports == 'none':
+            lines.append("support_material = 0")
+        elif supports == 'buildplate':
+            lines.append("support_material = 1")
+            lines.append("support_material_buildplate_only = 1")
+        else:  # everywhere
+            lines.append("support_material = 1")
+            lines.append("support_material_buildplate_only = 0")
+        
+        return "\n".join(lines)
 
 
 # ✅ Сумісність з фронтом: /api/market/upload (BASE="/api/market" у api.js)
