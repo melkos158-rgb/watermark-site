@@ -1962,7 +1962,7 @@ def api_get_creators_stats_batch():
         return resp
         
     except Exception as e:
-        current_app.logger.error(f"Batch creator stats error: {e}")
+        current_app.logger.exception("api_creators_stats failed: %s", e)
         return jsonify({"ok": False, "error": "server"}), 500
 
 
