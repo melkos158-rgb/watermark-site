@@ -1867,6 +1867,7 @@ def api_get_creators_stats_batch():
             user_ids = list(user_map.values())
             id_placeholders = ','.join([f':uid{i}' for i in range(len(user_ids))])
             id_bind_params = {f'uid{i}': uid for i, uid in enumerate(user_ids)}
+            id_bind_params['pub'] = True  # Postgres boolean compatibility
             
             stats_rows = db.session.execute(
                 text(f"""
@@ -1882,7 +1883,7 @@ def api_get_creators_stats_batch():
                             THEN 1 ELSE 0 
                         END) as presets_count
                     FROM {ITEMS_TBL} i
-                    WHERE i.user_id IN ({id_placeholders}) AND i.is_published = 1
+                    WHERE i.user_id IN ({id_placeholders}) AND i.is_published = :pub
                     GROUP BY i.user_id
                 """),
                 id_bind_params
@@ -1934,12 +1935,13 @@ def api_get_creators_stats_batch():
                 user_ids = list(user_map.values())
                 id_placeholders = ','.join([f':uid{i}' for i in range(len(user_ids))])
                 id_bind_params = {f'uid{i}': uid for i, uid in enumerate(user_ids)}
+                id_bind_params['pub'] = True  # Postgres boolean compatibility
                 
                 count_rows = db.session.execute(
                     text(f"""
                         SELECT user_id, COUNT(DISTINCT id) as total
                         FROM {ITEMS_TBL}
-                        WHERE user_id IN ({id_placeholders}) AND is_published = 1
+                        WHERE user_id IN ({id_placeholders}) AND is_published = :pub
                         GROUP BY user_id
                     """),
                     id_bind_params
@@ -1962,6 +1964,7 @@ def api_get_creators_stats_batch():
         return resp
         
     except Exception as e:
+        db.session.rollback()
         current_app.logger.exception("api_creators_stats failed: %s", e)
         return jsonify({"ok": False, "error": "server"}), 500
 
