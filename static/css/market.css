@@ -113,6 +113,116 @@
   }
 }
 
+/* ========================================
+   PRINT SETTINGS PANEL (Detail Page)
+   ======================================== */
+
+.print-settings-card {
+  background: linear-gradient(135deg, #0f1620 0%, #1a1f2e 100%);
+  border: 1px solid #2a3448;
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin: 1rem 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.print-settings-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.1rem;
+  color: var(--mkt-text);
+  font-weight: 600;
+}
+
+.print-settings-card .subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--mkt-muted);
+}
+
+.print-settings-body {
+  margin-bottom: 1rem;
+}
+
+.print-settings-body .muted {
+  color: var(--mkt-muted);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--mkt-line-soft);
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-row .label {
+  font-weight: 500;
+  color: var(--mkt-text);
+}
+
+.setting-row .value {
+  color: var(--mkt-accent);
+  font-weight: 600;
+}
+
+.setting-row.warnings {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.warning-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.warning-badge {
+  background: rgba(249, 115, 115, 0.15);
+  color: #f97373;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  border: 1px solid rgba(249, 115, 115, 0.3);
+}
+
+.print-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+.print-settings-footer .btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.print-settings-footer .btn-secondary {
+  background: var(--mkt-accent);
+  color: white;
+}
+
+.print-settings-footer .btn-secondary:hover:not(:disabled) {
+  background: #7079ff;
+  transform: translateY(-1px);
+}
+
+.print-settings-footer .btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Загальний контейнер сторінки маркету */
 .market-page {
   max-width: 1200px;
