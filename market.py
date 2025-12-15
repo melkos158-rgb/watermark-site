@@ -509,6 +509,70 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# ───────────────────────────── Proof Score Auto-Migration ─────────────────────────────
+def _ensure_proof_score_columns():
+    """
+    Auto-migration: Add proof_score columns if they don't exist.
+    Safe, idempotent, works for both PostgreSQL and SQLite.
+    """
+    try:
+        dialect = db.session.get_bind().dialect.name
+        
+        # Check and add printability_json
+        if not _has_column(ITEMS_TBL, "printability_json"):
+            db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN printability_json TEXT"))
+            db.session.commit()
+            current_app.logger.info(f"✅ Added column {ITEMS_TBL}.printability_json")
+        
+        # Check and add proof_score
+        if not _has_column(ITEMS_TBL, "proof_score"):
+            db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN proof_score INTEGER"))
+            db.session.commit()
+            current_app.logger.info(f"✅ Added column {ITEMS_TBL}.proof_score")
+        
+        # Check and add analyzed_at
+        if not _has_column(ITEMS_TBL, "analyzed_at"):
+            if dialect == "postgresql":
+                db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN analyzed_at TIMESTAMP"))
+            else:  # SQLite
+                db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN analyzed_at TEXT"))
+            db.session.commit()
+            current_app.logger.info(f"✅ Added column {ITEMS_TBL}.analyzed_at")
+        
+        # Clear column cache to force re-check
+        global _column_cache
+        _column_cache.clear()
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"⚠️ Proof Score migration failed (may already exist): {e}")
+
+
+_proof_score_migration_done = False
+
+@bp.before_app_request
+def _init_proof_score_schema():
+    """
+    Initialize Proof Score schema on first request.
+    Ensures columns exist before any printability endpoint is called.
+    """
+    global _proof_score_migration_done
+    if _proof_score_migration_done:
+        return
+    
+    p = request.path or ""
+    if not (p.startswith("/market") or p.startswith("/api/")):
+        return
+    
+    _proof_score_migration_done = True
+    
+    try:
+        _ensure_proof_score_columns()
+        current_app.logger.info("✅ Proof Score schema ensured")
+    except Exception as e:
+        current_app.logger.error(f"❌ Proof Score schema initialization failed: {e}")
+
+
 # ───────────────────────────── Safe DB migration ─────────────────────────────
 _migration_done = False
 
