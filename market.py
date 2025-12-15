@@ -145,6 +145,54 @@ def _normalize_free(value: Optional[str]) -> str:
     return v if v in ("all", "free", "paid") else "all"
 
 
+# Cache for column existence checks (avoid repeated DB queries)
+_column_cache = {}
+
+def _has_column(table: str, column: str) -> bool:
+    """
+    Check if column exists in table.
+    Cached to avoid repeated DB queries.
+    
+    Supports PostgreSQL (information_schema) and SQLite (PRAGMA).
+    """
+    cache_key = f"{table}.{column}"
+    
+    if cache_key in _column_cache:
+        return _column_cache[cache_key]
+    
+    try:
+        dialect = db.session.get_bind().dialect.name
+        
+        if dialect == "postgresql":
+            # PostgreSQL: query information_schema.columns
+            result = db.session.execute(
+                text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = :table AND column_name = :column
+                """),
+                {"table": table, "column": column}
+            ).first()
+            exists = result is not None
+        else:
+            # SQLite: use PRAGMA table_info
+            result = db.session.execute(
+                text(f"PRAGMA table_info({table})")
+            ).fetchall()
+            # PRAGMA returns: (cid, name, type, notnull, dflt_value, pk)
+            column_names = [row[1] for row in result]
+            exists = column in column_names
+        
+        _column_cache[cache_key] = exists
+        return exists
+        
+    except Exception as e:
+        current_app.logger.warning(f"Column check failed for {table}.{column}: {e}")
+        # Assume column doesn't exist if check fails
+        _column_cache[cache_key] = False
+        return False
+
+
 # ======================================================================
 # SORTING: "Top by Real Prints" Feature + Trending Prints
 # ======================================================================
@@ -3227,6 +3275,16 @@ def api_printability(item_id):
     Returns cached analysis from DB if present.
     Otherwise analyzes STL file, saves to DB, returns fresh data.
     """
+    # ⚠️ CRITICAL: Check if proof_score columns exist before querying
+    if not _has_column(ITEMS_TBL, "proof_score"):
+        resp = jsonify({
+            "ok": False,
+            "error": "migration_required",
+            "detail": "Database migration needed: proof_score columns not found. Run migrate_proof_score.sql"
+        })
+        resp.headers["Cache-Control"] = "no-store"
+        return resp, 409  # 409 Conflict - migration required
+    
     try:
         # 1. Fetch item
         row = db.session.execute(
@@ -3235,7 +3293,9 @@ def api_printability(item_id):
         ).first()
         
         if not row:
-            return jsonify({"ok": False, "error": "item_not_found"}), 404
+            resp = jsonify({"ok": False, "error": "item_not_found"})
+            resp.headers["Cache-Control"] = "no-store"
+            return resp, 404
         
         stl_url, cached_json, cached_score, analyzed_at = row
         
@@ -3253,11 +3313,19 @@ def api_printability(item_id):
         
         # 3. No cached data - try to analyze
         if not stl_url:
-            return jsonify({"ok": False, "error": "no_stl_file"}), 404
+            resp = jsonify({"ok": False, "error": "no_stl_file"})
+            resp.headers["Cache-Control"] = "no-store"
+            return resp, 404
         
         stl_path = _resolve_stl_filesystem_path(stl_url)
         if not stl_path:
-            return jsonify({"ok": False, "error": "no_local_stl", "detail": "STL is on Cloudinary or missing"}), 404
+            resp = jsonify({
+                "ok": False,
+                "error": "no_local_stl",
+                "detail": "STL is on Cloudinary or missing"
+            })
+            resp.headers["Cache-Control"] = "no-store"
+            return resp, 404
         
         from utils.stl_analyzer import analyze_stl
         analysis = analyze_stl(stl_path)
@@ -3292,7 +3360,9 @@ def api_printability(item_id):
         
     except Exception as e:
         current_app.logger.error(f"Printability analysis failed: {e}")
-        return jsonify({"ok": False, "error": "analysis_failed", "detail": str(e)}), 500
+        resp = jsonify({"ok": False, "error": "analysis_failed", "detail": str(e)})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp, 500
 
 
 # ✅ Сумісність з фронтом: /api/market/upload (BASE="/api/market" у api.js)
