@@ -1556,6 +1556,45 @@ def api_unfollow(author_id: int):
     return jsonify({"ok": True, "following": False, "followers_count": int(followers_count)})
 
 
+@bp.get("/api/debug/follows")
+def api_debug_follows():
+    """Debug endpoint: show raw user_follows table data (only in debug mode)"""
+    if not current_app.debug:
+        return jsonify({"ok": False, "error": "Only available in debug mode"}), 403
+    
+    uid = _parse_int(session.get("user_id"), 0)
+    
+    try:
+        # Get current user's follows
+        my_follows = []
+        if uid:
+            rows = db.session.execute(
+                text("SELECT id, follower_id, author_id, created_at FROM user_follows WHERE follower_id = :uid ORDER BY created_at DESC"),
+                {"uid": uid}
+            ).fetchall()
+            my_follows = [{"id": r.id, "follower_id": r.follower_id, "author_id": r.author_id, "created_at": str(r.created_at)} for r in rows]
+        
+        # Get all follows (limit 50)
+        all_rows = db.session.execute(
+            text("SELECT id, follower_id, author_id, created_at FROM user_follows ORDER BY created_at DESC LIMIT 50")
+        ).fetchall()
+        all_follows = [{"id": r.id, "follower_id": r.follower_id, "author_id": r.author_id, "created_at": str(r.created_at)} for r in all_rows]
+        
+        # Get table structure
+        table_info = db.session.execute(text("SELECT * FROM user_follows LIMIT 0")).keys()
+        
+        return jsonify({
+            "ok": True,
+            "current_user_id": uid,
+            "my_follows": my_follows,
+            "all_follows_sample": all_follows,
+            "table_columns": list(table_info),
+            "note": "follower_id = who follows, author_id = whom they follow"
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # ───────────────────────────── Feed API ─────────────────────────────
 @bp.get("/api/feed/activity")
 def api_feed_activity():
