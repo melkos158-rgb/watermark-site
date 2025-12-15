@@ -1470,6 +1470,102 @@ def api_get_user_follows():
         return jsonify({"ok": False, "error": "server"}), 500
 
 
+@bp.get("/api/user/<int:user_id>/followers")
+def api_get_user_followers(user_id: int):
+    """Get list of users who follow this user"""
+    try:
+        # Get followers (people who follow this user)
+        rows = db.session.execute(
+            text(f"""
+                SELECT u.id, u.name, COALESCE(u.avatar_url, '/static/img/user.jpg') as avatar_url
+                FROM {USERS_TBL} u
+                INNER JOIN user_follows uf ON uf.follower_id = u.id
+                WHERE uf.author_id = :uid
+                ORDER BY uf.created_at DESC
+                LIMIT 50
+            """),
+            {"uid": user_id}
+        ).fetchall()
+        
+        users = [{"id": r.id, "name": r.name, "avatar_url": r.avatar_url} for r in rows]
+        
+        resp = jsonify({"ok": True, "users": users})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+        
+    except Exception as e:
+        current_app.logger.error(f"Get followers error: {e}")
+        # Fallback without created_at ordering
+        try:
+            rows = db.session.execute(
+                text(f"""
+                    SELECT u.id, u.name, COALESCE(u.avatar_url, '/static/img/user.jpg') as avatar_url
+                    FROM {USERS_TBL} u
+                    INNER JOIN user_follows uf ON uf.follower_id = u.id
+                    WHERE uf.author_id = :uid
+                    ORDER BY uf.id DESC
+                    LIMIT 50
+                """),
+                {"uid": user_id}
+            ).fetchall()
+            
+            users = [{"id": r.id, "name": r.name, "avatar_url": r.avatar_url} for r in rows]
+            resp = jsonify({"ok": True, "users": users})
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
+        except Exception as fallback_err:
+            current_app.logger.error(f"Get followers fallback error: {fallback_err}")
+            return jsonify({"ok": False, "error": "server"}), 500
+
+
+@bp.get("/api/user/<int:user_id>/following")
+def api_get_user_following(user_id: int):
+    """Get list of users this user follows"""
+    try:
+        # Get following (people this user follows)
+        rows = db.session.execute(
+            text(f"""
+                SELECT u.id, u.name, COALESCE(u.avatar_url, '/static/img/user.jpg') as avatar_url
+                FROM {USERS_TBL} u
+                INNER JOIN user_follows uf ON uf.author_id = u.id
+                WHERE uf.follower_id = :uid
+                ORDER BY uf.created_at DESC
+                LIMIT 50
+            """),
+            {"uid": user_id}
+        ).fetchall()
+        
+        users = [{"id": r.id, "name": r.name, "avatar_url": r.avatar_url} for r in rows]
+        
+        resp = jsonify({"ok": True, "users": users})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+        
+    except Exception as e:
+        current_app.logger.error(f"Get following error: {e}")
+        # Fallback without created_at ordering
+        try:
+            rows = db.session.execute(
+                text(f"""
+                    SELECT u.id, u.name, COALESCE(u.avatar_url, '/static/img/user.jpg') as avatar_url
+                    FROM {USERS_TBL} u
+                    INNER JOIN user_follows uf ON uf.author_id = u.id
+                    WHERE uf.follower_id = :uid
+                    ORDER BY uf.id DESC
+                    LIMIT 50
+                """),
+                {"uid": user_id}
+            ).fetchall()
+            
+            users = [{"id": r.id, "name": r.name, "avatar_url": r.avatar_url} for r in rows]
+            resp = jsonify({"ok": True, "users": users})
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
+        except Exception as fallback_err:
+            current_app.logger.error(f"Get following fallback error: {fallback_err}")
+            return jsonify({"ok": False, "error": "server"}), 500
+
+
 @bp.get("/api/follow/status/<int:author_id>")
 def api_follow_status(author_id: int):
     """Get follow status for an author"""

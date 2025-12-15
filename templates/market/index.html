@@ -20,13 +20,32 @@
       <div id="authorShowingText" style="font-size: 0.85rem; color: var(--muted, #9fb0d4); margin-bottom: 4px;">{{ _('Showing models by') }}</div>
       <h2 id="authorName" style="margin: 0 0 8px 0; font-size: 1.5rem; font-weight: 700;">Loading...</h2>
       <div id="authorStats" style="display: flex; gap: 16px; font-size: 0.9rem; color: var(--muted, #9fb0d4);">
-        <span id="authorFollowers" data-count="0">0 {{ _('followers') }}</span>
+        <button id="followersCountBtn" style="background: none; border: none; padding: 0; color: var(--muted, #9fb0d4); cursor: pointer; transition: color 0.2s; font-size: 0.9rem; font-family: inherit;" onmouseover="this.style.color='var(--accent, #667eea)'" onmouseout="this.style.color='var(--muted, #9fb0d4)'">
+          <span id="authorFollowers" data-count="0">0 {{ _('followers') }}</span>
+        </button>
         <span id="authorModels" data-count="0">0 {{ _('models') }}</span>
       </div>
     </div>
     <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
       <button id="authorFollowBtn" class="btn-follow" style="padding: 10px 24px; border: 2px solid var(--accent, #667eea); background: transparent; color: var(--accent, #667eea); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; min-width: 120px;" disabled>Loading...</button>
       <a href="/market" id="authorClearFilter" style="font-size: 0.85rem; color: var(--muted, #9fb0d4); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent, #667eea)'" onmouseout="this.style.color='var(--muted, #9fb0d4)'">✕ {{ _('Clear filter') }}</a>
+    </div>
+  </div>
+
+  <!-- Followers/Following Modal -->
+  <div id="followersModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: var(--card, #11141b); border: 1px solid var(--line, #1b2131); border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+      <div style="padding: 20px; border-bottom: 1px solid var(--line, #1b2131); display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 16px;">
+          <button id="tabFollowers" class="modal-tab active" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 600; color: var(--text); border-bottom: 2px solid var(--accent, #667eea);">Followers</button>
+          <button id="tabFollowing" class="modal-tab" style="background: none; border: none; padding: 8px 16px; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent;">Following</button>
+        </div>
+        <button id="closeModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted); padding: 0; width: 32px; height: 32px;">&times;</button>
+      </div>
+      <div id="modalContent" style="padding: 20px; overflow-y: auto; flex: 1;">
+        <div id="modalLoading" style="text-align: center; color: var(--muted); padding: 40px;">Loading...</div>
+        <div id="modalUserList" style="display: none;"></div>
+      </div>
     </div>
   </div>
   {% endif %}
@@ -136,6 +155,14 @@
   #authorFollowBtn:disabled{
     opacity: 0.6;
     cursor: not-allowed;
+  }
+  
+  .modal-tab{
+    transition: all 0.2s;
+  }
+  
+  .modal-tab:hover{
+    color: var(--text) !important;
   }
   
   @media (max-width: 640px){
@@ -498,6 +525,112 @@
   } catch (err) {
     console.error('Error loading author:', err);
     header.innerHTML = '<p style="color: var(--muted);">Failed to load author information</p>';
+  }
+})();
+
+// Followers/Following Modal
+(function() {
+  const modal = document.getElementById('followersModal');
+  const followersBtn = document.getElementById('followersCountBtn');
+  const closeBtn = document.getElementById('closeModal');
+  const tabFollowers = document.getElementById('tabFollowers');
+  const tabFollowing = document.getElementById('tabFollowing');
+  const modalContent = document.getElementById('modalContent');
+  const modalLoading = document.getElementById('modalLoading');
+  const modalUserList = document.getElementById('modalUserList');
+  
+  if (!modal || !followersBtn) return;
+  
+  const authorId = {{ author_id }} || Number(new URLSearchParams(location.search).get('author_id')) || 0;
+  if (!authorId) return;
+  
+  let currentTab = 'followers';
+  
+  // Open modal on followers count click
+  followersBtn.addEventListener('click', () => {
+    modal.style.display = 'flex';
+    currentTab = 'followers';
+    updateTabs();
+    loadUsers('followers');
+  });
+  
+  // Close modal
+  closeBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.style.display = 'none';
+    }
+  });
+  
+  // Tab switching
+  tabFollowers.addEventListener('click', () => {
+    currentTab = 'followers';
+    updateTabs();
+    loadUsers('followers');
+  });
+  
+  tabFollowing.addEventListener('click', () => {
+    currentTab = 'following';
+    updateTabs();
+    loadUsers('following');
+  });
+  
+  function updateTabs() {
+    if (currentTab === 'followers') {
+      tabFollowers.style.color = 'var(--text)';
+      tabFollowers.style.borderBottomColor = 'var(--accent, #667eea)';
+      tabFollowing.style.color = 'var(--muted)';
+      tabFollowing.style.borderBottomColor = 'transparent';
+    } else {
+      tabFollowing.style.color = 'var(--text)';
+      tabFollowing.style.borderBottomColor = 'var(--accent, #667eea)';
+      tabFollowers.style.color = 'var(--muted)';
+      tabFollowers.style.borderBottomColor = 'transparent';
+    }
+  }
+  
+  async function loadUsers(type) {
+    modalLoading.style.display = 'block';
+    modalUserList.style.display = 'none';
+    
+    try {
+      const resp = await fetch(`/api/user/${authorId}/${type}`);
+      const data = await resp.json();
+      
+      if (!data.ok || !Array.isArray(data.users)) {
+        throw new Error('Invalid response');
+      }
+      
+      modalLoading.style.display = 'none';
+      
+      if (data.users.length === 0) {
+        modalUserList.innerHTML = '<p style="text-align: center; color: var(--muted); padding: 40px;">No users found</p>';
+        modalUserList.style.display = 'block';
+        return;
+      }
+      
+      // Render user list
+      const html = data.users.map(user => `
+        <a href="/market?author_id=${user.id}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: inherit; transition: background 0.2s;" onmouseover="this.style.background='var(--hover, rgba(102, 126, 234, 0.1))'" onmouseout="this.style.background='transparent'">
+          <img src="${user.avatar_url}" alt="${user.name}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
+          <div style="flex: 1;">
+            <div style="font-weight: 600;">${user.name}</div>
+          </div>
+        </a>
+      `).join('');
+      
+      modalUserList.innerHTML = html;
+      modalUserList.style.display = 'block';
+      
+    } catch (err) {
+      console.error('Error loading users:', err);
+      modalLoading.style.display = 'none';
+      modalUserList.innerHTML = '<p style="text-align: center; color: var(--muted); padding: 40px;">Failed to load users</p>';
+      modalUserList.style.display = 'block';
+    }
   }
 })();
 </script>
