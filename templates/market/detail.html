@@ -58,6 +58,21 @@
     </div>
   </header>
 
+  <!-- Proof Score Panel (loaded async) -->
+  <section class="proof-score-panel" id="proofScorePanel" style="display:none;">
+    <h3>🔍 Printability Analysis</h3>
+    <div class="proof-score-content">
+      <div class="proof-score-badge">
+        <span class="score" id="proofScoreValue">—</span>
+        <span class="label">/100</span>
+      </div>
+      <div class="metrics" id="proofMetrics">
+        <p>Loading analysis...</p>
+      </div>
+      <div class="warnings" id="proofWarnings"></div>
+    </div>
+  </section>
+
   <div class="detail-grid">
     <!-- ====== В’ЮВЕР ====== -->
     <section class="viewer-card">
@@ -933,6 +948,90 @@
     })();
   } else if (statusEl) {
     statusEl.textContent = 'STL-файл відсутній.';
+  }
+
+  // ========================================
+  // Proof Score Panel - Load async
+  // ========================================
+  (async function loadProofScore() {
+    const itemId = {{ item.id }};
+    const panel = document.getElementById('proofScorePanel');
+    const scoreEl = document.getElementById('proofScoreValue');
+    const metricsEl = document.getElementById('proofMetrics');
+    const warningsEl = document.getElementById('proofWarnings');
+    
+    if (!panel || !scoreEl || !metricsEl || !warningsEl) return;
+    
+    try {
+      const res = await fetch(`/api/item/${itemId}/printability`);
+      const data = await res.json();
+      
+      if (!data.ok) {
+        console.debug('Proof score unavailable:', data.error);
+        return;
+      }
+      
+      // Show panel
+      panel.style.display = 'block';
+      
+      // Update score badge
+      scoreEl.textContent = data.proof_score ?? '—';
+      scoreEl.className = 'score ' + getScoreClass(data.proof_score);
+      
+      // Update metrics
+      const p = data.printability || {};
+      const metricsHTML = `
+        <p><strong>Triangles:</strong> ${p.triangles ?? '—'}</p>
+        <p><strong>Bounding Box:</strong> ${formatBbox(p.bbox_mm)}</p>
+        <p><strong>Volume:</strong> ${formatVolume(p.volume_mm3)}</p>
+        <p><strong>Est. Weight (PLA):</strong> ${formatWeight(p.weight_g)}</p>
+        <p><strong>Overhang:</strong> ${p.overhang_percent ? p.overhang_percent.toFixed(1) + '%' : '—'}</p>
+      `;
+      metricsEl.innerHTML = metricsHTML;
+      
+      // Update warnings
+      if (p.warnings && p.warnings.length > 0) {
+        const warningsHTML = '<h4>⚠️ Warnings:</h4><ul>' +
+          p.warnings.map(w => `<li>${formatWarning(w)}</li>`).join('') +
+          '</ul>';
+        warningsEl.innerHTML = warningsHTML;
+      }
+      
+    } catch (err) {
+      console.error('Failed to load proof score:', err);
+    }
+  })();
+
+  function getScoreClass(score) {
+    if (score >= 80) return 'excellent';
+    if (score >= 60) return 'good';
+    if (score >= 40) return 'fair';
+    return 'poor';
+  }
+
+  function formatBbox(bbox) {
+    if (!bbox || bbox.length !== 3) return '—';
+    return `${bbox[0].toFixed(1)} × ${bbox[1].toFixed(1)} × ${bbox[2].toFixed(1)} mm`;
+  }
+
+  function formatVolume(vol) {
+    if (!vol) return '—';
+    return `${(vol / 1000).toFixed(2)} cm³`;
+  }
+
+  function formatWeight(w) {
+    if (!w) return '—';
+    return `${w.toFixed(1)} g`;
+  }
+
+  function formatWarning(w) {
+    const labels = {
+      'non_manifold': 'Non-manifold geometry (edges not paired)',
+      'degenerate_faces': 'Degenerate triangles detected',
+      'volume_unreliable': 'Volume calculation may be inaccurate',
+      'empty_mesh': 'Empty mesh or parse error'
+    };
+    return labels[w] || w;
   }
 </script>
 

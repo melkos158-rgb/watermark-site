@@ -69,6 +69,33 @@ ALLOWED_ARCHIVE_EXT = {".zip"}
 COVER_PLACEHOLDER = "/static/img/placeholder_stl.jpg"
 
 
+def _resolve_stl_filesystem_path(url: str) -> Optional[str]:
+    """
+    Convert /media/... or /static/market_uploads/... URL to absolute filesystem path.
+    Returns None if file is Cloudinary (HTTPS) or doesn't exist locally.
+    """
+    if not url:
+        return None
+    
+    # Skip Cloudinary URLs (can't analyze remote files in MVP)
+    if url.startswith("http://") or url.startswith("https://"):
+        return None
+    
+    # Handle /media/... → uploads_root
+    if url.startswith("/media/"):
+        rel = url[len("/media/"):].lstrip("/")
+        path = os.path.join(_uploads_root(), rel)
+        return path if os.path.isfile(path) else None
+    
+    # Handle /static/market_uploads/... → legacy static
+    if url.startswith("/static/market_uploads/"):
+        rel = url[len("/static/market_uploads/"):].lstrip("/")
+        path = os.path.join(current_app.root_path, "static", "market_uploads", rel)
+        return path if os.path.isfile(path) else None
+    
+    return None
+
+
 def _row_to_dict(row) -> Dict[str, Any]:
     """Convert SQLAlchemy Row to dict, safe for None and edge cases"""
     if row is None:
@@ -247,7 +274,9 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     """
     Save uploaded FileStorage into UPLOADS_ROOT (preferred) or fallback to legacy static path.
     Returns URL in form /media/<subdir>/<filename> or None.
-    This function keeps its signature unchanged.
+    
+    IMPORTANT: 3D model files (STL, OBJ, etc.) are ALWAYS saved locally to enable
+    printability analysis. Only images can use Cloudinary.
     """
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
@@ -259,8 +288,12 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     base_name = secure_filename(os.path.basename(file_storage.filename)) or ("file" + ext)
     unique_name = f"{os.path.splitext(base_name)[0]}_{uuid.uuid4().hex}{ext}"
 
-    # Try cloudinary first if configured
-    if _CLOUDINARY_READY:
+    # ⚠️ CRITICAL: 3D models MUST be saved locally for proof score analysis
+    # Skip Cloudinary for STL, OBJ, PLY, GLTF, GLB, 3MF
+    is_3d_model = ext in {".stl", ".obj", ".ply", ".gltf", ".glb", ".3mf"}
+
+    # Try cloudinary ONLY for images (not 3D models)
+    if _CLOUDINARY_READY and not is_3d_model:
         try:
             folder = f"proofly/market/{subdir}".replace("\\", "/")
 
@@ -424,6 +457,7 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
         "published_at": published_at,
         "status": status,
         "prints_count": safe_get("prints_count", 0),  # ✅ Number of real prints (makes)
+        "proof_score": safe_get("proof_score"),  # ✅ Printability score 0-100
     }
 
 
@@ -994,7 +1028,8 @@ def api_items():
                            {url_expr.replace('stl_main_url', 'i.stl_main_url')} AS url,
                            i.format, i.user_id, i.created_at,
                            i.is_published, i.published_at,
-                           COALESCE(pm.prints_count, 0) AS prints_count
+                           COALESCE(pm.prints_count, 0) AS prints_count,
+                           i.proof_score
                     FROM {ITEMS_TBL} i
                     LEFT JOIN (
                         SELECT item_id, COUNT(*) AS prints_count
@@ -1020,7 +1055,8 @@ def api_items():
                                {url_expr} AS url,
                                format, user_id, created_at,
                                is_published, published_at,
-                               0 AS prints_count
+                               0 AS prints_count,
+                               proof_score
                         FROM {ITEMS_TBL}
                         {where_sql}
                         {order_sql}
@@ -1048,7 +1084,8 @@ def api_items():
                            COALESCE(downloads, 0) AS downloads,
                            {url_expr} AS url,
                            format, user_id, created_at,
-                           0 AS prints_count
+                           0 AS prints_count,
+                           NULL AS proof_score
                     FROM {ITEMS_TBL}
                     {where_sql}
                     {order_sql}
@@ -3114,7 +3151,148 @@ def api_upload():
         new_id = db.session.execute(text("SELECT last_insert_rowid() AS id")).scalar()
 
     db.session.commit()
+
+    # ✅ Trigger printability analysis (only for local files)
+    # ⚠️ CRITICAL: Never block upload, even if analysis fails
+    if file_url:  # Only attempt if we have a file URL
+        try:
+            stl_path = _resolve_stl_filesystem_path(file_url)
+            
+            if not stl_path:
+                # Expected for Cloudinary URLs (though shouldn't happen after force_local fix)
+                current_app.logger.debug(
+                    f"⏭️ Skipping analysis for item {new_id}: "
+                    f"file_url={file_url[:80]} (no local path - likely Cloudinary)"
+                )
+            elif not os.path.isfile(stl_path):
+                # File path resolved but doesn't exist
+                current_app.logger.warning(
+                    f"⚠️ Cannot analyze item {new_id}: "
+                    f"file not found at {stl_path}"
+                )
+            else:
+                # File exists locally - proceed with analysis
+                from utils.stl_analyzer import analyze_stl
+                
+                current_app.logger.debug(f"🔍 Analyzing STL for item {new_id}: {stl_path}")
+                analysis = analyze_stl(stl_path)
+                
+                # Check if analysis succeeded
+                if analysis.get("error"):
+                    current_app.logger.warning(
+                        f"⚠️ STL analysis had errors for item {new_id}: {analysis.get('error')}"
+                    )
+                
+                # Update item with analysis results (even if partial)
+                db.session.execute(
+                    text(f"""
+                        UPDATE {ITEMS_TBL}
+                        SET printability_json = :json,
+                            proof_score = :score,
+                            analyzed_at = :at
+                        WHERE id = :id
+                    """),
+                    {
+                        "json": json.dumps(analysis),
+                        "score": analysis.get("proof_score"),
+                        "at": datetime.utcnow(),
+                        "id": new_id
+                    }
+                )
+                db.session.commit()
+                
+                current_app.logger.info(
+                    f"✅ Analyzed STL {new_id}: proof_score={analysis.get('proof_score')}, "
+                    f"triangles={analysis.get('triangles', 0)}, "
+                    f"warnings={len(analysis.get('warnings', []))}"
+                )
+                
+        except ImportError as e:
+            current_app.logger.error(f"❌ STL analyzer import failed for item {new_id}: {e}")
+        except Exception as e:
+            # Catch ANY error to prevent upload failure
+            current_app.logger.exception(
+                f"❌ STL analysis completely failed for item {new_id}: {type(e).__name__}: {e}"
+            )
+            # Continue without analysis - upload must succeed
+
     return jsonify({"ok": True, "id": int(new_id)})
+
+
+@bp.get('/api/item/<int:item_id>/printability')
+def api_printability(item_id):
+    """
+    GET /api/item/123/printability
+    
+    Returns cached analysis from DB if present.
+    Otherwise analyzes STL file, saves to DB, returns fresh data.
+    """
+    try:
+        # 1. Fetch item
+        row = db.session.execute(
+            text(f"SELECT stl_main_url, printability_json, proof_score, analyzed_at FROM {ITEMS_TBL} WHERE id = :id"),
+            {"id": item_id}
+        ).first()
+        
+        if not row:
+            return jsonify({"ok": False, "error": "item_not_found"}), 404
+        
+        stl_url, cached_json, cached_score, analyzed_at = row
+        
+        # 2. Return cached if exists
+        if cached_json:
+            resp = jsonify({
+                "ok": True,
+                "item_id": item_id,
+                "proof_score": cached_score,
+                "printability": json.loads(cached_json),
+                "analyzed_at": analyzed_at.isoformat() if analyzed_at else None
+            })
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
+        
+        # 3. No cached data - try to analyze
+        if not stl_url:
+            return jsonify({"ok": False, "error": "no_stl_file"}), 404
+        
+        stl_path = _resolve_stl_filesystem_path(stl_url)
+        if not stl_path:
+            return jsonify({"ok": False, "error": "no_local_stl", "detail": "STL is on Cloudinary or missing"}), 404
+        
+        from utils.stl_analyzer import analyze_stl
+        analysis = analyze_stl(stl_path)
+        
+        # 4. Save to DB
+        db.session.execute(
+            text(f"""
+                UPDATE {ITEMS_TBL}
+                SET printability_json = :json,
+                    proof_score = :score,
+                    analyzed_at = :at
+                WHERE id = :id
+            """),
+            {
+                "json": json.dumps(analysis),
+                "score": analysis.get("proof_score"),
+                "at": datetime.utcnow(),
+                "id": item_id
+            }
+        )
+        db.session.commit()
+        
+        resp = jsonify({
+            "ok": True,
+            "item_id": item_id,
+            "proof_score": analysis.get("proof_score"),
+            "printability": analysis,
+            "analyzed_at": datetime.utcnow().isoformat()
+        })
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+        
+    except Exception as e:
+        current_app.logger.error(f"Printability analysis failed: {e}")
+        return jsonify({"ok": False, "error": "analysis_failed", "detail": str(e)}), 500
 
 
 # ✅ Сумісність з фронтом: /api/market/upload (BASE="/api/market" у api.js)

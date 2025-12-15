@@ -88,6 +88,23 @@
       </span>
     {% endif %}
 
+    {# Proof Score badge - only if analyzed #}
+    {% if it.proof_score is not none %}
+      {% if it.proof_score >= 80 %}
+        <span class="badge proof excellent" title="Printability Score: {{ it.proof_score }}/100">
+          PS {{ it.proof_score }}
+        </span>
+      {% elif it.proof_score >= 60 %}
+        <span class="badge proof good" title="Printability Score: {{ it.proof_score }}/100">
+          PS {{ it.proof_score }}
+        </span>
+      {% else %}
+        <span class="badge proof fair" title="Printability Score: {{ it.proof_score }}/100">
+          PS {{ it.proof_score }}
+        </span>
+      {% endif %}
+    {% endif %}
+
     <img
       src="{{ cover_src }}"
       loading="lazy"

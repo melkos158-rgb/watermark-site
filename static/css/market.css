@@ -21,6 +21,98 @@
   --mkt-shadow-chip: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
 
+/* ========================================
+   PROOF SCORE PANEL (Detail Page)
+   ======================================== */
+
+.proof-score-panel {
+  background: linear-gradient(135deg, #0f1620 0%, #1a1f2e 100%);
+  border: 1px solid #2a3448;
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin: 1rem 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.proof-score-panel h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: var(--mkt-text);
+  font-weight: 600;
+}
+
+.proof-score-content {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.proof-score-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.proof-score-badge .score.excellent { color: #22c55e; }
+.proof-score-badge .score.good { color: #3b82f6; }
+.proof-score-badge .score.fair { color: #fb923c; }
+.proof-score-badge .score.poor { color: #ef4444; }
+
+.proof-score-badge .label {
+  font-size: 1rem;
+  color: var(--mkt-muted);
+  font-weight: 400;
+}
+
+.proof-score-panel .metrics p {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+  color: var(--mkt-muted);
+}
+
+.proof-score-panel .metrics strong {
+  color: var(--mkt-text);
+}
+
+.proof-score-panel .warnings {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+  padding: 0.8rem;
+  background: rgba(251, 146, 60, 0.1);
+  border: 1px solid rgba(251, 146, 60, 0.3);
+  border-radius: 6px;
+}
+
+.proof-score-panel .warnings h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #fb923c;
+}
+
+.proof-score-panel .warnings ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--mkt-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .proof-score-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .proof-score-badge {
+    justify-content: center;
+  }
+}
+
 /* Загальний контейнер сторінки маркету */
 .market-page {
   max-width: 1200px;

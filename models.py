@@ -68,6 +68,11 @@ class MarketItem(_db.Model):
         _db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
+    # ---------- printability analysis (Proof Score MVP) ----------
+    printability_json = _db.Column(_db.Text, nullable=True)  # JSON string with metrics
+    proof_score = _db.Column(_db.Integer, nullable=True)    # 0-100 heuristic score
+    analyzed_at = _db.Column(_db.DateTime, nullable=True)   # timestamp of last analysis
+
     # ------------- УТИЛІТИ -------------
     def _loads(self, value: str | None) -> list[str]:
         try:
@@ -124,6 +129,9 @@ class MarketItem(_db.Model):
             "status": "published" if self.is_published else "draft",
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "proof_score": self.proof_score,
+            "printability_json": self.printability_json,
+            "analyzed_at": self.analyzed_at.isoformat() if self.analyzed_at else None,
         }
 
     # ------------- АЛІАСИ ДЛЯ СУМІСНОСТІ З market.py -------------
