@@ -1425,7 +1425,9 @@ def api_get_user_mini(user_id: int):
         user_data["followers_count"] = follower_count
         user_data["items_count"] = items_count
         
-        return jsonify({"ok": True, "user": user_data})
+        resp = jsonify({"ok": True, "user": user_data})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
         
     except Exception as e:
         current_app.logger.error(f"Get user mini error: {e}")
@@ -1437,7 +1439,9 @@ def api_get_user_follows():
     """Get list of authors current user follows"""
     uid = _parse_int(session.get("user_id"), 0)
     if not uid:
-        return jsonify({"ok": True, "follows": []})
+        resp = jsonify({"ok": True, "follows": []})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
     
     try:
         rows = db.session.execute(
@@ -1452,7 +1456,9 @@ def api_get_user_follows():
         if current_app.debug:
             current_app.logger.info(f"GET /api/user/follows for user {uid}: {follows}")
         
-        return jsonify({"ok": True, "follows": follows})
+        resp = jsonify({"ok": True, "follows": follows})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
     except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
         if _is_missing_table_error(e):
             # Table doesn't exist on old schema - return empty list
@@ -1498,16 +1504,16 @@ def api_follow(author_id: int):
         dialect = db.session.get_bind().dialect.name
         if dialect == "postgresql":
             db.session.execute(
-                text("""INSERT INTO user_follows (follower_id, author_id)
-                        VALUES (:uid, :aid)
+                text("""INSERT INTO user_follows (follower_id, author_id, created_at)
+                        VALUES (:uid, :aid, NOW())
                         ON CONFLICT (follower_id, author_id) DO NOTHING"""),
                 {"uid": uid, "aid": author_id},
             )
         else:
             # SQLite: використовуємо INSERT OR IGNORE для уникнення дублікатів
             db.session.execute(
-                text("""INSERT OR IGNORE INTO user_follows (follower_id, author_id)
-                        VALUES (:uid, :aid)"""),
+                text("""INSERT OR IGNORE INTO user_follows (follower_id, author_id, created_at)
+                        VALUES (:uid, :aid, CURRENT_TIMESTAMP)"""),
                 {"uid": uid, "aid": author_id},
             )
         db.session.commit()
@@ -1524,7 +1530,9 @@ def api_follow(author_id: int):
         {"aid": author_id},
     ).scalar() or 0
 
-    return jsonify({"ok": True, "following": True, "followers_count": int(followers_count)})
+    resp = jsonify({"ok": True, "following": True, "followers_count": int(followers_count)})
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @bp.delete("/api/follow/<int:author_id>")
@@ -1553,7 +1561,9 @@ def api_unfollow(author_id: int):
         {"aid": author_id},
     ).scalar() or 0
 
-    return jsonify({"ok": True, "following": False, "followers_count": int(followers_count)})
+    resp = jsonify({"ok": True, "following": False, "followers_count": int(followers_count)})
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @bp.get("/api/debug/follows")
