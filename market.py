@@ -1747,27 +1747,70 @@ def api_get_user_followers(user_id: int):
         
     except Exception as e:
         current_app.logger.error(f"Get followers error: {e}")
-        # Fallback without created_at ordering
+        return jsonify({"ok": False, "error": "server"}), 500
+
+
+@bp.get("/api/creator/<username>/stats")
+def api_get_creator_stats(username: str):
+    """Get aggregated creator reputation metrics"""
+    try:
+        # Find user by username
+        user = db.session.execute(
+            text(f"SELECT id, name FROM {USERS_TBL} WHERE name = :name LIMIT 1"),
+            {"name": username}
+        ).fetchone()
+        
+        if not user:
+            return jsonify({"ok": False, "error": "user_not_found"}), 404
+        
+        # Aggregate stats with backward compatibility
         try:
-            rows = db.session.execute(
+            stats_row = db.session.execute(
                 text(f"""
-                    SELECT u.id, u.name, COALESCE(u.avatar_url, '/static/img/user.jpg') as avatar_url
-                    FROM {USERS_TBL} u
-                    INNER JOIN user_follows uf ON uf.follower_id = u.id
-                    WHERE uf.author_id = :uid
-                    ORDER BY uf.id DESC
-                    LIMIT 50
+                    SELECT 
+                        COUNT(id) as total_items,
+                        COALESCE(AVG(proof_score), 0) as avg_proof_score,
+                        SUM(CASE 
+                            WHEN slice_hints_json IS NOT NULL 
+                                AND slice_hints_json != '' 
+                                AND slice_hints_json != '{{}}' 
+                                AND LOWER(slice_hints_json) != 'null'
+                            THEN 1 ELSE 0 
+                        END) as presets_count
+                    FROM {ITEMS_TBL}
+                    WHERE author_id = :uid AND is_published = 1
                 """),
-                {"uid": user_id}
-            ).fetchall()
+                {"uid": user.id}
+            ).fetchone()
             
-            users = [{"id": r.id, "name": r.name, "avatar_url": r.avatar_url} for r in rows]
-            resp = jsonify({"ok": True, "users": users})
-            resp.headers["Cache-Control"] = "no-store"
-            return resp
-        except Exception as fallback_err:
-            current_app.logger.error(f"Get followers fallback error: {fallback_err}")
-            return jsonify({"ok": False, "error": "server"}), 500
+            total_items = stats_row.total_items or 0
+            avg_proof_score = round(stats_row.avg_proof_score, 1) if stats_row.avg_proof_score else 0
+            presets_count = stats_row.presets_count or 0
+            presets_coverage = round((presets_count / total_items * 100), 1) if total_items > 0 else 0
+            
+        except Exception as col_err:
+            # Fallback if proof_score/slice_hints columns missing
+            current_app.logger.warning(f"Creator stats fallback: {col_err}")
+            total_items = db.session.execute(
+                text(f"SELECT COUNT(id) FROM {ITEMS_TBL} WHERE author_id = :uid AND is_published = 1"),
+                {"uid": user.id}
+            ).scalar() or 0
+            avg_proof_score = 0
+            presets_coverage = 0
+        
+        resp = jsonify({
+            "ok": True,
+            "username": user.name,
+            "total_items": total_items,
+            "avg_proof_score": avg_proof_score,
+            "presets_coverage_percent": presets_coverage
+        })
+        resp.headers["Cache-Control"] = "public, max-age=300"  # Cache 5 min
+        return resp
+        
+    except Exception as e:
+        current_app.logger.error(f"Get creator stats error: {e}")
+        return jsonify({"ok": False, "error": "server"}), 500
 
 
 @bp.get("/api/user/<int:user_id>/following")

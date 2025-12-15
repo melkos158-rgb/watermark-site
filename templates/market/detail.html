@@ -35,8 +35,9 @@
       {% endif %}
 
       <span class="sep">•</span>
-      <a class="author" href="#author">
+      <a class="author" href="#author" data-creator="{{ item.owner.name if item.owner else '' }}">
         Автор: {{ item.owner.name if item.owner else '—' }}
+        <span class="creator-trust-badges"></span>
       </a>
 
       {% if item.format %}
@@ -305,6 +306,25 @@
       <div class="bio muted">
         {{ item.owner.bio if item.owner and item.owner.bio else '3D-дизайнер' }}
       </div>
+      
+      <!-- Creator Reputation Card -->
+      <div class="creator-reputation" data-creator-username="{{ item.owner.name if item.owner else '' }}" style="display:none;">
+        <div class="rep-badges">
+          <span class="rep-badge proof-score-badge">
+            <span class="icon">⭐</span>
+            <span class="label">Avg Quality: <strong class="value">—</strong></span>
+          </span>
+          <span class="rep-badge presets-badge">
+            <span class="icon">🎯</span>
+            <span class="label">Auto Presets: <strong class="value">—</strong></span>
+          </span>
+          <span class="rep-badge total-items-badge">
+            <span class="icon">📦</span>
+            <span class="label">Models: <strong class="value">—</strong></span>
+          </span>
+        </div>
+      </div>
+      
       {% if item.author_id %}
         <div class="author-actions">
           <span class="followers-count" data-author-id="{{ item.author_id }}">0 followers</span>
@@ -829,6 +849,83 @@
     padding: 12px 24px;
     font-weight: 600;
   }
+
+  /* Creator Trust Badges (compact, in header) */
+  .creator-trust-badges {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 6px;
+    font-size: 0.75rem;
+  }
+  
+  .creator-trust-badges .trust-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    background: rgba(91, 102, 255, 0.15);
+    border: 1px solid rgba(91, 102, 255, 0.3);
+    border-radius: 4px;
+    color: var(--mkt-accent, #5b66ff);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  
+  .creator-trust-badges .trust-badge .icon {
+    font-size: 0.85rem;
+  }
+
+  /* Creator Reputation Card (full, in author section) */
+  .creator-reputation {
+    margin: 0.8rem 0;
+    padding: 0.8rem;
+    background: rgba(91, 102, 255, 0.08);
+    border: 1px solid rgba(91, 102, 255, 0.2);
+    border-radius: 8px;
+  }
+  
+  .rep-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  
+  .rep-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(42, 52, 72, 0.6);
+    border: 1px solid rgba(91, 102, 255, 0.3);
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  
+  .rep-badge .icon {
+    font-size: 1rem;
+  }
+  
+  .rep-badge .label {
+    color: var(--mkt-muted, #9aa4c9);
+  }
+  
+  .rep-badge .value {
+    color: var(--mkt-text, #e5e9ff);
+    font-weight: 700;
+  }
+
+  @media (max-width: 480px) {
+    .creator-trust-badges {
+      display: block;
+      margin-top: 4px;
+      margin-left: 0;
+    }
+    
+    .rep-badges {
+      flex-direction: column;
+    }
+  }
+
   
   @keyframes slideInUp {
     from {
@@ -1196,4 +1293,7 @@
 
 <!-- Conversion boost features (Why prints well + sticky CTA) -->
 <script src="{{ url_for('static', filename='market/js/conversion_boost.js') }}"></script>
+
+<!-- Creator reputation metrics -->
+<script src="{{ url_for('static', filename='market/js/creator_stats.js') }}"></script>
 {% endblock %}
