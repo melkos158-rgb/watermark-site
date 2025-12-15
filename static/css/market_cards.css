@@ -201,6 +201,21 @@
   color: #fff;
 }
 
+/* Top badge - shown in top mode */
+.badge.top {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
+}
+
 /* Auto presets badge - positioned on LEFT to avoid overlap with PS badge on right */
 .badge.presets {
   position: absolute;

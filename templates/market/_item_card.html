@@ -88,6 +88,11 @@
       </span>
     {% endif %}
 
+    {# Top badge - shown in top mode (added by JS after render) #}
+    <span class="badge top" style="display:none" data-top-badge title="Top ranked model">
+      🔥 Top
+    </span>
+
     {# Proof Score badge - only if analyzed #}
     {% if it.proof_score is not none %}
       {% if it.proof_score >= 80 %}

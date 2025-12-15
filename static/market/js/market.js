@@ -28,6 +28,7 @@ const state = {
   page: 1,
   per_page: 24,
   sort: "new",      // new | popular | top | price_asc | price_desc | prints | prints_7d | prints_30d
+  mode: null,       // top | null
   category: null,   // slug категорії
   free: null,       // null / 1 / 0
   tag: null,        // швидкий тег із .mqf-chip (dragon / stand / toy / cosplay / other)
@@ -151,6 +152,16 @@ function buildStateFromDOM() {
   } else {
     state.tag = null;
   }
+
+  // Top Prints mode chip
+  const activeModeChip = document.querySelector(
+    "[data-mode].is-active"
+  );
+  if (activeModeChip && activeModeChip.dataset.mode === "top") {
+    state.mode = "top";
+  } else {
+    state.mode = null;
+  }
 }
 
 /* ==============================
@@ -210,6 +221,7 @@ async function loadPage(page = 1) {
     page: state.page,
     per_page: state.per_page,
     sort: state.sort,
+    mode: state.mode || undefined,
     category: state.category || undefined,
     free: state.free === null ? undefined : state.free ? 1 : 0,
     author_id: state.author_id || undefined,
@@ -249,6 +261,12 @@ async function loadPage(page = 1) {
   }
 
   grid.dataset.loading = "0";
+
+  // Show/hide Top badges based on mode
+  const isTopMode = state.mode === "top";
+  document.querySelectorAll("[data-top-badge]").forEach(badge => {
+    badge.style.display = isTopMode ? "" : "none";
+  });
 
   // 🔧 Підтримка двох форматів відповіді:
   //  1) { ok, items: [...], total, page, pages }
@@ -629,6 +647,16 @@ function bindUI() {
         .querySelectorAll(".mqf-chip")
         .forEach((c) => c.classList.toggle("is-active", c === chip));
 
+      // Check if this is Top Prints mode chip
+      if (chip.dataset.mode === "top") {
+        state.mode = "top";
+        state.tag = null;  // Clear tag filter when in top mode
+      } else if (chip.dataset.filterTag) {
+        // This is a tag filter chip, clear mode
+        state.mode = null;
+        // tag will be read from buildStateFromDOM
+      }
+
       loadPage(1);
     });
   }
@@ -645,6 +673,17 @@ function initFromURL() {
   const authorId = params.get('author_id');
   if (authorId) {
     state.author_id = parseInt(authorId, 10) || null;
+  }
+  
+  const mode = params.get('mode');
+  if (mode === 'top') {
+    state.mode = 'top';
+    // Activate Top Prints chip visually
+    const topChip = document.querySelector('[data-mode="top"]');
+    if (topChip) {
+      document.querySelectorAll('.mqf-chip').forEach(c => c.classList.remove('is-active'));
+      topChip.classList.add('is-active');
+    }
   }
   
   const minProofScore = params.get('min_proof_score');

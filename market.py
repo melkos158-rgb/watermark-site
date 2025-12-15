@@ -1068,6 +1068,7 @@ def api_items():
 
         free = _normalize_free(request.args.get("free"))
         sort = _normalize_sort(request.args.get("sort"))
+        mode = request.args.get("mode") or ""  # top / empty
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
         
@@ -1130,7 +1131,53 @@ def api_items():
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
-        if sort == "price_asc":
+        # Top Prints mode: ranking by quality
+        if mode == "top":
+            try:
+                # Check if proof_score column exists
+                db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+                
+                # Optional: only show items with proof_score
+                if "proof_score IS NOT NULL" not in " ".join(where):
+                    if where:
+                        where.append("proof_score IS NOT NULL")
+                    else:
+                        where = ["proof_score IS NOT NULL"]
+                    where_sql = "WHERE " + " AND ".join(where)
+                
+                # Ranking formula: proof_score + bonus for slice_hints
+                # Using CASE to add +15 if slice_hints is valid
+                if dialect == "postgresql":
+                    ranking_expr = """(
+                        COALESCE(proof_score, 0) + 
+                        CASE 
+                            WHEN slice_hints_json IS NOT NULL 
+                            AND slice_hints_json != '' 
+                            AND slice_hints_json != '{}' 
+                            AND LOWER(slice_hints_json) != 'null' 
+                            THEN 15 
+                            ELSE 0 
+                        END
+                    )"""
+                else:  # SQLite
+                    ranking_expr = """(
+                        COALESCE(proof_score, 0) + 
+                        CASE 
+                            WHEN slice_hints_json IS NOT NULL 
+                            AND slice_hints_json != '' 
+                            AND slice_hints_json != '{}' 
+                            AND LOWER(slice_hints_json) != 'null' 
+                            THEN 15 
+                            ELSE 0 
+                        END
+                    )"""
+                
+                order_sql = f"ORDER BY {ranking_expr} DESC, created_at DESC"
+            except Exception:
+                db.session.rollback()
+                # Fallback: columns don't exist, use default ordering
+                order_sql = "ORDER BY created_at DESC, id DESC"
+        elif sort == "price_asc":
             order_sql = "ORDER BY price ASC, created_at DESC"
         elif sort == "price_desc":
             order_sql = "ORDER BY price DESC, created_at DESC"
