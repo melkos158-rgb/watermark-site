@@ -1399,13 +1399,18 @@ def api_get_user_mini(user_id: int):
         
         user_data = _row_to_dict(row)
         
-        # Get follower count
+        # Get follower count (how many people follow this author)
         try:
             follower_count = db.session.execute(
                 text("SELECT COUNT(*) FROM user_follows WHERE author_id = :uid"),
                 {"uid": user_id}
             ).scalar() or 0
-        except Exception:
+            
+            # Debug logging
+            if current_app.debug:
+                current_app.logger.info(f"GET /api/user/{user_id}/mini: followers_count = {follower_count}")
+        except Exception as e:
+            current_app.logger.warning(f"Failed to get follower count for user {user_id}: {e}")
             follower_count = 0
         
         # Get items count
@@ -1440,7 +1445,13 @@ def api_get_user_follows():
             {"uid": uid}
         ).fetchall()
         
-        follows = [{"followed_id": r.author_id} for r in rows]
+        # Return clean list of author IDs (as objects for consistency)
+        follows = [{"followed_id": int(r.author_id)} for r in rows]
+        
+        # Debug logging
+        if current_app.debug:
+            current_app.logger.info(f"GET /api/user/follows for user {uid}: {follows}")
+        
         return jsonify({"ok": True, "follows": follows})
     except (sa_exc.ProgrammingError, sa_exc.OperationalError) as e:
         if _is_missing_table_error(e):
@@ -1500,6 +1511,10 @@ def api_follow(author_id: int):
                 {"uid": uid, "aid": author_id},
             )
         db.session.commit()
+        
+        # Debug logging
+        if current_app.debug:
+            current_app.logger.info(f"POST /api/follow/{author_id}: user {uid} -> author {author_id}")
     except Exception as e:
         db.session.rollback()
         current_app.logger.warning(f"Follow error: {e}")
@@ -1525,6 +1540,10 @@ def api_unfollow(author_id: int):
             {"uid": uid, "aid": author_id},
         )
         db.session.commit()
+        
+        # Debug logging
+        if current_app.debug:
+            current_app.logger.info(f"DELETE /api/follow/{author_id}: user {uid} unfollowed author {author_id}")
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": "server", "detail": str(e)}), 500
