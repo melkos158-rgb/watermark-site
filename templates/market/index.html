@@ -485,8 +485,16 @@
     followBtn.style.background = isFollowing ? 'var(--accent, #667eea)' : 'transparent';
     followBtn.style.color = isFollowing ? '#fff' : 'var(--accent, #667eea)';
     
+    // Lock to prevent double-click spam
+    let followBusy = false;
+    
     followBtn.addEventListener('click', async () => {
+      if (followBusy) return;
+      followBusy = true;
+      
       followBtn.disabled = true;
+      const prevText = followBtn.textContent;
+      followBtn.textContent = '…';
       
       try {
         const method = isFollowing ? 'DELETE' : 'POST';
@@ -501,23 +509,30 @@
         
         const toggleData = await toggleResp.json();
         if (toggleData.ok) {
+          // Update state from API response
           isFollowing = toggleData.following;
           followBtn.textContent = isFollowing ? `✓ ${i18n.following}` : `+ ${i18n.follow}`;
           followBtn.style.background = isFollowing ? 'var(--accent, #667eea)' : 'transparent';
           followBtn.style.color = isFollowing ? '#fff' : 'var(--accent, #667eea)';
           
-          // Update follower count with guard and i18n
+          // Update follower count directly from API response
           const followerEl = document.getElementById('authorFollowers');
           if (followerEl && typeof toggleData.followers_count === 'number') {
             const newCount = toggleData.followers_count;
             followerEl.dataset.count = newCount;
             followerEl.textContent = `${newCount} ${i18n.followers}`;
           }
+        } else {
+          // Restore previous state on error
+          followBtn.textContent = prevText;
         }
       } catch (err) {
         console.error('Follow error:', err);
         alert('Failed to update follow status');
+        // Restore previous state on error
+        followBtn.textContent = prevText;
       } finally {
+        followBusy = false;
         followBtn.disabled = false;
       }
     });
