@@ -73,6 +73,10 @@ class MarketItem(_db.Model):
     proof_score = _db.Column(_db.Integer, nullable=True)    # 0-100 heuristic score
     analyzed_at = _db.Column(_db.DateTime, nullable=True)   # timestamp of last analysis
 
+    # ---------- slice hints (Auto Print Settings) ----------
+    slice_hints_json = _db.Column(_db.Text, nullable=True)  # JSON string with print settings
+    slice_hints_at = _db.Column(_db.DateTime, nullable=True)  # timestamp of generation
+
     # ------------- УТИЛІТИ -------------
     def _loads(self, value: str | None) -> list[str]:
         try:

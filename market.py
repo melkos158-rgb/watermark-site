@@ -512,7 +512,7 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
 # ───────────────────────────── Proof Score Auto-Migration ─────────────────────────────
 def _ensure_proof_score_columns():
     """
-    Auto-migration: Add proof_score columns if they don't exist.
+    Auto-migration: Add proof_score and slice_hints columns if they don't exist.
     Safe, idempotent, works for both PostgreSQL and SQLite.
     """
     try:
@@ -538,6 +538,21 @@ def _ensure_proof_score_columns():
                 db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN analyzed_at TEXT"))
             db.session.commit()
             current_app.logger.info(f"✅ Added column {ITEMS_TBL}.analyzed_at")
+        
+        # Check and add slice_hints_json
+        if not _has_column(ITEMS_TBL, "slice_hints_json"):
+            db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN slice_hints_json TEXT"))
+            db.session.commit()
+            current_app.logger.info(f"✅ Added column {ITEMS_TBL}.slice_hints_json")
+        
+        # Check and add slice_hints_at
+        if not _has_column(ITEMS_TBL, "slice_hints_at"):
+            if dialect == "postgresql":
+                db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN slice_hints_at TIMESTAMP"))
+            else:  # SQLite
+                db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN slice_hints_at TEXT"))
+            db.session.commit()
+            current_app.logger.info(f"✅ Added column {ITEMS_TBL}.slice_hints_at")
         
         # Clear column cache to force re-check
         global _column_cache
@@ -3365,11 +3380,14 @@ def api_printability(item_id):
         
         # 2. Return cached if exists
         if cached_json:
+            # Parse JSON string (TEXT column) - handle both str and dict
+            printability_dict = json.loads(cached_json) if isinstance(cached_json, str) else cached_json
+            
             resp = jsonify({
                 "ok": True,
                 "item_id": item_id,
                 "proof_score": cached_score,
-                "printability": json.loads(cached_json),
+                "printability": printability_dict,
                 "analyzed_at": analyzed_at.isoformat() if analyzed_at else None
             })
             resp.headers["Cache-Control"] = "no-store"
@@ -3427,6 +3445,123 @@ def api_printability(item_id):
         resp = jsonify({"ok": False, "error": "analysis_failed", "detail": str(e)})
         resp.headers["Cache-Control"] = "no-store"
         return resp, 500
+
+
+@bp.get('/api/item/<int:item_id>/slice-hints')
+def api_slice_hints(item_id):
+    """
+    GET /api/item/123/slice-hints
+    
+    Returns cached slice hints from DB if present.
+    Otherwise generates from printability_json + proof_score, saves to DB, returns fresh data.
+    NEVER crashes - returns empty dict if data missing.
+    """
+    try:
+        # 1. Fetch item (graceful fallback if columns don't exist)
+        has_slice_cols = _has_column(ITEMS_TBL, "slice_hints_json")
+        
+        if has_slice_cols:
+            # Try to get cached slice hints
+            row = db.session.execute(
+                text(f"""
+                    SELECT printability_json, proof_score, slice_hints_json, slice_hints_at 
+                    FROM {ITEMS_TBL} 
+                    WHERE id = :id
+                """),
+                {"id": item_id}
+            ).first()
+        else:
+            # Fallback: only get printability_json and proof_score
+            row = db.session.execute(
+                text(f"""
+                    SELECT printability_json, proof_score 
+                    FROM {ITEMS_TBL} 
+                    WHERE id = :id
+                """),
+                {"id": item_id}
+            ).first()
+        
+        if not row:
+            resp = jsonify({"ok": False, "error": "item_not_found"})
+            resp.headers["Cache-Control"] = "no-store"
+            return resp, 404
+        
+        # 2. Check if cached slice hints exist
+        if has_slice_cols and len(row) >= 4:
+            printability_json, proof_score, cached_hints, hints_at = row
+            
+            if cached_hints:
+                # Parse JSON string (TEXT column)
+                hints_dict = json.loads(cached_hints) if isinstance(cached_hints, str) else cached_hints
+                
+                resp = jsonify({
+                    "ok": True,
+                    "item_id": item_id,
+                    "slice_hints": hints_dict,
+                    "generated_at": hints_at.isoformat() if hints_at else None
+                })
+                resp.headers["Cache-Control"] = "no-store"
+                return resp
+        else:
+            printability_json, proof_score = row[0], row[1]
+            cached_hints = None
+        
+        # 3. Generate fresh slice hints
+        from utils.slice_hints import generate_slice_hints
+        
+        # Parse printability_json (handle TEXT column)
+        printability = None
+        if printability_json:
+            try:
+                printability = json.loads(printability_json) if isinstance(printability_json, str) else printability_json
+            except:
+                printability = None
+        
+        # Generate hints (NEVER crashes - has internal defaults)
+        hints = generate_slice_hints(printability, proof_score)
+        
+        # 4. Save to DB if columns exist
+        if has_slice_cols:
+            try:
+                db.session.execute(
+                    text(f"""
+                        UPDATE {ITEMS_TBL}
+                        SET slice_hints_json = :hints,
+                            slice_hints_at = :at
+                        WHERE id = :id
+                    """),
+                    {
+                        "hints": json.dumps(hints),
+                        "at": datetime.utcnow(),
+                        "id": item_id
+                    }
+                )
+                db.session.commit()
+            except Exception as save_err:
+                current_app.logger.warning(f"Failed to save slice hints for item {item_id}: {save_err}")
+                db.session.rollback()
+        
+        # 5. Return generated hints
+        resp = jsonify({
+            "ok": True,
+            "item_id": item_id,
+            "slice_hints": hints,
+            "generated_at": hints.get("generated_at")
+        })
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+        
+    except Exception as e:
+        current_app.logger.error(f"Slice hints generation failed for item {item_id}: {e}")
+        # Graceful fallback - return empty hints
+        resp = jsonify({
+            "ok": True,
+            "item_id": item_id,
+            "slice_hints": {},
+            "error": str(e)
+        })
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
 
 
 # ✅ Сумісність з фронтом: /api/market/upload (BASE="/api/market" у api.js)
