@@ -1350,17 +1350,13 @@ def api_items():
                 item['is_fav'] = bool(item.get('is_favorite', 0))
                 items.append(item)
             
-            # COUNT query - needs JOIN if saved filter active
-            if saved_only and current_user_id:
-                count_sql = f"""
-                    SELECT COUNT(*) 
-                    FROM {ITEMS_TBL} i
-                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
-                    {where_sql}
-                """
-            else:
-                count_sql = f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"
-            
+            # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
+            count_sql = f"""
+                SELECT COUNT(DISTINCT i.id) 
+                FROM {ITEMS_TBL} i
+                LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                {where_sql}
+            """
             total = db.session.execute(text(count_sql), params).scalar() or 0
             
         except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
@@ -1399,17 +1395,13 @@ def api_items():
                         item['is_fav'] = bool(item.get('is_favorite', 0))  # ❤️ Add alias
                         items.append(item)
                     
-                    # COUNT query - needs JOIN if saved filter active
-                    if saved_only and current_user_id:
-                        count_sql = f"""
-                            SELECT COUNT(*) 
-                            FROM {ITEMS_TBL} i
-                            LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
-                            {where_sql}
-                        """
-                    else:
-                        count_sql = f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"
-                    
+                    # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
+                    count_sql = f"""
+                        SELECT COUNT(DISTINCT i.id) 
+                        FROM {ITEMS_TBL} i
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        {where_sql}
+                    """
                     total = db.session.execute(text(count_sql), params).scalar() or 0
                 except sa_exc.ProgrammingError:
                     # Last resort: legacy schema with file_url instead of stl_main_url
@@ -1441,17 +1433,13 @@ def api_items():
                         d['is_fav'] = bool(d.get('is_favorite', 0))  # ❤️ Add alias
                         items.append(d)
                     
-                    # COUNT query - needs JOIN if saved filter active
-                    if saved_only and current_user_id:
-                        count_sql = f"""
-                            SELECT COUNT(*) 
-                            FROM {ITEMS_TBL} i
-                            LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
-                            {where_sql}
-                        """
-                    else:
-                        count_sql = f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"
-                    
+                    # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
+                    count_sql = f"""
+                        SELECT COUNT(DISTINCT i.id) 
+                        FROM {ITEMS_TBL} i
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        {where_sql}
+                    """
                     total = db.session.execute(text(count_sql), params).scalar() or 0
             else:
                 # Other error - re-raise
