@@ -29,7 +29,7 @@ db = _DBProxy()
 # ✅ також експортуємо User як просто посилання на клас із db.py
 User = _User
 
-__all__ = ["db", "MarketItem", "User", "MarketFavorite", "MarketReview"]
+__all__ = ["db", "MarketItem", "User", "MarketFavorite", "MarketReview", "Favorite", "Review", "recompute_item_rating"]
 
 
 class MarketItem(_db.Model):
@@ -200,8 +200,8 @@ class MarketFavorite(_db.Model):
     __tablename__ = "item_favorites"  # ⚠️ НЕ МІНЯТИ поки не перевіримо /api/_debug/favorites-schema
 
     id = _db.Column(_db.Integer, primary_key=True)
-    user_id = _db.Column(_db.Integer, index=True, nullable=False)
-    item_id = _db.Column(_db.Integer, index=True, nullable=False)
+    user_id = _db.Column(_db.Integer, _db.ForeignKey("users.id"), index=True, nullable=False)
+    item_id = _db.Column(_db.Integer, _db.ForeignKey("items.id"), index=True, nullable=False)
     created_at = _db.Column(_db.DateTime, default=datetime.utcnow, index=True)
 
     __table_args__ = (
@@ -209,9 +209,9 @@ class MarketFavorite(_db.Model):
         {"extend_existing": True},  # 🔧 Дозволяє дублювання таблиць
     )
 
-    # Опціональні зв'язки (можеш юзати потім у Flask-views)
-    user = _db.relationship("User", lazy="joined", viewonly=True)
-    item = _db.relationship("MarketItem", lazy="joined", viewonly=True)
+    # Relationships (тепер з ForeignKey вони працюватимуть)
+    user = _db.relationship("User", backref="favorites")
+    item = _db.relationship("MarketItem", backref="favorited_by")
 
     def __repr__(self) -> str:
         return f"<MarketFavorite user={self.user_id} item={self.item_id}>"
@@ -229,8 +229,8 @@ class MarketReview(_db.Model):
     __table_args__ = {"extend_existing": True}  # 🔧 Дозволяє дублювання таблиць
 
     id = _db.Column(_db.Integer, primary_key=True)
-    item_id = _db.Column(_db.Integer, index=True, nullable=False)
-    user_id = _db.Column(_db.Integer, index=True, nullable=False)
+    item_id = _db.Column(_db.Integer, _db.ForeignKey("items.id"), index=True, nullable=False)
+    user_id = _db.Column(_db.Integer, _db.ForeignKey("users.id"), index=True, nullable=False)
 
     rating = _db.Column(_db.Integer, default=5)  # 1–5
     text = _db.Column(_db.Text, default="")
@@ -240,13 +240,34 @@ class MarketReview(_db.Model):
         _db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    # Зв'язки (опціонально, але handy)
-    user = _db.relationship("User", lazy="joined", viewonly=True)
-    item = _db.relationship(
-        "MarketItem",
-        lazy="joined",
-        viewonly=True,
-    )
+    # Зв'язки (тепер з ForeignKey вони працюватимуть)
+    user = _db.relationship("User", backref="reviews")
+    item = _db.relationship("MarketItem", backref="reviews")
 
     def __repr__(self) -> str:
         return f"<MarketReview item={self.item_id} user={self.user_id} rating={self.rating}>"
+
+
+# ============================================================
+# ALIASES FOR COMPATIBILITY
+# ============================================================
+
+# market_api.py imports "Favorite" and "Review"
+Favorite = MarketFavorite
+Review = MarketReview
+
+
+def recompute_item_rating(item_id: int) -> None:
+    """
+    Recompute average rating for an item based on all reviews.
+    Updates MarketItem.rating field.
+    """
+    from sqlalchemy import func
+    avg_rating = _db.session.query(func.avg(MarketReview.rating))\
+        .filter(MarketReview.item_id == item_id)\
+        .scalar()
+    
+    item = MarketItem.query.get(item_id)
+    if item:
+        item.rating = float(avg_rating) if avg_rating else 0.0
+        _db.session.commit()

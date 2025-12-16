@@ -18,7 +18,6 @@ from sqlalchemy import func, text
 from models_market import (
     db,
     MarketItem,
-    MarketCategory,
     Favorite,
     Review,
     recompute_item_rating,
@@ -180,10 +179,11 @@ def update_item(item_id: int):
             continue
 
         if key == "category":
-            val = (val or "").strip()
-            cat = MarketCategory.query.filter_by(title=val).first()
-            it.category_id = cat.id if cat else None
-            updated = True
+            # TODO: MarketCategory not implemented yet
+            # val = (val or "").strip()
+            # cat = MarketCategory.query.filter_by(title=val).first()
+            # it.category_id = cat.id if cat else None
+            # updated = True
             continue
 
         if key == "price":
