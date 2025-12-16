@@ -607,3 +607,25 @@ export function initMarketListeners({
     },
   };
 }
+
+// --- Auto-init (required when file is loaded via <script type="module" src="...">) ---
+try {
+  const _boot = () => {
+    if (typeof initMarketListeners === "function") {
+      initMarketListeners();
+    } else if (typeof window.initMarketListeners === "function") {
+      window.initMarketListeners();
+    }
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _boot, { once: true });
+  } else {
+    _boot();
+  }
+
+  window.ProoflyMarket = window.ProoflyMarket || {};
+  window.ProoflyMarket.initListeners = _boot;
+} catch (e) {
+  console.error("[market_listeners] auto-init failed", e);
+}
