@@ -35,6 +35,7 @@ __all__ = ["db", "MarketItem", "User", "MarketFavorite", "MarketReview"]
 class MarketItem(_db.Model):
     # ВАЖЛИВО: market.py працює з таблицею "items"
     __tablename__ = "items"
+    __table_args__ = {"extend_existing": True}  # 🔧 Дозволяє дублювання з models.py
 
     # ---------- базові ----------
     id = _db.Column(_db.Integer, primary_key=True)
@@ -205,6 +206,7 @@ class MarketFavorite(_db.Model):
 
     __table_args__ = (
         _db.UniqueConstraint("user_id", "item_id", name="uix_fav_user_item"),
+        {"extend_existing": True},  # 🔧 Дозволяє дублювання таблиць
     )
 
     # Опціональні зв'язки (можеш юзати потім у Flask-views)
@@ -224,6 +226,7 @@ class MarketReview(_db.Model):
     Відгуки та рейтинг по моделям.
     """
     __tablename__ = "item_reviews"
+    __table_args__ = {"extend_existing": True}  # 🔧 Дозволяє дублювання таблиць
 
     id = _db.Column(_db.Integer, primary_key=True)
     item_id = _db.Column(_db.Integer, index=True, nullable=False)
