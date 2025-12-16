@@ -1072,9 +1072,38 @@ def api_items():
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
         
-        # Author filter (by id or username)
+        # Author filter: validate username and lookup user_id
+        author_param = request.args.get("author", "").strip()
+        author_user_id = None
+        
+        if author_param:
+            # Validate username with allowlist (same as creators/stats)
+            import re
+            username_pattern = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
+            if username_pattern.match(author_param):
+                # Lookup user_id by username
+                user_row = db.session.execute(
+                    text(f"SELECT id FROM {USERS_TBL} WHERE name = :author LIMIT 1"),
+                    {"author": author_param}
+                ).fetchone()
+                
+                if user_row:
+                    author_user_id = user_row.id
+                else:
+                    # Author not found - return empty result (correct UX)
+                    return jsonify({
+                        "ok": True,
+                        "items": [],
+                        "page": page,
+                        "per_page": per_page,
+                        "pages": 0,
+                        "total": 0
+                    })
+        
+        # Legacy author_id param (for backwards compatibility)
         author_id = _parse_int(request.args.get("author_id"), 0)
-        author_name = (request.args.get("author") or "").strip()
+        if author_id > 0 and not author_user_id:
+            author_user_id = author_id
         
         # Proof Score / Slice Hints filters
         auto_presets = request.args.get("auto_presets") == "1"
@@ -1102,13 +1131,9 @@ def api_items():
             where.append("price > 0")
         
         # Author filter
-        if author_id > 0:
-            where.append("user_id = :author_id")
-            params["author_id"] = author_id
-        elif author_name:
-            # Filter by username (requires JOIN to users table)
-            where.append("u.name = :author_name")
-            params["author_name"] = author_name
+        if author_user_id:
+            where.append("i.user_id = :author_id")
+            params["author_id"] = author_user_id
         
         # Proof Score filter
         if min_proof_score > 0:
@@ -1373,6 +1398,7 @@ def api_items():
 
     except Exception as e:
         # ✅ Bulletproof: log full traceback to Railway, return controlled response
+        db.session.rollback()  # Clean up aborted transaction
         current_app.logger.exception("🔥 api_items FAILED: %s", e)
         
         # Parse request params for fallback response
