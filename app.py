@@ -373,14 +373,16 @@ def create_app():
     try:
         import ai_api
         app.register_blueprint(ai_api.bp, url_prefix="/api/ai")
+        print("✅ [ai_api] registered at /api/ai")
     except Exception as e:
-        print("[ai_api] skip:", e)
+        print(f"⚠️ [ai_api] skip: {e}")
 
     try:
         import lang_api
         app.register_blueprint(lang_api.bp, url_prefix="/api/lang")
+        print("✅ [lang_api] registered at /api/lang")
     except Exception as e:
-        print("[lang_api] skip:", e)
+        print(f"⚠️ [lang_api] skip: {e}")
 
     # ========= before_request хуки =========
     @app.before_request

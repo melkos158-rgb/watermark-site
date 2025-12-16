@@ -211,7 +211,7 @@ class MarketFavorite(_db.Model):
 
     # Relationships (тепер з ForeignKey вони працюватимуть)
     user = _db.relationship("User", backref="favorites")
-    item = _db.relationship("MarketItem", backref="favorited_by")
+    item = _db.relationship("models_market.MarketItem", backref="favorited_by")
 
     def __repr__(self) -> str:
         return f"<MarketFavorite user={self.user_id} item={self.item_id}>"
@@ -242,7 +242,7 @@ class MarketReview(_db.Model):
 
     # Зв'язки (тепер з ForeignKey вони працюватимуть)
     user = _db.relationship("User", backref="reviews")
-    item = _db.relationship("MarketItem", backref="reviews")
+    item = _db.relationship("models_market.MarketItem", backref="reviews")
 
     def __repr__(self) -> str:
         return f"<MarketReview item={self.item_id} user={self.user_id} rating={self.rating}>"
