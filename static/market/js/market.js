@@ -32,6 +32,7 @@ const state = {
   category: null,   // slug категорії
   free: null,       // null / 1 / 0
   tag: null,        // швидкий тег із .mqf-chip (dragon / stand / toy / cosplay / other)
+  author: null,     // filter by author username (clickable from creator stats)
   author_id: null,  // filter by author (from URL params)
   min_proof_score: null,  // minimum proof score filter
   auto_presets: null,     // auto presets filter (1 or null)
@@ -341,6 +342,27 @@ async function loadPage(page = 1) {
   
   // Batch load creator stats for all visible cards
   loadCreatorStatsBatch();
+  
+  // Render author filter chip
+  renderAuthorChip();
+}
+
+/* ==============================
+ * 4.6) RENDER AUTHOR FILTER CHIP
+ * ============================== */
+
+function renderAuthorChip() {
+  const chip = document.getElementById('author-filter-chip');
+  const nameEl = document.getElementById('author-filter-name');
+  
+  if (!chip || !nameEl) return;
+  
+  if (state.author) {
+    nameEl.textContent = state.author;
+    chip.style.display = 'block';
+  } else {
+    chip.style.display = 'none';
+  }
 }
 
 /* ==============================
@@ -391,6 +413,8 @@ async function loadCreatorStatsBatch() {
       if (parts.length > 0) {
         el.innerHTML = parts.join(' • ');
         el.style.display = 'block';
+        el.classList.add('clickable');
+        el.dataset.author = creator;
       }
     });
     
@@ -398,6 +422,17 @@ async function loadCreatorStatsBatch() {
     console.warn('Failed to load batch creator stats:', err);
   }
 }
+
+// Click handler for creator stats filter
+document.addEventListener('click', (e) => {
+  const statsEl = e.target.closest('.creator-mini-stats.clickable');
+  if (statsEl && statsEl.dataset.author) {
+    e.preventDefault();
+    state.author = statsEl.dataset.author;
+    state.page = 1;
+    loadPage(1);
+  }
+});
 
 /* ==============================
  * 5) РЕНДЕР КАРТОК
@@ -656,6 +691,16 @@ function bindUI() {
     });
   }
 
+  // Clear author filter button
+  const clearAuthorBtn = document.getElementById('clear-author-filter');
+  if (clearAuthorBtn) {
+    clearAuthorBtn.addEventListener('click', () => {
+      state.author = null;
+      state.page = 1;
+      loadPage(1);
+    });
+  }
+
   // чіпси "усі / free / paid" на my.html
   const myFreeGroup = document.getElementById("my-free-filter");
   if (myFreeGroup) {
@@ -738,6 +783,11 @@ function initFromURL() {
   const authorId = params.get('author_id');
   if (authorId) {
     state.author_id = parseInt(authorId, 10) || null;
+  }
+  
+  const author = params.get('author');
+  if (author) {
+    state.author = author;
   }
   
   const mode = params.get('mode');

@@ -1072,8 +1072,9 @@ def api_items():
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
         
-        # Author filter for leaderboard links
+        # Author filter (by id or username)
         author_id = _parse_int(request.args.get("author_id"), 0)
+        author_name = (request.args.get("author") or "").strip()
         
         # Proof Score / Slice Hints filters
         auto_presets = request.args.get("auto_presets") == "1"
@@ -1104,6 +1105,10 @@ def api_items():
         if author_id > 0:
             where.append("user_id = :author_id")
             params["author_id"] = author_id
+        elif author_name:
+            # Filter by username (requires JOIN to users table)
+            where.append("u.name = :author_name")
+            params["author_name"] = author_name
         
         # Proof Score filter
         if min_proof_score > 0:

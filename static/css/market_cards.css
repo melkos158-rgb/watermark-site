@@ -540,3 +540,12 @@
   background: rgba(91, 102, 255, 0.2);
   border-color: rgba(91, 102, 255, 0.4);
 }
+
+.creator-mini-stats.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.creator-mini-stats.clickable:hover {
+  opacity: 0.8;
+}
