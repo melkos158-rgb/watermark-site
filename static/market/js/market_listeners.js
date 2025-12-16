@@ -403,42 +403,63 @@ export function initMarketListeners({
   // ========= WISHLIST / FAVORITES =========
 
   function handleFavoriteToggle(target) {
-    const itemId = target.getAttribute("data-item-id");
-    if (!itemId) return;
+    // ✅ ЗАЛІЗОБЕТОННО: знаходимо КНОПКУ, навіть якщо клік по SVG/PATH
+    const btn = target.closest('[data-favorite-toggle]') || target;
+    const itemId = btn.getAttribute('data-item-id') || btn.dataset.itemId;
+    
+    if (!itemId) {
+      console.warn("[FAV] No item_id found on button", btn);
+      return;
+    }
 
     // підтримка двох класів: is-active (нові картки) та is-favorite (legacy)
-    const isActive = target.classList.contains("is-active") || target.classList.contains("is-favorite");
+    const isActive = btn.classList.contains("is-active") || btn.classList.contains("is-favorite");
     const nextState = !isActive;
 
-    // Миттєво перемикаємо UI (optimistic)
-    target.classList.toggle("is-active", nextState);
-    target.classList.toggle("is-favorite", nextState);
-    const iconEl = target.querySelector("[data-fav-icon]") || target;
+    // 🔍 DEBUG: що саме відправляємо
+    console.debug("[FAV] req", { itemId, nextState, isActive });
+
+    // Миттєво перемикаємо UI (optimistic) - на BTN, не на target
+    btn.classList.toggle("is-active", nextState);
+    btn.classList.toggle("is-favorite", nextState);
+    const iconEl = btn.querySelector("[data-fav-icon]") || btn;
     iconEl.dataset.state = nextState ? "on" : "off";
 
-    // 🔍 DIAGNOSTIC LOGGING
+    // ✅ ЗАЛІЗОБЕТОННИЙ fetch з явними headers
     const url = "/api/market/favorite";
-    const payload = { item_id: itemId, on: nextState };
-    console.log("[FAV] Request:", { url, payload });
-
-    apiFetch(url, {
+    const payload = { item_id: Number(itemId), on: nextState };
+    
+    fetch(url, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
       body: JSON.stringify(payload),
     })
+      .then(res => {
+        if (!res.ok) {
+          return res.text().then(text => {
+            throw new Error(`HTTP ${res.status}: ${text}`);
+          });
+        }
+        return res.json();
+      })
       .then((data) => {
-        console.log("[FAV] Response OK:", data);
-        const serverOn =
-          typeof data.on === "boolean" ? data.on : nextState;
-        target.classList.toggle("is-active", serverOn);
-        target.classList.toggle("is-favorite", serverOn);
+        console.debug("[FAV] res", data);
+        
+        // Встановлюємо фінальний стан тільки з data.on
+        const serverOn = (typeof data.on === "boolean") ? data.on : nextState;
+        btn.classList.toggle("is-active", serverOn);
+        btn.classList.toggle("is-favorite", serverOn);
         iconEl.dataset.state = serverOn ? "on" : "off";
 
         if (serverOn) {
-          toast("Додано в улюблені.", "success");
-          trackEvent("favorite_on", { item_id: itemId });
+          if (window.toast) toast("Додано в улюблені.", "success");
+          if (window.trackEvent) trackEvent("favorite_on", { item_id: itemId });
         } else {
-          toast("Прибрано з улюблених.", "info");
-          trackEvent("favorite_off", { item_id: itemId });
+          if (window.toast) toast("Прибрано з улюблених.", "info");
+          if (window.trackEvent) trackEvent("favorite_off", { item_id: itemId });
           
           // ❤️ GUARD: reload only on saved page when REMOVING (not adding)
           const urlParams = new URLSearchParams(window.location.search);
@@ -450,18 +471,15 @@ export function initMarketListeners({
           }
         }
       })
-      .catch(async (err) => {
+      .catch((err) => {
         console.error("[FAV] Error:", err);
-        // 🔍 Try to extract detailed error info
-        if (err.response) {
-          const text = await err.response.text().catch(() => "(no body)");
-          console.error("[FAV] Status:", err.response.status, "Body:", text);
-        }
-        // відкотимо UI
-        target.classList.toggle("is-active", isActive);
-        target.classList.toggle("is-favorite", isActive);
+        
+        // ROLLBACK до попереднього стану - на BTN
+        btn.classList.toggle("is-active", isActive);
+        btn.classList.toggle("is-favorite", isActive);
         iconEl.dataset.state = isActive ? "on" : "off";
-        toast("Не вдалося оновити улюблене. Спробуй ще раз.", "error");
+        
+        if (window.toast) toast("Не вдалося оновити улюблене. Спробуй ще раз.", "error");
       });
   }
 

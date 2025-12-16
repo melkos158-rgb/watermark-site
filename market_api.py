@@ -354,16 +354,40 @@ def toggle_favorite():
     
     ⚠️ Uses market_favorites table (no id column) via raw SQL
     """
-    payload = request.get_json(silent=True) or {}
+    # ✅ ЗАЛІЗОБЕТОННИЙ парсинг payload (fallback для різних форматів)
+    payload = request.get_json(silent=True)
+    
+    if not payload:
+        # Fallback 1: form data
+        payload = request.form.to_dict()
+    
+    if not payload:
+        # Fallback 2: raw JSON string
+        try:
+            import json
+            payload = json.loads(request.data.decode('utf-8'))
+        except Exception:
+            payload = {}
+    
+    # 🔍 DEBUG LOG (тимчасово для діагностики)
+    current_app.logger.info(
+        "[FAV] payload=%s content_type=%s user=%s", 
+        payload, 
+        request.content_type,
+        current_user.id
+    )
+    
     item_id = payload.get("item_id")
     on = payload.get("on", True)
 
     if not item_id:
+        current_app.logger.warning("[FAV] Missing item_id in payload=%s", payload)
         return _json_error("Missing item_id", 400)
 
     try:
         item_id = int(item_id)
     except (ValueError, TypeError):
+        current_app.logger.warning("[FAV] Invalid item_id=%s", item_id)
         return _json_error("Invalid item_id", 400)
 
     # Check if item exists
@@ -383,6 +407,7 @@ def toggle_favorite():
                 ON CONFLICT (user_id, item_id) DO NOTHING
             """), {"user_id": user_id, "item_id": item_id})
             db.session.commit()
+            current_app.logger.info("[FAV] Added user=%s item=%s", user_id, item_id)
             return jsonify({"ok": True, "on": True})
         else:
             # Remove from favorites
@@ -391,10 +416,11 @@ def toggle_favorite():
                 WHERE user_id = :user_id AND item_id = :item_id
             """), {"user_id": user_id, "item_id": item_id})
             db.session.commit()
+            current_app.logger.info("[FAV] Removed user=%s item=%s", user_id, item_id)
             return jsonify({"ok": True, "on": False})
     except Exception as e:
         db.session.rollback()
-        print(f"[favorite] error: {e}")
+        current_app.logger.exception("[FAV] Database error: %s", e)
         return _json_error("Database error", 500)
 
 
