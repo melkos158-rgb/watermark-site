@@ -649,10 +649,77 @@
   position: relative;
 }
 
-/* ⚠️ SAFETY: Приховуємо будь-які кнопки в preview (legacy код) */
-.model-card .card-preview button,
-.model-card .card-preview [data-favorite-toggle],
-.model-card .card-preview [data-fav] {
+/* ❤️ Instagram-style HEART (SAVE/FAVORITE) */
+.model-card .card-preview .card-like {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease;
+  /* Override any inherited styles */
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  /* 📱 Mobile UX enhancements (Instagram-style) */
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.model-card .card-preview .card-like:hover {
+  background: rgba(0, 0, 0, 0.65);
+  transform: scale(1.08);
+}
+
+.model-card .card-preview .card-like:active {
+  transform: scale(0.92);
+}
+
+/* Heart SVG icon - default (outline white) */
+.model-card .card-preview .card-like .heart {
+  display: block;  /* 📱 Prevents mobile rendering glitches */
+  width: 22px;
+  height: 22px;
+  fill: transparent;
+  stroke: #ffffff;
+  stroke-width: 2;
+  transition: fill 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+              stroke 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+/* Active state - SAVED (filled red like Instagram) */
+.model-card .card-preview .card-like.is-active .heart {
+  fill: #ff2d55;
+  stroke: #ff2d55;
+  transform: scale(1.1);
+}
+
+.model-card .card-preview .card-like:hover .heart {
+  transform: scale(1.12);
+}
+
+.model-card .card-preview .card-like.is-active:hover .heart {
+  transform: scale(1.2);
+}
+
+/* ⚠️ SAFETY: Приховуємо старі кнопки (legacy compatibility) */
+.model-card .card-preview [data-fav]:not(.card-like),
+.model-card .card-preview button:not(.card-like) {
   display: none !important;
 }
 
@@ -819,10 +886,13 @@
   opacity: 0.9;
   color: #ffd54a;
   font-size: 13px;
+  pointer-events: none;  /* ⭐ Rating is read-only, not clickable */
+  cursor: default;
 }
 
 .model-card .card-rating .star {
   color: #ffd54a;
+  pointer-events: none;
 }
 
 .model-card .card-downloads {
@@ -831,53 +901,29 @@
   font-size: 12px;
 }
 
-/* ⭐ СПРАВА ЗНИЗУ - частина footer */
+/* ❌ LEGACY .card-fav (біла кнопка внизу) - DEPRECATED, використовуйте .card-like */
 .model-card .card-fav {
-  /* Захист від старих стилів */
-  position: static !important;
-  right: auto !important;
-  left: auto !important;
-  top: auto !important;
-  bottom: auto !important;
-  
-  align-self: end;
-  justify-self: end;
-  
-  /* Прибираємо оверлей-вигляд */
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 14px;
-  padding: 10px 14px;
-  min-height: 44px;
-  min-width: 44px;
-  
-  color: #ffd54a;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
-  box-shadow: none;
-}
-
-/* Hover states - не виглядає як білий overlay */
-.model-card .card-fav:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: translateY(-1px);
-}
-
-.model-card .card-fav:active {
-  transform: scale(0.98);
+  display: none !important;
 }
 
 /* Mobile optimization для card-bottom */
 @media (max-width: 768px) {
+  /* Збільшуємо тач-таргет для сердечка на мобілці */
+  .model-card .card-preview .card-like {
+    width: 52px;
+    height: 52px;
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .model-card .card-preview .card-like .heart {
+    width: 26px;
+    height: 26px;
+  }
+
   .model-card .card-bottom {
     padding: 16px 18px;
   }
-
-  .model-card .card-fav {
-    padding: 12px 16px;
-    min-height: 48px;
     min-width: 48px;
     font-size: 22px;
   }

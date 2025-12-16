@@ -1072,6 +1072,21 @@ def api_items():
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
         
+        # ❤️ Saved filter (Instagram-style favorites)
+        saved_only = request.args.get("saved") == "1"
+        current_user_id = session.get("user_id")  # Get current user for is_favorite check
+        
+        # If saved_only=1 without auth, return empty
+        if saved_only and not current_user_id:
+            return jsonify({
+                "ok": True,
+                "items": [],
+                "page": page,
+                "per_page": per_page,
+                "pages": 0,
+                "total": 0
+            })
+        
         # Author filter: resolve username -> user_id
         author_param = request.args.get("author", "").strip()
         author_user_id = None
@@ -1131,6 +1146,10 @@ def api_items():
             url_expr = "stl_main_url"
 
         where, params = [], {}
+        
+        # ❤️ Always add current_user_id for is_favorite JOIN (even if not saved filter)
+        params["current_user_id"] = current_user_id or -1
+        
         if q:
             where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
             params["q"] = f"%{q}%"
@@ -1143,6 +1162,11 @@ def api_items():
         if author_user_id:
             where.append("i.user_id = :author_id")
             params["author_id"] = author_user_id
+        
+        # ❤️ Saved filter (only show user's favorites)
+        if saved_only and current_user_id:
+            # Must have a favorite record (INNER JOIN logic via WHERE)
+            where.append("mf.id IS NOT NULL")
         
         # Proof Score filter
         if min_proof_score > 0:
@@ -1264,7 +1288,8 @@ def api_items():
                            COALESCE(pm.prints_count, 0) AS prints_count,
                            i.proof_score,
                            i.slice_hints_json,
-                           u.name AS author_name
+                           u.name AS author_name,
+                           CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                     LEFT JOIN (
@@ -1273,6 +1298,7 @@ def api_items():
                         {date_filter}
                         GROUP BY item_id
                     ) pm ON pm.item_id = i.id
+                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
@@ -1294,9 +1320,11 @@ def api_items():
                                0 AS prints_count,
                                i.proof_score,
                                i.slice_hints_json,
-                               u.name AS author_name
+                               u.name AS author_name,
+                               CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
@@ -1306,7 +1334,7 @@ def api_items():
                     # Re-raise if it's not a missing table error
                     raise
             
-            # Add has_slice_hints derived field
+            # Add has_slice_hints derived field + is_fav alias
             items = []
             for r in rows:
                 item = _row_to_dict(r)
@@ -1318,16 +1346,29 @@ def api_items():
                     and slice_hints.strip() 
                     and slice_hints.strip().lower() not in ('null', '{}', '')
                 )
+                # ❤️ Add is_fav alias for JS compatibility
+                item['is_fav'] = bool(item.get('is_favorite', 0))
                 items.append(item)
             
-            total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"), params).scalar() or 0
+            # COUNT query - needs JOIN if saved filter active
+            if saved_only and current_user_id:
+                count_sql = f"""
+                    SELECT COUNT(*) 
+                    FROM {ITEMS_TBL} i
+                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                    {where_sql}
+                """
+            else:
+                count_sql = f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"
+            
+            total = db.session.execute(text(count_sql), params).scalar() or 0
             
         except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
             # 🔄 FALLBACK: Column doesn't exist yet
             if _is_missing_column_error(e):
                 db.session.rollback()
                 
-                # Rebuild query WITHOUT is_published columns but WITH author_name
+                # Rebuild query WITHOUT is_published columns but WITH author_name + is_favorite
                 sql_fallback = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -1339,9 +1380,11 @@ def api_items():
                            0 AS prints_count,
                            NULL AS proof_score,
                            NULL AS slice_hints_json,
-                           u.name AS author_name
+                           u.name AS author_name,
+                           CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
@@ -1353,12 +1396,21 @@ def api_items():
                     for r in rows:
                         item = _row_to_dict(r)
                         item['has_slice_hints'] = False  # Fallback: columns don't exist
+                        item['is_fav'] = bool(item.get('is_favorite', 0))  # ❤️ Add alias
                         items.append(item)
-                    # COUNT query also needs table alias
-                    total = db.session.execute(
-                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"), 
-                        params
-                    ).scalar() or 0
+                    
+                    # COUNT query - needs JOIN if saved filter active
+                    if saved_only and current_user_id:
+                        count_sql = f"""
+                            SELECT COUNT(*) 
+                            FROM {ITEMS_TBL} i
+                            LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                            {where_sql}
+                        """
+                    else:
+                        count_sql = f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"
+                    
+                    total = db.session.execute(text(count_sql), params).scalar() or 0
                 except sa_exc.ProgrammingError:
                     # Last resort: legacy schema with file_url instead of stl_main_url
                     db.session.rollback()
@@ -1369,9 +1421,11 @@ def api_items():
                                COALESCE(i.file_url,'') AS url,
                                i.user_id, i.created_at,
                                0 AS prints_count,
-                               u.name AS author_name
+                               u.name AS author_name,
+                               CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
@@ -1384,11 +1438,21 @@ def api_items():
                         d.setdefault("downloads", 0)
                         d.setdefault("proof_score", None)
                         d["has_slice_hints"] = False
+                        d['is_fav'] = bool(d.get('is_favorite', 0))  # ❤️ Add alias
                         items.append(d)
-                    total = db.session.execute(
-                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"), 
-                        params
-                    ).scalar() or 0
+                    
+                    # COUNT query - needs JOIN if saved filter active
+                    if saved_only and current_user_id:
+                        count_sql = f"""
+                            SELECT COUNT(*) 
+                            FROM {ITEMS_TBL} i
+                            LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                            {where_sql}
+                        """
+                    else:
+                        count_sql = f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"
+                    
+                    total = db.session.execute(text(count_sql), params).scalar() or 0
             else:
                 # Other error - re-raise
                 raise

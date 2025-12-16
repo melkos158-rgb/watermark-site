@@ -3,7 +3,12 @@ import { toggleFav } from "./api.js";
 // =========================================================
 // favorites.js — управління обраними моделями
 // =========================================================
+// ⚠️ LEGACY FILE - favorites handled by market_listeners.js
+// This file kept for backwards compatibility with detail pages
 document.addEventListener("click", async (e) => {
+  // Skip if already handled by market_listeners (data-favorite-toggle)
+  if (e.target.closest("[data-favorite-toggle]")) return;
+  
   const btn = e.target.closest("#btn-fav,[data-fav]");
   if (!btn) return;
 

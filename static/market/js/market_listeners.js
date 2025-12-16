@@ -436,6 +436,15 @@ export function initMarketListeners({
         } else {
           toast("Прибрано з улюблених.", "info");
           trackEvent("favorite_off", { item_id: itemId });
+          
+          // ❤️ GUARD: reload only on saved page when REMOVING (not adding)
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('saved') === '1' && !serverOn) {
+            // Wait for toast animation then reload
+            setTimeout(() => {
+              window.location.reload();
+            }, 800);
+          }
         }
       })
       .catch((err) => {

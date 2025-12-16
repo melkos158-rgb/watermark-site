@@ -36,6 +36,7 @@ const state = {
   author_id: null,  // filter by author (from URL params)
   min_proof_score: null,  // minimum proof score filter
   auto_presets: null,     // auto presets filter (1 or null)
+  saved: null,      // ❤️ Instagram-style saved filter (1 or null)
 };
 
 // id останнього запиту — щоб ігнорувати повільні старі респонси
@@ -225,9 +226,11 @@ async function loadPage(page = 1) {
     mode: state.mode || undefined,
     category: state.category || undefined,
     free: state.free === null ? undefined : state.free ? 1 : 0,
+    author: state.author || undefined,  // Author username filter
     author_id: state.author_id || undefined,
     min_proof_score: state.min_proof_score || undefined,
     auto_presets: state.auto_presets || undefined,
+    saved: state.saved || undefined,  // ❤️ Instagram-style saved filter
     // tag спеціально не відправляємо — наразі фільтруємо на фронті
   };
 
@@ -519,6 +522,15 @@ function renderItemCard(it) {
           : `<img src="/static/img/placeholder_stl.jpg" loading="lazy" alt="${escapeHtml(it.title)}">`
       }
     </a>
+    <button type="button"
+            class="card-like ${it.is_fav ? "is-active" : ""}"
+            data-favorite-toggle
+            data-item-id="${id}"
+            aria-label="Save to favorites">
+      <svg viewBox="0 0 24 24" class="heart" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+    </button>
   </div>
   <div class="card-bottom">
     <div class="card-meta">
@@ -536,12 +548,6 @@ function renderItemCard(it) {
         }
       </div>
     </div>
-    <button type="button"
-            class="card-fav ${it.is_fav ? "is-active" : ""}"
-            data-favorite-toggle
-            data-item-id="${id}">
-      ★
-    </button>
   </div>
 </article>`;
 }
@@ -771,6 +777,12 @@ function initFromURL() {
   const author = params.get('author');
   if (author) {
     state.author = author;
+  }
+  
+  // ❤️ Instagram-style saved filter from URL
+  const saved = params.get('saved');
+  if (saved === '1') {
+    state.saved = 1;
   }
   
   const mode = params.get('mode');

@@ -309,6 +309,58 @@ def upload_edit(item_id: int):
 
 
 # ============================================================
+# FAVORITE TOGGLE (Instagram-style heart save system)
+# ============================================================
+
+@bp.post("/favorite")
+@login_required
+def toggle_favorite():
+    """
+    Toggle favorite status for an item.
+    Request JSON: { "item_id": 123, "on": true/false }
+    Response: { "ok": true, "on": true/false }
+    """
+    payload = request.get_json(silent=True) or {}
+    item_id = payload.get("item_id")
+    on = payload.get("on", True)
+
+    if not item_id:
+        return _json_error("Missing item_id", 400)
+
+    try:
+        item_id = int(item_id)
+    except (ValueError, TypeError):
+        return _json_error("Invalid item_id", 400)
+
+    # Check if item exists
+    item = MarketItem.query.get(item_id)
+    if not item:
+        return _json_error("Item not found", 404)
+
+    user_id = current_user.id
+
+    # Find existing favorite
+    existing = Favorite.query.filter_by(
+        user_id=user_id, 
+        item_id=item_id
+    ).first()
+
+    if on:
+        # Add to favorites
+        if not existing:
+            fav = Favorite(user_id=user_id, item_id=item_id)
+            db.session.add(fav)
+            db.session.commit()
+        return jsonify({"ok": True, "on": True})
+    else:
+        # Remove from favorites
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
+        return jsonify({"ok": True, "on": False})
+
+
+# ============================================================
 # REST of endpoints (LIST, DETAIL, FAV, REVIEW, CHECKOUT, TRACK)
 # ============================================================
 # (Не змінював інші ендпоінти — вони залишаються як в оригіналі)
