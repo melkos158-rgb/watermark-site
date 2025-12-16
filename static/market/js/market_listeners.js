@@ -416,14 +416,17 @@ export function initMarketListeners({
     const iconEl = target.querySelector("[data-fav-icon]") || target;
     iconEl.dataset.state = nextState ? "on" : "off";
 
-    apiFetch("/api/market/favorite", {
+    // 🔍 DIAGNOSTIC LOGGING
+    const url = "/api/market/favorite";
+    const payload = { item_id: itemId, on: nextState };
+    console.log("[FAV] Request:", { url, payload });
+
+    apiFetch(url, {
       method: "POST",
-      body: JSON.stringify({
-        item_id: itemId,
-        on: nextState,
-      }),
+      body: JSON.stringify(payload),
     })
       .then((data) => {
+        console.log("[FAV] Response OK:", data);
         const serverOn =
           typeof data.on === "boolean" ? data.on : nextState;
         target.classList.toggle("is-active", serverOn);
@@ -447,8 +450,13 @@ export function initMarketListeners({
           }
         }
       })
-      .catch((err) => {
-        console.error("[market_listeners] favorite error:", err);
+      .catch(async (err) => {
+        console.error("[FAV] Error:", err);
+        // 🔍 Try to extract detailed error info
+        if (err.response) {
+          const text = await err.response.text().catch(() => "(no body)");
+          console.error("[FAV] Status:", err.response.status, "Body:", text);
+        }
         // відкотимо UI
         target.classList.toggle("is-active", isActive);
         target.classList.toggle("is-favorite", isActive);

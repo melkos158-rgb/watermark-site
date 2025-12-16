@@ -196,7 +196,7 @@ class MarketFavorite(_db.Model):
     Улюблені моделі користувача.
     Один запис = один користувач + одна модель.
     """
-    __tablename__ = "item_favorites"
+    __tablename__ = "item_favorites"  # ⚠️ НЕ МІНЯТИ поки не перевіримо /api/_debug/favorites-schema
 
     id = _db.Column(_db.Integer, primary_key=True)
     user_id = _db.Column(_db.Integer, index=True, nullable=False)

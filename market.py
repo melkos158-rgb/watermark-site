@@ -1060,6 +1060,51 @@ def page_market_edit_item(item_id: int):
     return render_template("market/edit_model.html", item=it)
 
 
+# ============================================================
+# 🔍 DEBUG ENDPOINT - Favorites Schema Diagnosis
+# ============================================================
+
+@bp.get("/api/_debug/favorites-schema")
+def debug_favorites_schema():
+    """
+    Діагностика: які таблиці *fav* існують в БД та їх колонки.
+    Відповідь: { "tables": [...], "columns": { "table_name": [...] } }
+    """
+    from models import db
+    
+    # 1) Знайти всі таблиці з 'fav' в назві
+    tables_result = db.session.execute(text("""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name ILIKE '%fav%'
+        ORDER BY table_name;
+    """)).fetchall()
+    
+    tables_list = [row[0] for row in tables_result]
+    
+    # 2) Для кожної таблиці отримати колонки та типи
+    columns_dict = {}
+    for table_name in tables_list:
+        cols_result = db.session.execute(text("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = :tname
+            ORDER BY ordinal_position;
+        """), {"tname": table_name}).fetchall()
+        
+        columns_dict[table_name] = [
+            {"column": col, "type": typ} for col, typ in cols_result
+        ]
+    
+    return jsonify({
+        "ok": True,
+        "tables": tables_list,
+        "columns": columns_dict
+    })
+
+
 @bp.get("/api/items")
 def api_items():
     try:

@@ -53,6 +53,37 @@ def login_required(f):
 
 
 # ============================================================
+# DEBUG ENDPOINTS
+# ============================================================
+
+@bp.get("/_debug/favorites-schema")
+def debug_favorites_schema():
+    """🔍 Діагностика: які таблиці *fav* існують у БД та їх схема"""
+    tables = db.session.execute(text("""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema='public'
+          AND table_name ILIKE '%fav%';
+    """)).fetchall()
+
+    result = {}
+    for (table_name,) in tables:
+        cols = db.session.execute(text("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema='public'
+              AND table_name = :t
+            ORDER BY ordinal_position;
+        """), {"t": table_name}).fetchall()
+
+        result[table_name] = [
+            {"column": c, "type": t} for c, t in cols
+        ]
+
+    return jsonify(result)
+
+
+# ============================================================
 # HELPERS
 # ============================================================
 

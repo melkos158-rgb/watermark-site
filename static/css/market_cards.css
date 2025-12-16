@@ -703,9 +703,10 @@
 }
 
 /* Active state - SAVED (filled red like Instagram) */
-.model-card .card-preview .card-like.is-active .heart {
-  fill: #ff2d55;
-  stroke: #ff2d55;
+.model-card .card-preview .card-like.is-active .heart,
+.model-card .card-preview .card-like.is-active svg {
+  fill: #ff2d55 !important;
+  stroke: #ff2d55 !important;
   transform: scale(1.1);
 }
 
