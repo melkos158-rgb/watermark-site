@@ -439,7 +439,7 @@ export function initMarketListeners({
           
           // ❤️ GUARD: reload only on saved page when REMOVING (not adding)
           const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.get('saved') === '1' && !serverOn) {
+          if (urlParams.get('saved') === '1') {
             // Wait for toast animation then reload
             setTimeout(() => {
               window.location.reload();

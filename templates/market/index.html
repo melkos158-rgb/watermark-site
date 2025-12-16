@@ -50,12 +50,19 @@
   </div>
   {% endif %}
 
-  <!-- Верхня панель: Мої оголошення + Додати модель -->
+  <!-- Верхня панель: Мої оголошення + ❤️ Збережені + Додати модель -->
   <div class="market-top-actions">
     <div class="mta-left">
       <a href="/market?owner=me" class="btn ghost market-my-btn">
         Мої оголошення
       </a>
+      {% if has_user or (g is defined and g.user) or (session and session.get('user_id')) %}
+      <a href="/market?saved=1" 
+         class="btn ghost market-saved-btn {{ 'active' if (request.args.get('saved') == '1') else '' }}"
+         title="Збережені моделі">
+        ❤️ Збережені
+      </a>
+      {% endif %}
     </div>
     <div class="mta-right">
       <a href="/market/upload" class="btn primary market-add-btn">

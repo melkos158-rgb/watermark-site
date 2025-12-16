@@ -1148,7 +1148,7 @@ def api_items():
         where, params = [], {}
         
         # ❤️ Always add current_user_id for is_favorite JOIN (even if not saved filter)
-        params["current_user_id"] = current_user_id or -1
+        params["current_user_id"] = int(current_user_id or -1)
         
         if q:
             where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")

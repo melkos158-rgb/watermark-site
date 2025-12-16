@@ -35,15 +35,6 @@
 
     <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='market.page_market' and not request.args.get('saved')) else '' }}"
        href="{{ url_for('market.page_market') }}">Market</a>
-    
-    <!-- ❤️ Saved Items (Instagram-style favorites) -->
-    {% if has_user or (g is defined and g.user) or (session and session.get('user_id')) %}
-      <a class="nav-btn {{ 'active' if (request.args.get('saved') == '1') else '' }}"
-         href="{{ url_for('market.page_market') }}?saved=1"
-         title="Збережені моделі">
-        ❤️ Збережені
-      </a>
-    {% endif %}
 
     <!-- ПРАВИЙ БЛОК -->
     <div class="nav-right" style="display:flex; align-items:center; gap:10px; margin-left:auto">
