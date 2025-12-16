@@ -131,26 +131,34 @@
   </div>
 
   <div class="card-bottom">
-    <div class="card-text">
-      <h3 class="card-title">
+    <div class="card-meta">
+      <div class="card-title">
         <a href="{{ href }}">{{ it.title or 'Без назви' }}</a>
-      </h3>
+      </div>
       
       {# Creator mini-stats placeholder (filled by JS batch request) #}
       <div class="creator-mini-stats" data-creator="{{ it.author_name or '' }}" style="display:none;"></div>
 
-      <div class="card-price">
-        {% if it.is_free %}
-          <strong class="price-free">Безкоштовно</strong>
-        {% else %}
-          <strong class="price-value">{{ (it.price_cents / 100) if it.price_cents else (it.price or 0) }} ₴</strong>
-        {% endif %}
+      <div class="card-row">
+        <div class="card-price">
+          {% if it.is_free %}
+            <strong class="price-free">Безкоштовно</strong>
+          {% else %}
+            <strong class="price-value">{{ (it.price_cents / 100) if it.price_cents else (it.price or 0) }} ₴</strong>
+          {% endif %}
+        </div>
+        <div class="card-rating">
+          <span class="star">★</span> {{ "%.1f"|format(it.rating or 0) }}
+        </div>
+      </div>
+
+      <div class="card-row">
+        <div class="card-downloads">↓ {{ it.downloads or 0 }}</div>
       </div>
     </div>
 
-    <button class="card-fav" data-item-id="{{ it.id }}" data-favorite-toggle title="Add to favorites" aria-label="Add to favorites">
-      <span class="fav-icon">⭐</span>
-      <span class="fav-rating">{{ "%.1f"|format(it.rating or 0) }}</span>
+    <button class="card-fav" type="button" data-item-id="{{ it.id }}" data-favorite-toggle title="Add to favorites" aria-label="Add to favorites">
+      ★
     </button>
   </div>
 </article>
