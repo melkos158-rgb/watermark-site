@@ -1166,7 +1166,7 @@ def api_items():
         # ❤️ Saved filter (only show user's favorites)
         if saved_only and current_user_id:
             # Must have a favorite record (INNER JOIN logic via WHERE)
-            where.append("mf.id IS NOT NULL")
+            where.append("mf.item_id IS NOT NULL")
         
         # Proof Score filter
         if min_proof_score > 0:
@@ -1289,7 +1289,7 @@ def api_items():
                            i.proof_score,
                            i.slice_hints_json,
                            u.name AS author_name,
-                           CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                     LEFT JOIN (
@@ -1298,7 +1298,7 @@ def api_items():
                         {date_filter}
                         GROUP BY item_id
                     ) pm ON pm.item_id = i.id
-                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                    LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
@@ -1321,10 +1321,10 @@ def api_items():
                                i.proof_score,
                                i.slice_hints_json,
                                u.name AS author_name,
-                               CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
@@ -1354,7 +1354,7 @@ def api_items():
             count_sql = f"""
                 SELECT COUNT(DISTINCT i.id) 
                 FROM {ITEMS_TBL} i
-                LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                 {where_sql}
             """
             total = db.session.execute(text(count_sql), params).scalar() or 0
@@ -1377,10 +1377,10 @@ def api_items():
                            NULL AS proof_score,
                            NULL AS slice_hints_json,
                            u.name AS author_name,
-                           CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                    LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
@@ -1399,25 +1399,25 @@ def api_items():
                     count_sql = f"""
                         SELECT COUNT(DISTINCT i.id) 
                         FROM {ITEMS_TBL} i
-                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                     """
                     total = db.session.execute(text(count_sql), params).scalar() or 0
                 except sa_exc.ProgrammingError:
-                    # Last resort: legacy schema with file_url instead of stl_main_url
+                    # Last resort: legacy schema with zip_url instead of stl_main_url
                     db.session.rollback()
                     sql_legacy = f"""
                         SELECT i.id, i.title, i.price, i.tags,
                                COALESCE(i.cover_url, '') AS cover,
                                COALESCE(i.gallery_urls, '[]') AS gallery_urls,
-                               COALESCE(i.file_url,'') AS url,
+                               COALESCE(i.zip_url,'') AS url,
                                i.user_id, i.created_at,
                                0 AS prints_count,
                                u.name AS author_name,
-                               CASE WHEN mf.id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
@@ -1437,7 +1437,7 @@ def api_items():
                     count_sql = f"""
                         SELECT COUNT(DISTINCT i.id) 
                         FROM {ITEMS_TBL} i
-                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                     """
                     total = db.session.execute(text(count_sql), params).scalar() or 0
@@ -1554,7 +1554,7 @@ def api_my_items():
                     SELECT id, title, price, tags,
                            COALESCE(cover_url, '') AS cover,
                            COALESCE(gallery_urls, '[]') AS gallery_urls,
-                           COALESCE(file_url,'') AS url,
+                           COALESCE(zip_url,'') AS url,
                            user_id, created_at
                     FROM {ITEMS_TBL}
                     {where_clause}
