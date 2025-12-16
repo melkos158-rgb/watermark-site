@@ -11,14 +11,84 @@
   --mkt-line-soft: #151a2c;
   --mkt-text: #e5e9ff;
   --mkt-muted: #9aa4c9;
-  --mkt-accent: #5b66ff;
-  --mkt-accent-soft: rgba(91, 102, 255, 0.12);
+  --mkt-accent: #6c8cff;
+  --mkt-accent-hover: #7d9bff;
+  --mkt-accent-active: #5876e8;
+  --mkt-accent-soft: rgba(108, 140, 255, 0.12);
   --mkt-danger: #f97373;
-  --mkt-radius-lg: 18px;
+  --mkt-radius-xl: 18px;
+  --mkt-radius-lg: 14px;
   --mkt-radius-md: 12px;
   --mkt-radius-sm: 999px;
-  --mkt-shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.6);
+  --mkt-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.25);
+  --mkt-shadow-hover: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --mkt-shadow-press: inset 0 2px 6px rgba(0, 0, 0, 0.4);
   --mkt-shadow-chip: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* ========================================
+   BUTTONS - GLOBAL STYLES (тактильний feedback)
+   ======================================== */
+
+.btn,
+button:not(.close):not(.modal-tab),
+.market-btn,
+.mc-search-btn,
+.mqf-chip {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: var(--mkt-radius-lg);
+  font-weight: 600;
+  transition: 
+    transform 0.08s ease,
+    box-shadow 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn:hover,
+button:not(.close):not(.modal-tab):hover,
+.market-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--mkt-shadow-soft);
+}
+
+.btn:active,
+button:not(.close):not(.modal-tab):active,
+.market-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--mkt-shadow-press);
+}
+
+/* Primary button */
+.btn.primary,
+.market-add-btn {
+  background: var(--mkt-accent);
+  border-color: var(--mkt-accent);
+  color: #ffffff;
+}
+
+.btn.primary:hover,
+.market-add-btn:hover {
+  background: var(--mkt-accent-hover);
+  border-color: var(--mkt-accent-hover);
+}
+
+.btn.primary:active,
+.market-add-btn:active {
+  background: var(--mkt-accent-active);
+  border-color: var(--mkt-accent-active);
+}
+
+/* Mobile tap feedback */
+@media (hover: none) {
+  button:active,
+  .market-card:active,
+  .btn:active {
+    transform: scale(0.98) !important;
+  }
 }
 
 /* ========================================
@@ -727,12 +797,25 @@ body[data-market-page] {
 }
 
 .market-controls {
+  position: sticky;
+  top: 64px;
+  z-index: 50;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 10, 14, 0.95),
+    rgba(10, 10, 14, 0.85)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 14px;
+  border-radius: var(--mkt-radius-xl);
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 10px;
 }
 
 .mc-search-wrap {
@@ -855,6 +938,79 @@ body[data-market-page] {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* ========================================
+   MOBILE OPTIMIZATION
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Sticky controls closer to top on mobile */
+  .market-controls {
+    top: 56px;
+    padding: 12px;
+    border-radius: var(--mkt-radius-lg);
+  }
+
+  /* Mobile grid: 1 column, larger cards */
+  .market-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Larger touch targets */
+  .btn,
+  button:not(.close):not(.modal-tab),
+  .market-btn {
+    min-height: 48px;
+    padding: 12px 20px;
+  }
+
+  /* Filter controls stack vertically */
+  .mc-selects {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .mc-label {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .mc-select {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Search bar full width */
+  .mc-search-wrap {
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+}
+
+/* Mobile-specific: bottom filter drawer button (optional enhancement) */
+@media (max-width: 768px) {
+  .mobile-filter-btn {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    min-width: 160px;
+    background: var(--mkt-accent);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--mkt-radius-sm);
+    padding: 14px 24px;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(108, 140, 255, 0.4);
+  }
+
+  .mobile-filter-btn:active {
+    transform: translateX(-50%) scale(0.96);
+  }
 }
 
 .market-grid img {

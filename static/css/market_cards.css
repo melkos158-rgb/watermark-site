@@ -19,8 +19,11 @@
   --mkt-card-border-soft: #151a2a;
   --mkt-card-text: #f3f4ff;
   --mkt-card-muted: #a0aacb;
-  --mkt-card-accent: #5b66ff;
+  --mkt-card-accent: #6c8cff;
   --mkt-card-shadow: 0 16px 40px rgba(2, 6, 23, 0.9);
+  --mkt-card-shadow-hover: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --radius-lg: 14px;
+  --radius-xl: 18px;
 }
 
 /* ================== GRID — СТРУКТУРА СПИСКУ ================== */
@@ -50,27 +53,27 @@
 .market-card,
 .market-item-card {
   position: relative;
-  border-radius: 16px;
-  background: radial-gradient(circle at 0 0, #111827 0, #020617 55%);
+  border-radius: var(--radius-xl, 18px);
+  background: #12141c;
   border: 1px solid var(--mkt-card-border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
   transition:
-    transform .18s ease,
-    border-color .18s ease,
-    box-shadow .18s ease,
-    background .18s ease;
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
   text-decoration: none;
   color: inherit;
 }
 
 .market-card:hover,
 .market-item-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   border-color: var(--mkt-card-accent);
-  box-shadow: var(--mkt-card-shadow);
+  box-shadow: var(--mkt-card-shadow-hover);
   background: radial-gradient(circle at 0 0, #1e293b 0, #020617 60%);
 }
 
@@ -526,8 +529,8 @@
   align-items: center;
   gap: 3px;
   padding: 2px 6px;
-  background: rgba(91, 102, 255, 0.12);
-  border: 1px solid rgba(91, 102, 255, 0.25);
+  background: rgba(108, 140, 255, 0.12);
+  border: 1px solid rgba(108, 140, 255, 0.25);
   border-radius: 4px;
   font-weight: 600;
   color: var(--mkt-card-accent);
@@ -537,15 +540,83 @@
 
 .creator-mini-stats .creator-quality:hover,
 .creator-mini-stats .creator-presets:hover {
-  background: rgba(91, 102, 255, 0.2);
-  border-color: rgba(91, 102, 255, 0.4);
+  background: rgba(108, 140, 255, 0.2);
+  border-color: rgba(108, 140, 255, 0.4);
 }
 
 .creator-mini-stats.clickable {
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  padding: 6px 10px;
+  margin: 4px -10px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 0.2s ease, transform 0.1s ease;
 }
 
 .creator-mini-stats.clickable:hover {
-  opacity: 0.8;
+  background: rgba(108, 140, 255, 0.2);
+  transform: translateX(2px);
+}
+
+/* ========================================
+   MOBILE OPTIMIZATION
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Mobile grid: 1 column for better card visibility */
+  .market-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Larger preview images on mobile */
+  .market-card .thumb,
+  .market-item-card .thumb {
+    padding-top: 65%; /* Slightly taller aspect ratio */
+  }
+
+  /* Increase card padding for better spacing */
+  .market-card,
+  .market-item-card {
+    padding-bottom: 12px;
+  }
+
+  /* Larger touch targets for badges */
+  .market-card .badge,
+  .market-item-card .badge {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+
+  /* Creator stats more prominent on mobile */
+  .creator-mini-stats.clickable {
+    padding: 8px 12px;
+    margin: 6px -12px 10px;
+  }
+
+  .creator-mini-stats .creator-quality,
+  .creator-mini-stats .creator-presets {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Smaller mobile screens */
+@media (max-width: 520px) {
+  .market-grid {
+    gap: 14px;
+  }
+
+  .market-card,
+  .market-item-card {
+    border-radius: var(--radius-lg, 14px);
+  }
+}
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.creator-mini-stats.clickable:hover {
+  background: rgba(108, 140, 255, 0.2);
+  transform: translateX(2px);
 }

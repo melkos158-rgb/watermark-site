@@ -1072,25 +1072,24 @@ def api_items():
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
         
-        # Author filter: validate username and lookup user_id
+        # Author filter: resolve username -> user_id
         author_param = request.args.get("author", "").strip()
         author_user_id = None
         
         if author_param:
-            # Validate username with allowlist (same as creators/stats)
+            # Validate username with allowlist regex
             import re
-            username_pattern = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
-            if username_pattern.match(author_param):
+            if re.match(r'^[A-Za-z0-9_-]{1,50}$', author_param):
                 # Lookup user_id by username
                 user_row = db.session.execute(
-                    text(f"SELECT id FROM {USERS_TBL} WHERE name = :author LIMIT 1"),
-                    {"author": author_param}
+                    text(f"SELECT id FROM {USERS_TBL} WHERE name = :name LIMIT 1"),
+                    {"name": author_param}
                 ).fetchone()
                 
                 if user_row:
                     author_user_id = user_row.id
                 else:
-                    # Author not found - return empty result (correct UX)
+                    # Author not found - return empty result (don't crash)
                     return jsonify({
                         "ok": True,
                         "items": [],
@@ -1099,6 +1098,16 @@ def api_items():
                         "pages": 0,
                         "total": 0
                     })
+            else:
+                # Invalid username format - return empty result
+                return jsonify({
+                    "ok": True,
+                    "items": [],
+                    "page": page,
+                    "per_page": per_page,
+                    "pages": 0,
+                    "total": 0
+                })
         
         # Legacy author_id param (for backwards compatibility)
         author_id = _parse_int(request.args.get("author_id"), 0)
@@ -1153,7 +1162,8 @@ def api_items():
         try:
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
-            where.append("(is_published IS TRUE OR is_published IS NULL)")
+            where.append("(i.is_published = :pub OR i.is_published IS NULL)")
+            params["pub"] = True
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
@@ -1824,9 +1834,9 @@ def api_get_creator_stats(username: str):
                             THEN 1 ELSE 0 
                         END) as presets_count
                     FROM {ITEMS_TBL}
-                    WHERE author_id = :uid AND is_published = 1
+                    WHERE author_id = :uid AND is_published = :pub
                 """),
-                {"uid": user.id}
+                {"uid": user.id, "pub": True}
             ).fetchone()
             
             total_items = stats_row.total_items or 0
@@ -1838,8 +1848,8 @@ def api_get_creator_stats(username: str):
             # Fallback if proof_score/slice_hints columns missing
             current_app.logger.warning(f"Creator stats fallback: {col_err}")
             total_items = db.session.execute(
-                text(f"SELECT COUNT(id) FROM {ITEMS_TBL} WHERE author_id = :uid AND is_published = 1"),
-                {"uid": user.id}
+                text(f"SELECT COUNT(id) FROM {ITEMS_TBL} WHERE author_id = :uid AND is_published = :pub"),
+                {"uid": user.id, "pub": True}
             ).scalar() or 0
             avg_proof_score = 0
             presets_coverage = 0
