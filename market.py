@@ -1298,7 +1298,7 @@ def api_items():
                         {date_filter}
                         GROUP BY item_id
                     ) pm ON pm.item_id = i.id
-                    LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
@@ -1324,7 +1324,7 @@ def api_items():
                                CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
@@ -1354,7 +1354,7 @@ def api_items():
             count_sql = f"""
                 SELECT COUNT(DISTINCT i.id) 
                 FROM {ITEMS_TBL} i
-                LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                 {where_sql}
             """
             total = db.session.execute(text(count_sql), params).scalar() or 0
@@ -1380,7 +1380,7 @@ def api_items():
                            CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                    LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                    LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
@@ -1399,7 +1399,7 @@ def api_items():
                     count_sql = f"""
                         SELECT COUNT(DISTINCT i.id) 
                         FROM {ITEMS_TBL} i
-                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                     """
                     total = db.session.execute(text(count_sql), params).scalar() or 0
@@ -1417,7 +1417,7 @@ def api_items():
                                CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
@@ -1437,7 +1437,7 @@ def api_items():
                     count_sql = f"""
                         SELECT COUNT(DISTINCT i.id) 
                         FROM {ITEMS_TBL} i
-                        LEFT JOIN item_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
+                        LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                     """
                     total = db.session.execute(text(count_sql), params).scalar() or 0
