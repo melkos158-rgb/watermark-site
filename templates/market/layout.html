@@ -2,10 +2,10 @@
 
 {% block extra_head %}
   {{ super() }}
-  {# Головні стилі маркету #}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/market_cards.css') }}">
+  {# Головні стилі маркету - з cache busting #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/market_cards.css', v=asset_v) }}">
   {# якщо є ще окремий файл для загального оформлення маркету #}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/market.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/market.css', v=asset_v) }}">
 {% endblock %}
 
 {% block content %}
@@ -43,31 +43,31 @@
     })();
   </script>
 
-  {# базове API + фільтри, завантаження, перегляд, оплата, аналітика #}
-  <script type="module" src="{{ url_for('static', filename='market/js/api.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/filters.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/uploader.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/viewer.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/favorites.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/reviews.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/checkout.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/analytics.js') }}"></script>
+  {# базове API + фільтри, завантаження, перегляд, оплата, аналітика - з cache busting #}
+  <script type="module" src="{{ url_for('static', filename='market/js/api.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/filters.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/uploader.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/viewer.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/favorites.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/reviews.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/checkout.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/analytics.js', v=asset_v) }}"></script>
 
   {# рекомендації + основна логіка маркету #}
-  <script type="module" src="{{ url_for('static', filename='market/js/recommend.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/market.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/recommend.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/market.js', v=asset_v) }}"></script>
 
   {# глобальні слухачі, пошук, підказки, related, категорії #}
-  <script type="module" src="{{ url_for('static', filename='market/js/market_listeners.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/search.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/suggest.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/related.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/categories.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/market_listeners.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/search.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/suggest.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/related.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/categories.js', v=asset_v) }}"></script>
 
   {# нотифікації, бандли, профілі принтерів, параметричні моделі, перевірка друкованості #}
-  <script type="module" src="{{ url_for('static', filename='market/js/notifications.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/bundle_cart.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='market/js/printer_profiles.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/notifications.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/bundle_cart.js', v=asset_v) }}"></script>
+  <script type="module" src="{{ url_for('static', filename='market/js/printer_profiles.js', v=asset_v) }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/parametric_ui.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/printability_check.js') }}"></script>
 

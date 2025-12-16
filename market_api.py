@@ -400,11 +400,14 @@ def toggle_favorite():
     try:
         if on:
             # Add to favorites - market_favorites(user_id, item_id, created_at)
-            # Use INSERT ... ON CONFLICT DO NOTHING for PostgreSQL
+            # ✅ ЗАЛІЗОБЕТОН: WHERE NOT EXISTS працює навіть без UNIQUE constraint
             db.session.execute(text("""
                 INSERT INTO market_favorites (user_id, item_id, created_at)
-                VALUES (:user_id, :item_id, NOW())
-                ON CONFLICT (user_id, item_id) DO NOTHING
+                SELECT :user_id, :item_id, NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM market_favorites
+                    WHERE user_id = :user_id AND item_id = :item_id
+                )
             """), {"user_id": user_id, "item_id": item_id})
             db.session.commit()
             current_app.logger.info("[FAV] Added user=%s item=%s", user_id, item_id)

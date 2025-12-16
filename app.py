@@ -110,6 +110,19 @@ def create_app():
     # 🔧 максимальний розмір запиту (щоб великий upload не рвав конект)
     app.config["MAX_CONTENT_LENGTH"] = 512 * 1024 * 1024
 
+    # 📦 ASSET VERSION - кеш-бастінг для CSS/JS
+    app.config["ASSET_V"] = (
+        os.getenv("RAILWAY_GIT_COMMIT_SHA")
+        or os.getenv("GIT_COMMIT")
+        or os.getenv("RENDER_GIT_COMMIT")
+        or "dev"
+    )
+
+    @app.context_processor
+    def inject_asset_v():
+        """Віддає asset_v в усі шаблони для ?v=commit_hash"""
+        return {"asset_v": app.config["ASSET_V"]}
+
     # ========= i18n =========
     babel = Babel()
 
