@@ -1135,9 +1135,9 @@ def api_items():
             where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
             params["q"] = f"%{q}%"
         if free == "free":
-            where.append("price = 0")
+            where.append("i.price = 0")
         elif free == "paid":
-            where.append("price > 0")
+            where.append("i.price > 0")
         
         # Author filter
         if author_user_id:
@@ -1146,16 +1146,16 @@ def api_items():
         
         # Proof Score filter
         if min_proof_score > 0:
-            where.append("proof_score >= :min_proof_score")
+            where.append("i.proof_score >= :min_proof_score")
             params["min_proof_score"] = min_proof_score
         
         # Auto presets filter (has slice hints)
         if auto_presets:
             where.append(
-                "slice_hints_json IS NOT NULL "
-                "AND slice_hints_json != '' "
-                "AND slice_hints_json != '{}' "
-                "AND LOWER(slice_hints_json) != 'null'"
+                "i.slice_hints_json IS NOT NULL "
+                "AND i.slice_hints_json != '' "
+                "AND i.slice_hints_json != '{}' "
+                "AND LOWER(i.slice_hints_json) != 'null'"
             )
         
         # ✅ Filter only published items in public market
@@ -1178,59 +1178,59 @@ def api_items():
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
                 
                 # Optional: only show items with proof_score
-                if "proof_score IS NOT NULL" not in " ".join(where):
+                if "i.proof_score IS NOT NULL" not in " ".join(where):
                     if where:
-                        where.append("proof_score IS NOT NULL")
+                        where.append("i.proof_score IS NOT NULL")
                     else:
-                        where = ["proof_score IS NOT NULL"]
+                        where = ["i.proof_score IS NOT NULL"]
                     where_sql = "WHERE " + " AND ".join(where)
                 
                 # Ranking formula: proof_score + bonus for slice_hints
                 # Using CASE to add +15 if slice_hints is valid
                 if dialect == "postgresql":
                     ranking_expr = """(
-                        COALESCE(proof_score, 0) + 
+                        COALESCE(i.proof_score, 0) + 
                         CASE 
-                            WHEN slice_hints_json IS NOT NULL 
-                            AND slice_hints_json != '' 
-                            AND slice_hints_json != '{}' 
-                            AND LOWER(slice_hints_json) != 'null' 
+                            WHEN i.slice_hints_json IS NOT NULL 
+                            AND i.slice_hints_json != '' 
+                            AND i.slice_hints_json != '{}' 
+                            AND LOWER(i.slice_hints_json) != 'null' 
                             THEN 15 
                             ELSE 0 
                         END
                     )"""
                 else:  # SQLite
                     ranking_expr = """(
-                        COALESCE(proof_score, 0) + 
+                        COALESCE(i.proof_score, 0) + 
                         CASE 
-                            WHEN slice_hints_json IS NOT NULL 
-                            AND slice_hints_json != '' 
-                            AND slice_hints_json != '{}' 
-                            AND LOWER(slice_hints_json) != 'null' 
+                            WHEN i.slice_hints_json IS NOT NULL 
+                            AND i.slice_hints_json != '' 
+                            AND i.slice_hints_json != '{}' 
+                            AND LOWER(i.slice_hints_json) != 'null' 
                             THEN 15 
                             ELSE 0 
                         END
                     )"""
                 
-                order_sql = f"ORDER BY {ranking_expr} DESC, created_at DESC"
+                order_sql = f"ORDER BY {ranking_expr} DESC, i.created_at DESC"
             except Exception:
                 db.session.rollback()
                 # Fallback: columns don't exist, use default ordering
-                order_sql = "ORDER BY created_at DESC, id DESC"
+                order_sql = "ORDER BY i.created_at DESC, i.id DESC"
         elif sort == "price_asc":
-            order_sql = "ORDER BY price ASC, created_at DESC"
+            order_sql = "ORDER BY i.price ASC, i.created_at DESC"
         elif sort == "price_desc":
-            order_sql = "ORDER BY price DESC, created_at DESC"
+            order_sql = "ORDER BY i.price DESC, i.created_at DESC"
         elif sort == "downloads":
-            order_sql = "ORDER BY downloads DESC, created_at DESC"
+            order_sql = "ORDER BY i.downloads DESC, i.created_at DESC"
         elif sort == "prints":
-            order_sql = "ORDER BY prints_count DESC, created_at DESC"
+            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
         elif sort == "prints_7d":
-            order_sql = "ORDER BY prints_count DESC, created_at DESC"
+            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
         elif sort == "prints_30d":
-            order_sql = "ORDER BY prints_count DESC, created_at DESC"
+            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
         else:
-            order_sql = "ORDER BY created_at DESC, id DESC"
+            order_sql = "ORDER BY i.created_at DESC, i.id DESC"
 
         offset = (page - 1) * per_page
 
@@ -1273,8 +1273,8 @@ def api_items():
                         {date_filter}
                         GROUP BY item_id
                     ) pm ON pm.item_id = i.id
-                    {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
-                    {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
+                    {where_sql}
+                    {order_sql}
                     LIMIT :limit OFFSET :offset
                 """
                 rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
@@ -1297,8 +1297,8 @@ def api_items():
                                u.name AS author_name
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
-                        {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
+                        {where_sql}
+                        {order_sql}
                         LIMIT :limit OFFSET :offset
                     """
                     rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
@@ -1320,7 +1320,7 @@ def api_items():
                 )
                 items.append(item)
             
-            total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_sql}"), params).scalar() or 0
+            total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"), params).scalar() or 0
             
         except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
             # 🔄 FALLBACK: Column doesn't exist yet
@@ -1342,8 +1342,8 @@ def api_items():
                            u.name AS author_name
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                    {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
-                    {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
+                    {where_sql}
+                    {order_sql}
                     LIMIT :limit OFFSET :offset
                 """
                 
@@ -1356,7 +1356,7 @@ def api_items():
                         items.append(item)
                     # COUNT query also needs table alias
                     total = db.session.execute(
-                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}"), 
+                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"), 
                         params
                     ).scalar() or 0
                 except sa_exc.ProgrammingError:
@@ -1372,8 +1372,8 @@ def api_items():
                                u.name AS author_name
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}
-                        {order_sql.replace('price', 'i.price').replace('downloads', 'i.downloads').replace('created_at', 'i.created_at')}
+                        {where_sql}
+                        {order_sql}
                         LIMIT :limit OFFSET :offset
                     """
                     rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
@@ -1386,7 +1386,7 @@ def api_items():
                         d["has_slice_hints"] = False
                         items.append(d)
                     total = db.session.execute(
-                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql.replace('price', 'i.price').replace('created_at', 'i.created_at')}"), 
+                        text(f"SELECT COUNT(*) FROM {ITEMS_TBL} i {where_sql}"), 
                         params
                     ).scalar() or 0
             else:
@@ -1398,6 +1398,7 @@ def api_items():
 
         return jsonify(
             {
+                "ok": True,
                 "items": items,
                 "page": page,
                 "per_page": per_page,
