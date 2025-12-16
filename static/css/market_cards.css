@@ -608,15 +608,249 @@
   }
 
   .market-card,
-  .market-item-card {
+  .market-item-card,
+  .model-card {
     border-radius: var(--radius-lg, 14px);
   }
 }
-  background: rgba(255, 255, 255, 0.06);
-  transition: background 0.2s ease, transform 0.1s ease;
+
+/* ========================================
+   MODEL-CARD - NEW STRUCTURE (mobile-first)
+   ======================================== */
+
+.model-card {
+  background: #12141c;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--mkt-card-border);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.creator-mini-stats.clickable:hover {
-  background: rgba(108, 140, 255, 0.2);
-  transform: translateX(2px);
+.model-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  border-color: var(--mkt-card-accent);
+}
+
+/* Preview section - верх картки */
+.model-card .card-preview {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #0b0d14;
+  overflow: hidden;
+}
+
+.model-card .card-preview .preview-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.model-card .card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.model-card:hover .card-preview img {
+  transform: scale(1.04);
+  filter: saturate(1.05);
+}
+
+/* Badges поверх preview */
+.model-card .card-preview .badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+}
+
+.model-card .card-preview .badge.free {
+  background: rgba(16, 185, 129, 0.9);
+  color: #fff;
+}
+
+.model-card .card-preview .badge.best {
+  background: rgba(245, 158, 11, 0.9);
+  color: #fff;
+}
+
+.model-card .card-preview .badge.trend {
+  background: rgba(139, 92, 246, 0.9);
+  color: #fff;
+}
+
+.model-card .card-preview .badge.new {
+  background: rgba(59, 130, 246, 0.9);
+  color: #fff;
+}
+
+.model-card .card-preview .badge.prints-badge {
+  top: 8px;
+  right: 8px;
+  left: auto;
+  background: rgba(102, 126, 234, 0.9);
+  border: 1px solid rgba(102, 126, 234, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-card .card-preview .badge.top {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.model-card .card-preview .badge.proof {
+  top: auto;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+}
+
+.model-card .card-preview .badge.proof.excellent {
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #10b981;
+}
+
+.model-card .card-preview .badge.proof.good {
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  color: #3b82f6;
+}
+
+.model-card .card-preview .badge.proof.fair {
+  border: 1px solid rgba(251, 146, 60, 0.5);
+  color: #fb923c;
+}
+
+.model-card .card-preview .badge.presets {
+  bottom: 8px;
+  top: auto;
+  left: auto;
+  right: 8px;
+  background: rgba(108, 140, 255, 0.9);
+  color: #fff;
+  font-size: 10px;
+}
+
+/* Card bottom - НИЗ КАРТКИ (головне) */
+.model-card .card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  gap: 12px;
+  background: linear-gradient(
+    to top,
+    rgba(18, 20, 28, 0.95),
+    rgba(18, 20, 28, 0.85)
+  );
+  min-height: 80px;
+}
+
+/* Текстова частина */
+.model-card .card-text {
+  flex: 1;
+  min-width: 0; /* для text overflow */
+}
+
+.model-card .card-title {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.model-card .card-title a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.model-card .card-title a:hover {
+  color: var(--mkt-card-accent);
+}
+
+.model-card .card-price {
+  margin-top: 4px;
+}
+
+.model-card .card-price .price-free {
+  font-size: 13px;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.model-card .card-price .price-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #8bdcff;
+}
+
+/* ⭐ ЗІРОЧКА - велика, клікабельна */
+.model-card .card-fav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #ffd54a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0;
+}
+
+.model-card .card-fav:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.model-card .card-fav:active {
+  transform: scale(0.96);
+}
+
+.model-card .card-fav .fav-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.model-card .card-fav .fav-rating {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Mobile optimization для card-bottom */
+@media (max-width: 768px) {
+  .model-card .card-bottom {
+    padding: 16px 18px;
+    min-height: 90px;
+  }
+
+  .model-card .card-fav {
+    padding: 12px 16px;
+    gap: 8px;
+  }
+
+  .model-card .card-fav .fav-icon {
+    font-size: 18px;
+  }
+
+  .model-card .card-fav .fav-rating {
+    font-size: 15px;
+  }
 }

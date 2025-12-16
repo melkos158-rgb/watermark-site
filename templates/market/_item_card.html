@@ -70,89 +70,87 @@
   data-price="{{ it.price_cents if it.price_cents else ((it.price*100)|int if it.price else 0) }}"
   data-tags="{{ (it.tags or '')|lower }}"
 >
-  <a href="{{ href }}" class="thumb">
-    {% if it.is_free %}
-      <span class="badge free">FREE</span>
-    {% elif it.downloads and it.downloads > 200 %}
-      <span class="badge best">BESTSELLER</span>
-    {% elif it.trending %}
-      <span class="badge trend">TRENDING</span>
-    {% elif it.created_at and it.created_at >= (now - timedelta(days=7)) %}
-      <span class="badge new">NEW</span>
-    {% endif %}
-    
-    {# Prints badge - only if > 0 #}
-    {% if (it.prints_count or 0) > 0 %}
-      <span class="badge prints-badge" title="Real community prints" aria-label="Real community prints">
-        🖨️ {{ it.prints_count }}
-      </span>
-    {% endif %}
-
-    {# Top badge - shown in top mode (added by JS after render) #}
-    <span class="badge top" style="display:none" data-top-badge title="Top ranked model">
-      🔥 Top
-    </span>
-
-    {# Proof Score badge - only if analyzed #}
-    {% if it.proof_score is not none %}
-      {% if it.proof_score >= 80 %}
-        <span class="badge proof excellent" title="Printability Score: {{ it.proof_score }}/100">
-          PS {{ it.proof_score }}
-        </span>
-      {% elif it.proof_score >= 60 %}
-        <span class="badge proof good" title="Printability Score: {{ it.proof_score }}/100">
-          PS {{ it.proof_score }}
-        </span>
-      {% else %}
-        <span class="badge proof fair" title="Printability Score: {{ it.proof_score }}/100">
-          PS {{ it.proof_score }}
+  <div class="card-preview">
+    <a href="{{ href }}" class="preview-link">
+      {% if it.is_free %}
+        <span class="badge free">FREE</span>
+      {% elif it.downloads and it.downloads > 200 %}
+        <span class="badge best">BESTSELLER</span>
+      {% elif it.trending %}
+        <span class="badge trend">TRENDING</span>
+      {% elif it.created_at and it.created_at >= (now - timedelta(days=7)) %}
+        <span class="badge new">NEW</span>
+      {% endif %}
+      
+      {# Prints badge - only if > 0 #}
+      {% if (it.prints_count or 0) > 0 %}
+        <span class="badge prints-badge" title="Real community prints" aria-label="Real community prints">
+          🖨️ {{ it.prints_count }}
         </span>
       {% endif %}
-    {% endif %}
 
-    {# Auto presets badge - if slice hints exist #}
-    {% if it.has_slice_hints %}
-      <span class="badge presets" title="Auto-generated slicer presets available">
-        ⚙️ Auto presets
+      {# Top badge - shown in top mode (added by JS after render) #}
+      <span class="badge top" style="display:none" data-top-badge title="Top ranked model">
+        🔥 Top
       </span>
-    {% endif %}
 
-    <img
-      src="{{ cover_src }}"
-      loading="lazy"
-      decoding="async"
-      width="360"
-      height="360"
-      alt="{{ it.title or 'Model' }}"
-      onerror="this.onerror=null;this.src='{{ fallback }}';"
-    >
-  </a>
-
-  <div class="info">
-    <h3 class="title">
-      <a href="{{ href }}">{{ it.title or 'Без назви' }}</a>
-    </h3>
-    
-    {# Creator mini-stats placeholder (filled by JS batch request) #}
-    <div class="creator-mini-stats" data-creator="{{ it.author_name or '' }}" style="display:none;"></div>
-
-    <div class="stats">
-      <div class="s">
-        <svg viewBox="0 0 24 24"><path d="M12 17.3l6.18 3.9-1.64-7.03 5.46-4.73-7.19-.62L12 2.1 9.19 8.82l-7.19.62 5.46 4.73L5.82 21.2z"/></svg>
-        {{ "%.1f"|format(it.rating or 0) }}
-      </div>
-      <div class="s">
-        <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z"/></svg>
-        {{ it.downloads or 0 }}
-      </div>
-
-      <strong class="price">
-        {% if it.is_free %}
-          Безкоштовно
+      {# Proof Score badge - only if analyzed #}
+      {% if it.proof_score is not none %}
+        {% if it.proof_score >= 80 %}
+          <span class="badge proof excellent" title="Printability Score: {{ it.proof_score }}/100">
+            PS {{ it.proof_score }}
+          </span>
+        {% elif it.proof_score >= 60 %}
+          <span class="badge proof good" title="Printability Score: {{ it.proof_score }}/100">
+            PS {{ it.proof_score }}
+          </span>
         {% else %}
-          {{ (it.price_cents / 100) if it.price_cents else (it.price or 0) }}
+          <span class="badge proof fair" title="Printability Score: {{ it.proof_score }}/100">
+            PS {{ it.proof_score }}
+          </span>
         {% endif %}
-      </strong>
+      {% endif %}
+
+      {# Auto presets badge - if slice hints exist #}
+      {% if it.has_slice_hints %}
+        <span class="badge presets" title="Auto-generated slicer presets available">
+          ⚙️ Auto presets
+        </span>
+      {% endif %}
+
+      <img
+        src="{{ cover_src }}"
+        loading="lazy"
+        decoding="async"
+        width="360"
+        height="360"
+        alt="{{ it.title or 'Model' }}"
+        onerror="this.onerror=null;this.src='{{ fallback }}';"
+      >
+    </a>
+  </div>
+
+  <div class="card-bottom">
+    <div class="card-text">
+      <h3 class="card-title">
+        <a href="{{ href }}">{{ it.title or 'Без назви' }}</a>
+      </h3>
+      
+      {# Creator mini-stats placeholder (filled by JS batch request) #}
+      <div class="creator-mini-stats" data-creator="{{ it.author_name or '' }}" style="display:none;"></div>
+
+      <div class="card-price">
+        {% if it.is_free %}
+          <strong class="price-free">Безкоштовно</strong>
+        {% else %}
+          <strong class="price-value">{{ (it.price_cents / 100) if it.price_cents else (it.price or 0) }} ₴</strong>
+        {% endif %}
+      </div>
     </div>
+
+    <button class="card-fav" data-item-id="{{ it.id }}" data-favorite-toggle title="Add to favorites" aria-label="Add to favorites">
+      <span class="fav-icon">⭐</span>
+      <span class="fav-rating">{{ "%.1f"|format(it.rating or 0) }}</span>
+    </button>
   </div>
 </article>
