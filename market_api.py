@@ -351,6 +351,8 @@ def toggle_favorite():
     Toggle favorite status for an item.
     Request JSON: { "item_id": 123, "on": true/false }
     Response: { "ok": true, "on": true/false }
+    
+    ⚠️ Uses market_favorites table (no id column) via raw SQL
     """
     payload = request.get_json(silent=True) or {}
     item_id = payload.get("item_id")
@@ -371,25 +373,29 @@ def toggle_favorite():
 
     user_id = current_user.id
 
-    # Find existing favorite
-    existing = Favorite.query.filter_by(
-        user_id=user_id, 
-        item_id=item_id
-    ).first()
-
-    if on:
-        # Add to favorites
-        if not existing:
-            fav = Favorite(user_id=user_id, item_id=item_id)
-            db.session.add(fav)
+    try:
+        if on:
+            # Add to favorites - market_favorites(user_id, item_id, created_at)
+            # Use INSERT ... ON CONFLICT DO NOTHING for PostgreSQL
+            db.session.execute(text("""
+                INSERT INTO market_favorites (user_id, item_id, created_at)
+                VALUES (:user_id, :item_id, NOW())
+                ON CONFLICT (user_id, item_id) DO NOTHING
+            """), {"user_id": user_id, "item_id": item_id})
             db.session.commit()
-        return jsonify({"ok": True, "on": True})
-    else:
-        # Remove from favorites
-        if existing:
-            db.session.delete(existing)
+            return jsonify({"ok": True, "on": True})
+        else:
+            # Remove from favorites
+            db.session.execute(text("""
+                DELETE FROM market_favorites
+                WHERE user_id = :user_id AND item_id = :item_id
+            """), {"user_id": user_id, "item_id": item_id})
             db.session.commit()
-        return jsonify({"ok": True, "on": False})
+            return jsonify({"ok": True, "on": False})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[favorite] error: {e}")
+        return _json_error("Database error", 500)
 
 
 # ============================================================

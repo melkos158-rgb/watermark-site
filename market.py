@@ -1334,7 +1334,7 @@ def api_items():
                            i.proof_score,
                            i.slice_hints_json,
                            u.name AS author_name,
-                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                     LEFT JOIN (
@@ -1366,7 +1366,7 @@ def api_items():
                                i.proof_score,
                                i.slice_hints_json,
                                u.name AS author_name,
-                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                         LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
@@ -1391,8 +1391,6 @@ def api_items():
                     and slice_hints.strip() 
                     and slice_hints.strip().lower() not in ('null', '{}', '')
                 )
-                # ❤️ Add is_fav alias for JS compatibility
-                item['is_fav'] = bool(item.get('is_favorite', 0))
                 items.append(item)
             
             # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
@@ -1422,7 +1420,7 @@ def api_items():
                            NULL AS proof_score,
                            NULL AS slice_hints_json,
                            u.name AS author_name,
-                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                     LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
@@ -1437,7 +1435,6 @@ def api_items():
                     for r in rows:
                         item = _row_to_dict(r)
                         item['has_slice_hints'] = False  # Fallback: columns don't exist
-                        item['is_fav'] = bool(item.get('is_favorite', 0))  # ❤️ Add alias
                         items.append(item)
                     
                     # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
@@ -1459,7 +1456,7 @@ def api_items():
                                i.user_id, i.created_at,
                                0 AS prints_count,
                                u.name AS author_name,
-                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_favorite
+                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                         LEFT JOIN market_favorites mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
@@ -1475,7 +1472,6 @@ def api_items():
                         d.setdefault("downloads", 0)
                         d.setdefault("proof_score", None)
                         d["has_slice_hints"] = False
-                        d['is_fav'] = bool(d.get('is_favorite', 0))  # ❤️ Add alias
                         items.append(d)
                     
                     # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
