@@ -56,6 +56,7 @@ def login_required(f):
 # ============================================================
 
 @bp.get("/_debug/favorites-schema")
+@bp.get("/_debug/favorites_schema")  # alias (дефіс vs андерскор)
 def debug_favorites_schema():
     """🔍 Діагностика: які таблиці *fav* існують у БД та їх схема"""
     tables = db.session.execute(text("""
