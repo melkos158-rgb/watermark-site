@@ -322,7 +322,7 @@ async function loadPage(page = 1) {
     counterText.textContent = t;
   }
 
-  bindFavButtons(grid);
+  // bindFavButtons видалено — делегація в market_listeners.js
 
   if (pag && pagesResp > 1) {
     pag.innerHTML = renderPagination(pageResp, pagesResp);
@@ -510,35 +510,40 @@ function renderItemCard(it) {
     null;
 
   return `
-<a class="market-item-card" href="${detailHref}" data-item-id="${id}">
-  <div class="thumb">
-    ${
-      cover
-        ? `<img src="${cover}" loading="lazy" alt="${escapeHtml(it.title)}">`
-        : `<img src="/static/img/placeholder_stl.jpg" loading="lazy" alt="${escapeHtml(it.title)}">`
-    }
+<article class="model-card" data-item-id="${id}">
+  <div class="card-preview">
+    <a href="${detailHref}" class="preview-link">
+      ${
+        cover
+          ? `<img src="${cover}" loading="lazy" alt="${escapeHtml(it.title)}">`
+          : `<img src="/static/img/placeholder_stl.jpg" loading="lazy" alt="${escapeHtml(it.title)}">`
+      }
+    </a>
+  </div>
+  <div class="card-bottom">
+    <div class="card-meta">
+      <a href="${detailHref}" class="card-title">${escapeHtml(it.title)}</a>
+      <div class="card-row">
+        <span class="card-price">${priceLabel}</span>
+        <span class="card-rating">⭐ ${rating}</span>
+      </div>
+      <div class="card-row">
+        <span class="card-downloads">⬇ ${downloads}</span>
+        ${
+          it.category_name
+            ? `<span class="card-category">${escapeHtml(it.category_name)}</span>`
+            : ""
+        }
+      </div>
+    </div>
     <button type="button"
-            class="fav ${it.is_fav ? "is-active" : ""}"
-            data-fav="${id}">
-      ${it.is_fav ? "★" : "☆"}
+            class="card-fav ${it.is_fav ? "is-active" : ""}"
+            data-favorite-toggle
+            data-item-id="${id}">
+      ★
     </button>
   </div>
-  <div class="meta">
-    <div class="title">${escapeHtml(it.title)}</div>
-    <div class="row">
-      <span class="price">${priceLabel}</span>
-      <span class="rating">⭐ ${rating}</span>
-    </div>
-    <div class="row">
-      <span class="downloads">⬇ ${downloads}</span>
-      ${
-        it.category_name
-          ? `<span class="category">${escapeHtml(it.category_name)}</span>`
-          : ""
-      }
-    </div>
-  </div>
-</a>`;
+</article>`;
 }
 
 /* ==============================
@@ -578,30 +583,8 @@ function renderPagination(page, pages) {
  * 7) ОБРАНЕ
  * ============================== */
 
-function bindFavButtons(root) {
-  root.querySelectorAll("[data-fav]").forEach((btn) => {
-    // щоб не дублювати прослуховувачі при перерендері
-    if (btn.dataset.favBound === "1") return;
-    btn.dataset.favBound = "1";
-
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const id = parseInt(btn.dataset.fav || "0", 10);
-      if (!id) return;
-      btn.disabled = true;
-      try {
-        const res = await toggleFavorite(id);
-        btn.classList.toggle("is-active", !!res.fav);
-        btn.textContent = res.fav ? "★" : "☆";
-      } catch (err) {
-        console.warn(err);
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  });
-}
+// bindFavButtons видалено — обробка перенесена в market_listeners.js
+// через делегований обробник [data-favorite-toggle]
 
 /* ==============================
  * 8) UI БІНДИНГИ

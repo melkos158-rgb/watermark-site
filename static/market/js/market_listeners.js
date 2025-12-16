@@ -406,10 +406,12 @@ export function initMarketListeners({
     const itemId = target.getAttribute("data-item-id");
     if (!itemId) return;
 
-    const isActive = target.classList.contains("is-favorite");
+    // підтримка двох класів: is-active (нові картки) та is-favorite (legacy)
+    const isActive = target.classList.contains("is-active") || target.classList.contains("is-favorite");
     const nextState = !isActive;
 
     // Миттєво перемикаємо UI (optimistic)
+    target.classList.toggle("is-active", nextState);
     target.classList.toggle("is-favorite", nextState);
     const iconEl = target.querySelector("[data-fav-icon]") || target;
     iconEl.dataset.state = nextState ? "on" : "off";
@@ -424,6 +426,7 @@ export function initMarketListeners({
       .then((data) => {
         const serverOn =
           typeof data.on === "boolean" ? data.on : nextState;
+        target.classList.toggle("is-active", serverOn);
         target.classList.toggle("is-favorite", serverOn);
         iconEl.dataset.state = serverOn ? "on" : "off";
 
@@ -438,6 +441,7 @@ export function initMarketListeners({
       .catch((err) => {
         console.error("[market_listeners] favorite error:", err);
         // відкотимо UI
+        target.classList.toggle("is-active", isActive);
         target.classList.toggle("is-favorite", isActive);
         iconEl.dataset.state = isActive ? "on" : "off";
         toast("Не вдалося оновити улюблене. Спробуй ще раз.", "error");
