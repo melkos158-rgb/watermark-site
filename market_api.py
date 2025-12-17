@@ -467,13 +467,33 @@ def toggle_favorite():
             if not fav:
                 db.session.add(MarketFavorite(user_id=user_id, item_id=item_id))
             db.session.commit()
-            current_app.logger.info("[FAV] Added user=%s item=%s", user_id, item_id)
+            
+            # 🔍 DEBUG: Verify write to database
+            table_name = MarketFavorite.__tablename__
+            count = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {table_name} WHERE user_id = :u"),
+                {"u": user_id}
+            ).scalar()
+            current_app.logger.info(
+                "[FAV] ✅ Added user=%s item=%s | Total favorites for user: %s",
+                user_id, item_id, count
+            )
             return jsonify({"ok": True, "on": True})
         else:
             if fav:
                 db.session.delete(fav)
             db.session.commit()
-            current_app.logger.info("[FAV] Removed user=%s item=%s", user_id, item_id)
+            
+            # 🔍 DEBUG: Verify delete from database
+            table_name = MarketFavorite.__tablename__
+            count = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {table_name} WHERE user_id = :u"),
+                {"u": user_id}
+            ).scalar()
+            current_app.logger.info(
+                "[FAV] ❌ Removed user=%s item=%s | Total favorites for user: %s",
+                user_id, item_id, count
+            )
             return jsonify({"ok": True, "on": False})
 
     except IntegrityError as e:

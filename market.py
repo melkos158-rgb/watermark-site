@@ -98,6 +98,28 @@ def _resolve_stl_filesystem_path(url: str) -> Optional[str]:
     return None
 
 
+def _get_uid() -> Optional[int]:
+    """
+    Get current user ID with Flask-Login fallback to session.
+    Returns None if not authenticated.
+    """
+    # Try Flask-Login first (if initialized)
+    try:
+        from flask_login import current_user
+        if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+            return current_user.id
+    except (ImportError, AttributeError, RuntimeError):
+        pass
+    
+    # Fallback to session
+    return session.get("user_id")
+
+
+def _is_authenticated() -> bool:
+    """Check if user is authenticated (via Flask-Login or session)."""
+    return _get_uid() is not None
+
+
 def _row_to_dict(row) -> Dict[str, Any]:
     """Convert SQLAlchemy Row to dict, safe for None and edge cases"""
     if row is None:
@@ -1129,19 +1151,9 @@ def api_items():
         # ❤️ Saved filter (Instagram-style favorites)
         saved_only = request.args.get("saved") == "1"
         
-        # 🔥 CRITICAL FIX: Safe fallback - Flask-Login may not be initialized
-        current_user_id = session.get("user_id")
-        is_authenticated = current_user_id is not None  # ✅ Correct: 0 is valid user_id
-        
-        # Try Flask-Login if available (optional upgrade path)
-        try:
-            from flask_login import current_user
-            if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-                current_user_id = current_user.id
-                is_authenticated = True
-        except (ImportError, AttributeError, RuntimeError):
-            # Flask-Login not initialized or not available - use session fallback
-            pass
+        # 🔥 CRITICAL FIX: Use helper for consistent user_id retrieval
+        current_user_id = _get_uid()
+        is_authenticated = current_user_id is not None
         
         # If saved_only=1 without auth, return empty
         if saved_only and not is_authenticated:

@@ -233,6 +233,11 @@ async function loadPage(page = 1) {
     saved: state.saved || undefined,  // ❤️ Instagram-style saved filter
     // tag спеціально не відправляємо — наразі фільтруємо на фронті
   };
+  
+  // 🔍 DEBUG: Log if saved filter is active
+  if (state.saved === 1) {
+    console.log('[market.js] 🔍 Loading saved items (state.saved=1, params.saved=1)');
+  }
 
   let resp;
   try {
@@ -783,6 +788,7 @@ function initFromURL() {
   const saved = params.get('saved');
   if (saved === '1') {
     state.saved = 1;
+    console.log('[market.js] 🔍 URL param saved=1 detected, state.saved set to 1');
   }
   
   const mode = params.get('mode');
