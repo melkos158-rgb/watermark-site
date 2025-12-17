@@ -1118,6 +1118,12 @@ def api_items():
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
         
+        # 🔍 DEBUG: Log normalized sort immediately
+        current_app.logger.info(
+            f"[api_items] 🔍 PARAMS: sort='{sort}' (raw='{request.args.get('sort')}'), "
+            f"mode='{mode}', page={page}, per_page={per_page}"
+        )
+        
         # ❤️ Saved filter (Instagram-style favorites)
         saved_only = request.args.get("saved") == "1"
         # 🔥 CRITICAL FIX: Use Flask-Login (same as market_api.py POST /favorite)
@@ -1247,6 +1253,9 @@ def api_items():
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
+        # 🔍 DEBUG: Log sort value before ORDER BY
+        current_app.logger.info(f"[api_items] 🔍 sort='{sort}', mode='{mode}'")
+
         # Top Prints mode: ranking by quality
         if mode == "top":
             try:
@@ -1289,8 +1298,12 @@ def api_items():
                     )"""
                 
                 order_sql = f"ORDER BY {ranking_expr} DESC, i.created_at DESC"
-            except Exception:
+            except Exception as e:
                 db.session.rollback()
+                current_app.logger.warning(
+                    f"[api_items] ⚠️ Top mode ranking failed (proof_score missing?): {e} | "
+                    f"Falling back to default ordering"
+                )
                 # Fallback: columns don't exist, use default ordering
                 order_sql = "ORDER BY i.created_at DESC, i.id DESC"
         elif sort == "price_asc":
@@ -1355,11 +1368,20 @@ def api_items():
                     {order_sql}
                     LIMIT :limit OFFSET :offset
                 """
+                # 🔍 DEBUG: Log SQL execution
+                current_app.logger.info(
+                    f"[api_items] 🔍 Executing SQL with order_sql='{order_sql[:100]}...' | "
+                    f"params={list(params.keys())}"
+                )
                 rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
             except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
                 # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
+                db.session.rollback()
+                current_app.logger.warning(
+                    f"[api_items] ⚠️ item_makes JOIN failed (table missing?): {e} | "
+                    f"Falling back to query without prints_count"
+                )
                 if _is_missing_table_error(e):
-                    db.session.rollback()
                     sql_with_publish = f"""
                         SELECT i.id, i.title, i.price, i.tags,
                                COALESCE(i.cover_url, '') AS cover,
@@ -1411,8 +1433,12 @@ def api_items():
             
         except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
             # 🔄 FALLBACK: Column doesn't exist yet
+            db.session.rollback()
+            current_app.logger.warning(
+                f"[api_items] ⚠️ is_published/proof_score column missing: {e} | "
+                f"Falling back to legacy query"
+            )
             if _is_missing_column_error(e):
-                db.session.rollback()
                 
                 # Rebuild query WITHOUT is_published columns but WITH author_name + is_favorite
                 sql_fallback = f"""
