@@ -18,12 +18,63 @@ from sqlalchemy import func, text
 from models_market import (
     db,
     MarketItem,
+    MarketFavorite,
     Favorite,
     Review,
     recompute_item_rating,
 )
 
 bp = Blueprint("market_api", __name__)
+
+# ============================================================
+# AUTO-CREATE FAVORITES TABLE (compat fix for Railway)
+# ============================================================
+
+_fav_schema_ready = False
+
+def _ensure_favorites_table():
+    """
+    Авто-створення таблиці item_favorites, якщо її немає.
+    Використовується MarketFavorite.__tablename__ для сумісності.
+    """
+    table_name = MarketFavorite.__tablename__
+    
+    try:
+        # Спробуємо створити через SQLAlchemy metadata
+        db.create_all()
+        current_app.logger.info(f"[FAV] Table {table_name} ensured via db.create_all()")
+    except Exception as e:
+        # Fallback: raw SQL (PostgreSQL/SQLite compatible)
+        db.session.rollback()
+        try:
+            db.session.execute(text(f"""
+                CREATE TABLE IF NOT EXISTS {table_name} (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    item_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (user_id, item_id)
+                )
+            """))
+            db.session.commit()
+            current_app.logger.info(f"[FAV] Table {table_name} created via raw SQL")
+        except Exception as e2:
+            db.session.rollback()
+            current_app.logger.exception(f"[FAV] Failed to create {table_name}: {e2}")
+
+
+@bp.before_app_request
+def _init_fav_schema_once():
+    """Виконується один раз при першому запиті до будь-якого ендпоінту."""
+    global _fav_schema_ready
+    if _fav_schema_ready:
+        return
+    try:
+        _ensure_favorites_table()
+        _fav_schema_ready = True
+    except Exception as e:
+        current_app.logger.exception("[FAV] Schema init failed: %s", e)
+
 
 # ============================================================
 # AUTH
@@ -407,29 +458,29 @@ def toggle_favorite():
     user_id = current_user.id
 
     try:
+        from sqlalchemy.exc import IntegrityError
+        
+        # ✅ ORM-запит: безпечний для PostgreSQL/SQLite
+        fav = MarketFavorite.query.filter_by(user_id=user_id, item_id=item_id).first()
+
         if on:
-            # Add to favorites - market_favorites(user_id, item_id, created_at)
-            # ✅ ЗАЛІЗОБЕТОН: WHERE NOT EXISTS працює навіть без UNIQUE constraint
-            db.session.execute(text("""
-                INSERT INTO market_favorites (user_id, item_id, created_at)
-                SELECT :user_id, :item_id, NOW()
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM market_favorites
-                    WHERE user_id = :user_id AND item_id = :item_id
-                )
-            """), {"user_id": user_id, "item_id": item_id})
+            if not fav:
+                db.session.add(MarketFavorite(user_id=user_id, item_id=item_id))
             db.session.commit()
             current_app.logger.info("[FAV] Added user=%s item=%s", user_id, item_id)
             return jsonify({"ok": True, "on": True})
         else:
-            # Remove from favorites
-            db.session.execute(text("""
-                DELETE FROM market_favorites
-                WHERE user_id = :user_id AND item_id = :item_id
-            """), {"user_id": user_id, "item_id": item_id})
+            if fav:
+                db.session.delete(fav)
             db.session.commit()
             current_app.logger.info("[FAV] Removed user=%s item=%s", user_id, item_id)
             return jsonify({"ok": True, "on": False})
+
+    except IntegrityError as e:
+        db.session.rollback()
+        # Якщо 2 кліки одночасно - вважаємо favorited = True
+        current_app.logger.warning("[FAV] IntegrityError (race condition?): %s", e)
+        return jsonify({"ok": True, "on": True})
     except Exception as e:
         db.session.rollback()
         current_app.logger.exception("[FAV] Database error: %s", e)
