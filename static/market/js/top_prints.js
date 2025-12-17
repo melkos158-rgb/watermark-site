@@ -23,14 +23,14 @@ async function fetchTopPrints() {
     per_page: state.per_page,
   });
 
-  const resp = await fetch(`/api/top-prints?${params}`, { credentials: "same-origin" });
+  const resp = await fetch(`/api/top-prints?${params}`, { credentials: "include" });
   if (!resp.ok) throw new Error(`API error: ${resp.status}`);
   return await resp.json();
 }
 
 async function fetchUserFollows() {
   try {
-    const resp = await fetch("/api/user/follows", { credentials: "same-origin" });
+    const resp = await fetch("/api/user/follows", { credentials: "include" });
     if (!resp.ok) {
       currentUserFollows = new Set(); // Initialize empty on error
       return;
@@ -55,7 +55,7 @@ async function toggleFollow(authorId) {
   try {
     const isFollowing = currentUserFollows.has(authorId);
     const method = isFollowing ? "DELETE" : "POST";
-    const resp = await fetch(`/api/follow/${authorId}`, { method, credentials: "same-origin" });
+    const resp = await fetch(`/api/follow/${authorId}`, { method, credentials: "include" });
     
     if (resp.status === 401) {
       window.location.href = "/auth/login?next=" + encodeURIComponent(window.location.pathname);

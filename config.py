@@ -26,6 +26,11 @@ class Config:
     # === РІЗНЕ ===
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # обмеження розміру файлів (50 МБ)
     UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.stl', '.obj', '.zip']
+    
+    # === SESSION COOKIES (CRITICAL for Railway HTTPS + credentials: 'include') ===
+    SESSION_COOKIE_SAMESITE = "None"  # 🔥 Required for cross-origin with credentials: 'include'
+    SESSION_COOKIE_SECURE = True      # 🔥 Required for SameSite=None (HTTPS only)
+    SESSION_COOKIE_HTTPONLY = True    # Security: prevent XSS access to session cookie
 
     # === Cloudinary / Supabase / S3 (опціонально, якщо підключатимеш) ===
     CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", None)

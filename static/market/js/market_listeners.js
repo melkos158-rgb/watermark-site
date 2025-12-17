@@ -64,7 +64,7 @@ export function initMarketListeners({
         "Content-Type": "application/json",
         ...(options.headers || {}),
       },
-      credentials: "same-origin",
+      credentials: "include",
       ...options,
     };
     return fetch(url, opts).then(async (res) => {
@@ -441,7 +441,7 @@ export function initMarketListeners({
       headers: {
         "Content-Type": "application/json",
       },
-      credentials: "same-origin",
+      credentials: "include",
       body: JSON.stringify(payload),
     })
       .then(res => {

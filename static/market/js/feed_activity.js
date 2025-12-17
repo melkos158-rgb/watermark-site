@@ -19,7 +19,7 @@
     showLoading();
 
     try {
-      const res = await fetch(`/api/feed/activity?page=${page}&per_page=${perPage}`, { credentials: "same-origin" });
+      const res = await fetch(`/api/feed/activity?page=${page}&per_page=${perPage}`, { credentials: "include" });
       const data = await res.json();
 
       if (!data.ok) {

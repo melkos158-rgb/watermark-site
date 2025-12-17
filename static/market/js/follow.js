@@ -31,7 +31,7 @@
 
   async function loadFollowStatus(authorId, btn) {
     try {
-      const res = await fetch(`/api/follow/status/${authorId}`, { credentials: "same-origin" });
+      const res = await fetch(`/api/follow/status/${authorId}`, { credentials: "include" });
       const data = await res.json();
       
       if (data.ok) {
@@ -46,7 +46,7 @@
   async function followAuthor(authorId, btn) {
     btn.disabled = true;
     try {
-      const res = await fetch(`/api/follow/${authorId}`, { method: "POST", credentials: "same-origin" });
+      const res = await fetch(`/api/follow/${authorId}`, { method: "POST", credentials: "include" });
       const data = await res.json();
       
       if (data.ok) {
@@ -73,7 +73,7 @@
   async function unfollowAuthor(authorId, btn) {
     btn.disabled = true;
     try {
-      const res = await fetch(`/api/follow/${authorId}`, { method: "DELETE", credentials: "same-origin" });
+      const res = await fetch(`/api/follow/${authorId}`, { method: "DELETE", credentials: "include" });
       const data = await res.json();
       
       if (data.ok) {

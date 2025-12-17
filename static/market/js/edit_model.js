@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const res = await fetch(UPDATE_URL, {
         method: "POST",
-        credentials: "same-origin",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [name]: value }),
       });
@@ -294,7 +294,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const res = await fetch(UPLOAD_URL, {
         method: "POST",
         body: fd,
-        credentials: "same-origin",
+        credentials: "include",
       });
 
       const data = await res.json().catch(() => ({}));
@@ -370,7 +370,7 @@ window.deleteModel = async function(btn) {
   try {
     const res = await fetch(`/api/item/${itemId}/delete`, {
       method: "POST",
-      credentials: "same-origin",
+      credentials: "include",
     });
 
     const data = await res.json().catch(() => ({}));

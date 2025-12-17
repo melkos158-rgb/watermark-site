@@ -23,13 +23,13 @@ async function fetchItems(params = {}) {
   // 🔍 DIAGNOSTIC: Log request details (NOTE: HttpOnly cookies won't show in document.cookie)
   console.log("[api] fetchItems", {
     url,
-    creds: "same-origin",
+    creds: "include",  // 🔥 CHANGED: same-origin → include for Railway HTTPS
     note: "Check Network tab → Request Headers → Cookie for actual cookies sent"
   });
   
   const res = await fetch(url, {
     method: "GET",
-    credentials: "same-origin",
+    credentials: "include",  // 🔥 CRITICAL: Railway HTTPS proxy requires 'include'
     headers: {
       "Accept": "application/json",
     },
@@ -51,7 +51,7 @@ async function fetchMyItems(params = {}) {
   console.log("[api.js] fetchMyItems ->", url, "credentials=same-origin");
   const res = await fetch(url, {
     method: "GET",
-    credentials: "same-origin",
+    credentials: "include",
     headers: {
       "Accept": "application/json",
     },
@@ -69,7 +69,7 @@ async function suggest(q) {
   if (!q) return [];
   const url = buildUrl("/api/search/suggest", { q });
   try {
-    const res = await fetch(url, { credentials: "same-origin" });
+    const res = await fetch(url, { credentials: "include" });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -84,7 +84,7 @@ async function suggest(q) {
 async function uploadModel(formData) {
   const res = await fetch("/api/market/upload", {
     method: "POST",
-    credentials: "same-origin",
+    credentials: "include",
     body: formData,
   });
   if (!res.ok) {
@@ -99,7 +99,7 @@ async function uploadModel(formData) {
 async function toggleFav(itemId) {
   const res = await fetch("/api/market/fav", {
     method: "POST",
-    credentials: "same-origin",
+    credentials: "include",
     headers: JSON_HEADERS,
     body: JSON.stringify({ item_id: itemId }),
   });
@@ -121,7 +121,7 @@ async function postReview(itemId, rating, text) {
   const payload = { item_id: itemId, rating, text };
   const res = await fetch("/api/market/review", {
     method: "POST",
-    credentials: "same-origin",
+    credentials: "include",
     headers: JSON_HEADERS,
     body: JSON.stringify(payload),
   });
@@ -137,7 +137,7 @@ async function postReview(itemId, rating, text) {
 async function createCheckout(itemId) {
   const res = await fetch("/api/market/checkout", {
     method: "POST",
-    credentials: "same-origin",
+    credentials: "include",
     headers: JSON_HEADERS,
     body: JSON.stringify({ item_id: itemId }),
   });
@@ -154,7 +154,7 @@ async function track(name, payload = {}) {
   try {
     await fetch("/api/visit", {
       method: "POST",
-      credentials: "same-origin",
+      credentials: "include",
       headers: JSON_HEADERS,
       body: JSON.stringify({ name, ...payload }),
     });

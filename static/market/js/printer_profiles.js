@@ -162,7 +162,7 @@ export function initPrinterProfiles({
         "Content-Type": "application/json",
         ...(options.headers || {}),
       },
-      credentials: "same-origin",
+      credentials: "include",
       ...options,
     };
     return fetch(url, opts).then(async (res) => {

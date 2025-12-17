@@ -206,7 +206,7 @@ document.addEventListener("DOMContentLoaded", function () {
           
           fetch("/api/item/" + it.id + "/publish", {
             method: "POST",
-            credentials: "same-origin",
+            credentials: "include",
           })
             .then(function (res) {
               if (!res.ok) throw new Error("Publish failed");
@@ -247,7 +247,7 @@ document.addEventListener("DOMContentLoaded", function () {
           
           fetch("/api/item/" + it.id + "/delete", {
             method: "POST",
-            credentials: "same-origin",
+            credentials: "include",
           })
             .then(function (res) {
               if (!res.ok) throw new Error("Delete failed");
@@ -336,7 +336,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function loadMyItems() {
     console.log("my-ads: fetching /api/my/items?page=1");
     fetch("/api/my/items?page=1", {
-      credentials: "same-origin",
+      credentials: "include",
     })
       .then(function (res) {
         console.log("my-ads: status", res.status);
