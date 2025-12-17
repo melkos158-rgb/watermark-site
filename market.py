@@ -20,7 +20,6 @@ from flask import (
     url_for,
     make_response,
 )
-from flask_login import current_user  # 🔥 CRITICAL: Flask-Login for favorites consistency
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
@@ -923,8 +922,9 @@ def page_market_my():
 @bp.get("/market/following")
 def page_market_following():
     """Feed from followed authors"""
-    # 🔥 CRITICAL FIX: Use Flask-Login (same as market_api.py)
-    if not current_user.is_authenticated:
+    # 🔥 CRITICAL FIX: Use session (Flask-Login not initialized)
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
         return redirect(url_for("auth.login", next=request.path))
     return render_template("market/following.html")
 
@@ -1047,15 +1047,16 @@ def page_edit_item(item_id: int):
 
 @bp.get("/market/edit/<int:item_id>")
 def page_market_edit_item(item_id: int):
-    # 🔥 CRITICAL FIX: Use Flask-Login (same as market_api.py)
-    if not current_user.is_authenticated:
+    # 🔥 CRITICAL FIX: Use session (Flask-Login not initialized)
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
         abort(401)
 
     it = _fetch_item_with_author(item_id)
     if not it:
         abort(404)
 
-    if _parse_int(it.get("user_id"), 0) != current_user.id:
+    if _parse_int(it.get("user_id"), 0) != uid:
         abort(403)
 
     return render_template("market/edit_model.html", item=it)
@@ -1126,11 +1127,23 @@ def api_items():
         
         # ❤️ Saved filter (Instagram-style favorites)
         saved_only = request.args.get("saved") == "1"
-        # 🔥 CRITICAL FIX: Use Flask-Login (same as market_api.py POST /favorite)
-        current_user_id = current_user.id if current_user.is_authenticated else None
+        
+        # 🔥 CRITICAL FIX: Safe fallback - Flask-Login may not be initialized
+        current_user_id = session.get("user_id")
+        is_authenticated = current_user_id is not None  # ✅ Correct: 0 is valid user_id
+        
+        # Try Flask-Login if available (optional upgrade path)
+        try:
+            from flask_login import current_user
+            if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                current_user_id = current_user.id
+                is_authenticated = True
+        except (ImportError, AttributeError, RuntimeError):
+            # Flask-Login not initialized or not available - use session fallback
+            pass
         
         # If saved_only=1 without auth, return empty
-        if saved_only and not current_user.is_authenticated:
+        if saved_only and not is_authenticated:
             return jsonify({
                 "ok": True,
                 "items": [],
@@ -1203,7 +1216,7 @@ def api_items():
         # ❤️ Always add current_user_id for is_favorite JOIN (even if not saved filter)
         # 🔍 DEBUG: Log current_user state
         current_app.logger.info(
-            f"[api_items] 🔍 current_user.is_authenticated={current_user.is_authenticated}, "
+            f"[api_items] 🔍 is_authenticated={is_authenticated}, "
             f"current_user_id={current_user_id}, saved_only={saved_only}"
         )
         params["current_user_id"] = int(current_user_id or -1)
@@ -1217,12 +1230,13 @@ def api_items():
             where.append("i.price > 0")
         
         # Author filter
-        if author_user_id:
+        if author_user_id is not None:
             where.append("i.user_id = :author_id")
             params["author_id"] = author_user_id
         
         # ❤️ Saved filter (only show user's favorites)
-        if saved_only and current_user_id:
+        # 🔥 FIX: Check current_user_id is not None (0 is valid user_id in some DBs)
+        if saved_only and current_user_id is not None:
             # Must have a favorite record (INNER JOIN logic via WHERE)
             where.append("mf.item_id IS NOT NULL")
         
@@ -1536,10 +1550,13 @@ def api_items():
     except Exception as e:
         # 🔥 CRITICAL: Return HTTP 500 to expose errors (not hide as "0 items")
         db.session.rollback()  # Clean up aborted transaction
+        
+        # Safe check for is_authenticated without current_user
+        user_id = session.get("user_id")
         current_app.logger.exception(
-            "🔥 api_items FAILED: %s | current_user.is_authenticated=%s | params=%s",
+            "🔥 api_items FAILED: %s | user_id=%s | params=%s",
             e,
-            current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'N/A',
+            user_id,
             request.args.to_dict()
         )
         
