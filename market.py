@@ -1155,10 +1155,14 @@ def api_items():
         current_user_id = _get_uid()
         is_authenticated = current_user_id is not None
         
-        # 🔍 DEBUG: Log params for saved filter debugging
+        # 🔍 COMPREHENSIVE DIAGNOSTICS: Log everything before processing
         current_app.logger.info(
-            "[api_items] uid=%s saved=%s args=%s",
-            current_user_id, saved_only, dict(request.args)
+            "[api_items] saved=%s uid=%s session_user_id=%s cookie=%s args=%s",
+            request.args.get("saved"),
+            current_user_id,
+            session.get("user_id"),
+            bool(request.headers.get("Cookie")),
+            dict(request.args)
         )
         
         # If saved filter is active, check if user has any favorites
@@ -1168,8 +1172,8 @@ def api_items():
                 {"u": current_user_id}
             ).scalar()
             current_app.logger.info(
-                "[api_items] fav_cnt=%s for uid=%s",
-                fav_cnt, current_user_id
+                "[api_items] 🔥 saved_only WHERE enabled, current_user_id=%s, fav_cnt=%s",
+                current_user_id, fav_cnt
             )
         
         # If saved_only=1 without auth, return empty

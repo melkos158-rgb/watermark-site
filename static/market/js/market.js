@@ -239,6 +239,9 @@ async function loadPage(page = 1) {
     console.log('[market.js] 🔍 Loading saved items (state.saved=1, params.saved=1)');
   }
 
+  // 🔍 DEBUG: Log exact fetch URL and params before request
+  console.log('[market.js] GET items url params =', params, 'saved=', params.saved);
+
   let resp;
   try {
     if (PAGE_TYPE === "my") {
