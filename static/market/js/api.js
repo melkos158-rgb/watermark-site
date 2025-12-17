@@ -20,12 +20,11 @@ async function fetchItems(params = {}) {
   // головний список моделей
   const url = buildUrl("/api/items", params);
   
-  // 🔍 DIAGNOSTIC: Verify cookie is present before request
+  // 🔍 DIAGNOSTIC: Log request details (NOTE: HttpOnly cookies won't show in document.cookie)
   console.log("[api] fetchItems", {
     url,
     creds: "same-origin",
-    hasCookie: document.cookie?.includes("session="),
-    allCookies: document.cookie
+    note: "Check Network tab → Request Headers → Cookie for actual cookies sent"
   });
   
   const res = await fetch(url, {

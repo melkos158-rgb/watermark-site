@@ -100,19 +100,24 @@ def _resolve_stl_filesystem_path(url: str) -> Optional[str]:
 
 def _get_uid() -> Optional[int]:
     """
-    Get current user ID with Flask-Login fallback to session.
+    Get current user ID from session (primary) or Flask-Login (fallback).
     Returns None if not authenticated.
-    """
-    # Try Flask-Login first (if initialized)
-    try:
-        from flask_login import current_user
-        if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-            return current_user.id
-    except (ImportError, AttributeError, RuntimeError):
-        pass
     
-    # Fallback to session
-    return session.get("user_id")
+    CRITICAL: Login writes session["user_id"], so we read from there first.
+    """
+    # Primary: session (written by auth.py login)
+    uid = session.get("user_id")
+    
+    # Fallback: Flask-Login (if initialized and authenticated)
+    if uid is None:
+        try:
+            from flask_login import current_user
+            if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                uid = current_user.id
+        except (ImportError, AttributeError, RuntimeError):
+            pass
+    
+    return uid
 
 
 def _is_authenticated() -> bool:
@@ -1165,10 +1170,12 @@ def api_items():
         
         # 🔍 DIAGNOSTIC: Log resolved UID after _get_uid()
         current_app.logger.info(
-            "[api_items] 🔥 RESOLVED: uid=%s saved=%s is_authenticated=%s",
+            "[api_items] 🔥 GET uid=%s saved=%s | session_keys=%s cookie_keys=%s session['user_id']=%s",
             current_user_id,
             saved_only,
-            is_authenticated
+            list(session.keys()) if session else [],
+            list(request.cookies.keys()),
+            session.get("user_id")
         )
         
         # If saved filter is active, check if user has any favorites

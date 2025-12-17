@@ -104,16 +104,23 @@ def login_required(f):
 
 def _get_uid():
     """
-    Get current user ID with Flask-Login fallback to session.
+    Get current user ID from session (primary) or Flask-Login (fallback).
     Returns None if not authenticated.
+    
+    CRITICAL: Login writes session["user_id"], so we read from there first.
     """
+    # Primary: session (written by auth.py login)
     uid = session.get("user_id")
-    try:
-        from flask_login import current_user
-        if getattr(current_user, "is_authenticated", False):
-            uid = current_user.id
-    except Exception:
-        pass
+    
+    # Fallback: Flask-Login (if initialized and authenticated)
+    if uid is None:
+        try:
+            from flask_login import current_user
+            if getattr(current_user, "is_authenticated", False):
+                uid = current_user.id
+        except Exception:
+            pass
+    
     return uid
 
 
@@ -473,6 +480,17 @@ def toggle_favorite():
 
     # 🔥 CRITICAL: Use _get_uid() for consistency
     user_id = _get_uid()
+    
+    # 🔍 DIAGNOSTIC: Log session/cookie state in POST /favorite
+    current_app.logger.info(
+        "[toggle_favorite] 🔥 POST uid=%s item=%s on=%s | session_keys=%s cookie_keys=%s",
+        user_id,
+        item_id,
+        on,
+        list(session.keys()) if session else [],
+        list(request.cookies.keys())
+    )
+    
     if not user_id:
         return _json_error("Unauthorized", 401)
 
