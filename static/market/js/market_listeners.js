@@ -429,6 +429,13 @@ export function initMarketListeners({
     const url = "/api/market/favorite";
     const payload = { item_id: Number(itemId), on: nextState };
     
+    // 🔍 ТИМЧАСОВИЙ DEBUG: payload перед відправкою
+    console.log("%c[FAV] 📤 Sending fetch request:", "color: #9C27B0; font-weight: bold");
+    console.log("  URL:", url);
+    console.log("  Method: POST");
+    console.log("  Payload:", JSON.stringify(payload, null, 2));
+    console.log("  Headers:", {"Content-Type": "application/json"});
+    
     fetch(url, {
       method: "POST",
       headers: {
@@ -438,15 +445,17 @@ export function initMarketListeners({
       body: JSON.stringify(payload),
     })
       .then(res => {
+        console.log("%c[FAV] Response status:", "color: #FF9800", res.status, res.statusText);
         if (!res.ok) {
           return res.text().then(text => {
+            console.error("%c[FAV] Error response body:", "color: #f44336", text);
             throw new Error(`HTTP ${res.status}: ${text}`);
           });
         }
         return res.json();
       })
       .then((data) => {
-        console.debug("[FAV] res", data);
+        console.log("%c[FAV] ✅ Success response body:", "color: #4CAF50; font-weight: bold", JSON.stringify(data, null, 2));
         
         // Встановлюємо фінальний стан тільки з data.on
         const serverOn = (typeof data.on === "boolean") ? data.on : nextState;
@@ -609,12 +618,19 @@ export function initMarketListeners({
 }
 
 // --- Auto-init (required when file is loaded via <script type="module" src="...">) ---
+console.log("%c[market_listeners.js] 🐞 loaded", "color: #4CAF50; font-weight: bold");
+
 try {
   const _boot = () => {
+    console.log("%c[market_listeners] 🚀 Calling initMarketListeners()", "color: #2196F3; font-weight: bold");
     if (typeof initMarketListeners === "function") {
       initMarketListeners();
+      console.log("%c[market_listeners] ✅ initMarketListeners() executed", "color: #4CAF50; font-weight: bold");
     } else if (typeof window.initMarketListeners === "function") {
       window.initMarketListeners();
+      console.log("%c[market_listeners] ✅ window.initMarketListeners() executed", "color: #4CAF50; font-weight: bold");
+    } else {
+      console.error("%c[market_listeners] ❌ initMarketListeners is not a function!", "color: #f44336; font-weight: bold");
     }
   };
 

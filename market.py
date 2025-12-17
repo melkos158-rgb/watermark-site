@@ -20,6 +20,7 @@ from flask import (
     url_for,
     make_response,
 )
+from flask_login import current_user  # 🔥 CRITICAL: Flask-Login for favorites consistency
 from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
@@ -922,8 +923,8 @@ def page_market_my():
 @bp.get("/market/following")
 def page_market_following():
     """Feed from followed authors"""
-    uid = _parse_int(session.get("user_id"), 0)
-    if not uid:
+    # 🔥 CRITICAL FIX: Use Flask-Login (same as market_api.py)
+    if not current_user.is_authenticated:
         return redirect(url_for("auth.login", next=request.path))
     return render_template("market/following.html")
 
@@ -1046,15 +1047,15 @@ def page_edit_item(item_id: int):
 
 @bp.get("/market/edit/<int:item_id>")
 def page_market_edit_item(item_id: int):
-    uid = _parse_int(session.get("user_id"), 0)
-    if not uid:
+    # 🔥 CRITICAL FIX: Use Flask-Login (same as market_api.py)
+    if not current_user.is_authenticated:
         abort(401)
 
     it = _fetch_item_with_author(item_id)
     if not it:
         abort(404)
 
-    if _parse_int(it.get("user_id"), 0) != uid:
+    if _parse_int(it.get("user_id"), 0) != current_user.id:
         abort(403)
 
     return render_template("market/edit_model.html", item=it)
@@ -1119,10 +1120,11 @@ def api_items():
         
         # ❤️ Saved filter (Instagram-style favorites)
         saved_only = request.args.get("saved") == "1"
-        current_user_id = session.get("user_id")  # Get current user for is_favorite check
+        # 🔥 CRITICAL FIX: Use Flask-Login (same as market_api.py POST /favorite)
+        current_user_id = current_user.id if current_user.is_authenticated else None
         
         # If saved_only=1 without auth, return empty
-        if saved_only and not current_user_id:
+        if saved_only and not current_user.is_authenticated:
             return jsonify({
                 "ok": True,
                 "items": [],

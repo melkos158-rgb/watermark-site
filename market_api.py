@@ -371,14 +371,23 @@ def toggle_favorite():
     
     # 🔍 DEBUG LOG (тимчасово для діагностики)
     current_app.logger.info(
-        "[FAV] payload=%s content_type=%s user=%s", 
+        "[FAV] 📥 REQUEST: payload=%s content_type=%s user_id=%s request.json=%s", 
         payload, 
         request.content_type,
-        current_user.id
+        current_user.id,
+        request.get_json(silent=True)
     )
     
     item_id = payload.get("item_id")
     on = payload.get("on", True)
+    
+    # 🔍 Додатковий DEBUG
+    current_app.logger.info(
+        "[FAV] 🔍 PARSED: item_id=%s (type=%s), on=%s (type=%s), uid=%s",
+        item_id, type(item_id).__name__,
+        on, type(on).__name__,
+        current_user.id
+    )
 
     if not item_id:
         current_app.logger.warning("[FAV] Missing item_id in payload=%s", payload)
