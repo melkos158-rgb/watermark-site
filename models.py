@@ -29,7 +29,7 @@ db = _DBProxy()
 # ✅ також експортуємо User як просто посилання на клас із db.py
 User = _User
 
-__all__ = ["db", "MarketItem", "MarketFavorite", "MarketReview", "UserFollow", "User"]
+__all__ = ["db", "MarketItem", "MarketReview", "UserFollow", "User"]  # ❌ Removed MarketFavorite - use models_market.py
 
 
 class MarketItem(_db.Model):
@@ -205,16 +205,8 @@ class MarketItem(_db.Model):
         return f"<MarketItem id={self.id} title={self.title!r} price={self.price} user={self.user_id}>"
 
 
-class MarketFavorite(_db.Model):
-    __tablename__ = "market_favorites"
-
-    id = _db.Column(_db.Integer, primary_key=True)
-    user_id = _db.Column(_db.Integer, index=True, nullable=False)
-    item_id = _db.Column(_db.Integer, index=True, nullable=False)
-    created_at = _db.Column(_db.DateTime, default=datetime.utcnow)
-
-    def __repr__(self) -> str:
-        return f"<MarketFavorite user={self.user_id} item={self.item_id}>"
+# ❌ REMOVED: MarketFavorite duplicate - use models_market.py version instead
+# This was causing write/read mismatch (market_favorites vs item_favorites)
 
 
 class MarketReview(_db.Model):

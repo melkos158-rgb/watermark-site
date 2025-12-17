@@ -125,6 +125,116 @@ def _get_uid():
 
 
 # ============================================================
+# MIGRATION & DIAGNOSTICS
+# ============================================================
+
+@bp.post("/api/market/_migrate-favorites")
+def migrate_favorites_table():
+    """
+    Міграція даних: market_favorites → item_favorites (one-time)
+    
+    Usage: POST /api/market/_migrate-favorites
+    Response: {"ok": true, "migrated": 123, "skipped": 45}
+    """
+    try:
+        old_table = "market_favorites"
+        new_table = MarketFavorite.__tablename__  # item_favorites
+        
+        # Перевірка чи існує стара таблиця
+        try:
+            count_old = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {old_table}")
+            ).scalar()
+            current_app.logger.info(f"[MIGRATE] Found {count_old} records in {old_table}")
+        except Exception:
+            db.session.rollback()
+            return jsonify({
+                "ok": False,
+                "error": f"Table {old_table} does not exist. Nothing to migrate."
+            }), 404
+        
+        # Переконатись що нова таблиця існує
+        _ensure_favorites_table()
+        
+        # Міграція (ON CONFLICT DO NOTHING = skip duplicates)
+        migration_sql = f"""
+        INSERT INTO {new_table} (user_id, item_id, created_at)
+        SELECT user_id, item_id, created_at
+        FROM {old_table}
+        ON CONFLICT (user_id, item_id) DO NOTHING
+        """
+        
+        result = db.session.execute(text(migration_sql))
+        db.session.commit()
+        migrated = result.rowcount if hasattr(result, 'rowcount') else 0
+        
+        # Підрахунок фінальних записів
+        count_new = db.session.execute(
+            text(f"SELECT COUNT(*) FROM {new_table}")
+        ).scalar()
+        
+        current_app.logger.info(
+            f"[MIGRATE] ✅ Migrated {migrated} records from {old_table} → {new_table}. "
+            f"Total in {new_table}: {count_new}"
+        )
+        
+        return jsonify({
+            "ok": True,
+            "old_table": old_table,
+            "new_table": new_table,
+            "migrated": migrated,
+            "skipped": count_old - migrated,
+            "total_in_new": count_new
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"[MIGRATE] Failed: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@bp.get("/api/market/_check-tables")
+def check_favorites_tables():
+    """
+    Діагностика: перевірка існування та вмісту таблиць favorites
+    
+    Usage: GET /api/market/_check-tables
+    Response: {"ok": true, "tables": {...}, "current_table": "item_favorites"}
+    """
+    try:
+        result = {
+            "ok": True,
+            "current_table": MarketFavorite.__tablename__,
+            "tables": {}
+        }
+        
+        # Перевірка обох таблиць
+        for table_name in ["market_favorites", "item_favorites"]:
+            try:
+                count = db.session.execute(
+                    text(f"SELECT COUNT(*) FROM {table_name}")
+                ).scalar()
+                result["tables"][table_name] = {
+                    "exists": True,
+                    "count": count
+                }
+            except Exception as e:
+                db.session.rollback()
+                result["tables"][table_name] = {
+                    "exists": False,
+                    "error": str(e)
+                }
+        
+        current_app.logger.info(f"[CHECK] Tables status: {result['tables']}")
+        return jsonify(result)
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"[CHECK] Failed: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ============================================================
 # DEBUG ENDPOINTS
 # ============================================================
 

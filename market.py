@@ -43,7 +43,9 @@ except Exception:
     _CLOUDINARY_READY = False
 
 # ✅ беремо db та модель з models.py
-from models import db, MarketItem, MarketFavorite, MarketReview, UserFollow
+from models import db, MarketItem, MarketReview, UserFollow
+# ✅ MarketFavorite беремо з models_market (так як і в market_api.py)
+from models_market import MarketFavorite
 # якщо User у тебе лишається в db.py — імпортуємо тільки його звідти
 from db import User
 
@@ -1178,27 +1180,39 @@ def api_items():
             session.get("user_id")
         )
         
-        # If saved filter is active, check if user has any favorites
-        if saved_only and current_user_id:
-            fav_cnt = db.session.execute(
-                text(f"SELECT COUNT(*) FROM {FAVORITES_TBL} WHERE user_id = :u"),
-                {"u": current_user_id}
-            ).scalar()
-            current_app.logger.info(
-                "[api_items] 🔥 saved_only WHERE enabled, current_user_id=%s, fav_cnt=%s",
-                current_user_id, fav_cnt
-            )
+        # ✅ ORM-based favorites filtering (reliable, no SQL JOIN issues)
+        fav_ids = set()
+        if current_user_id is not None:
+            try:
+                fav_ids = set(
+                    r[0] for r in db.session.query(MarketFavorite.item_id)
+                    .filter(MarketFavorite.user_id == current_user_id)
+                    .all()
+                )
+                current_app.logger.info(
+                    "[api_items] 🔥 Loaded fav_ids=%s for uid=%s",
+                    len(fav_ids), current_user_id
+                )
+            except Exception as e:
+                current_app.logger.warning(
+                    "[api_items] Failed to load favorites: %s", e
+                )
+                fav_ids = set()
         
-        # If saved_only=1 without auth, return empty
-        if saved_only and not is_authenticated:
-            return jsonify({
-                "ok": True,
-                "items": [],
-                "page": page,
-                "per_page": per_page,
-                "pages": 0,
-                "total": 0
-            })
+        # 🔥 CRITICAL: If saved_only=1, handle immediately to avoid fallback SQL paths
+        if saved_only:
+            fav_ids_list = [int(x) for x in fav_ids if x is not None]
+            if not fav_ids_list:
+                current_app.logger.info("[api_items] saved_only=1 but fav_ids empty -> return []")
+                return jsonify({
+                    "ok": True,
+                    "items": [],
+                    "page": page,
+                    "per_page": per_page,
+                    "pages": 0,
+                    "total": 0
+                })
+            # Continue with saved_only logic below (will use expanding bindparam)
         
         # Author filter: resolve username -> user_id
         author_param = request.args.get("author", "").strip()
@@ -1281,11 +1295,14 @@ def api_items():
             where.append("i.user_id = :author_id")
             params["author_id"] = author_user_id
         
-        # ❤️ Saved filter (only show user's favorites)
-        # 🔥 FIX: Check current_user_id is not None (0 is valid user_id in some DBs)
-        if saved_only and current_user_id is not None:
-            # Must have a favorite record (INNER JOIN logic via WHERE)
-            where.append("mf.item_id IS NOT NULL")
+        # ❤️ Saved filter (safe): SQLAlchemy expanding param
+        # 🔥 ONLY add to WHERE if saved_only (fav_ids_list already validated above)
+        if saved_only:
+            where.append("i.id IN :fav_ids")
+            params["fav_ids"] = fav_ids_list  # Already converted to list above
+            current_app.logger.info(
+                "[api_items] 🔥 Filtering by fav_ids count=%s", len(fav_ids_list)
+            )
         
         # Proof Score filter
         if min_proof_score > 0:
@@ -1414,8 +1431,7 @@ def api_items():
                            COALESCE(pm.prints_count, 0) AS prints_count,
                            i.proof_score,
                            i.slice_hints_json,
-                           u.name AS author_name,
-                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
+                           u.name AS author_name
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
                     LEFT JOIN (
@@ -1424,7 +1440,6 @@ def api_items():
                         {date_filter}
                         GROUP BY item_id
                     ) pm ON pm.item_id = i.id
-                    LEFT JOIN {FAVORITES_TBL} mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
@@ -1434,7 +1449,14 @@ def api_items():
                     f"[api_items] 🔍 Executing SQL with order_sql='{order_sql[:100]}...' | "
                     f"params={list(params.keys())}"
                 )
-                rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+                
+                # 🔥 CRITICAL: Use expanding bindparam for IN clause when saved_only
+                if saved_only:
+                    from sqlalchemy import bindparam
+                    stmt = text(sql_with_publish).bindparams(bindparam("fav_ids", expanding=True))
+                    rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
+                else:
+                    rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
             except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
                 # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                 db.session.rollback()
@@ -1650,9 +1672,16 @@ def api_my_items():
             LIMIT :limit OFFSET :offset
         """
         
-        rows = db.session.execute(text(sql_with_publish), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
+        rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
         items = [_row_to_dict(r) for r in rows]
-        total = db.session.execute(text(f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"), {"uid": uid}).scalar() or 0
+        
+        # ❤️ Add is_favorite flag based on fav_ids set (ORM-based, not SQL)
+        for item in items:
+            item["is_favorite"] = item.get("id") in fav_ids
+        
+        # Count total items (respecting WHERE filters)
+        count_sql = f"SELECT COUNT(*) FROM {{ITEMS_TBL}} i {where_sql}"
+        total = db.session.execute(text(count_sql), params).scalar() or 0
         
     except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
         # 🔄 FALLBACK: Column doesn't exist yet
