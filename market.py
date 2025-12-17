@@ -1195,6 +1195,11 @@ def api_items():
         where, params = [], {}
         
         # ❤️ Always add current_user_id for is_favorite JOIN (even if not saved filter)
+        # 🔍 DEBUG: Log current_user state
+        current_app.logger.info(
+            f"[api_items] 🔍 current_user.is_authenticated={current_user.is_authenticated}, "
+            f"current_user_id={current_user_id}, saved_only={saved_only}"
+        )
         params["current_user_id"] = int(current_user_id or -1)
         
         if q:
@@ -1503,29 +1508,22 @@ def api_items():
         )
 
     except Exception as e:
-        # ✅ Bulletproof: log full traceback to Railway, return controlled response
+        # 🔥 CRITICAL: Return HTTP 500 to expose errors (not hide as "0 items")
         db.session.rollback()  # Clean up aborted transaction
-        current_app.logger.exception("🔥 api_items FAILED: %s", e)
+        current_app.logger.exception(
+            "🔥 api_items FAILED: %s | current_user.is_authenticated=%s | params=%s",
+            e,
+            current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'N/A',
+            request.args.to_dict()
+        )
         
-        # Parse request params for fallback response
-        try:
-            page = max(1, _parse_int(request.args.get("page"), 1))
-            per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
-            sort = _normalize_sort(request.args.get("sort"))
-        except Exception:
-            page, per_page, sort = 1, 24, "new"
-        
-        # Return 200 with empty list - never crash the market
+        # Return HTTP 500 with error details for debugging
         return jsonify({
             "ok": False,
-            "items": [],
-            "page": page,
-            "per_page": per_page,
-            "pages": 0,
-            "total": 0,
-            "sort": sort,
-            "error": "api_items_failed"
-        }), 200
+            "error": "server_error",
+            "message": "Failed to load items. Check server logs.",
+            "details": str(e) if current_app.debug else None
+        }), 500
 
 
 @bp.get("/api/market/items")
