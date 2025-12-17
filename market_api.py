@@ -102,6 +102,21 @@ def login_required(f):
     return wrapper
 
 
+def _get_uid():
+    """
+    Get current user ID with Flask-Login fallback to session.
+    Returns None if not authenticated.
+    """
+    uid = session.get("user_id")
+    try:
+        from flask_login import current_user
+        if getattr(current_user, "is_authenticated", False):
+            uid = current_user.id
+    except Exception:
+        pass
+    return uid
+
+
 # ============================================================
 # DEBUG ENDPOINTS
 # ============================================================
@@ -421,11 +436,12 @@ def toggle_favorite():
             payload = {}
     
     # 🔍 DEBUG LOG (тимчасово для діагностики)
+    uid = _get_uid()
     current_app.logger.info(
         "[FAV] 📥 REQUEST: payload=%s content_type=%s user_id=%s request.json=%s", 
         payload, 
         request.content_type,
-        current_user.id,
+        uid,
         request.get_json(silent=True)
     )
     
@@ -437,7 +453,7 @@ def toggle_favorite():
         "[FAV] 🔍 PARSED: item_id=%s (type=%s), on=%s (type=%s), uid=%s",
         item_id, type(item_id).__name__,
         on, type(on).__name__,
-        current_user.id
+        uid
     )
 
     if not item_id:
@@ -455,7 +471,10 @@ def toggle_favorite():
     if not item:
         return _json_error("Item not found", 404)
 
-    user_id = current_user.id
+    # 🔥 CRITICAL: Use _get_uid() for consistency
+    user_id = _get_uid()
+    if not user_id:
+        return _json_error("Unauthorized", 401)
 
     try:
         from sqlalchemy.exc import IntegrityError
@@ -468,17 +487,17 @@ def toggle_favorite():
                 db.session.add(MarketFavorite(user_id=user_id, item_id=item_id))
             db.session.commit()
             
-            # 🔍 DEBUG: Verify write to database
+            # 🔍 DEBUG: Verify write to database (self-proving response)
             table_name = MarketFavorite.__tablename__
-            count = db.session.execute(
+            cnt = db.session.execute(
                 text(f"SELECT COUNT(*) FROM {table_name} WHERE user_id = :u"),
                 {"u": user_id}
             ).scalar()
             current_app.logger.info(
-                "[FAV] ✅ Added user=%s item=%s | Total favorites for user: %s",
-                user_id, item_id, count
+                "[FAV] after commit uid=%s count=%s item=%s on=%s",
+                user_id, cnt, item_id, on
             )
-            return jsonify({"ok": True, "on": True})
+            return jsonify({"ok": True, "on": True, "uid": user_id, "count": int(cnt or 0)})
         else:
             if fav:
                 db.session.delete(fav)
@@ -486,15 +505,15 @@ def toggle_favorite():
             
             # 🔍 DEBUG: Verify delete from database
             table_name = MarketFavorite.__tablename__
-            count = db.session.execute(
+            cnt = db.session.execute(
                 text(f"SELECT COUNT(*) FROM {table_name} WHERE user_id = :u"),
                 {"u": user_id}
             ).scalar()
             current_app.logger.info(
-                "[FAV] ❌ Removed user=%s item=%s | Total favorites for user: %s",
-                user_id, item_id, count
+                "[FAV] after commit uid=%s count=%s item=%s on=%s",
+                user_id, cnt, item_id, on
             )
-            return jsonify({"ok": True, "on": False})
+            return jsonify({"ok": True, "on": False, "uid": user_id, "count": int(cnt or 0)})
 
     except IntegrityError as e:
         db.session.rollback()

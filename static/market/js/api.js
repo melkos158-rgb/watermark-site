@@ -19,6 +19,7 @@ function buildUrl(path, params = {}) {
 async function fetchItems(params = {}) {
   // головний список моделей
   const url = buildUrl("/api/items", params);
+  console.log("[market.js] fetchItems URL =>", url); // 🔍 DEBUG
   const res = await fetch(url, { credentials: "same-origin" });
   if (!res.ok) {
     console.error("fetchItems error", res.status);

@@ -1155,6 +1155,23 @@ def api_items():
         current_user_id = _get_uid()
         is_authenticated = current_user_id is not None
         
+        # 🔍 DEBUG: Log params for saved filter debugging
+        current_app.logger.info(
+            "[api_items] uid=%s saved=%s args=%s",
+            current_user_id, saved_only, dict(request.args)
+        )
+        
+        # If saved filter is active, check if user has any favorites
+        if saved_only and current_user_id:
+            fav_cnt = db.session.execute(
+                text(f"SELECT COUNT(*) FROM {FAVORITES_TBL} WHERE user_id = :u"),
+                {"u": current_user_id}
+            ).scalar()
+            current_app.logger.info(
+                "[api_items] fav_cnt=%s for uid=%s",
+                fav_cnt, current_user_id
+            )
+        
         # If saved_only=1 without auth, return empty
         if saved_only and not is_authenticated:
             return jsonify({
