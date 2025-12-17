@@ -1148,6 +1148,14 @@ def api_items():
             f"mode='{mode}', page={page}, per_page={per_page}"
         )
         
+        # 🔍 DIAGNOSTIC: Log cookie and session state at entry point
+        current_app.logger.info(
+            "[api_items] 🔥 ENTRY: cookie=%s session_user_id=%s session_keys=%s",
+            bool(request.cookies),
+            session.get("user_id"),
+            list(session.keys()) if session else []
+        )
+        
         # ❤️ Saved filter (Instagram-style favorites)
         saved_only = request.args.get("saved") == "1"
         
@@ -1155,14 +1163,12 @@ def api_items():
         current_user_id = _get_uid()
         is_authenticated = current_user_id is not None
         
-        # 🔍 COMPREHENSIVE DIAGNOSTICS: Log everything before processing
+        # 🔍 DIAGNOSTIC: Log resolved UID after _get_uid()
         current_app.logger.info(
-            "[api_items] saved=%s uid=%s session_user_id=%s cookie=%s args=%s",
-            request.args.get("saved"),
+            "[api_items] 🔥 RESOLVED: uid=%s saved=%s is_authenticated=%s",
             current_user_id,
-            session.get("user_id"),
-            bool(request.headers.get("Cookie")),
-            dict(request.args)
+            saved_only,
+            is_authenticated
         )
         
         # If saved filter is active, check if user has any favorites

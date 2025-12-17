@@ -19,8 +19,26 @@ function buildUrl(path, params = {}) {
 async function fetchItems(params = {}) {
   // головний список моделей
   const url = buildUrl("/api/items", params);
-  console.log("[market.js] fetchItems URL =>", url); // 🔍 DEBUG
-  const res = await fetch(url, { credentials: "same-origin" });
+  
+  // 🔍 DIAGNOSTIC: Verify cookie is present before request
+  console.log("[api] fetchItems", {
+    url,
+    creds: "same-origin",
+    hasCookie: document.cookie?.includes("session="),
+    allCookies: document.cookie
+  });
+  
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "same-origin",
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  
+  // 🔍 DIAGNOSTIC: Log response status
+  console.log("[api] fetchItems status", res.status, "ok=", res.ok);
+  
   if (!res.ok) {
     console.error("fetchItems error", res.status);
     throw new Error("Failed to fetch items");
@@ -31,7 +49,14 @@ async function fetchItems(params = {}) {
 async function fetchMyItems(params = {}) {
   // мої моделі (для /market?owner=me, my-ads.js тощо)
   const url = buildUrl("/api/my/items", params);
-  const res = await fetch(url, { credentials: "same-origin" });
+  console.log("[api.js] fetchMyItems ->", url, "credentials=same-origin");
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "same-origin",
+    headers: {
+      "Accept": "application/json",
+    },
+  });
   if (!res.ok) {
     console.error("fetchMyItems error", res.status);
     throw new Error("Failed to fetch my items");
