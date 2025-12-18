@@ -470,13 +470,20 @@ export function initMarketListeners({
           if (window.toast) toast("Прибрано з улюблених.", "info");
           if (window.trackEvent) trackEvent("favorite_off", { item_id: itemId });
           
-          // ❤️ GUARD: reload only on saved page when REMOVING (not adding)
+          // ❤️ On saved page: remove card from DOM instead of reload
           const urlParams = new URLSearchParams(window.location.search);
           if (urlParams.get('saved') === '1') {
-            // Wait for toast animation then reload
-            setTimeout(() => {
-              window.location.reload();
-            }, 800);
+            const card = btn.closest('.market-card, .item-card, [data-market-card], article');
+            if (card) {
+              // Smooth fade out animation
+              card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+              card.style.opacity = '0';
+              card.style.transform = 'scale(0.95)';
+              setTimeout(() => {
+                card.remove();
+                console.log('[FAV] Card removed from saved list');
+              }, 300);
+            }
           }
         }
       })

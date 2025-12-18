@@ -46,6 +46,18 @@ let lastRequestId = 0;
  * 1) ХЕЛПЕРИ
  * ============================== */
 
+/**
+ * Нормалізація is_favorite поля з API (підтримує різні формати)
+ * @param {Object} item - об'єкт моделі з API
+ * @returns {boolean} - чи є в фаворитах
+ */
+function isFav(item) {
+  if (!item) return false;
+  const v = item.is_favorite ?? item.is_fav ?? item.isFav;
+  // Підтримка: true, 1, "1", "true"
+  return v === true || v === 1 || v === "1" || v === "true";
+}
+
 function setNotice(text, kind = "") {
   if (!NOTICE) return;
   if (!text) {
@@ -531,7 +543,7 @@ function renderItemCard(it) {
       }
     </a>
     <button type="button"
-            class="card-like ${it.is_fav ? "is-active" : ""}"
+            class="card-like ${isFav(it) ? "is-active" : ""}"
             data-favorite-toggle
             data-item-id="${id}"
             aria-label="Save to favorites">

@@ -1269,7 +1269,9 @@ def api_items():
             items = []
             for r in rows:
                 item = _row_to_dict(r)
-                item['is_favorite'] = item.get('id') in fav_ids
+                # ✅ All items in saved_only are favorites by definition
+                item['is_favorite'] = True
+                item['is_fav'] = 1  # Legacy compatibility (integer for frontend)
                 item['has_slice_hints'] = False  # Simplified for saved_only
                 items.append(item)
             
@@ -1572,7 +1574,9 @@ def api_items():
                     and slice_hints.strip().lower() not in ('null', '{}', '')
                 )
                 # ❤️ Add is_favorite based on ORM fav_ids (consistent single source of truth)
-                item['is_favorite'] = item.get('id') in fav_ids
+                is_fav = item.get('id') in fav_ids
+                item['is_favorite'] = is_fav
+                item['is_fav'] = 1 if is_fav else 0  # Legacy compatibility (integer)
                 items.append(item)
             
             # COUNT query - Simple COUNT without JOIN (WHERE filters enough)
@@ -1619,7 +1623,9 @@ def api_items():
                         item = _row_to_dict(r)
                         item['has_slice_hints'] = False  # Fallback: columns don't exist
                         # ❤️ Add is_favorite based on ORM fav_ids
-                        item['is_favorite'] = item.get('id') in fav_ids
+                        is_fav = item.get('id') in fav_ids
+                        item['is_favorite'] = is_fav
+                        item['is_fav'] = 1 if is_fav else 0  # Legacy compatibility (integer)
                         items.append(item)
                     
                     # COUNT query - Simple COUNT without JOIN
@@ -1655,7 +1661,9 @@ def api_items():
                         d.setdefault("proof_score", None)
                         d["has_slice_hints"] = False
                         # ❤️ Add is_favorite based on ORM fav_ids
-                        d["is_favorite"] = d.get("id") in fav_ids
+                        is_fav = d.get("id") in fav_ids
+                        d["is_favorite"] = is_fav
+                        d["is_fav"] = 1 if is_fav else 0  # Legacy compatibility (integer)
                         items.append(d)
                     
                     # COUNT query - Simple COUNT without JOIN
