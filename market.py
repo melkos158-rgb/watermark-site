@@ -1140,6 +1140,13 @@ def debug_favorites_schema():
 @bp.get("/api/items")
 def api_items():
     try:
+        # 🔥 DEPLOY MARKER: Verify production deployment
+        current_app.logger.warning(
+            "[DEPLOY_MARK] api_items v2025-12-18A saved=%s args=%s", 
+            request.args.get("saved"), 
+            dict(request.args)
+        )
+        
         raw_q = request.args.get("q") or ""
         q = raw_q.strip().lower()
 
@@ -1199,7 +1206,7 @@ def api_items():
                 )
                 fav_ids = set()
         
-        # 🔥 CRITICAL: If saved_only=1, handle immediately to avoid fallback SQL paths
+        # 🔥 CRITICAL: If saved_only=1, handle in dedicated path (NO fallback allowed)
         if saved_only:
             fav_ids_list = [int(x) for x in fav_ids if x is not None]
             if not fav_ids_list:
@@ -1212,7 +1219,81 @@ def api_items():
                     "pages": 0,
                     "total": 0
                 })
-            # Continue with saved_only logic below (will use expanding bindparam)
+            
+            # 🔥 DEDICATED saved_only path: build minimal SQL with expanding bindparam
+            current_app.logger.warning("[api_items] 🔥 SAVED_ONLY path: fav_ids=%d", len(fav_ids_list))
+            
+            dialect = db.session.get_bind().dialect.name
+            if dialect == "postgresql":
+                url_expr = "i.stl_main_url"
+            else:
+                url_expr = "i.stl_main_url"
+            
+            # Build WHERE clause for saved_only
+            where_parts = ["i.id IN :fav_ids"]
+            params_saved = {"fav_ids": fav_ids_list}
+            
+            # Add is_published filter if column exists
+            try:
+                db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+                where_parts.append("(i.is_published = :pub OR i.is_published IS NULL)")
+                params_saved["pub"] = True
+            except Exception:
+                db.session.rollback()
+            
+            where_sql_saved = "WHERE " + " AND ".join(where_parts)
+            offset = (page - 1) * per_page
+            
+            # SELECT query for saved items
+            sql_saved = f"""
+                SELECT i.id, i.title, i.price, i.tags,
+                       COALESCE(i.cover_url, '') AS cover,
+                       COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                       COALESCE(i.rating, 0) AS rating,
+                       COALESCE(i.downloads, 0) AS downloads,
+                       {url_expr} AS url,
+                       i.format, i.user_id, i.created_at,
+                       u.name AS author_name
+                FROM {ITEMS_TBL} i
+                LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
+                {where_sql_saved}
+                ORDER BY i.created_at DESC, i.id DESC
+                LIMIT :limit OFFSET :offset
+            """
+            
+            # Execute with expanding bindparam
+            stmt_saved = text(sql_saved).bindparams(bindparam("fav_ids", expanding=True))
+            rows = db.session.execute(stmt_saved, {**params_saved, "limit": per_page, "offset": offset}).fetchall()
+            
+            # Build items with is_favorite
+            items = []
+            for r in rows:
+                item = _row_to_dict(r)
+                item['is_favorite'] = item.get('id') in fav_ids
+                item['has_slice_hints'] = False  # Simplified for saved_only
+                items.append(item)
+            
+            # COUNT query for saved items
+            count_sql_saved = f"""
+                SELECT COUNT(*) 
+                FROM {ITEMS_TBL} i
+                {where_sql_saved}
+            """
+            count_stmt_saved = text(count_sql_saved).bindparams(bindparam("fav_ids", expanding=True))
+            total = db.session.execute(count_stmt_saved, params_saved).scalar() or 0
+            
+            # Serialize and return (NO fallback possible)
+            items = [_item_to_dict(it) for it in items]
+            
+            current_app.logger.warning("[api_items] 🔥 SAVED_ONLY return: items=%d total=%d", len(items), total)
+            return jsonify({
+                "ok": True,
+                "items": items,
+                "page": page,
+                "per_page": per_page,
+                "pages": math.ceil(total / per_page) if per_page else 1,
+                "total": total,
+            })
         
         # Author filter: resolve username -> user_id
         author_param = request.args.get("author", "").strip()
@@ -1295,14 +1376,8 @@ def api_items():
             where.append("i.user_id = :author_id")
             params["author_id"] = author_user_id
         
-        # ❤️ Saved filter (safe): SQLAlchemy expanding param
-        # 🔥 ONLY add to WHERE if saved_only (fav_ids_list already validated above)
-        if saved_only:
-            where.append("i.id IN :fav_ids")
-            params["fav_ids"] = fav_ids_list  # Already converted to list above
-            current_app.logger.info(
-                "[api_items] 🔥 Filtering by fav_ids count=%s", len(fav_ids_list)
-            )
+        # NOTE: saved_only handled in dedicated path above (early return)
+        # This section only executes for non-saved queries
         
         # Proof Score filter
         if min_proof_score > 0:
@@ -1450,12 +1525,8 @@ def api_items():
                     f"params={list(params.keys())}"
                 )
                 
-                # 🔥 CRITICAL: Use expanding bindparam for IN clause when saved_only
-                if saved_only:
-                    stmt = text(sql_with_publish).bindparams(bindparam("fav_ids", expanding=True))
-                    rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
-                else:
-                    rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+                # Execute main SELECT (saved_only already returned above)
+                rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
             except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
                 # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                 db.session.rollback()
@@ -1483,11 +1554,7 @@ def api_items():
                         {order_sql}
                         LIMIT :limit OFFSET :offset
                     """
-                    if saved_only:
-                        stmt = text(sql_with_publish).bindparams(bindparam("fav_ids", expanding=True))
-                        rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
-                    else:
-                        rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
                 else:
                     # Re-raise if it's not a missing table error
                     raise
@@ -1514,11 +1581,7 @@ def api_items():
                 FROM {ITEMS_TBL} i
                 {where_sql}
             """
-            if saved_only:
-                count_stmt = text(count_sql).bindparams(bindparam("fav_ids", expanding=True))
-                total = db.session.execute(count_stmt, params).scalar() or 0
-            else:
-                total = db.session.execute(text(count_sql), params).scalar() or 0
+            total = db.session.execute(text(count_sql), params).scalar() or 0
             
         except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
             # 🔄 FALLBACK: Column doesn't exist yet
@@ -1550,11 +1613,7 @@ def api_items():
                 """
                 
                 try:
-                    if saved_only:
-                        stmt = text(sql_fallback).bindparams(bindparam("fav_ids", expanding=True))
-                        rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
-                    else:
-                        rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
                     items = []
                     for r in rows:
                         item = _row_to_dict(r)
@@ -1569,11 +1628,7 @@ def api_items():
                         FROM {ITEMS_TBL} i
                         {where_sql}
                     """
-                    if saved_only:
-                        count_stmt = text(count_sql).bindparams(bindparam("fav_ids", expanding=True))
-                        total = db.session.execute(count_stmt, params).scalar() or 0
-                    else:
-                        total = db.session.execute(text(count_sql), params).scalar() or 0
+                    total = db.session.execute(text(count_sql), params).scalar() or 0
                 except sa_exc.ProgrammingError:
                     # Last resort: legacy schema with zip_url instead of stl_main_url
                     db.session.rollback()
@@ -1591,11 +1646,7 @@ def api_items():
                         {order_sql}
                         LIMIT :limit OFFSET :offset
                     """
-                    if saved_only:
-                        stmt = text(sql_legacy).bindparams(bindparam("fav_ids", expanding=True))
-                        rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
-                    else:
-                        rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
                     items = []
                     for r in rows:
                         d = _row_to_dict(r)
@@ -1613,11 +1664,7 @@ def api_items():
                         FROM {ITEMS_TBL} i
                         {where_sql}
                     """
-                    if saved_only:
-                        count_stmt = text(count_sql).bindparams(bindparam("fav_ids", expanding=True))
-                        total = db.session.execute(count_stmt, params).scalar() or 0
-                    else:
-                        total = db.session.execute(text(count_sql), params).scalar() or 0
+                    total = db.session.execute(text(count_sql), params).scalar() or 0
             else:
                 # Other error - re-raise
                 raise
