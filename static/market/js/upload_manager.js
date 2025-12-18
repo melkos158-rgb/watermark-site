@@ -163,41 +163,42 @@ class UploadManager {
           }
         } else {
           // ✅ Cloudinary failed - try local fallback for cover/video
-          if (isCloudinary && (type === 'cover' || type === 'video')) {
+          if (xhr.status >= 400 && isCloudinary && (type === 'cover' || type === 'video')) {
             console.warn(`[UPLOAD] Cloudinary ${type} failed (${xhr.status}), trying local fallback`);
             
-            // Check if local upload endpoint exists
-            const localUrl = upload.upload_urls[type + '_local'] || upload.upload_urls[type + 'Local'];
-            if (localUrl) {
-              // Retry with local endpoint
-              const localFullUrl = localUrl.startsWith('/') ? window.location.origin + localUrl : localUrl;
-              console.log(`[UPLOAD] Fallback to local: ${localFullUrl}`);
-              
-              const fallbackXhr = new XMLHttpRequest();
-              const fallbackFormData = new FormData();
-              fallbackFormData.append('file', file);
-              
-              fallbackXhr.addEventListener('load', () => {
-                if (fallbackXhr.status >= 200 && fallbackXhr.status < 300) {
-                  try {
-                    const fallbackResult = JSON.parse(fallbackXhr.responseText);
-                    const fallbackUrl = fallbackResult.url || null;
-                    console.log(`[UPLOAD] ${type} uploaded (fallback):`, fallbackUrl);
-                    resolve(fallbackUrl);
-                  } catch {
-                    resolve(null);
-                  }
-                } else {
-                  reject(new Error(`Fallback upload failed: ${fallbackXhr.status}`));
+            // Use direct local upload endpoint
+            const localUrl = `/api/market/items/${itemId}/upload/${type}`;
+            const localFullUrl = window.location.origin + localUrl;
+            console.log(`[UPLOAD] Fallback to local: ${localFullUrl}`);
+            
+            const fallbackXhr = new XMLHttpRequest();
+            const fallbackFormData = new FormData();
+            fallbackFormData.append('file', file);
+            
+            fallbackXhr.addEventListener('load', () => {
+              if (fallbackXhr.status >= 200 && fallbackXhr.status < 300) {
+                try {
+                  const fallbackResult = JSON.parse(fallbackXhr.responseText);
+                  const fallbackUrl = fallbackResult.url || null;
+                  console.log(`[UPLOAD] ✅ ${type} uploaded (local fallback):`, fallbackUrl);
+                  resolve(fallbackUrl);
+                } catch (err) {
+                  console.error(`[UPLOAD] Failed to parse fallback response:`, err);
+                  reject(new Error('Fallback parse error'));
                 }
-              });
-              
-              fallbackXhr.addEventListener('error', () => reject(new Error('Fallback network error')));
-              fallbackXhr.open('POST', localFullUrl);
-              fallbackXhr.send(fallbackFormData);
-            } else {
-              reject(new Error(`Upload failed: ${xhr.status}`));
-            }
+              } else {
+                console.error(`[UPLOAD] Fallback upload failed: ${fallbackXhr.status}`);
+                reject(new Error(`Fallback upload failed: ${fallbackXhr.status}`));
+              }
+            });
+            
+            fallbackXhr.addEventListener('error', () => {
+              console.error(`[UPLOAD] Fallback network error`);
+              reject(new Error('Fallback network error'));
+            });
+            
+            fallbackXhr.open('POST', localFullUrl);
+            fallbackXhr.send(fallbackFormData);
           } else {
             reject(new Error(`Upload failed: ${xhr.status}`));
           }

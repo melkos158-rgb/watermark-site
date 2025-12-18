@@ -138,6 +138,23 @@ class MarketItem(_db.Model):
 
     # ------------- АЛІАСИ ДЛЯ СУМІСНОСТІ З market.py -------------
 
+    def _as_is_or_legacy(self, url: str | None, legacy_prefix: str) -> str | None:
+        """
+        Helper: повертає URL as-is якщо це вже готовий шлях,
+        інакше додає legacy prefix для старих filename-only значень.
+        
+        Запобігає подвійному префіксуванню:
+        /api/market/media/... → залишається як є
+        model.stl → /media/user_X/models/model.stl
+        """
+        if not url:
+            return None
+        # Якщо це вже готовий URL/шлях — НЕ чіпаємо
+        if url.startswith(("http://", "https://", "/api/", "/media/")):
+            return url
+        # Інакше це старий "filename" — будуємо legacy path
+        return legacy_prefix + url.lstrip("/")
+
     # cover  <-> cover_url
     @property
     def cover(self) -> Optional[str]:
@@ -150,12 +167,12 @@ class MarketItem(_db.Model):
     # cover_src (for templates)
     @property
     def cover_src(self) -> Optional[str]:
-        return self.cover_url
+        return self._as_is_or_legacy(self.cover_url, f"/media/user_{self.user_id}/covers/")
     
     # stl_url <-> stl_main_url (for old templates/JS)
     @property
     def stl_url(self) -> Optional[str]:
-        return self.stl_main_url
+        return self._as_is_or_legacy(self.stl_main_url, f"/media/user_{self.user_id}/models/")
     
     @stl_url.setter
     def stl_url(self, value: Optional[str]) -> None:
