@@ -847,11 +847,13 @@
 
     try {
       // Collect form data
+      const descTextarea = document.querySelector('#desc') || document.querySelector('textarea[name="desc"]') || document.querySelector('textarea[name="description"]');
+      const descVal = (descTextarea?.value || '').trim();
       const formData = {
         title: titleInput.value || 'Untitled Model',
         price: Number(priceInput.value || 0),
         tags: tags.join(', '),
-        desc: descTextarea.value || ''
+        desc: descVal
       };
 
       // STEP 1: Create draft
@@ -957,5 +959,5 @@
 </script>
 
 <!-- Upload Manager for draft workflow + chunked uploads -->
-<script type="module" defer src="{{ url_for('static', filename='market/js/upload_manager.js', v=asset_v) }}"></script>
+<script defer src="{{ url_for('static', filename='market/js/upload_manager.js', v=asset_v) }}"></script>
 {% endblock %} 

@@ -485,5 +485,3 @@ if (!window.uploadManager) {
 
 // ✅ Expose threshold constant for upload.html to use
 window.UPLOAD_LARGE_FILE_THRESHOLD = LARGE_FILE_THRESHOLD;
-
-export default window.uploadManager;
