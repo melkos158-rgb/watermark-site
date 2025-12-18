@@ -264,7 +264,7 @@ def create_draft_item():
     
     Flow:
       1) User submits form → create draft
-      2) Frontend gets item_id + upload_urls
+      2) Frontend gets item_id + upload_urls + cloudinary config
       3) Redirect to /market immediately
       4) Upload files in background with progress
     
@@ -272,7 +272,8 @@ def create_draft_item():
     Response: {
         ok: true, 
         item_id: 123, 
-        upload_urls: {video, stl, zip, cover}
+        upload_urls: {video, stl, zip, cover},
+        cloudinary: {cloud_name, unsigned_preset}
     }
     """
     uid = _get_uid()
@@ -288,41 +289,54 @@ def create_draft_item():
         price=data.get('price', 0),
         tags=data.get('tags', ''),
         desc=data.get('desc', ''),
-        upload_status='draft',
-        upload_progress=0,
-        is_published=False  # Draft не публікується одразу
+        upload_status='uploading',  # ✅ Set to 'uploading' immediately for UI sync
+        upload_progress=1,           # ✅ Start at 1% to show it's in progress
+        is_published=False           # Draft не публікується одразу
     )
     
     db.session.add(item)
     db.session.commit()
     
-    # Generate signed upload URLs
+    # Generate upload URLs
     upload_urls = {}
+    cloudinary_config = None
     
-    # Cloudinary для video/images (if configured)
-    try:
-        import cloudinary
-        import cloudinary.uploader
+    # Safe Cloudinary detection from ENV
+    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+    
+    # Fallback: parse from CLOUDINARY_URL (cloudinary://api_key:api_secret@cloud_name)
+    if not cloud_name:
+        cloudinary_url = os.getenv("CLOUDINARY_URL")
+        if cloudinary_url:
+            try:
+                # Parse cloudinary://api_key:api_secret@cloud_name
+                import re
+                match = re.search(r'@([^/]+)', cloudinary_url)
+                if match:
+                    cloud_name = match.group(1)
+            except Exception:
+                pass
+    
+    # Get unsigned preset from ENV
+    unsigned_preset = os.getenv("CLOUDINARY_UNSIGNED_PRESET")
+    
+    # Return Cloudinary endpoints + config if available
+    if cloud_name:
+        upload_urls['video'] = f"https://api.cloudinary.com/v1_1/{cloud_name}/video/upload"
+        upload_urls['cover'] = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
         
-        # Direct upload URLs (Cloudinary widget or API)
-        # NOTE: Requires cloudinary.config() in app.py or config.py
-        cloudinary_enabled = hasattr(cloudinary.config(), 'cloud_name') and cloudinary.config().cloud_name
+        cloudinary_config = {
+            "cloud_name": cloud_name,
+            "unsigned_preset": unsigned_preset  # Can be None
+        }
         
-        if cloudinary_enabled:
-            # Return Cloudinary upload API endpoint
-            upload_urls['video'] = f"https://api.cloudinary.com/v1_1/{cloudinary.config().cloud_name}/video/upload"
-            upload_urls['cover'] = f"https://api.cloudinary.com/v1_1/{cloudinary.config().cloud_name}/image/upload"
-        else:
-            upload_urls['video'] = None
-            upload_urls['cover'] = None
-        
-    except Exception as e:
-        current_app.logger.warning(f"[DRAFT] Cloudinary not configured: {e}")
+        current_app.logger.info(f"[DRAFT] Cloudinary enabled: cloud={cloud_name} preset={unsigned_preset}")
+    else:
         upload_urls['video'] = None
         upload_urls['cover'] = None
+        current_app.logger.warning("[DRAFT] Cloudinary not configured")
     
-    # For STL/ZIP: return Railway/local upload endpoint (fallback)
-    # TODO: Add R2/S3 presigned URLs when configured
+    # For STL/ZIP: return Railway/local chunked upload endpoint
     upload_urls['stl'] = url_for('market_api.upload_file_chunk', 
                                   item_id=item.id, 
                                   file_type='stl', 
@@ -337,7 +351,8 @@ def create_draft_item():
     return jsonify({
         "ok": True,
         "item_id": item.id,
-        "upload_urls": upload_urls
+        "upload_urls": upload_urls,
+        "cloudinary": cloudinary_config
     })
 
 
@@ -362,22 +377,35 @@ def attach_uploaded_files(item_id):
     
     data = request.get_json() or {}
     
+    # ✅ Log all uploaded URLs for validation
+    current_app.logger.info(
+        f"[ATTACH] 📎 Attaching files to item {item_id}: "
+        f"video={data.get('video_url') is not None} "
+        f"stl={data.get('stl_url') is not None} "
+        f"zip={data.get('zip_url') is not None} "
+        f"cover={data.get('cover_url') is not None}"
+    )
+    
     # Attach video
     if data.get('video_url'):
         item.video_url = data['video_url']
         item.video_duration = data.get('video_duration', 10)
+        current_app.logger.info(f"[ATTACH]   video_url: {data['video_url'][:80]}...")
     
     # Attach STL
     if data.get('stl_url'):
         item.stl_main_url = data['stl_url']
+        current_app.logger.info(f"[ATTACH]   stl_url: {data['stl_url'][:80]}...")
     
     # Attach ZIP
     if data.get('zip_url'):
         item.zip_url = data['zip_url']
+        current_app.logger.info(f"[ATTACH]   zip_url: {data['zip_url'][:80]}...")
     
     # Attach cover
     if data.get('cover_url'):
         item.cover_url = data['cover_url']
+        current_app.logger.info(f"[ATTACH]   cover_url: {data['cover_url'][:80]}...")
     
     # Attach gallery
     if data.get('gallery_urls'):
@@ -427,15 +455,53 @@ def update_upload_progress(item_id):
     return jsonify({"ok": True, "progress": item.upload_progress})
 
 
+@bp.get("/api/market/media/<int:item_id>/<path:filename>")
+def serve_media(item_id, filename):
+    """
+    🎥 Serve uploaded media files from Railway volume
+    
+    Usage: GET /api/market/media/123/stl_model.stl
+    """
+    from flask import send_from_directory
+    from werkzeug.utils import secure_filename
+    
+    # Secure the filename to prevent directory traversal
+    safe_filename = secure_filename(filename)
+    
+    upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'market_items' / str(item_id)
+    
+    if not upload_dir.exists():
+        abort(404)
+    
+    file_path = upload_dir / safe_filename
+    
+    if not file_path.exists():
+        abort(404)
+    
+    return send_from_directory(str(upload_dir), safe_filename)
+
+
 @bp.post("/api/market/items/<int:item_id>/upload/<file_type>")
 def upload_file_chunk(item_id, file_type):
     """
-    📦 Fallback upload endpoint (for Railway/local storage)
+    📦 Chunked upload endpoint (for Railway/local storage)
     
-    Handles multipart file upload with chunking support
+    Handles large file uploads in chunks (8MB each)
     Used when Cloudinary/R2/S3 not configured
     
+    Headers:
+      X-Upload-Id: unique upload session ID (uuid)
+      X-Chunk-Index: 0-based chunk number
+      X-Chunk-Total: total number of chunks
+      X-File-Name: original filename
+    
     file_type: stl | zip | cover | video
+    
+    Response (in progress):
+      {"ok": true, "done": false, "received": 3, "total": 20}
+    
+    Response (completed):
+      {"ok": true, "done": true, "url": "..."}
     """
     item = MarketItem.query.get_or_404(item_id)
     
@@ -443,35 +509,116 @@ def upload_file_chunk(item_id, file_type):
     if item.user_id != _get_uid():
         return jsonify({"ok": False, "error": "forbidden"}), 403
     
-    if 'file' not in request.files:
-        return jsonify({"ok": False, "error": "no_file"}), 400
+    # Check for chunked upload headers
+    upload_id = request.headers.get('X-Upload-Id')
+    chunk_index = request.headers.get('X-Chunk-Index')
+    chunk_total = request.headers.get('X-Chunk-Total')
+    original_filename = request.headers.get('X-File-Name')
     
-    file = request.files['file']
-    if not file.filename:
-        return jsonify({"ok": False, "error": "empty_filename"}), 400
+    # Simple upload (no chunking)
+    if not upload_id or not chunk_index or not chunk_total:
+        if 'file' not in request.files:
+            return jsonify({"ok": False, "error": "no_file"}), 400
+        
+        file = request.files['file']
+        if not file.filename:
+            return jsonify({"ok": False, "error": "empty_filename"}), 400
+        
+        # Save to Railway volume or local uploads/
+        upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'market_items' / str(item_id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Secure filename
+        from werkzeug.utils import secure_filename
+        filename = secure_filename(file.filename)
+        filepath = upload_dir / f"{file_type}_{filename}"
+        
+        file.save(str(filepath))
+        
+        # Generate public URL via media endpoint
+        file_url = url_for('market_api.serve_media', 
+                          item_id=item_id, 
+                          filename=f"{file_type}_{filename}", 
+                          _external=True)
+        
+        current_app.logger.info(f"[UPLOAD] Saved {file_type} for item {item_id}: {file_url}")
+        
+        return jsonify({
+            "ok": True,
+            "done": True,
+            "url": file_url,
+            "filename": filename,
+            "file_type": file_type
+        })
     
-    # Save to Railway volume or local uploads/
+    # Chunked upload
+    try:
+        chunk_index = int(chunk_index)
+        chunk_total = int(chunk_total)
+    except ValueError:
+        return jsonify({"ok": False, "error": "invalid_chunk_headers"}), 400
+    
+    # Create temp directory for chunks
     upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'market_items' / str(item_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
     
-    # Secure filename
-    from werkzeug.utils import secure_filename
-    filename = secure_filename(file.filename)
-    filepath = upload_dir / f"{file_type}_{filename}"
+    # Write chunk to .part file
+    part_file = upload_dir / f"{file_type}_{upload_id}.part"
     
-    file.save(str(filepath))
+    # Append chunk bytes (order matters!)
+    chunk_data = request.get_data()
     
-    # Generate public URL (Railway volume or local static)
-    file_url = url_for('static', filename=f'uploads/market_items/{item_id}/{file_type}_{filename}', _external=True)
+    try:
+        with open(part_file, 'ab') as f:
+            f.write(chunk_data)
+        
+        # Detailed chunk upload log
+        current_app.logger.info(
+            f"[CHUNK] 📦 item_id={item_id} file_type={file_type} upload_id={upload_id} "
+            f"chunk={chunk_index+1}/{chunk_total} bytes_received={len(chunk_data)} "
+            f"filename={original_filename or 'unknown'}"
+        )
+        
+        # Check if this is the last chunk
+        if chunk_index == chunk_total - 1:
+            # Finalize: rename to final filename
+            from werkzeug.utils import secure_filename
+            final_filename = secure_filename(original_filename or f"{file_type}_file")
+            final_path = upload_dir / f"{file_type}_{final_filename}"
+            
+            # Move .part to final location
+            part_file.rename(final_path)
+            
+            # Generate public URL via media endpoint
+            file_url = url_for('market_api.serve_media', 
+                              item_id=item_id, 
+                              filename=f"{file_type}_{final_filename}", 
+                              _external=True)
+            
+            current_app.logger.info(
+                f"[CHUNK] ✅ Upload completed: item={item_id} type={file_type} url={file_url}"
+            )
+            
+            return jsonify({
+                "ok": True,
+                "done": True,
+                "url": file_url,
+                "filename": final_filename,
+                "received": chunk_total,
+                "total": chunk_total
+            })
+        else:
+            # More chunks expected
+            return jsonify({
+                "ok": True,
+                "done": False,
+                "received": chunk_index + 1,
+                "total": chunk_total
+            })
     
-    current_app.logger.info(f"[UPLOAD] Saved {file_type} for item {item_id}: {file_url}")
-    
-    return jsonify({
-        "ok": True,
-        "url": file_url,
-        "filename": filename,
-        "file_type": file_type
-    })
+    except Exception as e:
+        current_app.logger.exception(f"[CHUNK] Error writing chunk: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 # ============================================================

@@ -1,179 +1,189 @@
 /**
- * 🎬 VIDEO PREVIEW HANDLER
+ * 🎬 PROOFLY VIDEO PREVIEW
  * 
- * Handles hover-to-play video preview on market cards (like Cults)
- * 
- * Features:
- * - Desktop: hover → autoplay
- * - Mobile: tap → toggle play
- * - Lazy load: preload="none" until hover
- * - Performance: pause + reset on leave
+ * Cults-style video preview on market cards:
+ * - Desktop: hover → play, leave → pause
+ * - Mobile: tap → toggle play/pause
+ * - IntersectionObserver: auto-pause when card leaves viewport
+ * - Performance: only play videos in viewport
  */
 
 (function() {
   'use strict';
+  
+  // Prevent double initialization
+  if (window.__videoPreviewInitialized) return;
+  window.__videoPreviewInitialized = true;
 
-  const IS_MOBILE = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const IS_TOUCH = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const videos = new Map(); // Store video states
 
   /**
-   * Initialize video preview on all cards
+   * Initialize video preview system
    */
-  function initVideoPreview() {
-    const cards = document.querySelectorAll('.card-preview');
+  function init() {
+    // Find all video previews
+    const videoElements = document.querySelectorAll('[data-video-preview]');
     
-    cards.forEach(card => {
-      const video = card.querySelector('.card-video');
-      if (!video) return;
+    if (videoElements.length === 0) {
+      console.log('[VIDEO] No video previews found on page');
+      return;
+    }
 
-      // Mark card as having video
+    console.log(`[VIDEO] Initializing ${videoElements.length} video previews`);
+
+    // Setup IntersectionObserver for viewport tracking
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          const video = entry.target;
+          const card = video.closest('.card-preview');
+          
+          if (entry.isIntersecting) {
+            // Card entered viewport
+            video.dataset.inview = '1';
+            if (card) card.dataset.inview = '1';
+          } else {
+            // Card left viewport - auto-pause
+            video.dataset.inview = '0';
+            if (card) card.dataset.inview = '0';
+            
+            if (!video.paused) {
+              video.pause();
+              video.classList.remove('is-playing');
+              console.log('[VIDEO] Auto-paused (left viewport)');
+            }
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '50px', // Start loading slightly before visible
+        threshold: 0.2 // 20% visible
+      }
+    );
+
+    // Initialize each video
+    videoElements.forEach(video => {
+      const card = video.closest('.card-preview');
+      if (!card) return;
+
+      // Mark card as having video (for CSS ::after mute icon)
       card.setAttribute('data-has-video', 'true');
 
-      if (IS_MOBILE || IS_TOUCH) {
-        // Mobile/touch: tap to toggle
-        setupTouchPreview(card, video);
+      // Mark video as loading initially
+      video.setAttribute('data-loading', '1');
+
+      // Remove loading state when metadata loads
+      video.addEventListener('loadedmetadata', () => {
+        video.removeAttribute('data-loading');
+      }, { once: true });
+
+      // Store initial state
+      videos.set(video, {
+        isPlaying: false,
+        card: card
+      });
+
+      // Observe for viewport visibility
+      observer.observe(video);
+
+      if (isMobile) {
+        // Mobile: tap to toggle play/pause
+        card.addEventListener('click', (e) => {
+          // Don't interfere with link clicks on badges, etc.
+          if (e.target.closest('.badge, .card-like')) return;
+          
+          e.preventDefault();
+          e.stopPropagation();
+          
+          toggleVideo(video);
+        });
       } else {
         // Desktop: hover to play
-        setupHoverPreview(card, video);
+        card.addEventListener('mouseenter', () => {
+          playVideo(video);
+        });
+
+        card.addEventListener('mouseleave', () => {
+          pauseVideo(video);
+        });
       }
     });
 
-    console.log(`[VIDEO] Initialized ${cards.length} video previews`);
+    console.log('[VIDEO] Video preview system initialized');
   }
 
   /**
-   * Setup hover-based preview (desktop)
+   * Play video if in viewport
    */
-  function setupHoverPreview(card, video) {
-    let hoverTimeout = null;
+  function playVideo(video) {
+    if (video.dataset.inview !== '1') {
+      console.log('[VIDEO] Skipping play - not in viewport');
+      return;
+    }
 
-    card.addEventListener('mouseenter', () => {
-      // Delay autoplay by 300ms (prevent accidental triggers)
-      hoverTimeout = setTimeout(() => {
-        video.style.display = 'block';
-        video.play().catch(err => {
-          console.warn('[VIDEO] Autoplay failed:', err);
-        });
-      }, 300);
-    });
-
-    card.addEventListener('mouseleave', () => {
-      // Cancel delayed play
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-        hoverTimeout = null;
+    if (video.paused) {
+      const playPromise = video.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            video.classList.add('is-playing');
+            const state = videos.get(video);
+            if (state) state.isPlaying = true;
+          })
+          .catch(err => {
+            console.warn('[VIDEO] Play failed:', err);
+          });
       }
+    }
+  }
 
-      // Pause and reset
+  /**
+   * Pause video and reset (or keep position)
+   */
+  function pauseVideo(video, reset = false) {
+    if (!video.paused) {
       video.pause();
-      video.currentTime = 0;
-      video.style.display = 'none';
-    });
-  }
-
-  /**
-   * Setup tap-based preview (mobile/touch)
-   */
-  function setupTouchPreview(card, video) {
-    let isPlaying = false;
-
-    card.addEventListener('click', (e) => {
-      // Don't interfere with link clicks
-      if (e.target.closest('a')) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      isPlaying = !isPlaying;
-      card.setAttribute('data-video-active', isPlaying ? 'true' : 'false');
-
-      if (isPlaying) {
-        video.style.display = 'block';
-        video.play().catch(err => {
-          console.warn('[VIDEO] Play failed:', err);
-          isPlaying = false;
-          card.setAttribute('data-video-active', 'false');
-        });
-      } else {
-        video.pause();
+      video.classList.remove('is-playing');
+      
+      // Optional: reset to start on pause
+      if (reset) {
         video.currentTime = 0;
-        video.style.display = 'none';
       }
-    });
-
-    // Auto-pause when scrolling away (performance)
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting && isPlaying) {
-          video.pause();
-          video.currentTime = 0;
-          video.style.display = 'none';
-          isPlaying = false;
-          card.setAttribute('data-video-active', 'false');
-        }
-      });
-    }, { threshold: 0.5 });
-
-    observer.observe(card);
+      
+      const state = videos.get(video);
+      if (state) state.isPlaying = false;
+    }
   }
 
   /**
-   * Lazy load videos on scroll (optional optimization)
+   * Toggle play/pause (mobile)
    */
-  function lazyLoadVideos() {
-    const videos = document.querySelectorAll('.card-video[preload="none"]');
-    
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const video = entry.target;
-          
-          // Preload metadata only (not full video)
-          video.preload = 'metadata';
-          
-          // Mark as loading
-          video.setAttribute('data-loading', 'true');
-          
-          video.addEventListener('loadedmetadata', () => {
-            video.removeAttribute('data-loading');
-          }, { once: true });
+  function toggleVideo(video) {
+    if (video.dataset.inview !== '1') {
+      console.log('[VIDEO] Not in viewport');
+      return;
+    }
 
-          observer.unobserve(video);
-        }
-      });
-    }, {
-      rootMargin: '200px' // Start loading before visible
-    });
-
-    videos.forEach(video => observer.observe(video));
+    if (video.paused) {
+      playVideo(video);
+    } else {
+      pauseVideo(video);
+    }
   }
 
-  /**
-   * Auto-initialize on DOM ready
-   */
+  // Initialize on DOM ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      initVideoPreview();
-      lazyLoadVideos();
-    });
+    document.addEventListener('DOMContentLoaded', init);
   } else {
-    initVideoPreview();
-    lazyLoadVideos();
+    init();
   }
 
-  /**
-   * Re-initialize after dynamic content load (market.js)
-   */
-  window.addEventListener('market:items-loaded', () => {
-    console.log('[VIDEO] Re-initializing after items load');
-    initVideoPreview();
-    lazyLoadVideos();
+  // Re-init on dynamic content load (for infinite scroll, etc.)
+  window.addEventListener('market:cardsLoaded', () => {
+    console.log('[VIDEO] Reinitializing for new cards');
+    init();
   });
-
-  // Export for manual initialization
-  window.videoPreview = {
-    init: initVideoPreview,
-    lazyLoad: lazyLoadVideos
-  };
-
 })();

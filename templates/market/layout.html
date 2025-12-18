@@ -48,6 +48,10 @@
   <script type="module" src="{{ url_for('static', filename='market/js/filters.js', v=asset_v) }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/uploader.js', v=asset_v) }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/viewer.js', v=asset_v) }}"></script>
+  
+  {# 🎬 Cults-style video preview on cards #}
+  <script defer src="{{ url_for('static', filename='market/js/video_preview.js', v=asset_v) }}"></script>
+  
   {# LEGACY: favorites.js тепер керується через market_listeners.js #}
   {# <script type="module" src="{{ url_for('static', filename='market/js/favorites.js', v=asset_v) }}"></script> #}
   <script type="module" src="{{ url_for('static', filename='market/js/reviews.js', v=asset_v) }}"></script>

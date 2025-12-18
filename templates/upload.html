@@ -769,32 +769,15 @@
     return !!(stlPool.files && stlPool.files.length);
   }
 
-  form.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    msg.textContent = '';
-
-    if (!CURRENT_USER_ID){
-      msg.textContent = 'Потрібно увійти, щоб додати модель.';
-      return;
-    }
-    if (!validateFiles()){
-      msg.textContent = 'Додай 3D-файли (мінімум 1).';
-      return;
-    }
-
+  // Legacy upload (fallback if draft workflow fails)
+  async function legacyUploadSubmit() {
     const fd = new FormData(form);
-
-    // ДОДАНО: явний user_id щоб бекенд отримував від користувача
     fd.set('user_id', String(CURRENT_USER_ID));
-
-    // теги як CSV
     fd.set('tags', tags.join(', '));
-
-    // is_free + price → backend reads "price" (integer PLN); we keep cents off the wire
+    
     const free = isFreeToggle.checked;
     fd.set('is_free', free ? '1' : '0');
     const priceVal = Number(priceInput.value || 0);
-    // DO NOT send price_cents (avoid mixed fields). Send integer 'price' to match backend.
     fd.set('price', String(Math.max(0, Math.floor(priceVal))));
 
     if (!(zipFile.files && zipFile.files.length))     fd.delete('zip_file');
@@ -816,36 +799,163 @@
       }
     }
 
-    try{
-      const r = await fetch('/api/market/upload', {
-        method:'POST',
-        body: fd,
-        headers: { 'Accept': 'application/json' },
-        credentials: 'same-origin'
-      });
+    const r = await fetch('/api/market/upload', {
+      method:'POST',
+      body: fd,
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    });
 
-      let j = null;
-      try {
-        j = await r.clone().json();
-      } catch {
-        const txt = (await r.text()).slice(0,200);
-        msg.textContent = 'Помилка ' + r.status + ': ' + txt;
-        return;
+    let j = null;
+    try {
+      j = await r.clone().json();
+    } catch {
+      const txt = (await r.text()).slice(0,200);
+      msg.textContent = 'Помилка ' + r.status + ': ' + txt;
+      return;
+    }
+
+    if (j.ok){
+      msg.textContent = 'Готово! Перехід до сторінки…';
+      if (j.id){
+        setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
+      }
+    } else {
+      msg.textContent = 'Помилка: ' + (j.error || 'server');
+    }
+  }
+
+  // NEW: Draft workflow with background upload
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    msg.textContent = '';
+
+    if (!CURRENT_USER_ID){
+      msg.textContent = 'Потрібно увійти, щоб додати модель.';
+      return;
+    }
+    if (!validateFiles()){
+      msg.textContent = 'Додай 3D-файли (мінімум 1).';
+      return;
+    }
+
+    // Check if uploadManager available
+    if (!window.uploadManager) {
+      console.warn('[UPLOAD] uploadManager not available, using legacy upload');
+      return legacyUploadSubmit();
+    }
+
+    try {
+      // Collect form data
+      const formData = {
+        title: titleInput.value || 'Untitled Model',
+        price: Number(priceInput.value || 0),
+        tags: tags.join(', '),
+        desc: descTextarea.value || ''
+      };
+
+      // STEP 1: Create draft
+      msg.textContent = 'Створюємо чернетку...';
+      const draft = await window.uploadManager.createDraft(formData);
+      
+      if (!draft || !draft.ok) {
+        console.warn('[UPLOAD] Draft creation failed, using legacy');
+        return legacyUploadSubmit();
       }
 
-      if (j.ok){
-        msg.textContent = 'Готово! Перехід до сторінки…';
-        if (j.id){
-          setTimeout(()=>{ window.location.href = '/item/' + j.id; }, 500);
-        }
+      console.log('[UPLOAD] Draft created:', draft.item_id);
+
+      // STEP 2: Collect files for upload
+      const files = {
+        stl: stlMain.files[0],
+        zip: zipFile.files[0],
+        cover: coverFile.files[0]
+      };
+
+      // STEP 3: Check if we have large files that need chunking
+      // ✅ Use shared threshold from upload_manager.js
+      const THRESHOLD = window.UPLOAD_LARGE_FILE_THRESHOLD || (15 * 1024 * 1024);
+      
+      // ✅ Check BOTH individual file size AND total size
+      const fileSizes = Object.values(files).filter(f => f).map(f => f.size);
+      const totalSize = fileSizes.reduce((sum, size) => sum + size, 0);
+      const hasLargeFiles = fileSizes.some(size => size > THRESHOLD) || totalSize > THRESHOLD;
+      
+      console.log(`[UPLOAD] Files check: individual max=${Math.max(...fileSizes, 0)} total=${totalSize} threshold=${THRESHOLD} large=${hasLargeFiles}`);
+      
+      if (hasLargeFiles) {
+        // ✅ PRODUCTION FIX: Don't redirect if large files
+        // Keep user on upload.html, show progress, redirect after completion
+        console.log('[UPLOAD] 📦 Large files detected - staying on page for stable upload');
+        msg.textContent = 'Завантаження файлів...';
+        
+        // Upload with await (blocking) - redirect only after completion
+        await uploadInBackground(draft.item_id, draft.upload_urls, files, draft.cloudinary);
+        
+        console.log('[UPLOAD] ✅ Upload complete, redirecting now');
+        msg.textContent = 'Готово! Перехід...';
+        setTimeout(() => {
+          window.location.href = '/market';
+        }, 500);
+        
       } else {
-        msg.textContent = 'Помилка: ' + (j.error || 'server');
+        // ✅ Small files - can redirect immediately
+        console.log('[UPLOAD] 📄 Small files - safe to redirect immediately');
+        
+        // Start background upload (non-blocking)
+        uploadInBackground(draft.item_id, draft.upload_urls, files, draft.cloudinary);
+        
+        console.log('[UPLOAD] 🚀 Background upload started for item:', draft.item_id);
+        
+        // Redirect immediately
+        msg.textContent = 'Перехід до маркету...';
+        window.location.href = '/market';
       }
-    } catch(err){
-      console.error(err);
-      msg.textContent = 'Помилка мережі.';
+
+    } catch (err) {
+      console.error('[UPLOAD] Error:', err);
+      console.warn('[UPLOAD] Falling back to legacy upload');
+      return legacyUploadSubmit();
     }
   });
+
+  // Background upload function (returns Promise for await support)
+  async function uploadInBackground(itemId, uploadUrls, files, cloudinaryConfig) {
+    try {
+      const uploadedUrls = {};
+
+      // Upload each file
+      for (const [type, file] of Object.entries(files)) {
+        if (!file) continue;
+
+        try {
+          console.log(`[UPLOAD] Uploading ${type}:`, file.name, `(${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+          const url = await window.uploadManager.uploadFile(itemId, file, type);
+          
+          if (url) {
+            uploadedUrls[`${type}_url`] = url;
+            console.log(`[UPLOAD] ✅ ${type} uploaded:`, url);
+          }
+        } catch (err) {
+          console.error(`[UPLOAD] ❌ Failed to upload ${type}:`, err);
+        }
+      }
+
+      // STEP 3: Attach files and publish
+      console.log('[UPLOAD] Attaching files:', uploadedUrls);
+      await window.uploadManager.completeUpload(itemId, uploadedUrls);
+      console.log('[UPLOAD] ✅ Upload complete!');
+
+      return true; // Success
+
+    } catch (err) {
+      console.error('[UPLOAD] ❌ Background upload failed:', err);
+      throw err; // Re-throw for caller to handle
+    }
+  }
 })();
 </script>
+
+<!-- Upload Manager for draft workflow + chunked uploads -->
+<script defer src="{{ url_for('static', filename='market/js/upload_manager.js', v=asset_v) }}"></script>
 {% endblock %} 

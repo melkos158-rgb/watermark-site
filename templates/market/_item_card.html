@@ -134,12 +134,13 @@
       <video 
         class="card-video"
         src="{{ it.video_url }}"
+        poster="{{ cover_src }}"
         muted
         loop
         playsinline
-        preload="none"
-        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
-      </video>
+        preload="metadata"
+        data-video-preview
+      ></video>
       {% endif %}
     </a>
     

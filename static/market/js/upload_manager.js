@@ -15,6 +15,9 @@
  *   4. Complete → attachFiles() → item published
  */
 
+// ✅ Single source of truth for large file threshold
+const LARGE_FILE_THRESHOLD = 15 * 1024 * 1024; // 15MB
+
 class UploadManager {
   constructor() {
     this.uploads = this.loadState();
@@ -84,6 +87,7 @@ class UploadManager {
         progress: 0,
         status: 'uploading',
         upload_urls: data.upload_urls,
+        cloudinary: data.cloudinary || null,  // Store Cloudinary config
         created_at: Date.now()
       };
       this.saveState();
@@ -99,6 +103,11 @@ class UploadManager {
 
   /**
    * Upload single file with progress tracking
+   * 
+   * Supports:
+   * - Cloudinary unsigned upload (video/cover) with preset + folder
+   * - Chunked upload for large files (stl/zip) 8MB chunks
+   * - Simple upload fallback
    * 
    * @param {number} itemId - Draft item ID
    * @param {File} file - File object to upload
@@ -117,6 +126,18 @@ class UploadManager {
       return null;
     }
 
+    // Check if Cloudinary upload
+    const isCloudinary = uploadUrl.includes('api.cloudinary.com');
+    
+    // ✅ Force chunking for large ZIP/STL files (>15MB)
+    const needsChunking = (type === 'zip' || type === 'stl') && !isCloudinary && file.size > LARGE_FILE_THRESHOLD;
+    
+    if (needsChunking) {
+      console.log(`[UPLOAD] Large ${type} file (${(file.size / 1024 / 1024).toFixed(1)}MB) → using chunked upload`);
+      return this.uploadFileChunked(itemId, file, type, uploadUrl);
+    }
+
+    // Simple upload (Cloudinary or small files)
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
@@ -155,9 +176,140 @@ class UploadManager {
       const formData = new FormData();
       formData.append('file', file);
 
+      // Add Cloudinary-specific fields
+      if (isCloudinary && upload.cloudinary) {
+        // Add unsigned upload preset (if available)
+        if (upload.cloudinary.unsigned_preset) {
+          formData.append('upload_preset', upload.cloudinary.unsigned_preset);
+        }
+        
+        // Add folder for organization
+        formData.append('folder', `proofly/items/${itemId}`);
+        
+        console.log(`[UPLOAD] Cloudinary upload: preset=${upload.cloudinary.unsigned_preset} folder=proofly/items/${itemId}`);
+      }
+
       // Send upload
       xhr.open('POST', uploadUrl);
       xhr.send(formData);
+    });
+  }
+
+  /**
+   * Upload large file in chunks (8MB each)
+   * 
+   * @param {number} itemId - Draft item ID
+   * @param {File} file - File object to upload
+   * @param {string} type - 'stl' | 'zip'
+   * @param {string} uploadUrl - Chunk upload endpoint
+   * @returns {Promise<string>} - Uploaded file URL
+   */
+  async uploadFileChunked(itemId, file, type, uploadUrl) {
+    const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = this.generateUploadId();
+    
+    console.log(`[CHUNK] Starting chunked upload: file=${file.name} size=${file.size} chunks=${totalChunks}`);
+    
+    let uploadedBytes = 0;
+    
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
+      
+      // Upload chunk
+      const result = await this.uploadChunk(
+        uploadUrl,
+        chunk,
+        uploadId,
+        i,
+        totalChunks,
+        file.name
+      );
+      
+      // Update progress based on uploaded bytes
+      uploadedBytes += chunk.size;
+      const percent = Math.round((uploadedBytes / file.size) * 100);
+      this.updateProgress(itemId, percent);
+      
+      console.log(`[CHUNK] Uploaded ${i + 1}/${totalChunks} (${percent}%)`);
+      
+      // If last chunk, return URL
+      if (result.done && result.url) {
+        console.log(`[CHUNK] ✅ Upload complete: ${result.url}`);
+        return result.url;
+      }
+    }
+    
+    throw new Error('Chunked upload incomplete');
+  }
+
+  /**
+   * Upload single chunk
+   * 
+   * @param {string} url - Upload endpoint
+   * @param {Blob} chunk - Chunk data
+   * @param {string} uploadId - Upload session ID
+   * @param {number} index - Chunk index (0-based)
+   * @param {number} total - Total chunks
+   * @param {string} filename - Original filename
+   * @returns {Promise<Object>} - {ok, done, url?, received, total}
+   */
+  uploadChunk(url, chunk, uploadId, index, total, filename) {
+    console.log(`[CHUNK] 🚀 START chunk=${index+1}/${total} size=${chunk.size} url=${url}`);
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      xhr.addEventListener('load', () => {
+        console.log(`[CHUNK] ✅ LOAD chunk=${index+1}/${total} status=${xhr.status}`);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const result = JSON.parse(xhr.responseText);
+            resolve(result);
+          } catch (e) {
+            console.error(`[CHUNK] ❌ PARSE ERROR chunk=${index+1}:`, e);
+            reject(new Error('Invalid server response'));
+          }
+        } else {
+          console.error(`[CHUNK] ❌ HTTP ERROR chunk=${index+1} status=${xhr.status}`);
+          reject(new Error(`Chunk upload failed: ${xhr.status}`));
+        }
+      });
+      
+      xhr.addEventListener('error', () => {
+        console.error(`[CHUNK] ❌ NETWORK ERROR chunk=${index+1}`);
+        reject(new Error('Network error during chunk upload'));
+      });
+      
+      xhr.addEventListener('abort', () => {
+        console.error(`[CHUNK] ⛔ ABORT chunk=${index+1} - likely navigation/redirect killed XHR`);
+        reject(new Error('Chunk upload aborted'));
+      });
+      
+      // Set chunk headers
+      xhr.open('POST', url);
+      xhr.setRequestHeader('X-Upload-Id', uploadId);
+      xhr.setRequestHeader('X-Chunk-Index', index.toString());
+      xhr.setRequestHeader('X-Chunk-Total', total.toString());
+      xhr.setRequestHeader('X-File-Name', filename);
+      
+      // Send raw chunk data (not FormData for chunks)
+      xhr.send(chunk);
+    });
+  }
+
+  /**
+   * Generate unique upload ID (uuid)
+   * 
+   * @returns {string} - UUID v4
+   */
+  generateUploadId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
     });
   }
 
@@ -176,15 +328,21 @@ class UploadManager {
     // Update visual progress bar
     this.progressBar.style.transform = `scaleX(${percent / 100})`;
 
-    // Notify backend
-    fetch(`/api/market/items/${itemId}/progress`, {
+    // Notify backend with keepalive (survives page navigation)
+    const url = `/api/market/items/${itemId}/progress`;
+    const payload = {
+      progress: percent,
+      status: 'uploading'
+    };
+    
+    console.log(`[UPLOAD] Progress update: ${percent}% → ${url}`);
+    
+    fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({
-        progress: percent,
-        status: 'uploading'
-      })
+      keepalive: true,  // ✅ Survives page navigation
+      body: JSON.stringify(payload)
     }).catch(err => {
       console.warn('[UPLOAD] Progress update failed:', err);
     });
@@ -198,24 +356,31 @@ class UploadManager {
    */
   async completeUpload(itemId, urls) {
     try {
-      const resp = await fetch(`/api/market/items/${itemId}/attach`, {
+      const url = `/api/market/items/${itemId}/attach`;
+      
+      console.log(`[UPLOAD] Attaching files → ${url}`, urls);
+      
+      const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        keepalive: true,  // ✅ Survives page navigation
         body: JSON.stringify(urls)
       });
 
       if (!resp.ok) {
+        console.error(`[UPLOAD] Attach failed: status=${resp.status}`);
         throw new Error(`Attach failed: ${resp.status}`);
       }
 
       const data = await resp.json();
 
       if (!data.ok) {
+        console.error('[UPLOAD] Attach rejected:', data.error);
         throw new Error(data.error || 'Attach failed');
       }
 
-      console.log('[UPLOAD] Item published:', itemId);
+      console.log(`[UPLOAD] ✅ Item published: ${itemId}`);
 
       // Cleanup state
       delete this.uploads[itemId];
@@ -317,5 +482,8 @@ if (!window.uploadManager) {
   window.uploadManager = new UploadManager();
   console.log('[UPLOAD] Upload manager initialized');
 }
+
+// ✅ Expose threshold constant for upload.html to use
+window.UPLOAD_LARGE_FILE_THRESHOLD = LARGE_FILE_THRESHOLD;
 
 export default window.uploadManager;
