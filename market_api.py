@@ -27,6 +27,18 @@ from models_market import (
 bp = Blueprint("market_api", __name__)
 
 # ============================================================
+# UPLOADS BASE PATH HELPER
+# ============================================================
+
+def _get_uploads_base() -> Path:
+    """
+    Get unified base path for uploads.
+    Priority: UPLOADS_ROOT (Railway volume) → UPLOAD_FOLDER → 'uploads'
+    """
+    base = current_app.config.get('UPLOADS_ROOT') or current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    return Path(base)
+
+# ============================================================
 # COLUMN MIGRATION HELPERS
 # ============================================================
 
@@ -500,6 +512,15 @@ def attach_uploaded_files(item_id):
     
     data = request.get_json() or {}
     
+    # ✅ Log incoming URLs for diagnosis
+    current_app.logger.info(
+        f"[ATTACH] item={item_id} "
+        f"cover={data.get('cover_url')} "
+        f"stl={data.get('stl_url')} "
+        f"zip={data.get('zip_url')} "
+        f"video={data.get('video_url')}"
+    )
+    
     # ✅ Log all uploaded URLs for validation
     current_app.logger.info(
         f"[ATTACH] 📎 Attaching files to item {item_id}: "
@@ -599,17 +620,76 @@ def serve_media(item_id, filename):
     # Secure the filename to prevent directory traversal
     safe_filename = secure_filename(filename)
     
-    upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'market_items' / str(item_id)
+    # Use unified base path (UPLOADS_ROOT with fallback)
+    base = _get_uploads_base()
+    upload_dir = base / 'market_items' / str(item_id)
+    
+    current_app.logger.info(f"[MEDIA] base={base} item_id={item_id} filename={safe_filename}")
     
     if not upload_dir.exists():
+        current_app.logger.warning(f"[MEDIA] Directory not found: {upload_dir}")
         abort(404)
     
     file_path = upload_dir / safe_filename
     
     if not file_path.exists():
+        current_app.logger.warning(f"[MEDIA] File not found: {file_path}")
         abort(404)
     
+    # Детальне логування для діагностики
+    current_app.logger.info(
+        f"[MEDIA_REQ] item={item_id} filename={safe_filename} "
+        f"path={file_path} exists={file_path.exists()}"
+    )
+    
+    current_app.logger.info(f"[MEDIA] Serving file: {file_path} (size={file_path.stat().st_size})")
     return send_from_directory(str(upload_dir), safe_filename)
+
+
+@bp.get("/items/<int:item_id>/debug_files")
+def debug_item_files(item_id: int):
+    """
+    🔍 Debug endpoint: check if files exist on disk
+    
+    Returns actual file paths, existence status, and sizes
+    for all uploaded files (stl, zip, cover, gallery)
+    
+    Requires: owner or admin
+    """
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"ok": False, "error": "auth"}), 401
+
+    it = MarketItem.query.get(item_id)
+    if not it:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    if it.user_id != uid:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    base = _get_uploads_base()
+    item_dir = os.path.join(str(base), "market_items", str(item_id))
+
+    def _probe(url: str | None):
+        if not url:
+            return {"url": None, "filename": None, "path": None, "exists": False, "size": None}
+        # Очікуємо /api/market/media/<id>/<filename>
+        filename = url.rsplit("/", 1)[-1]
+        path = os.path.join(item_dir, filename)
+        exists = os.path.exists(path)
+        size = os.path.getsize(path) if exists else None
+        return {"url": url, "filename": filename, "path": path, "exists": exists, "size": size}
+
+    payload = {
+        "ok": True,
+        "item_id": item_id,
+        "base": str(base),
+        "item_dir": item_dir,
+        "stl": _probe(it.stl_main_url),
+        "zip": _probe(it.zip_url),
+        "cover": _probe(it.cover_url),
+        "gallery_urls": it.gallery_urls,
+    }
+    return jsonify(payload)
 
 
 @bp.post("/items/<int:item_id>/upload/<file_type>")
@@ -640,6 +720,11 @@ def upload_file_chunk(item_id, file_type):
     if item.user_id != _get_uid():
         return jsonify({"ok": False, "error": "forbidden"}), 403
     
+    # Validate file_type
+    allowed_types = ['stl', 'zip', 'cover', 'video']
+    if file_type not in allowed_types:
+        return jsonify({"ok": False, "error": f"invalid_file_type, allowed: {allowed_types}"}), 400
+    
     # Check for chunked upload headers
     upload_id = request.headers.get('X-Upload-Id')
     chunk_index = request.headers.get('X-Chunk-Index')
@@ -655,9 +740,12 @@ def upload_file_chunk(item_id, file_type):
         if not file.filename:
             return jsonify({"ok": False, "error": "empty_filename"}), 400
         
-        # Save to Railway volume or local uploads/
-        upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'market_items' / str(item_id)
+        # Use unified base path (UPLOADS_ROOT with fallback)
+        base = _get_uploads_base()
+        upload_dir = base / 'market_items' / str(item_id)
         upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        current_app.logger.info(f"[UPLOAD] base={base} item_id={item_id} file_type={file_type}")
         
         # Secure filename
         from werkzeug.utils import secure_filename
@@ -674,6 +762,13 @@ def upload_file_chunk(item_id, file_type):
         
         current_app.logger.info(f"[UPLOAD] Saved {file_type} for item {item_id}: {file_url}")
         
+        # Детальне логування для діагностики
+        current_app.logger.info(
+            f"[UPLOAD_SAVE] item={item_id} type={file_type} "
+            f"path={filepath} exists={filepath.exists()} "
+            f"size={filepath.stat().st_size if filepath.exists() else None}"
+        )
+        
         return jsonify({
             "ok": True,
             "done": True,
@@ -689,9 +784,12 @@ def upload_file_chunk(item_id, file_type):
     except ValueError:
         return jsonify({"ok": False, "error": "invalid_chunk_headers"}), 400
     
-    # Create temp directory for chunks
-    upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'market_items' / str(item_id)
+    # Use unified base path (UPLOADS_ROOT with fallback)
+    base = _get_uploads_base()
+    upload_dir = base / 'market_items' / str(item_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    current_app.logger.info(f"[CHUNK] base={base} item_id={item_id} file_type={file_type} chunk={chunk_index+1}/{chunk_total}")
     
     # Write chunk to .part file
     part_file = upload_dir / f"{file_type}_{upload_id}.part"
@@ -728,6 +826,13 @@ def upload_file_chunk(item_id, file_type):
             
             current_app.logger.info(
                 f"[CHUNK] ✅ Upload completed: item={item_id} type={file_type} url={file_url}"
+            )
+            
+            # Детальне логування для діагностики
+            current_app.logger.info(
+                f"[UPLOAD_SAVE] item={item_id} type={file_type} "
+                f"path={final_path} exists={final_path.exists()} "
+                f"size={final_path.stat().st_size if final_path.exists() else None}"
             )
             
             return jsonify({

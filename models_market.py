@@ -146,6 +146,20 @@ class MarketItem(_db.Model):
     @cover.setter
     def cover(self, value: Optional[str]) -> None:
         self.cover_url = value
+    
+    # cover_src (for templates)
+    @property
+    def cover_src(self) -> Optional[str]:
+        return self.cover_url
+    
+    # stl_url <-> stl_main_url (for old templates/JS)
+    @property
+    def stl_url(self) -> Optional[str]:
+        return self.stl_main_url
+    
+    @stl_url.setter
+    def stl_url(self, value: Optional[str]) -> None:
+        self.stl_main_url = value
 
     # file_url  <-> stl_main_url
     @property

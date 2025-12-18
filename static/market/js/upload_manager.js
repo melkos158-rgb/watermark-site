@@ -162,7 +162,45 @@ class UploadManager {
             resolve(null);
           }
         } else {
-          reject(new Error(`Upload failed: ${xhr.status}`));
+          // ✅ Cloudinary failed - try local fallback for cover/video
+          if (isCloudinary && (type === 'cover' || type === 'video')) {
+            console.warn(`[UPLOAD] Cloudinary ${type} failed (${xhr.status}), trying local fallback`);
+            
+            // Check if local upload endpoint exists
+            const localUrl = upload.upload_urls[type + '_local'] || upload.upload_urls[type + 'Local'];
+            if (localUrl) {
+              // Retry with local endpoint
+              const localFullUrl = localUrl.startsWith('/') ? window.location.origin + localUrl : localUrl;
+              console.log(`[UPLOAD] Fallback to local: ${localFullUrl}`);
+              
+              const fallbackXhr = new XMLHttpRequest();
+              const fallbackFormData = new FormData();
+              fallbackFormData.append('file', file);
+              
+              fallbackXhr.addEventListener('load', () => {
+                if (fallbackXhr.status >= 200 && fallbackXhr.status < 300) {
+                  try {
+                    const fallbackResult = JSON.parse(fallbackXhr.responseText);
+                    const fallbackUrl = fallbackResult.url || null;
+                    console.log(`[UPLOAD] ${type} uploaded (fallback):`, fallbackUrl);
+                    resolve(fallbackUrl);
+                  } catch {
+                    resolve(null);
+                  }
+                } else {
+                  reject(new Error(`Fallback upload failed: ${fallbackXhr.status}`));
+                }
+              });
+              
+              fallbackXhr.addEventListener('error', () => reject(new Error('Fallback network error')));
+              fallbackXhr.open('POST', localFullUrl);
+              fallbackXhr.send(fallbackFormData);
+            } else {
+              reject(new Error(`Upload failed: ${xhr.status}`));
+            }
+          } else {
+            reject(new Error(`Upload failed: ${xhr.status}`));
+          }
         }
       });
 
