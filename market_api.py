@@ -27,6 +27,112 @@ from models_market import (
 bp = Blueprint("market_api", __name__)
 
 # ============================================================
+# COLUMN MIGRATION HELPERS
+# ============================================================
+
+_column_cache = {}
+
+def _has_column(table: str, column: str) -> bool:
+    """
+    Check if column exists in table (PostgreSQL).
+    Cached to avoid repeated DB queries.
+    """
+    cache_key = f"{table}.{column}"
+    
+    if cache_key in _column_cache:
+        return _column_cache[cache_key]
+    
+    try:
+        result = db.session.execute(
+            text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = :table AND column_name = :column
+            """),
+            {"table": table, "column": column}
+        ).first()
+        exists = result is not None
+        _column_cache[cache_key] = exists
+        return exists
+    except Exception as e:
+        current_app.logger.warning(f"[schema] Column check failed for {table}.{column}: {e}")
+        _column_cache[cache_key] = False
+        return False
+
+
+def _ensure_items_upload_columns():
+    """
+    Auto-migration: Add upload-related columns if they don't exist.
+    Safe, idempotent, PostgreSQL only.
+    """
+    try:
+        items_table = "items"
+        columns_added = []
+        
+        # video_url TEXT
+        if not _has_column(items_table, "video_url"):
+            db.session.execute(text(f"ALTER TABLE {items_table} ADD COLUMN video_url TEXT"))
+            db.session.commit()
+            columns_added.append("video_url")
+            current_app.logger.info(f"[schema] add column {items_table}.video_url")
+        
+        # video_duration INTEGER
+        if not _has_column(items_table, "video_duration"):
+            db.session.execute(text(f"ALTER TABLE {items_table} ADD COLUMN video_duration INTEGER"))
+            db.session.commit()
+            columns_added.append("video_duration")
+            current_app.logger.info(f"[schema] add column {items_table}.video_duration")
+        
+        # upload_status TEXT DEFAULT 'published'
+        if not _has_column(items_table, "upload_status"):
+            db.session.execute(text(f"ALTER TABLE {items_table} ADD COLUMN upload_status TEXT DEFAULT 'published'"))
+            db.session.commit()
+            columns_added.append("upload_status")
+            current_app.logger.info(f"[schema] add column {items_table}.upload_status")
+        
+        # upload_progress INTEGER DEFAULT 100
+        if not _has_column(items_table, "upload_progress"):
+            db.session.execute(text(f"ALTER TABLE {items_table} ADD COLUMN upload_progress INTEGER DEFAULT 100"))
+            db.session.commit()
+            columns_added.append("upload_progress")
+            current_app.logger.info(f"[schema] add column {items_table}.upload_progress")
+        
+        # stl_upload_id TEXT
+        if not _has_column(items_table, "stl_upload_id"):
+            db.session.execute(text(f"ALTER TABLE {items_table} ADD COLUMN stl_upload_id TEXT"))
+            db.session.commit()
+            columns_added.append("stl_upload_id")
+            current_app.logger.info(f"[schema] add column {items_table}.stl_upload_id")
+        
+        # zip_upload_id TEXT
+        if not _has_column(items_table, "zip_upload_id"):
+            db.session.execute(text(f"ALTER TABLE {items_table} ADD COLUMN zip_upload_id TEXT"))
+            db.session.commit()
+            columns_added.append("zip_upload_id")
+            current_app.logger.info(f"[schema] add column {items_table}.zip_upload_id")
+        
+        # is_published BOOLEAN DEFAULT TRUE
+        if not _has_column(items_table, "is_published"):
+            db.session.execute(text(f"ALTER TABLE {items_table} ADD COLUMN is_published BOOLEAN DEFAULT TRUE"))
+            db.session.commit()
+            columns_added.append("is_published")
+            current_app.logger.info(f"[schema] add column {items_table}.is_published")
+        
+        if columns_added:
+            current_app.logger.info(f"[schema] ensured items columns ok ({len(columns_added)} added)")
+        else:
+            current_app.logger.info("[schema] ensured items columns ok (all exist)")
+        
+        # Clear cache to force re-check on next migration
+        global _column_cache
+        _column_cache.clear()
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"[schema] Items upload columns migration failed (may already exist): {e}")
+
+
+# ============================================================
 # AUTO-CREATE FAVORITES TABLE (compat fix for Railway)
 # ============================================================
 
@@ -280,6 +386,9 @@ def create_draft_item():
     if not uid:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     
+    # Ensure upload columns exist (auto-migration)
+    _ensure_items_upload_columns()
+    
     data = request.get_json() or {}
     
     # Create draft item
@@ -295,7 +404,20 @@ def create_draft_item():
     )
     
     db.session.add(item)
-    db.session.commit()
+    
+    # Commit with retry on UndefinedColumn (safety for parallel/cold starts)
+    try:
+        db.session.commit()
+    except Exception as e:
+        # If INSERT fails with UndefinedColumn, retry migration once
+        if "UndefinedColumn" in str(e) or "column" in str(e).lower():
+            current_app.logger.warning(f"[DRAFT] INSERT failed, retrying migration: {e}")
+            db.session.rollback()
+            _ensure_items_upload_columns()  # Force re-check
+            db.session.add(item)
+            db.session.commit()
+        else:
+            raise
     
     # Generate upload URLs
     upload_urls = {}
