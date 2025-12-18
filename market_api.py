@@ -128,7 +128,7 @@ def _get_uid():
 # MIGRATION & DIAGNOSTICS
 # ============================================================
 
-@bp.post("/api/market/_migrate-favorites")
+@bp.post("/_migrate-favorites")
 def migrate_favorites_table():
     """
     Міграція даних: market_favorites → item_favorites (one-time)
@@ -193,7 +193,7 @@ def migrate_favorites_table():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@bp.get("/api/market/_check-tables")
+@bp.get("/_check-tables")
 def check_favorites_tables():
     """
     Діагностика: перевірка існування та вмісту таблиць favorites
@@ -233,7 +233,7 @@ def check_favorites_tables():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@bp.get("/api/market/_whoami")
+@bp.get("/_whoami")
 def api_market_whoami():
     """
     Дебаг: перевірка сесії та автентифікації
@@ -257,7 +257,7 @@ def api_market_whoami():
 # UPLOAD MANAGER (Draft + Direct Upload + Progress)
 # ============================================================
 
-@bp.post("/api/market/items/draft")
+@bp.post("/items/draft")
 def create_draft_item():
     """
     🎬 STEP 1: Create draft item WITHOUT files
@@ -356,7 +356,7 @@ def create_draft_item():
     })
 
 
-@bp.post("/api/market/items/<int:item_id>/attach")
+@bp.post("/items/<int:item_id>/attach")
 def attach_uploaded_files(item_id):
     """
     🎬 STEP 3: Attach uploaded files after successful upload
@@ -430,7 +430,7 @@ def attach_uploaded_files(item_id):
     })
 
 
-@bp.post("/api/market/items/<int:item_id>/progress")
+@bp.post("/items/<int:item_id>/progress")
 def update_upload_progress(item_id):
     """
     🎬 STEP 2: Update upload progress during background upload
@@ -455,7 +455,7 @@ def update_upload_progress(item_id):
     return jsonify({"ok": True, "progress": item.upload_progress})
 
 
-@bp.get("/api/market/media/<int:item_id>/<path:filename>")
+@bp.get("/media/<int:item_id>/<path:filename>")
 def serve_media(item_id, filename):
     """
     🎥 Serve uploaded media files from Railway volume
@@ -481,7 +481,7 @@ def serve_media(item_id, filename):
     return send_from_directory(str(upload_dir), safe_filename)
 
 
-@bp.post("/api/market/items/<int:item_id>/upload/<file_type>")
+@bp.post("/items/<int:item_id>/upload/<file_type>")
 def upload_file_chunk(item_id, file_type):
     """
     📦 Chunked upload endpoint (for Railway/local storage)
