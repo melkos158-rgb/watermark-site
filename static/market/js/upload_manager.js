@@ -86,8 +86,7 @@ class UploadManager {
         title: formData.title,
         progress: 0,
         status: 'uploading',
-        upload_urls: data.upload_urls
-      };
+        upload_urls: data.upload_urls,
         created_at: Date.now()
       };
       this.saveState();
