@@ -455,15 +455,11 @@ def create_draft_item():
             "video_fallback": video_fallback
         }
         
-        cloudinary_config = {
-            "cloud_name": cloud_name,
-            "unsigned_preset": unsigned_preset
-        }
-        
         current_app.logger.info(f"[DRAFT] Cloudinary enabled: cloud={cloud_name} preset={unsigned_preset}")
     else:
         upload_urls['video'] = None
         upload_urls['cover'] = None
+        upload_urls['cloudinary'] = None
         current_app.logger.warning("[DRAFT] Cloudinary not configured")
     
     # For STL/ZIP: return Railway/local chunked upload endpoint
@@ -479,8 +475,7 @@ def create_draft_item():
     return jsonify({
         "ok": True,
         "item_id": item.id,
-        "upload_urls": upload_urls,
-        "cloudinary": cloudinary_config
+        "upload_urls": upload_urls
     })
 
 
@@ -675,7 +670,7 @@ def upload_file_chunk(item_id, file_type):
         file_url = url_for('market_api.serve_media', 
                           item_id=item_id, 
                           filename=f"{file_type}_{filename}", 
-                          _external=True)
+                          _external=False)
         
         current_app.logger.info(f"[UPLOAD] Saved {file_type} for item {item_id}: {file_url}")
         
@@ -729,7 +724,7 @@ def upload_file_chunk(item_id, file_type):
             file_url = url_for('market_api.serve_media', 
                               item_id=item_id, 
                               filename=f"{file_type}_{final_filename}", 
-                              _external=True)
+                              _external=False)
             
             current_app.logger.info(
                 f"[CHUNK] ✅ Upload completed: item={item_id} type={file_type} url={file_url}"
