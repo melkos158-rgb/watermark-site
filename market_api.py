@@ -441,15 +441,23 @@ def create_draft_item():
     
     # Get unsigned preset from ENV
     unsigned_preset = os.getenv("CLOUDINARY_UNSIGNED_PRESET")
+    cover_fallback = os.getenv("CLOUDINARY_COVER_FALLBACK_PRESET")
+    video_fallback = os.getenv("CLOUDINARY_VIDEO_FALLBACK_PRESET")
     
     # Return Cloudinary endpoints + config if available
     if cloud_name:
         upload_urls['video'] = f"https://api.cloudinary.com/v1_1/{cloud_name}/video/upload"
         upload_urls['cover'] = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
+        upload_urls['cloudinary'] = {
+            "cloud_name": cloud_name,
+            "unsigned_preset": unsigned_preset,
+            "cover_fallback": cover_fallback,
+            "video_fallback": video_fallback
+        }
         
         cloudinary_config = {
             "cloud_name": cloud_name,
-            "unsigned_preset": unsigned_preset  # Can be None
+            "unsigned_preset": unsigned_preset
         }
         
         current_app.logger.info(f"[DRAFT] Cloudinary enabled: cloud={cloud_name} preset={unsigned_preset}")
@@ -461,12 +469,10 @@ def create_draft_item():
     # For STL/ZIP: return Railway/local chunked upload endpoint
     upload_urls['stl'] = url_for('market_api.upload_file_chunk', 
                                   item_id=item.id, 
-                                  file_type='stl', 
-                                  _external=True)
+                                  file_type='stl')
     upload_urls['zip'] = url_for('market_api.upload_file_chunk', 
                                   item_id=item.id, 
-                                  file_type='zip', 
-                                  _external=True)
+                                  file_type='zip')
     
     current_app.logger.info(f"[DRAFT] Created item_id={item.id} for uid={uid}")
     
@@ -532,6 +538,14 @@ def attach_uploaded_files(item_id):
     # Attach gallery
     if data.get('gallery_urls'):
         item.gallery_urls = json.dumps(data['gallery_urls'])
+    
+    # Validate: must have at least stl_url or zip_url
+    if not data.get('stl_url') and not data.get('zip_url'):
+        current_app.logger.warning(f"[ATTACH] Cannot publish item {item_id}: missing both stl_url and zip_url")
+        item.upload_status = 'failed'
+        item.upload_progress = 0
+        db.session.commit()
+        return jsonify({"ok": False, "error": "missing_files"}), 400
     
     # Mark as published
     item.upload_progress = 100

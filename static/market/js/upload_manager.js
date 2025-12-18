@@ -126,15 +126,18 @@ class UploadManager {
       return null;
     }
 
+    // ✅ Add origin for relative URLs
+    const fullUploadUrl = uploadUrl.startsWith('/') ? window.location.origin + uploadUrl : uploadUrl;
+
     // Check if Cloudinary upload
-    const isCloudinary = uploadUrl.includes('api.cloudinary.com');
+    const isCloudinary = fullUploadUrl.includes('api.cloudinary.com');
     
     // ✅ Force chunking for large ZIP/STL files (>15MB)
     const needsChunking = (type === 'zip' || type === 'stl') && !isCloudinary && file.size > LARGE_FILE_THRESHOLD;
     
     if (needsChunking) {
       console.log(`[UPLOAD] Large ${type} file (${(file.size / 1024 / 1024).toFixed(1)}MB) → using chunked upload`);
-      return this.uploadFileChunked(itemId, file, type, uploadUrl);
+      return this.uploadFileChunked(itemId, file, type, fullUploadUrl);
     }
 
     // Simple upload (Cloudinary or small files)
@@ -177,20 +180,28 @@ class UploadManager {
       formData.append('file', file);
 
       // Add Cloudinary-specific fields
-      if (isCloudinary && upload.cloudinary) {
-        // Add unsigned upload preset (if available)
-        if (upload.cloudinary.unsigned_preset) {
-          formData.append('upload_preset', upload.cloudinary.unsigned_preset);
+      if (isCloudinary && upload.upload_urls.cloudinary) {
+        const cloudinary = upload.upload_urls.cloudinary;
+        
+        // Determine preset: use main preset or fallback
+        let preset = cloudinary.unsigned_preset;
+        if (!preset) {
+          // Use type-specific fallback
+          preset = (type === 'cover') ? cloudinary.cover_fallback : cloudinary.video_fallback;
+        }
+        
+        if (preset) {
+          formData.append('upload_preset', preset);
         }
         
         // Add folder for organization
         formData.append('folder', `proofly/items/${itemId}`);
         
-        console.log(`[UPLOAD] Cloudinary upload: preset=${upload.cloudinary.unsigned_preset} folder=proofly/items/${itemId}`);
+        console.log(`[UPLOAD] Cloudinary upload: preset=${preset} folder=proofly/items/${itemId}`);
       }
 
       // Send upload
-      xhr.open('POST', uploadUrl);
+      xhr.open('POST', fullUploadUrl);
       xhr.send(formData);
     });
   }
@@ -356,6 +367,23 @@ class UploadManager {
    */
   async completeUpload(itemId, urls) {
     try {
+      // Validate: must have at least stl_url or zip_url
+      if (!urls.stl_url && !urls.zip_url) {
+        console.error('[UPLOAD] Cannot publish: missing both stl_url and zip_url');
+        
+        // Mark as failed in state
+        if (this.uploads[itemId]) {
+          this.uploads[itemId].status = 'failed';
+          this.saveState();
+        }
+        
+        if (window.toast) {
+          window.toast('Помилка: не завантажено STL або ZIP файл', 'error');
+        }
+        
+        throw new Error('Missing required files (stl_url or zip_url)');
+      }
+      
       const url = `/api/market/items/${itemId}/attach`;
       
       console.log(`[UPLOAD] Attaching files → ${url}`, urls);
