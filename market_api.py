@@ -227,11 +227,30 @@ def check_favorites_tables():
         
         current_app.logger.info(f"[CHECK] Tables status: {result['tables']}")
         return jsonify(result)
-        
+    
     except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception(f"[CHECK] Failed: {e}")
+        current_app.logger.exception("[CHECK] Failed to check tables")
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@bp.get("/api/market/_whoami")
+def api_market_whoami():
+    """
+    Дебаг: перевірка сесії та автентифікації
+    
+    Usage: GET /api/market/_whoami
+    Response: {"ok": true, "uid": 123, "session_keys": [...]}
+    """
+    uid = None
+    try:
+        uid = session.get("user_id")
+    except Exception:
+        uid = None
+    return jsonify({
+        "ok": True,
+        "uid": uid,
+        "session_keys": list(session.keys()) if hasattr(session, "keys") else None
+    })
 
 
 # ============================================================

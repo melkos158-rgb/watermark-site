@@ -53,8 +53,13 @@ let lastRequestId = 0;
  */
 function isFav(item) {
   const v = item?.is_favorite ?? item?.is_fav;
-  // приймаємо: true, 1, "1", "true"
-  return v === true || v === 1 || v === "1" || v === "true";
+  if (v === true || v === 1 || v === "1" || v === "true") return true;
+
+  const id = Number(item?.id ?? item?.item_id);
+  if (Number.isFinite(id) && window.SSR_FAV_IDS instanceof Set) {
+    return window.SSR_FAV_IDS.has(id);
+  }
+  return false;
 }
 
 function setNotice(text, kind = "") {

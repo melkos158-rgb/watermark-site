@@ -467,6 +467,14 @@ export function initMarketListeners({
         btn.classList.toggle("is-favorite", serverOn);
         btn.setAttribute("aria-pressed", serverOn ? "true" : "false");
         iconEl.dataset.state = serverOn ? "on" : "off";
+        
+        // ❤️ Sync SSR_FAV_IDS for persistent state after F5
+        const iid = Number(itemId);
+        if (Number.isFinite(iid)) {
+          if (!(window.SSR_FAV_IDS instanceof Set)) window.SSR_FAV_IDS = new Set();
+          if (serverOn) window.SSR_FAV_IDS.add(iid);
+          else window.SSR_FAV_IDS.delete(iid);
+        }
 
         if (serverOn) {
           if (window.toast) toast("Додано в улюблені.", "success");

@@ -3,6 +3,12 @@
 {% set market_page = 'list' %}
 
 {% block market_body %}
+{# ❤️ SSR favorites: inject fav_ids as global for JS rendering #}
+<script>
+  // SSR favorites snapshot (ints)
+  window.SSR_FAV_IDS = new Set({{ (fav_ids or []) | list | tojson }});
+</script>
+
 <div class="market-main" data-market-root>
 
   <!-- Author Profile Header (shown when filtering by author_id) -->

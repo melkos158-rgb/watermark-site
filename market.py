@@ -925,7 +925,27 @@ def page_market():
     
     # Pass author_id to template if filtering by author
     author_id = _parse_int(request.args.get("author_id"), 0)
-    return render_template("market/index.html", author_id=author_id or None)
+    
+    # ❤️ Server-side favorites: load fav_ids for SSR heart states
+    current_user_id = _get_uid()
+    fav_ids = set()
+    if current_user_id:
+        try:
+            fav_ids = set(
+                r[0] for r in db.session.query(MarketFavorite.item_id)
+                .filter(MarketFavorite.user_id == current_user_id)
+                .all()
+            )
+        except Exception as e:
+            current_app.logger.warning("[page_market] Failed to load favorites: %s", e)
+    
+    # 📝 Debug log: track uid and favorites count
+    try:
+        current_app.logger.info("[market_page] uid=%s fav_cnt=%s", current_user_id, len(fav_ids or []))
+    except Exception:
+        current_app.logger.exception("[market_page] log failed")
+    
+    return render_template("market/index.html", author_id=author_id or None, fav_ids=fav_ids)
 
 
 @bp.get("/market/top-prints")
