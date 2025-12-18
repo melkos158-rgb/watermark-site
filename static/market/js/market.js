@@ -52,9 +52,8 @@ let lastRequestId = 0;
  * @returns {boolean} - чи є в фаворитах
  */
 function isFav(item) {
-  if (!item) return false;
-  const v = item.is_favorite ?? item.is_fav ?? item.isFav;
-  // Підтримка: true, 1, "1", "true"
+  const v = item?.is_favorite ?? item?.is_fav;
+  // приймаємо: true, 1, "1", "true"
   return v === true || v === 1 || v === "1" || v === "true";
 }
 
@@ -546,7 +545,8 @@ function renderItemCard(it) {
             class="card-like ${isFav(it) ? "is-active" : ""}"
             data-favorite-toggle
             data-item-id="${id}"
-            aria-label="Save to favorites">
+            aria-label="Save to favorites"
+            aria-pressed="${isFav(it) ? "true" : "false"}">
       <svg viewBox="0 0 24 24" class="heart" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
       </svg>

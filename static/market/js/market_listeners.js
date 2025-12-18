@@ -412,16 +412,20 @@ export function initMarketListeners({
       return;
     }
 
-    // підтримка двох класів: is-active (нові картки) та is-favorite (legacy)
-    const isActive = btn.classList.contains("is-active") || btn.classList.contains("is-favorite");
-    const nextState = !isActive;
+    // 🔥 ЗАЛІЗОБЕТОННО: визначаємо стан з класу АБО aria-pressed
+    const currentlyOn = 
+      btn.classList.contains("is-active") || 
+      btn.classList.contains("is-favorite") ||
+      btn.getAttribute("aria-pressed") === "true";
+    const nextState = !currentlyOn;
 
     // 🔍 DEBUG: що саме відправляємо
-    console.debug("[FAV] req", { itemId, nextState, isActive });
+    console.debug("[FAV] req", { itemId, nextState, currentlyOn });
 
-    // Миттєво перемикаємо UI (optimistic) - на BTN, не на target
+    // Миттєво перемикаємо UI (optimistic) - клас + aria-pressed
     btn.classList.toggle("is-active", nextState);
     btn.classList.toggle("is-favorite", nextState);
+    btn.setAttribute("aria-pressed", nextState ? "true" : "false");
     const iconEl = btn.querySelector("[data-fav-icon]") || btn;
     iconEl.dataset.state = nextState ? "on" : "off";
 
@@ -457,10 +461,11 @@ export function initMarketListeners({
       .then((data) => {
         console.log("%c[FAV] ✅ Success response body:", "color: #4CAF50; font-weight: bold", JSON.stringify(data, null, 2));
         
-        // Встановлюємо фінальний стан тільки з data.on
+        // Встановлюємо фінальний стан з data.on - оновлюємо клас + aria-pressed
         const serverOn = (typeof data.on === "boolean") ? data.on : nextState;
         btn.classList.toggle("is-active", serverOn);
         btn.classList.toggle("is-favorite", serverOn);
+        btn.setAttribute("aria-pressed", serverOn ? "true" : "false");
         iconEl.dataset.state = serverOn ? "on" : "off";
 
         if (serverOn) {
@@ -490,10 +495,11 @@ export function initMarketListeners({
       .catch((err) => {
         console.error("[FAV] Error:", err);
         
-        // ROLLBACK до попереднього стану - на BTN
-        btn.classList.toggle("is-active", isActive);
-        btn.classList.toggle("is-favorite", isActive);
-        iconEl.dataset.state = isActive ? "on" : "off";
+        // ROLLBACK до попереднього стану - клас + aria-pressed
+        btn.classList.toggle("is-active", currentlyOn);
+        btn.classList.toggle("is-favorite", currentlyOn);
+        btn.setAttribute("aria-pressed", currentlyOn ? "true" : "false");
+        iconEl.dataset.state = currentlyOn ? "on" : "off";
         
         if (window.toast) toast("Не вдалося оновити улюблене. Спробуй ще раз.", "error");
       });

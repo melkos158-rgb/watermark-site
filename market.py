@@ -1729,6 +1729,12 @@ def api_my_items():
     offset = (page - 1) * per_page
 
     where_clause = "WHERE (user_id = :uid OR user_id IS NULL OR user_id = 0)"
+    
+    # ❤️ Get user's favorites
+    fav_ids = set()
+    if uid:
+        favorites = MarketFavorite.query.filter_by(user_id=uid).all()
+        fav_ids = {f.item_id for f in favorites}
 
     # ⚠️ HOTFIX: Try query with is_published - ALL inside try
     try:
@@ -1747,16 +1753,18 @@ def api_my_items():
             LIMIT :limit OFFSET :offset
         """
         
-        rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+        rows = db.session.execute(text(sql_with_publish), {"uid": uid, "limit": per_page, "offset": offset}).fetchall()
         items = [_row_to_dict(r) for r in rows]
         
         # ❤️ Add is_favorite flag based on fav_ids set (ORM-based, not SQL)
         for item in items:
-            item["is_favorite"] = item.get("id") in fav_ids
+            is_fav = item.get("id") in fav_ids
+            item["is_favorite"] = is_fav
+            item["is_fav"] = 1 if is_fav else 0
         
         # Count total items (respecting WHERE filters)
-        count_sql = f"SELECT COUNT(*) FROM {{ITEMS_TBL}} i {where_sql}"
-        total = db.session.execute(text(count_sql), params).scalar() or 0
+        count_sql = f"SELECT COUNT(*) FROM {ITEMS_TBL} {where_clause}"
+        total = db.session.execute(text(count_sql), {"uid": uid}).scalar() or 0
         
     except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
         # 🔄 FALLBACK: Column doesn't exist yet
