@@ -119,6 +119,7 @@
       {% endif %}
 
       <img
+        class="card-cover"
         src="{{ cover_src }}"
         loading="lazy"
         decoding="async"
@@ -127,6 +128,19 @@
         alt="{{ it.title or 'Model' }}"
         onerror="this.onerror=null;this.src='{{ fallback }}';"
       >
+      
+      {# 🎬 VIDEO PREVIEW (Cults-style hover autoplay) #}
+      {% if it.video_url %}
+      <video 
+        class="card-video"
+        src="{{ it.video_url }}"
+        muted
+        loop
+        playsinline
+        preload="none"
+        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+      </video>
+      {% endif %}
     </a>
     
     {# ❤️ Instagram-style heart (save/bookmark) - overlay на preview #}

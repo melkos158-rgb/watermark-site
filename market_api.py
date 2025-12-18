@@ -254,6 +254,227 @@ def api_market_whoami():
 
 
 # ============================================================
+# UPLOAD MANAGER (Draft + Direct Upload + Progress)
+# ============================================================
+
+@bp.post("/api/market/items/draft")
+def create_draft_item():
+    """
+    🎬 STEP 1: Create draft item WITHOUT files
+    
+    Flow:
+      1) User submits form → create draft
+      2) Frontend gets item_id + upload_urls
+      3) Redirect to /market immediately
+      4) Upload files in background with progress
+    
+    Payload: {title, price, tags, desc, ...}
+    Response: {
+        ok: true, 
+        item_id: 123, 
+        upload_urls: {video, stl, zip, cover}
+    }
+    """
+    uid = _get_uid()
+    if not uid:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    
+    data = request.get_json() or {}
+    
+    # Create draft item
+    item = MarketItem(
+        user_id=uid,
+        title=data.get('title', 'Untitled Model'),
+        price=data.get('price', 0),
+        tags=data.get('tags', ''),
+        desc=data.get('desc', ''),
+        upload_status='draft',
+        upload_progress=0,
+        is_published=False  # Draft не публікується одразу
+    )
+    
+    db.session.add(item)
+    db.session.commit()
+    
+    # Generate signed upload URLs
+    upload_urls = {}
+    
+    # Cloudinary для video/images (if configured)
+    try:
+        import cloudinary
+        import cloudinary.uploader
+        
+        # Direct upload URLs (Cloudinary widget or API)
+        # NOTE: Requires cloudinary.config() in app.py or config.py
+        cloudinary_enabled = hasattr(cloudinary.config(), 'cloud_name') and cloudinary.config().cloud_name
+        
+        if cloudinary_enabled:
+            # Return Cloudinary upload API endpoint
+            upload_urls['video'] = f"https://api.cloudinary.com/v1_1/{cloudinary.config().cloud_name}/video/upload"
+            upload_urls['cover'] = f"https://api.cloudinary.com/v1_1/{cloudinary.config().cloud_name}/image/upload"
+        else:
+            upload_urls['video'] = None
+            upload_urls['cover'] = None
+        
+    except Exception as e:
+        current_app.logger.warning(f"[DRAFT] Cloudinary not configured: {e}")
+        upload_urls['video'] = None
+        upload_urls['cover'] = None
+    
+    # For STL/ZIP: return Railway/local upload endpoint (fallback)
+    # TODO: Add R2/S3 presigned URLs when configured
+    upload_urls['stl'] = url_for('market_api.upload_file_chunk', 
+                                  item_id=item.id, 
+                                  file_type='stl', 
+                                  _external=True)
+    upload_urls['zip'] = url_for('market_api.upload_file_chunk', 
+                                  item_id=item.id, 
+                                  file_type='zip', 
+                                  _external=True)
+    
+    current_app.logger.info(f"[DRAFT] Created item_id={item.id} for uid={uid}")
+    
+    return jsonify({
+        "ok": True,
+        "item_id": item.id,
+        "upload_urls": upload_urls
+    })
+
+
+@bp.post("/api/market/items/<int:item_id>/attach")
+def attach_uploaded_files(item_id):
+    """
+    🎬 STEP 3: Attach uploaded files after successful upload
+    
+    Called by upload_manager.js after all uploads complete
+    
+    Payload: {
+        video_url, video_duration,
+        stl_url, zip_url, cover_url,
+        gallery_urls: []
+    }
+    """
+    item = MarketItem.query.get_or_404(item_id)
+    
+    # Verify ownership
+    if item.user_id != _get_uid():
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+    
+    data = request.get_json() or {}
+    
+    # Attach video
+    if data.get('video_url'):
+        item.video_url = data['video_url']
+        item.video_duration = data.get('video_duration', 10)
+    
+    # Attach STL
+    if data.get('stl_url'):
+        item.stl_main_url = data['stl_url']
+    
+    # Attach ZIP
+    if data.get('zip_url'):
+        item.zip_url = data['zip_url']
+    
+    # Attach cover
+    if data.get('cover_url'):
+        item.cover_url = data['cover_url']
+    
+    # Attach gallery
+    if data.get('gallery_urls'):
+        item.gallery_urls = json.dumps(data['gallery_urls'])
+    
+    # Mark as published
+    item.upload_progress = 100
+    item.upload_status = 'published'
+    item.is_published = True
+    
+    db.session.commit()
+    
+    current_app.logger.info(f"[ATTACH] Item {item_id} published successfully")
+    
+    return jsonify({
+        "ok": True,
+        "item": {
+            "id": item.id,
+            "title": item.title,
+            "upload_status": item.upload_status
+        }
+    })
+
+
+@bp.post("/api/market/items/<int:item_id>/progress")
+def update_upload_progress(item_id):
+    """
+    🎬 STEP 2: Update upload progress during background upload
+    
+    Called by upload_manager.js during XMLHttpRequest progress events
+    
+    Payload: {progress: 45, status: 'uploading'}
+    """
+    item = MarketItem.query.get_or_404(item_id)
+    
+    # Verify ownership
+    if item.user_id != _get_uid():
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+    
+    data = request.get_json() or {}
+    
+    item.upload_progress = max(0, min(100, data.get('progress', 0)))
+    item.upload_status = data.get('status', 'uploading')
+    
+    db.session.commit()
+    
+    return jsonify({"ok": True, "progress": item.upload_progress})
+
+
+@bp.post("/api/market/items/<int:item_id>/upload/<file_type>")
+def upload_file_chunk(item_id, file_type):
+    """
+    📦 Fallback upload endpoint (for Railway/local storage)
+    
+    Handles multipart file upload with chunking support
+    Used when Cloudinary/R2/S3 not configured
+    
+    file_type: stl | zip | cover | video
+    """
+    item = MarketItem.query.get_or_404(item_id)
+    
+    # Verify ownership
+    if item.user_id != _get_uid():
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({"ok": False, "error": "no_file"}), 400
+    
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({"ok": False, "error": "empty_filename"}), 400
+    
+    # Save to Railway volume or local uploads/
+    upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'market_items' / str(item_id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Secure filename
+    from werkzeug.utils import secure_filename
+    filename = secure_filename(file.filename)
+    filepath = upload_dir / f"{file_type}_{filename}"
+    
+    file.save(str(filepath))
+    
+    # Generate public URL (Railway volume or local static)
+    file_url = url_for('static', filename=f'uploads/market_items/{item_id}/{file_type}_{filename}', _external=True)
+    
+    current_app.logger.info(f"[UPLOAD] Saved {file_type} for item {item_id}: {file_url}")
+    
+    return jsonify({
+        "ok": True,
+        "url": file_url,
+        "filename": filename,
+        "file_type": file_type
+    })
+
+
+# ============================================================
 # DEBUG ENDPOINTS
 # ============================================================
 

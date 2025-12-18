@@ -54,6 +54,22 @@ class MarketItem(_db.Model):
     stl_extra_urls = _db.Column(_db.Text, default="[]")  # дод. STL (JSON-рядок)
 
     zip_url = _db.Column(_db.Text)                    # головний ZIP (якщо є)
+    
+    # 🎬 VIDEO PREVIEW (hover autoplay like Cults)
+    video_url = _db.Column(_db.String(500), nullable=True)  # Cloudinary mp4/webm
+    video_duration = _db.Column(_db.Integer, nullable=True)  # seconds (5-15)
+    
+    # 📦 UPLOAD STATE (draft → uploading → published)
+    upload_status = _db.Column(_db.String(20), default='published')  
+    # draft | uploading | processing | published | failed
+    upload_progress = _db.Column(_db.Integer, default=100)  # 0-100%
+    
+    # 📁 DIRECT UPLOAD IDs (Cloudinary/R2)
+    stl_upload_id = _db.Column(_db.String(100), nullable=True)  # track upload
+    zip_upload_id = _db.Column(_db.String(100), nullable=True)
+    
+    # 📌 PUBLISH STATE (for draft → published workflow)
+    is_published = _db.Column(_db.Boolean, default=True, index=True)  # False for drafts
 
     # ---------- для сумісності з market.py ----------
     format = _db.Column(_db.String(16), default="stl")
