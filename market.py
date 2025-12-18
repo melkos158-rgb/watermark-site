@@ -20,7 +20,7 @@ from flask import (
     url_for,
     make_response,
 )
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
 
@@ -1274,13 +1274,13 @@ def api_items():
 
         where, params = [], {}
         
-        # ❤️ Always add current_user_id for is_favorite JOIN (even if not saved filter)
+        # ❤️ Always add current_user_id to params (для можливих SQL що його використовують)
         # 🔍 DEBUG: Log current_user state
         current_app.logger.info(
             f"[api_items] 🔍 is_authenticated={is_authenticated}, "
             f"current_user_id={current_user_id}, saved_only={saved_only}"
         )
-        params["current_user_id"] = int(current_user_id or -1)
+        params["current_user_id"] = int(current_user_id or 0)
         
         if q:
             where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
@@ -1452,7 +1452,6 @@ def api_items():
                 
                 # 🔥 CRITICAL: Use expanding bindparam for IN clause when saved_only
                 if saved_only:
-                    from sqlalchemy import bindparam
                     stmt = text(sql_with_publish).bindparams(bindparam("fav_ids", expanding=True))
                     rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
                 else:
@@ -1477,21 +1476,23 @@ def api_items():
                                0 AS prints_count,
                                i.proof_score,
                                i.slice_hints_json,
-                               u.name AS author_name,
-                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
+                               u.name AS author_name
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        LEFT JOIN {FAVORITES_TBL} mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
                     """
-                    rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    if saved_only:
+                        stmt = text(sql_with_publish).bindparams(bindparam("fav_ids", expanding=True))
+                        rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
+                    else:
+                        rows = db.session.execute(text(sql_with_publish), {**params, "limit": per_page, "offset": offset}).fetchall()
                 else:
                     # Re-raise if it's not a missing table error
                     raise
             
-            # Add has_slice_hints derived field + is_fav alias
+            # Add has_slice_hints derived field + is_favorite flag (ORM-based)
             items = []
             for r in rows:
                 item = _row_to_dict(r)
@@ -1503,16 +1504,21 @@ def api_items():
                     and slice_hints.strip() 
                     and slice_hints.strip().lower() not in ('null', '{}', '')
                 )
+                # ❤️ Add is_favorite based on ORM fav_ids (consistent single source of truth)
+                item['is_favorite'] = item.get('id') in fav_ids
                 items.append(item)
             
-            # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
+            # COUNT query - Simple COUNT without JOIN (WHERE filters enough)
             count_sql = f"""
-                SELECT COUNT(DISTINCT i.id) 
+                SELECT COUNT(*) 
                 FROM {ITEMS_TBL} i
-                LEFT JOIN {FAVORITES_TBL} mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                 {where_sql}
             """
-            total = db.session.execute(text(count_sql), params).scalar() or 0
+            if saved_only:
+                count_stmt = text(count_sql).bindparams(bindparam("fav_ids", expanding=True))
+                total = db.session.execute(count_stmt, params).scalar() or 0
+            else:
+                total = db.session.execute(text(count_sql), params).scalar() or 0
             
         except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
             # 🔄 FALLBACK: Column doesn't exist yet
@@ -1535,32 +1541,39 @@ def api_items():
                            0 AS prints_count,
                            NULL AS proof_score,
                            NULL AS slice_hints_json,
-                           u.name AS author_name,
-                           CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
+                           u.name AS author_name
                     FROM {ITEMS_TBL} i
                     LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                    LEFT JOIN {FAVORITES_TBL} mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                     {where_sql}
                     {order_sql}
                     LIMIT :limit OFFSET :offset
                 """
                 
                 try:
-                    rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    if saved_only:
+                        stmt = text(sql_fallback).bindparams(bindparam("fav_ids", expanding=True))
+                        rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
+                    else:
+                        rows = db.session.execute(text(sql_fallback), {**params, "limit": per_page, "offset": offset}).fetchall()
                     items = []
                     for r in rows:
                         item = _row_to_dict(r)
                         item['has_slice_hints'] = False  # Fallback: columns don't exist
+                        # ❤️ Add is_favorite based on ORM fav_ids
+                        item['is_favorite'] = item.get('id') in fav_ids
                         items.append(item)
                     
-                    # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
+                    # COUNT query - Simple COUNT without JOIN
                     count_sql = f"""
-                        SELECT COUNT(DISTINCT i.id) 
+                        SELECT COUNT(*) 
                         FROM {ITEMS_TBL} i
-                        LEFT JOIN {FAVORITES_TBL} mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                     """
-                    total = db.session.execute(text(count_sql), params).scalar() or 0
+                    if saved_only:
+                        count_stmt = text(count_sql).bindparams(bindparam("fav_ids", expanding=True))
+                        total = db.session.execute(count_stmt, params).scalar() or 0
+                    else:
+                        total = db.session.execute(text(count_sql), params).scalar() or 0
                 except sa_exc.ProgrammingError:
                     # Last resort: legacy schema with zip_url instead of stl_main_url
                     db.session.rollback()
@@ -1571,16 +1584,18 @@ def api_items():
                                COALESCE(i.zip_url,'') AS url,
                                i.user_id, i.created_at,
                                0 AS prints_count,
-                               u.name AS author_name,
-                               CASE WHEN mf.item_id IS NOT NULL THEN 1 ELSE 0 END AS is_fav
+                               u.name AS author_name
                         FROM {ITEMS_TBL} i
                         LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                        LEFT JOIN {FAVORITES_TBL} mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                         {order_sql}
                         LIMIT :limit OFFSET :offset
                     """
-                    rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
+                    if saved_only:
+                        stmt = text(sql_legacy).bindparams(bindparam("fav_ids", expanding=True))
+                        rows = db.session.execute(stmt, {**params, "limit": per_page, "offset": offset}).fetchall()
+                    else:
+                        rows = db.session.execute(text(sql_legacy), {**params, "limit": per_page, "offset": offset}).fetchall()
                     items = []
                     for r in rows:
                         d = _row_to_dict(r)
@@ -1588,16 +1603,21 @@ def api_items():
                         d.setdefault("downloads", 0)
                         d.setdefault("proof_score", None)
                         d["has_slice_hints"] = False
+                        # ❤️ Add is_favorite based on ORM fav_ids
+                        d["is_favorite"] = d.get("id") in fav_ids
                         items.append(d)
                     
-                    # COUNT query - ALWAYS use JOIN for consistency, use DISTINCT to avoid duplicates
+                    # COUNT query - Simple COUNT without JOIN
                     count_sql = f"""
-                        SELECT COUNT(DISTINCT i.id) 
+                        SELECT COUNT(*) 
                         FROM {ITEMS_TBL} i
-                        LEFT JOIN {FAVORITES_TBL} mf ON mf.item_id = i.id AND mf.user_id = :current_user_id
                         {where_sql}
                     """
-                    total = db.session.execute(text(count_sql), params).scalar() or 0
+                    if saved_only:
+                        count_stmt = text(count_sql).bindparams(bindparam("fav_ids", expanding=True))
+                        total = db.session.execute(count_stmt, params).scalar() or 0
+                    else:
+                        total = db.session.execute(text(count_sql), params).scalar() or 0
             else:
                 # Other error - re-raise
                 raise
