@@ -1165,7 +1165,87 @@ def page_market_edit_item(item_id: int):
 
 
 # ============================================================
-# 🔍 DEBUG ENDPOINT - Favorites Schema Diagnosis
+# � COMPAT ENDPOINT - Favorite Toggle (used by market_listeners.js)
+# ============================================================
+
+@bp.route("/api/market/favorite", methods=["POST"], strict_slashes=False)
+def api_market_favorite_compat():
+    """
+    ✅ COMPAT: Toggle favorite status for market item
+    Called by: market_listeners.js → POST /api/market/favorite
+    
+    Request JSON: { "item_id": 123, "on": true/false }
+    Response: { "ok": true, "on": true/false }
+    
+    This endpoint ensures market_listeners.js always has a working route
+    even if market_api.py blueprint fails to register.
+    """
+    # Get user ID from session
+    uid = _get_uid()
+    if not uid:
+        current_app.logger.warning("[api_market_favorite] Unauthorized request")
+        return jsonify(ok=False, error="auth_required"), 401
+    
+    # Parse request data
+    data = request.get_json(silent=True) or {}
+    
+    try:
+        item_id = int(data.get("item_id") or 0)
+    except (ValueError, TypeError):
+        current_app.logger.warning(f"[api_market_favorite] Invalid item_id: {data.get('item_id')}")
+        return jsonify(ok=False, error="invalid_item_id"), 400
+    
+    if item_id <= 0:
+        return jsonify(ok=False, error="missing_item_id"), 400
+    
+    # Get 'on' parameter (default: true for toggle behavior)
+    on = data.get("on")
+    
+    current_app.logger.info(
+        f"[api_market_favorite] uid={uid} item_id={item_id} on={on}"
+    )
+    
+    try:
+        # Check if favorite exists
+        fav = MarketFavorite.query.filter_by(user_id=uid, item_id=item_id).first()
+        
+        if on is True:
+            # Ensure favorite exists
+            if not fav:
+                db.session.add(MarketFavorite(user_id=uid, item_id=item_id, created_at=datetime.utcnow()))
+                db.session.commit()
+                current_app.logger.info(f"[api_market_favorite] ✅ Added favorite: uid={uid} item={item_id}")
+            return jsonify(ok=True, on=True)
+        
+        elif on is False:
+            # Ensure favorite doesn't exist
+            if fav:
+                db.session.delete(fav)
+                db.session.commit()
+                current_app.logger.info(f"[api_market_favorite] ❌ Removed favorite: uid={uid} item={item_id}")
+            return jsonify(ok=True, on=False)
+        
+        else:
+            # Toggle behavior (on=null/undefined)
+            if fav:
+                db.session.delete(fav)
+                db.session.commit()
+                current_app.logger.info(f"[api_market_favorite] 🔄 Toggled OFF: uid={uid} item={item_id}")
+                return jsonify(ok=True, on=False)
+            else:
+                db.session.add(MarketFavorite(user_id=uid, item_id=item_id, created_at=datetime.utcnow()))
+                db.session.commit()
+                current_app.logger.info(f"[api_market_favorite] 🔄 Toggled ON: uid={uid} item={item_id}")
+                return jsonify(ok=True, on=True)
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"[api_market_favorite] Error: {e}")
+        return jsonify(ok=False, error="database_error"), 500
+
+
+# ============================================================
+# �🔍 DEBUG ENDPOINT - Favorites Schema Diagnosis
 # ============================================================
 
 @bp.get("/api/_debug/favorites-schema")
