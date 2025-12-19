@@ -80,16 +80,37 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   controls.panSpeed = 0.6;
   controls.minDistance = 0.5;    // не влітає в модель
   controls.maxDistance = 200;    // не "відлітає в космос"
-  // ✅ Страховий пояс від NaN/0 дистанції (запобігає "чорному екрану")
+
+  // --- Заборона scroll сторінки над canvas (wheel event)
+  renderer.domElement.style.touchAction = "none";
+  renderer.domElement.addEventListener("wheel", (e) => {
+    e.preventDefault();
+  }, { passive: false });
+
+  // --- Guard + безпечна фіксація камери без рекурсії
+  let _fixingCam = false;
   controls.addEventListener('change', () => {
+    if (_fixingCam) return;
+
+    const minD = Math.max(controls.minDistance ?? 0.01, 0.01);
     const d = camera.position.distanceTo(controls.target);
-    if (!isFinite(d) || d < (controls.minDistance || 0.01)) {
-      // Повертаємо камеру в адекватний стан
-      const dir = camera.position.clone().sub(controls.target).normalize();
-      const safeDist = controls.minDistance || 1;
-      camera.position.copy(controls.target).add(dir.multiplyScalar(safeDist));
+
+    // Фіксимо ТІЛЬКИ коли реально зламалось (NaN/Infinity або ультра-малий d)
+    if (!Number.isFinite(d) || d < minD * 0.25) {
+      _fixingCam = true;
+
+      // Безпечний напрямок: якщо раптом він нульовий — беремо дефолтний
+      let dir = camera.position.clone().sub(controls.target);
+      if (dir.lengthSq() < 1e-12) dir.set(0, 0, 1);
+      dir.normalize();
+
+      camera.position.copy(controls.target).add(dir.multiplyScalar(minD));
       camera.updateProjectionMatrix();
-      controls.update();
+
+      // ВАЖЛИВО: не викликай controls.update() тут синхронно (воно може знову згенерити change)
+      queueMicrotask(() => {
+        _fixingCam = false;
+      });
     }
   });
 
