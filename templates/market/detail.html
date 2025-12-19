@@ -1184,63 +1184,12 @@
     } catch (_) {}
   }
 
-  // 3D viewer через stl_viewer.js
-  if (viewerEl && rawSrc) {
-    (async () => {
-      try {
-        // GUARD #1: якщо хтось уже ініціалізував (наприклад static/market/js/viewer.js)
-        if (window.MARKET_VIEWER) {
-          clampViewerCanvas(viewerEl, window.MARKET_VIEWER);
-          return;
-        }
-
-        // GUARD #2: якщо в #viewer вже є canvas — значить init уже був
-        if (viewerEl.querySelector("canvas")) {
-          clampViewerCanvas(viewerEl, null);
-          return;
-        }
-
-        statusEl.textContent = 'Завантажуємо 3D-модель...';
-        const { initViewer } = await import('/static/js/stl_viewer.js');
-        const ctx = await initViewer({
-          containerId: 'viewer',
-          statusId: 'status',
-        });
-
-        // ВАЖЛИВО: виставляємо глобально, щоб інші скрипти не робили дубль-init
-        window.MARKET_VIEWER = ctx;
-
-        // Притискаємо canvas одразу після init
-        clampViewerCanvas(viewerEl, ctx);
-
-        const resp = await fetch(rawSrc);
-        const blob = await resp.blob();
-        const file = new File([blob], 'model.stl');
-        await ctx.loadAnyFromFile(file);
-
-        // Притискаємо ще раз після завантаження
-        clampViewerCanvas(viewerEl, ctx);
-
-        statusEl.textContent = 'Готово. Обертай моделлю мишкою.';
-
-        // тулбар
-        document.querySelectorAll('.vt-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const action = btn.dataset.viewerAction;
-            if (!action || !ctx || !ctx.controls) return;
-            ctx.handleAction?.(action);
-            // після дій інколи потрібен clamp
-            clampViewerCanvas(viewerEl, ctx);
-          });
-        });
-      } catch (err) {
-        console.error(err);
-        if (statusEl) statusEl.textContent = 'Не вдалося завантажити 3D-превʼю.';
-      }
-    })();
-  } else if (statusEl) {
-    statusEl.textContent = 'STL-файл відсутній.';
-  }
+  // ✅ 3D viewer ініціалізується через viewer.js (підключений нижче)
+  // НЕ потрібно робити inline init - це створює конфлікт з ProoflyViewer
+  // viewer.js автоматично:
+  // 1. Ініціалізує viewer з data-src
+  // 2. Створює window.ProoflyViewer API
+  // 3. Обробляє ready event та queue
 
   // ========================================
   // Proof Score Panel - Load async
@@ -1351,3 +1300,6 @@
 <!-- Creator reputation metrics -->
 <script src="{{ url_for('static', filename='market/js/creator_stats.js') }}"></script>
 {% endblock %}
+
+<!-- 3D viewer module - ініціалізує ProoflyViewer API -->
+<script type="module" src="{{ url_for('static', filename='market/js/viewer.js') }}"></script>

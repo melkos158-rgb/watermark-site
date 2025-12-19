@@ -573,7 +573,9 @@ def attach_uploaded_files(item_id):
     # IMPORTANT: Only update if we have data (don't clear existing extras)
     if stl_extras:
         item.stl_extra_urls = json.dumps(stl_extras)
-        current_app.logger.info(f"[ATTACH]   stl_extra_urls: {len(stl_extras)} files")
+        current_app.logger.info(f"[ATTACH]   stl_extra_urls: {len(stl_extras)} files - {stl_extras}")
+    else:
+        current_app.logger.info(f"[ATTACH]   stl_extra_urls: keeping existing (not clearing)")
     
     # Attach ZIP
     if data.get('zip_url'):
