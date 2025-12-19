@@ -58,26 +58,6 @@ except Exception:
 
 bp = Blueprint("market", __name__)
 
-# ───────────────────────────── COMPAT: Create Draft Item ─────────────────────────────
-from flask_login import login_required, current_user
-
-@bp.post("/items/draft")
-@login_required
-def create_draft_item():
-    """
-    Compat endpoint for new upload manager.
-    Creates draft item and returns item_id.
-    """
-    item = MarketItem(
-        user_id=current_user.id,
-        status="draft",
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({
-        "success": True,
-        "item_id": item.id
-    })
 import os
 import math
 import json

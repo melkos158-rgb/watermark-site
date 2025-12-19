@@ -1,3 +1,16 @@
+from flask_login import login_required, current_user
+
+# Draft item endpoint for upload manager
+@bp.post("/items/draft")
+@login_required
+def api_create_draft():
+    item = MarketItem(
+        user_id=current_user.id,
+        status="draft",
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"success": True, "item_id": item.id})
 # ============================================================
 #  PROOFLY MARKET – MAX POWER API
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
