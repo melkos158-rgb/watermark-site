@@ -137,6 +137,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
+    // ✅ Expose public function for switching models (for detail.html STL list)
+    window.loadStlIntoViewer = async (url) => {
+      if (!url) {
+        console.warn('[VIEWER] loadStlIntoViewer: empty URL');
+        if (window.toast) window.toast('No model URL provided', 'warning');
+        return;
+      }
+      
+      try {
+        if (ctx.loadModel) {
+          console.log('[VIEWER] Loading model:', url);
+          await ctx.loadModel(url);
+          forceViewerFit(ctx, el);
+          if (window.toast) window.toast('Model loaded', 'success');
+        } else {
+          console.error('[VIEWER] ctx.loadModel not available');
+        }
+      } catch (err) {
+        console.error('[VIEWER] Load model failed:', err);
+        if (window.toast) window.toast('Failed to load model', 'error');
+      }
+    };
+
     // -----------------------------
     // Тулбар над в’ювером
     // data-viewer-action="reset|spin|wire|grid|dark|light"

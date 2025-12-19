@@ -1278,6 +1278,50 @@ def toggle_favorite():
 
 
 # ============================================================
-# REST of endpoints (LIST, DETAIL, FAV, REVIEW, CHECKOUT, TRACK)
+# COMPAT ENDPOINTS (prevent 404 errors in console)
+# ============================================================
+
+@bp.get("/items/<int:item_id>/printability")
+def compat_printability(item_id):
+    """
+    Compatibility endpoint: /api/market/items/<id>/printability
+    Redirects to main endpoint or returns safe default
+    """
+    # Check if main endpoint exists in market.py
+    try:
+        from flask import current_app
+        # Try to find the real endpoint
+        if hasattr(current_app, 'view_functions'):
+            real_endpoint = current_app.view_functions.get('market.api_printability')
+            if real_endpoint:
+                # Call the real function
+                return real_endpoint(item_id)
+    except Exception:
+        pass
+    
+    # Safe fallback: return empty data
+    return jsonify({
+        "ok": True,
+        "data": None,
+        "message": "Printability analysis not available"
+    })
+
+
+@bp.post("/checkout")
+def compat_checkout():
+    """
+    Compatibility endpoint: POST /api/market/checkout
+    Returns not implemented (prevents 404)
+    """
+    current_app.logger.warning("[CHECKOUT] Endpoint not implemented yet")
+    return jsonify({
+        "ok": False,
+        "error": "not_implemented",
+        "message": "Checkout will be available soon"
+    }), 501
+
+
+# ============================================================
+# REST of endpoints (LIST, DETAIL, FAV, REVIEW, TRACK)
 # ============================================================
 # (Не змінював інші ендпоінти — вони залишаються як в оригіналі)

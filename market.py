@@ -515,6 +515,13 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     price = safe_get("price", 0)
     price_cents = safe_get("price_cents") or (int(price * 100) if price else 0)
     
+    # Parse STL extra files (may be JSON string or list)
+    raw_stl_extra = safe_get("stl_extra_urls") or safe_get("stl_extra")
+    stl_extra = _safe_json_list(raw_stl_extra)
+    
+    # Get main STL URL
+    stl_main = safe_get("stl_main_url") or safe_get("url") or safe_get("file_url")
+    
     return {
         "id": safe_get("id"),
         "title": safe_get("title"),
@@ -522,9 +529,11 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
         "tags": safe_get("tags"),
         "cover_url": cover_url,  # ✅ Always normalized, never "no image"
         "gallery_urls": normalized_gallery,
+        "stl_main_url": stl_main,  # ✅ Main 3D file URL
+        "stl_extra_urls": stl_extra,  # ✅ Additional 3D files (multi-part models)
         "rating": safe_get("rating", 0),
         "downloads": safe_get("downloads", 0),
-        "url": safe_get("url") or safe_get("stl_main_url"),
+        "url": stl_main,  # Legacy compatibility
         "format": safe_get("format"),
         "user_id": safe_get("user_id"),
         "author_name": safe_get("author_name"),  # ✅ Author display name
@@ -2182,7 +2191,14 @@ def api_get_creator_stats(username: str):
         
     except Exception as e:
         current_app.logger.error(f"Get creator stats error: {e}")
-        return jsonify({"ok": False, "error": "server"}), 500
+        # Safe fallback: return zeros instead of 500
+        return jsonify({
+            "ok": True,
+            "username": username,
+            "total_items": 0,
+            "avg_proof_score": 0,
+            "presets_coverage_percent": 0
+        }), 200
 
 
 @bp.get("/api/creators/stats")

@@ -154,6 +154,38 @@
            data-src="{{ main_src or '' }}"></div>
       <span id="status" class="viewer-status"></span>
 
+      {# Multi-STL switcher (if item has multiple 3D files) #}
+      {% set stl_files = [] %}
+      {% if item.stl_main_url %}
+        {% set _ = stl_files.append({'url': item.stl_main_url, 'name': 'Main Model'}) %}
+      {% endif %}
+      {% if item.stl_extra_urls and item.stl_extra_urls|length %}
+        {% for extra_url in item.stl_extra_urls %}
+          {% set filename = extra_url.split('/')[-1] if extra_url else 'Extra file' %}
+          {% set _ = stl_files.append({'url': extra_url, 'name': filename}) %}
+        {% endfor %}
+      {% endif %}
+      
+      {% if stl_files|length > 1 %}
+      <div class="stl-switcher" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <span style="font-size: 0.9rem; color: #666; margin-right: 0.5rem;">3D Files:</span>
+        {% for stl in stl_files %}
+          <button type="button" 
+                  class="stl-btn" 
+                  data-stl-url="{{ stl.url }}"
+                  onclick="if(window.loadStlIntoViewer) window.loadStlIntoViewer('{{ stl.url }}'); document.querySelectorAll('.stl-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');"
+                  style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;"
+                  {% if loop.index0 == 0 %}class="stl-btn active" style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #667eea; background: #667eea; color: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;"{% endif %}>
+            📦 {{ stl.name }}
+          </button>
+        {% endfor %}
+      </div>
+      <style>
+        .stl-btn:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.05); }
+        .stl-btn.active { border-color: #667eea; background: #667eea; color: white; }
+      </style>
+      {% endif %}
+
       <div class="viewer-actions">
         {% if item.is_free %}
           <button id="btnPrimary" class="btn primary" data-mode="free">
@@ -217,16 +249,34 @@
     <section class="desc-card">
       {% set cover_src = item.cover_url or item.cover or (item.photos[0] if item.photos) %}
       <div class="cover">
-        <img src="{{ cover_src or '/static/img/placeholder_stl.jpg' }}"
+        <img id="mainCoverImg" src="{{ cover_src or '/static/img/placeholder_stl.jpg' }}"
              alt="{{ item.title }}"
              loading="lazy"
              onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
       </div>
 
-      {% if item.photos and item.photos|length %}
-      <div class="gallery">
+      {# Gallery thumbnails (clickable to change main cover) #}
+      {% if item.gallery_urls and item.gallery_urls|length %}
+      <div class="gallery-thumbs" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
+        {% for img in item.gallery_urls %}
+          <img src="{{ img }}" 
+               alt="preview" 
+               loading="lazy"
+               class="gallery-thumb"
+               style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s;"
+               onclick="document.getElementById('mainCoverImg').src = this.src; document.querySelectorAll('.gallery-thumb').forEach(t => t.style.borderColor = 'transparent'); this.style.borderColor = '#667eea';"
+               onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
+        {% endfor %}
+      </div>
+      {% elif item.photos and item.photos|length %}
+      <div class="gallery-thumbs" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
         {% for img in item.photos %}
-          <img src="{{ img }}" alt="preview" loading="lazy"
+          <img src="{{ img }}" 
+               alt="preview" 
+               loading="lazy"
+               class="gallery-thumb"
+               style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s;"
+               onclick="document.getElementById('mainCoverImg').src = this.src; document.querySelectorAll('.gallery-thumb').forEach(t => t.style.borderColor = 'transparent'); this.style.borderColor = '#667eea';"
                onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
         {% endfor %}
       </div>
