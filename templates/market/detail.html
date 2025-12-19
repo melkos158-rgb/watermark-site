@@ -154,35 +154,59 @@
            data-src="{{ main_src or '' }}"></div>
       <span id="status" class="viewer-status"></span>
 
-      {# Multi-STL switcher (if item has multiple 3D files) #}
+      {# Multi-STL switcher (max 5 files shown) #}
       {% set stl_files = [] %}
       {% if item.stl_main_url %}
-        {% set _ = stl_files.append({'url': item.stl_main_url, 'name': 'Main Model'}) %}
+        {% set _ = stl_files.append(item.stl_main_url) %}
       {% endif %}
       {% if item.stl_extra_urls and item.stl_extra_urls|length %}
         {% for extra_url in item.stl_extra_urls %}
-          {% set filename = extra_url.split('/')[-1] if extra_url else 'Extra file' %}
-          {% set _ = stl_files.append({'url': extra_url, 'name': filename}) %}
+          {% set _ = stl_files.append(extra_url) %}
         {% endfor %}
       {% endif %}
       
+      {# Show max 5 files #}
+      {% set stl_files = stl_files[:5] %}
+      
       {% if stl_files|length > 1 %}
-      <div class="stl-switcher" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <span style="font-size: 0.9rem; color: #666; margin-right: 0.5rem;">3D Files:</span>
-        {% for stl in stl_files %}
+      <div class="stl-switcher" style="margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 0.85rem; color: #666; font-weight: 500;">Files:</span>
+        {% for stl_url in stl_files %}
           <button type="button" 
-                  class="stl-btn" 
-                  data-stl-url="{{ stl.url }}"
-                  onclick="if(!window.ProoflyViewer){console.warn('Viewer not ready');return;} window.ProoflyViewer.load('{{ stl.url }}'); document.querySelectorAll('.stl-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');"
-                  style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;"
-                  {% if loop.index0 == 0 %}class="stl-btn active" style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #667eea; background: #667eea; color: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;"{% endif %}>
-            📦 {{ stl.name }}
+                  class="stl-num-btn{% if loop.index0 == 0 %} is-active{% endif %}" 
+                  data-stl-url="{{ stl_url }}"
+                  onclick="window.ProoflyViewer?.load('{{ stl_url }}'); document.querySelectorAll('.stl-num-btn').forEach(b => b.classList.remove('is-active')); this.classList.add('is-active');">
+            {{ loop.index }}
           </button>
         {% endfor %}
       </div>
       <style>
-        .stl-btn:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.05); }
-        .stl-btn.active { border-color: #667eea; background: #667eea; color: white; }
+        .stl-num-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          border: 1.5px solid #ddd;
+          background: white;
+          color: #666;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .stl-num-btn:hover {
+          border-color: #667eea;
+          background: rgba(102, 126, 234, 0.08);
+          color: #667eea;
+        }
+        .stl-num-btn.is-active {
+          border-color: #667eea;
+          background: #667eea;
+          color: white;
+          box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+        }
       </style>
       {% endif %}
 

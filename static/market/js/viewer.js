@@ -138,7 +138,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // ✅ GLOBAL API: ProoflyViewer for multi-STL switching
+    // With queue system for handling early clicks before viewer ready
     window.ProoflyViewer = {
+      ready: false,
+      ctx: null,
+      _pendingUrl: null,
+
       /**
        * Load 3D model from URL into viewer
        * @param {string} url - URL to STL/OBJ/PLY/glTF file
@@ -150,10 +155,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           return;
         }
 
-        // ✅ CRITICAL: Check viewer ready state
-        if (!ctx || !ctx.loadModel) {
-          console.error('[ProoflyViewer] Viewer not ready (ctx=%s, loadModel=%s)', !!ctx, !!(ctx?.loadModel));
-          if (window.toast) window.toast('Viewer not ready', 'error');
+        // ✅ If not ready yet, queue the URL and wait for ready event
+        if (!window.ProoflyViewer.ready || !window.ProoflyViewer.ctx?.loadModel) {
+          console.log('[ProoflyViewer] Not ready yet, queueing URL:', url);
+          window.ProoflyViewer._pendingUrl = url;
+          if (window.toast) window.toast('Завантаження...', 'info');
           return;
         }
 
@@ -161,10 +167,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.log('[ProoflyViewer] 🚀 Loading model:', url);
           
           // ✅ Load model (will auto-clear previous model)
-          await ctx.loadModel(url);
+          await window.ProoflyViewer.ctx.loadModel(url);
           
           // ✅ Fit camera to new model
-          forceViewerFit(ctx, el);
+          forceViewerFit(window.ProoflyViewer.ctx, el);
           
           console.log('[ProoflyViewer] ✅ Model loaded and camera fitted');
           if (window.toast) window.toast('Модель завантажена', 'success');
@@ -172,22 +178,27 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.error('[ProoflyViewer] ❌ Load failed:', err);
           if (window.toast) window.toast('Помилка завантаження', 'error');
         }
-      },
-
-      // Helper: check if viewer is ready
-      get ready() {
-        const isReady = !!(ctx && ctx.loadModel);
-        if (!isReady) {
-          console.debug('[ProoflyViewer] Not ready yet (ctx=%s, loadModel=%s)', !!ctx, !!(ctx?.loadModel));
-        }
-        return isReady;
-      },
-
-      // Access to viewer context (for advanced usage)
-      get ctx() {
-        return ctx;
       }
     };
+
+    // ✅ Listen for viewer ready event and process queued URL
+    window.addEventListener('prooflyviewer:ready', (e) => {
+      console.log('[ProoflyViewer] Received ready event');
+      window.ProoflyViewer.ctx = e.detail.ctx;
+      window.ProoflyViewer.ready = !!(window.ProoflyViewer.ctx?.loadModel);
+      
+      if (window.ProoflyViewer.ready) {
+        console.log('[ProoflyViewer] ✅ Ready state confirmed');
+        
+        // Process pending URL if exists
+        if (window.ProoflyViewer._pendingUrl) {
+          const url = window.ProoflyViewer._pendingUrl;
+          window.ProoflyViewer._pendingUrl = null;
+          console.log('[ProoflyViewer] Processing queued URL:', url);
+          window.ProoflyViewer.load(url);
+        }
+      }
+    });
 
     // ✅ Legacy compatibility (keep for existing code)
     window.loadStlIntoViewer = window.ProoflyViewer.load;

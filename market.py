@@ -1880,6 +1880,29 @@ def api_item(item_id: int):
     return jsonify(it)
 
 
+@bp.get("/api/item/<int:item_id>/printability")
+def api_item_printability(item_id: int):
+    """
+    Compatibility endpoint: GET /api/item/<id>/printability
+    Returns safe empty response to prevent 404 in console
+    Called from detail.html conversion_boost.js
+    """
+    try:
+        # In MVP, we don't have real-time printability analysis
+        # Return empty data structure that frontend can handle
+        return jsonify({
+            "ok": True,
+            "data": None,
+            "message": "Printability analysis not available"
+        })
+    except Exception as e:
+        current_app.logger.warning(f"[COMPAT] printability fallback: {e}")
+        return jsonify({
+            "ok": False,
+            "error": "service_unavailable"
+        }), 503
+
+
 @bp.get("/api/item/related")
 @bp.get("/api/items/related")
 @bp.get("/api/market/related")

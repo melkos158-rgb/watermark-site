@@ -646,5 +646,12 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   // [ДОДАНО] потрібно для експортерів (new ctx.THREE.Group() тощо)
   ctx.THREE = THREE;
 
+  // ✅ Dispatch ready event for external scripts
+  // This allows viewer.js to know when ctx.loadModel is available
+  setTimeout(() => {
+    window.dispatchEvent(new CustomEvent('prooflyviewer:ready', { detail: { ctx } }));
+    console.log('[stl_viewer] ✅ Viewer ready, event dispatched');
+  }, 0);
+
   return ctx;
 }
