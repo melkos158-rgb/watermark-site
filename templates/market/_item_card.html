@@ -131,15 +131,15 @@
       
       {# 🎬 VIDEO PREVIEW (Cults-style hover autoplay) #}
       {% if it.video_url %}
-      <video 
+      <video
         class="card-video"
-        src="{{ it.video_url }}"
+        data-video-preview
+        data-src="{{ it.video_url }}"
         poster="{{ cover_src }}"
         muted
         loop
         playsinline
-        preload="metadata"
-        data-video-preview
+        preload="none"
       ></video>
       {% endif %}
     </a>

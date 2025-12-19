@@ -166,6 +166,21 @@
                             <!-- ✅ FIX 3: Live preview of new gallery images -->
                             <div id="newGalleryPreview" class="new-gallery-preview"></div>
                         </div>
+
+                                                {% if item.video_url %}
+                                                    <div class="field">
+                                                        <div class="label">Video preview</div>
+                                                        <video src="{{ item.video_url }}" controls style="max-width:320px"></video>
+                                                        <label style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                                                            <input type="checkbox" name="delete_video" value="1">
+                                                            Видалити відео
+                                                        </label>
+                                                    </div>
+                                                {% endif %}
+                                                <div class="field">
+                                                    <div class="label">Upload video preview (optional)</div>
+                                                    <input type="file" name="video_file" accept="video/mp4,video/webm,video/quicktime">
+                                                </div>
                     </div>
                 </section>
 

@@ -31,6 +31,26 @@ def edit_model(model_id):
             new_url = upload_stl(stl)
             model.stl_url = new_url
 
+
+        # Video preview (optional)
+        video = request.files.get("video_file")
+        if video and video.filename:
+            ext = os.path.splitext(video.filename)[1].lower()
+            if ext not in (".mp4", ".webm", ".mov"):
+                flash("Відео має бути MP4/WebM/MOV", "error")
+            else:
+                try:
+                    from upload_utils import upload_video_to_cloudinary
+                    url = upload_video_to_cloudinary(video)
+                    model.video_url = url
+                except Exception as e:
+                    current_app.logger.exception("Video upload failed")
+                    flash("Не вдалося завантажити відео. Спробуй інший файл.", "error")
+
+        # Видалення відео
+        if request.form.get("delete_video") == "1":
+            model.video_url = None
+
         db.session.commit()
         return redirect(f"/market/edit/{model.id}")
 

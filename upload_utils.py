@@ -1,3 +1,21 @@
+# ===============================================================
+#  Завантаження ВІДЕО
+# ===============================================================
+def upload_video_to_cloudinary(file, folder="proofly/videos"):
+    """
+    Завантажує відео (mp4/webm/mov) у Cloudinary
+    :param file: FileStorage із Flask request.files
+    :param folder: Каталог у Cloudinary
+    :return: secure_url
+    """
+    res = cloudinary.uploader.upload(
+        file,
+        folder=folder,
+        resource_type="video",
+        public_id=f"{uuid.uuid4().hex}_{secure_filename(file.filename)}",
+        overwrite=True
+    )
+    return res.get("secure_url")
 import os
 import uuid
 import cloudinary

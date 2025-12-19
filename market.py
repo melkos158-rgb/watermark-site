@@ -4774,7 +4774,11 @@ def market_media(fname: str):
       2) legacy static/market_uploads
       3) app.static
     """
+
     safe = os.path.normpath(fname).lstrip(os.sep)
+    # Block path traversal
+    if safe.startswith("..") or safe.startswith("../") or safe.startswith("..\\") or os.path.isabs(fname):
+        abort(404)
 
     uploads_root = _uploads_root()
     abs_path = os.path.join(uploads_root, safe)
@@ -4798,6 +4802,7 @@ def market_media(fname: str):
                     return current_app.send_static_file("img/placeholder_stl.jpg")
                 abort(404)
 
+
     mime = None
     low = safe_to_serve.lower()
     if low.endswith(".stl"):
@@ -4816,5 +4821,23 @@ def market_media(fname: str):
         mime = "image/png"
     elif low.endswith(".webp"):
         mime = "image/webp"
+    elif low.endswith(".mp4"):
+        mime = "video/mp4"
+    elif low.endswith(".webm"):
+        mime = "video/webm"
+    elif low.endswith(".mov"):
+        mime = "video/quicktime"
+    elif low.endswith(".svg"):
+        mime = "image/svg+xml"
 
-    return send_from_directory(base_dir, safe_to_serve, mimetype=mime)
+    resp = send_from_directory(base_dir, safe_to_serve, mimetype=mime)
+
+    # Cache policy: heavy static media should be cached hard
+    ext = os.path.splitext(safe_to_serve.lower())[1]
+    if ext in (".jpg", ".jpeg", ".png", ".webp", ".glb", ".gltf", ".stl", ".obj", ".mp4", ".webm", ".svg"):
+        resp.cache_control.public = True
+        resp.cache_control.max_age = 60 * 60 * 24 * 30  # 30 days
+    elif ext in (".zip", ):
+        resp.cache_control.public = True
+        resp.cache_control.max_age = 60 * 10  # 10 min
+    return resp
