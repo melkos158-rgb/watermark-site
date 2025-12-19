@@ -1113,6 +1113,9 @@ def page_item(item_id: int):
         gallery_urls = _safe_json_list(gallery_urls)
     gallery_urls = [u for u in gallery_urls if u and str(u).strip()][:10]
 
+    # ✅ DEBUG: Log what we're passing to template
+    current_app.logger.warning(f"[ITEM] id={item_id} stl_urls={stl_urls} gallery_urls={len(gallery_urls)} items")
+
     return render_template(
         "market/detail.html",
         item=d,

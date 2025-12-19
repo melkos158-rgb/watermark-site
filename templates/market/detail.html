@@ -157,13 +157,15 @@
 
       {# Multi-STL switcher (max 5 files shown) #}
       {# stl_urls is prepared by backend with all valid URLs #}
-      {% if stl_urls and stl_urls|length > 1 %}
+      {# Show buttons even for single file (1, 2, 3...) #}
+      {% if stl_urls and stl_urls|length > 0 %}
       <div class="stl-switcher" style="margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
         <span style="font-size: 0.85rem; color: #666; font-weight: 500;">Files:</span>
-        {% for stl_url in stl_urls %}
+        {% for stl_url in stl_urls[:5] %}
           <button type="button" 
                   class="stl-num-btn{% if loop.index0 == 0 %} is-active{% endif %}" 
                   data-model-url="{{ stl_url }}"
+                  aria-label="Load STL {{ loop.index }}"
                   onclick="window.ProoflyViewer?.load('{{ stl_url }}'); document.querySelectorAll('.stl-num-btn').forEach(b => b.classList.remove('is-active')); this.classList.add('is-active');">
             {{ loop.index }}
           </button>
