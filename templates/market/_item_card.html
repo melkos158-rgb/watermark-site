@@ -7,9 +7,7 @@
   {% set href = '#' %}
 {% endif %}
 
-{# 2) визначаємо обкладинку #}
-{% set cover = None %}
-
+    {% set cover_src = it.cover_url if it.cover_url else url_for('static', filename='img/placeholder_stl.jpg') %}
 {# 2.a — якщо є структуровані it.images (list of objects with kind/url) #}
 {% if it.images %}
   {% set c = (it.images|selectattr('kind','equalto','cover')|list|first) %}
@@ -29,7 +27,7 @@
 {% if not cover and it.cover %}
   {% set cover = it.cover %}
 {% endif %}
-
+          src="{{ cover_src }}"
 {# 2.c — якщо є gallery_urls — перший елемент може бути або рядком, або mapping #}
 {% if not cover and it.gallery_urls %}
   {% set first = it.gallery_urls[0] %}
