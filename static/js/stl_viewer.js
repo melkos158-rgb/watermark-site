@@ -73,6 +73,19 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   // ── КОНТРОЛИ
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
+  
+  // ✅ Страховий пояс від NaN/0 дистанції (запобігає "чорному екрану")
+  controls.addEventListener('change', () => {
+    const d = camera.position.distanceTo(controls.target);
+    if (!isFinite(d) || d < (controls.minDistance || 0.01)) {
+      // Повертаємо камеру в адекватний стан
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      const safeDist = controls.minDistance || 1;
+      camera.position.copy(controls.target).add(dir.multiplyScalar(safeDist));
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
+  });
 
   // [ДОДАНО] TransformControls (ґізмо як у Blender)
   const tctrl = new TransformControls(camera, renderer.domElement);
@@ -145,10 +158,19 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     let camZ = Math.abs(maxDim / (2 * Math.tan(fov / 2))) * zoom;
     camZ = Math.max(camZ, 0.1);
     camera.position.set(center.x + camZ * 0.7, center.y + camZ * 0.5, center.z + camZ);
-    camera.near = camZ / 100;
-    camera.far = camZ * 100;
+    
+    // ✅ Правильні near/far для запобігання зникненню моделі
+    const sizeLength = size.length();
+    const safe = Math.max(sizeLength, 1);
+    camera.near = safe / 1000;  // дуже малий near щоб не різало
+    camera.far = safe * 1000;   // дуже великий far щоб не зникало
     camera.updateProjectionMatrix();
+    
     controls.target.copy(center);
+    
+    // ✅ OrbitControls clamp (найважливіше) - запобігає "чорному екрану"
+    controls.minDistance = safe * 0.15;  // щоб не влетіти в модель
+    controls.maxDistance = safe * 10;    // щоб не відлетіти в космос
     controls.update();
   }
 
