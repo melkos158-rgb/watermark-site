@@ -15,6 +15,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, current_app, url_for, abort, session
 from sqlalchemy import func, text
 
+
 from models_market import (
     db,
     MarketItem,
@@ -23,6 +24,9 @@ from models_market import (
     Review,
     recompute_item_rating,
 )
+
+# Import video upload and allowed file helpers
+from upload_utils import upload_video_to_cloudinary
 
 bp = Blueprint("market_api", __name__)
 
@@ -1110,67 +1114,61 @@ def update_item(item_id: int):
 # FILE UPLOAD /api/market/upload/<id>
 # ============================================================
 
-@bp.post("/upload/<int:item_id>")
+
+# ============================================================
+# FILE UPLOAD /api/market/upload (legacy create handler)
+# ============================================================
+@bp.post("/upload")
 @login_required
-def upload_edit(item_id: int):
+def upload_model():
     """
-    Update STL + images.
+    Legacy model upload handler (create new model with files/images/video)
     FormData fields:
       - new_images[] (list of files)
       - stl (file)
+      - video_file (file, optional)
       - (ignored) text fields — handled by autosave
     """
-    it = MarketItem.query.get(item_id)
-    if not it:
-        return _json_error("Item not found", 404)
+    # Parse form fields
+    title = request.form.get("title", "Untitled Model")
+    price = request.form.get("price", 0)
+    tags = request.form.get("tags", "")
+    desc = request.form.get("desc", "")
+    uid = _get_uid()
+    if not uid:
+        return _json_error("Unauthorized", 401)
 
-    if not _is_owner(it):
-        return _json_error("Forbidden", 403)
+    # Create new MarketItem
+    item = MarketItem(
+        user_id=uid,
+        title=title,
+        price=price,
+        tags=tags,
+        desc=desc,
+        upload_status='published',
+        upload_progress=100,
+        is_published=True
+    )
 
-    # Приводимо поточні файли до зручних структур
-    files_json_raw = _files_json_to_list(it.files_json)
-    # files_json_raw — може бути list[dict] або list[str]
-    # gallery_urls може бути рядком JSON або список
-    gallery_raw = _files_json_to_list(it.gallery_urls)
-
-    # ======================================================
-    # 1) HANDLE PHOTOS
-    # ======================================================
+    # Handle images
+    files_json_raw = []
+    gallery_raw = []
     new_images = request.files.getlist("new_images")
-    added_photos = []
-
     for img_file in new_images:
         if not img_file or not img_file.filename:
             continue
-
         url, size = _save_file(img_file)
-        added_photos.append({
+        files_json_raw.append({
             "url": url,
             "kind": "image",
             "size": size
         })
+        gallery_raw.append(url)
+    if files_json_raw and not item.cover_url:
+        item.cover_url = files_json_raw[0]["url"]
 
-    # Якщо додано нові фото — додамо у files_json та gallery_urls
-    if added_photos:
-        # Якщо немає обкладинки — перше додане фото стає cover
-        if not it.cover_url:
-            it.cover_url = added_photos[0]["url"]
-
-        # Додаємо об'єкти у files_json (щоб зберегти мета)
-        if not isinstance(files_json_raw, list):
-            files_json_raw = []
-        files_json_raw.extend(added_photos)
-
-        # Додаємо чисті URL у gallery_raw (список рядків)
-        if not isinstance(gallery_raw, list):
-            gallery_raw = []
-        gallery_raw.extend([p["url"] for p in added_photos])
-
-    # ======================================================
-    # 2) HANDLE STL (replace)
-    # ======================================================
+    # Handle STL
     stl_file = request.files.get("stl")
-
     if stl_file and stl_file.filename:
         url, size = _save_file(stl_file)
         kind = "stl"
@@ -1183,45 +1181,42 @@ def upload_edit(item_id: int):
             kind = "ply"
         if name.endswith(".zip"):
             kind = "zip"
-
-        # Replace main file: remove old and set new as first
-        files_json_raw = [f for f in files_json_raw if not (isinstance(f, dict) and f.get("kind") == "stl")]
         files_json_raw.insert(0, {
             "url": url,
             "kind": kind,
             "size": size
         })
 
-    # ======================================================
-    # 3) Записуємо назад у модель (обидва поля)
-    # ======================================================
-    try:
-        it.files_json = json.dumps(files_json_raw, ensure_ascii=False)
-    except Exception:
-        # fallback: якщо не вдається серіалізувати — ігноруємо
-        pass
+    # Handle video upload
+    video_file = request.files.get("video_file")
+    if video_file and video_file.filename:
+        ext = video_file.filename.rsplit(".", 1)[-1].lower()
+        allowed_exts = {"mp4", "webm", "mov"}
+        if ext not in allowed_exts:
+            return _json_error("Invalid video format. Allowed: mp4, webm, mov", 400)
+        try:
+            video_url = upload_video_to_cloudinary(video_file)
+            item.video_url = video_url
+        except Exception as e:
+            current_app.logger.exception(f"[UPLOAD] Video upload failed: {e}")
+            return _json_error("Video upload failed. Please try again.", 500)
 
+    # Save files_json and gallery_urls
     try:
-        it.gallery_urls = json.dumps(gallery_raw, ensure_ascii=False)
-    except Exception:
-        pass
-
-    # Якщо ще не задано cover_url, спробуємо взяти з gallery
-    try:
-        if not it.cover_url:
-            g = _files_json_to_list(it.gallery_urls)
-            if g and isinstance(g, list) and len(g):
-                first = g[0]
-                if isinstance(first, str):
-                    it.cover_url = first
-                elif isinstance(first, dict) and first.get("url"):
-                    it.cover_url = first.get("url")
+        item.files_json = json.dumps(files_json_raw, ensure_ascii=False)
     except Exception:
         pass
+    try:
+        item.gallery_urls = json.dumps(gallery_raw, ensure_ascii=False)
+    except Exception:
+        pass
+    if not item.cover_url and gallery_raw:
+        item.cover_url = gallery_raw[0]
 
+    db.session.add(item)
     db.session.commit()
 
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "item_id": item.id, "video_url": getattr(item, "video_url", None)})
 
 
 # ============================================================

@@ -390,6 +390,30 @@
 
         <div style="height:14px"></div>
 
+        <!-- ВІДЕО (опціонально, 1 файл) -->
+        <fieldset class="fieldset">
+          <legend>Відео-превʼю (опціонально, MP4/WebM/MOV)</legend>
+
+          <!-- Пул -->
+          <input id="video_pool" type="file" accept=".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime" style="display:none">
+
+          <!-- Реальне поле для бекенду -->
+          <input id="video_file" name="video_file" type="file" accept=".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime" style="display:none">
+
+          <div id="video_tile" class="drop-tile" tabindex="0" aria-label="Додай відео-превʼю">
+            <div class="drop-center">
+              <div class="drop-title">Додай відео-превʼю</div>
+              <div class="drop-sub">MP4 / WebM / MOV — перетягни або натисни (до 1 відео, до 60 сек)</div>
+            </div>
+            <div id="video_badge" class="badge">—</div>
+          </div>
+
+          <div id="video_preview" class="thumbs"></div>
+          <div class="note-muted" style="margin-top:6px">
+            Відео-превʼю допоможе покупцям краще оцінити модель. Не більше 60 сек, до 30 МБ.
+          </div>
+        </fieldset>
+
         <!-- ZIP (головний файл для скачування) -->
         <fieldset class="fieldset">
           <legend>ZIP (головний файл для скачування, необовʼязково)</legend>
@@ -523,6 +547,37 @@
   const stlExtras = document.getElementById('stl_files');
   const coverFile = document.getElementById('cover_file'); // name="cover_file"
   const galFiles  = document.getElementById('gallery_files');
+  const videoFile = document.getElementById('video_file');
+  // Відео
+  const videoPool   = document.getElementById('video_pool');
+  const videoTile   = document.getElementById('video_tile');
+  const videoBadge  = document.getElementById('video_badge');
+  const videoPreview= document.getElementById('video_preview');
+
+  function updateVideoUI(files){
+    videoPreview.innerHTML = '';
+    const n = files.length;
+    videoBadge.textContent = n ? '1' : '—';
+    if (n){
+      const url = URL.createObjectURL(files[0]);
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      const video = document.createElement('video');
+      video.src = url;
+      video.controls = true;
+      video.style.maxWidth = '120px';
+      video.style.maxHeight = '90px';
+      div.appendChild(video);
+      videoPreview.appendChild(div);
+      safeAssignFiles(videoFile, [files[0]], 1);
+    } else {
+      safeAssignFiles(videoFile, [], 1);
+    }
+  }
+
+  attachTile(videoTile, videoPool, updateVideoUI);
+  videoPool.addEventListener('change', ()=> updateVideoUI(videoPool.files||[]));
+  updateVideoUI(videoPool.files||[]);
 
   // плитки
   const zipTile   = document.getElementById('zip_tile');
