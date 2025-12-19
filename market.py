@@ -1,7 +1,9 @@
+
 # ───────────────────────────── COMPAT: Create Draft Item ─────────────────────────────
 from flask_login import login_required, current_user
 
-@bp.route("/api/market/items/draft", methods=["POST"])
+# Вставити одразу після створення bp = Blueprint(...)
+@bp.post("/items/draft")
 @login_required
 def create_draft_item():
     """
@@ -14,7 +16,6 @@ def create_draft_item():
     )
     db.session.add(item)
     db.session.commit()
-
     return jsonify({
         "success": True,
         "item_id": item.id
