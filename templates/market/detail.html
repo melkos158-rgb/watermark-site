@@ -3,11 +3,12 @@
 
 {% block market_body %}
 {# ------------------ MAIN MODEL SRC ------------------ #}
+{# Use first URL from backend-prepared stl_urls list #}
 {% set main_src =
-  item.main_model_url
+  (stl_urls[0] if stl_urls and stl_urls|length else None)
+  or item.main_model_url
   or item.stl_main_url
-  or item.url
-  or (item.stl_files[0] if item.stl_files) %}
+  or item.url %}
 
 <article class="detail-wrap">
   <!-- Хлібні крихти -->
@@ -155,26 +156,11 @@
       <span id="status" class="viewer-status"></span>
 
       {# Multi-STL switcher (max 5 files shown) #}
-      {% set stl_files = [] %}
-      {% if item.stl_main_url and item.stl_main_url|trim %}
-        {% set _ = stl_files.append(item.stl_main_url) %}
-      {% endif %}
-      {% if item.stl_extra_urls and item.stl_extra_urls|length %}
-        {% for extra_url in item.stl_extra_urls %}
-          {# ✅ Skip empty/whitespace URLs #}
-          {% if extra_url and extra_url|trim %}
-            {% set _ = stl_files.append(extra_url) %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-      
-      {# Show max 5 files #}
-      {% set stl_files = stl_files[:5] %}
-      
-      {% if stl_files|length > 1 %}
+      {# stl_urls is prepared by backend with all valid URLs #}
+      {% if stl_urls and stl_urls|length > 1 %}
       <div class="stl-switcher" style="margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
         <span style="font-size: 0.85rem; color: #666; font-weight: 500;">Files:</span>
-        {% for stl_url in stl_files %}
+        {% for stl_url in stl_urls %}
           <button type="button" 
                   class="stl-num-btn{% if loop.index0 == 0 %} is-active{% endif %}" 
                   data-model-url="{{ stl_url }}"
@@ -274,7 +260,7 @@
 
     <!-- ====== ОПИС + ГАЛЕРЕЯ ====== -->
     <section class="desc-card">
-      {% set cover_src = item.cover_url or item.cover or (item.photos[0] if item.photos) %}
+      {% set cover_src = item.cover_url or item.cover or (gallery_urls[0] if gallery_urls and gallery_urls|length else None) %}
       <div class="cover">
         <img id="mainCoverImg" src="{{ cover_src or '/static/img/placeholder_stl.jpg' }}"
              alt="{{ item.title }}"
@@ -283,21 +269,10 @@
       </div>
 
       {# Gallery thumbnails (clickable to change main cover) #}
-      {% if item.gallery_urls and item.gallery_urls|length %}
+      {# gallery_urls is prepared by backend with validated URLs #}
+      {% if gallery_urls and gallery_urls|length %}
       <div class="gallery-thumbs" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
-        {% for img in item.gallery_urls %}
-          <img src="{{ img }}" 
-               alt="preview" 
-               loading="lazy"
-               class="gallery-thumb"
-               style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s;"
-               onclick="document.getElementById('mainCoverImg').src = this.src; document.querySelectorAll('.gallery-thumb').forEach(t => t.style.borderColor = 'transparent'); this.style.borderColor = '#667eea';"
-               onerror="this.onerror=null;this.src='/static/img/placeholder_stl.jpg'">
-        {% endfor %}
-      </div>
-      {% elif item.photos and item.photos|length %}
-      <div class="gallery-thumbs" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
-        {% for img in item.photos %}
+        {% for img in gallery_urls %}
           <img src="{{ img }}" 
                alt="preview" 
                loading="lazy"

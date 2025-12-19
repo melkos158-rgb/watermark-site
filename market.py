@@ -1093,7 +1093,32 @@ def page_item(item_id: int):
     d["reviews"] = reviews
     d["ratings_cnt"] = len(reviews)
 
-    return render_template("market/detail.html", item=d)
+    # ✅ Prepare STL URLs list for multi-file switcher (max 5)
+    stl_urls = []
+    if d.get("stl_main_url"):
+        stl_urls.append(d["stl_main_url"])
+    
+    # Add extra STL files from stl_files or stl_extra_urls
+    extra_stls = d.get("stl_files") or _safe_json_list(d.get("stl_extra_urls"))
+    if extra_stls:
+        stl_urls.extend([u for u in extra_stls if u and str(u).strip()])
+    
+    # Remove duplicates while preserving order, limit to 5
+    seen = set()
+    stl_urls = [u for u in stl_urls if u and not (u in seen or seen.add(u))][:5]
+    
+    # ✅ Prepare gallery URLs for thumbnails
+    gallery_urls = d.get("gallery_urls") or d.get("photos") or []
+    if not isinstance(gallery_urls, list):
+        gallery_urls = _safe_json_list(gallery_urls)
+    gallery_urls = [u for u in gallery_urls if u and str(u).strip()][:10]
+
+    return render_template(
+        "market/detail.html",
+        item=d,
+        stl_urls=stl_urls,
+        gallery_urls=gallery_urls
+    )
 
 
 @bp.get("/upload")
