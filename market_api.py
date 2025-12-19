@@ -1229,14 +1229,13 @@ def upload_edit(item_id: int):
 # ============================================================
 
 @bp.post("/favorite")
-@login_required
 def toggle_favorite():
     """
     Toggle favorite status for an item.
     Request JSON: { "item_id": 123, "on": true/false }
     Response: { "ok": true, "on": true/false }
     
-    ⚠️ Uses market_favorites table (no id column) via raw SQL
+    ✅ Uses session-based auth (compatible with both Flask-Login and session auth)
     """
     # ✅ ЗАЛІЗОБЕТОННИЙ парсинг payload (fallback для різних форматів)
     payload = request.get_json(silent=True)
