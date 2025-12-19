@@ -137,28 +137,60 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    // ✅ Expose public function for switching models (for detail.html STL list)
-    window.loadStlIntoViewer = async (url) => {
-      if (!url) {
-        console.warn('[VIEWER] loadStlIntoViewer: empty URL');
-        if (window.toast) window.toast('No model URL provided', 'warning');
-        return;
-      }
-      
-      try {
-        if (ctx.loadModel) {
-          console.log('[VIEWER] Loading model:', url);
-          await ctx.loadModel(url);
-          forceViewerFit(ctx, el);
-          if (window.toast) window.toast('Model loaded', 'success');
-        } else {
-          console.error('[VIEWER] ctx.loadModel not available');
+    // ✅ GLOBAL API: ProoflyViewer for multi-STL switching
+    window.ProoflyViewer = {
+      /**
+       * Load 3D model from URL into viewer
+       * @param {string} url - URL to STL/OBJ/PLY/glTF file
+       */
+      load: async (url) => {
+        if (!url) {
+          console.warn('[ProoflyViewer] Empty URL');
+          if (window.toast) window.toast('No model URL provided', 'warning');
+          return;
         }
-      } catch (err) {
-        console.error('[VIEWER] Load model failed:', err);
-        if (window.toast) window.toast('Failed to load model', 'error');
+
+        // ✅ CRITICAL: Check viewer ready state
+        if (!ctx || !ctx.loadModel) {
+          console.error('[ProoflyViewer] Viewer not ready (ctx=%s, loadModel=%s)', !!ctx, !!(ctx?.loadModel));
+          if (window.toast) window.toast('Viewer not ready', 'error');
+          return;
+        }
+
+        try {
+          console.log('[ProoflyViewer] 🚀 Loading model:', url);
+          
+          // ✅ Load model (will auto-clear previous model)
+          await ctx.loadModel(url);
+          
+          // ✅ Fit camera to new model
+          forceViewerFit(ctx, el);
+          
+          console.log('[ProoflyViewer] ✅ Model loaded and camera fitted');
+          if (window.toast) window.toast('Модель завантажена', 'success');
+        } catch (err) {
+          console.error('[ProoflyViewer] ❌ Load failed:', err);
+          if (window.toast) window.toast('Помилка завантаження', 'error');
+        }
+      },
+
+      // Helper: check if viewer is ready
+      get ready() {
+        const isReady = !!(ctx && ctx.loadModel);
+        if (!isReady) {
+          console.debug('[ProoflyViewer] Not ready yet (ctx=%s, loadModel=%s)', !!ctx, !!(ctx?.loadModel));
+        }
+        return isReady;
+      },
+
+      // Access to viewer context (for advanced usage)
+      get ctx() {
+        return ctx;
       }
     };
+
+    // ✅ Legacy compatibility (keep for existing code)
+    window.loadStlIntoViewer = window.ProoflyViewer.load;
 
     // -----------------------------
     // Тулбар над в’ювером

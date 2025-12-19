@@ -173,7 +173,7 @@
           <button type="button" 
                   class="stl-btn" 
                   data-stl-url="{{ stl.url }}"
-                  onclick="if(window.loadStlIntoViewer) window.loadStlIntoViewer('{{ stl.url }}'); document.querySelectorAll('.stl-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');"
+                  onclick="if(!window.ProoflyViewer){console.warn('Viewer not ready');return;} window.ProoflyViewer.load('{{ stl.url }}'); document.querySelectorAll('.stl-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');"
                   style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;"
                   {% if loop.index0 == 0 %}class="stl-btn active" style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #667eea; background: #667eea; color: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;"{% endif %}>
             📦 {{ stl.name }}

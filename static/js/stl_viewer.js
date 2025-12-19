@@ -193,6 +193,98 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     detachTransform();
   }
 
+  /**
+   * ✅ Load 3D model from URL (STL, OBJ, PLY, glTF/GLB)
+   * This is the main function for loading models in the viewer
+   */
+  async function loadModel(url) {
+    if (!url) {
+      console.warn('[VIEWER] loadModel: empty URL');
+      return;
+    }
+
+    // ✅ CRITICAL: Clear previous model to prevent memory leaks
+    clearAll();
+
+    // ✅ Detect format from URL (strip query params)
+    const cleanUrl = url.split('?')[0];
+    const ext = cleanUrl.split('.').pop()?.toLowerCase() || '';
+    
+    console.log('[VIEWER] Loading model:', url, '| format:', ext);
+    
+    if (statusEl) statusEl.textContent = 'Loading model...';
+    
+    const onError = (err) => {
+      console.error('[VIEWER] Load error:', err);
+      showError(err?.message || 'Не вдалося завантажити модель');
+      if (statusEl) statusEl.textContent = 'Помилка завантаження';
+    };
+
+    try {
+      if (ext === 'stl') {
+        stlLoader.load(
+          url,
+          (geom) => {
+            addGeometry(geom);
+            console.log('[VIEWER] ✅ STL loaded successfully');
+            if (statusEl) statusEl.textContent = '';
+          },
+          undefined,
+          onError
+        );
+      } else if (ext === 'obj') {
+        objLoader.load(
+          url,
+          (obj) => {
+            addObject(obj);
+            console.log('[VIEWER] ✅ OBJ loaded successfully');
+            if (statusEl) statusEl.textContent = '';
+          },
+          undefined,
+          onError
+        );
+      } else if (ext === 'ply') {
+        plyLoader.load(
+          url,
+          (geom) => {
+            geom.computeVertexNormals();
+            addGeometry(geom);
+            console.log('[VIEWER] ✅ PLY loaded successfully');
+            if (statusEl) statusEl.textContent = '';
+          },
+          undefined,
+          onError
+        );
+      } else if (ext === 'gltf' || ext === 'glb') {
+        gltfLoader.load(
+          url,
+          (gltf) => {
+            addObject(gltf.scene);
+            console.log('[VIEWER] ✅ glTF/GLB loaded successfully');
+            if (statusEl) statusEl.textContent = '';
+          },
+          undefined,
+          onError
+        );
+      } else {
+        console.warn('[VIEWER] Unknown format:', ext, '- trying STL loader as fallback');
+        // Fallback: try STL loader
+        stlLoader.load(
+          url,
+          (geom) => {
+            addGeometry(geom);
+            console.log('[VIEWER] ✅ Loaded successfully (fallback STL)');
+            if (statusEl) statusEl.textContent = '';
+          },
+          undefined,
+          onError
+        );
+      }
+    } catch (e) {
+      onError(e);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────
   // АВТООРІЄНТАЦІЯ: шукаємо стабільну позу (найбільша площа контакту)
   // ─────────────────────────────────────────────────────────────
@@ -522,6 +614,7 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     clearAll,
     addGeometry,
     addObject,
+    loadModel,           // ✅ Main model loader (by URL)
     loadAnyFromFile,
     setWireframe,
 
