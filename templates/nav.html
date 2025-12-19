@@ -12,26 +12,7 @@
     <!-- ЛІВІ КНОПКИ -->
     <a class="nav-btn {{ 'active' if request.endpoint=='core.index' else '' }}" href="{{ url_for('core.index') }}">Головна</a>
     <a class="nav-btn {{ 'active' if request.endpoint=='core.stl' else '' }}" href="{{ url_for('core.stl') }}">STL3D</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='core.video' else '' }}" href="{{ url_for('core.video') }}">Video</a>
 
-    <!-- DROPDOWN: Photo -->
-    <div class="nav-dropdown" data-dd>
-      <button
-        class="nav-btn dd-trigger {{ 'active' if request.endpoint in ['core.photo','core.enhance','core.edit_photo'] else '' }}"
-        type="button"
-        aria-expanded="false"
-      >
-        Photo <span class="dd-caret" aria-hidden="true"></span>
-      </button>
-      <div class="dd-menu" role="menu">
-        <a class="dd-item {{ 'active' if request.endpoint=='core.photo' else '' }}" href="{{ url_for('core.photo') }}">Photo — Gallery / Tools</a>
-        <a class="dd-item {{ 'active' if request.endpoint=='core.enhance' else '' }}" href="{{ url_for('core.enhance') }}">Photo Enhance</a>
-        <a class="dd-item {{ 'active' if request.endpoint=='core.edit_photo' else '' }}" href="{{ url_for('core.edit_photo') }}">Edit Photo</a>
-      </div>
-    </div>
-
-    <!-- NEW: Documents -->
-    <a class="nav-btn {{ 'active' if request.endpoint=='core.documents' else '' }}" href="{{ url_for('core.documents') }}">Documents</a>
 
     <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='market.page_market' and not request.args.get('saved')) else '' }}"
        href="{{ url_for('market.page_market') }}">Market</a>
