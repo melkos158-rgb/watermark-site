@@ -924,7 +924,9 @@
   // Background upload function (returns Promise for await support)
   async function uploadInBackground(itemId, uploadUrls, files, cloudinaryConfig) {
     try {
-      const uploadedUrls = {};
+      const uploadedUrls = {
+        stl_urls: []  // ✅ Collect multiple STL files in array
+      };
 
       // Upload each file
       for (const [type, file] of Object.entries(files)) {
@@ -935,8 +937,14 @@
           const url = await window.uploadManager.uploadFile(itemId, file, type);
           
           if (url) {
-            uploadedUrls[`${type}_url`] = url;
-            console.log(`[UPLOAD] ✅ ${type} uploaded:`, url);
+            // ✅ Handle multiple STL files (collect in array instead of overwriting)
+            if (type === 'stl') {
+              uploadedUrls.stl_urls.push(url);
+              console.log(`[UPLOAD] ✅ STL uploaded (${uploadedUrls.stl_urls.length}):`, url);
+            } else {
+              uploadedUrls[`${type}_url`] = url;
+              console.log(`[UPLOAD] ✅ ${type} uploaded:`, url);
+            }
           }
         } catch (err) {
           console.error(`[UPLOAD] ❌ Failed to upload ${type}:`, err);
