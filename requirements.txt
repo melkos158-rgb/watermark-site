@@ -9,3 +9,5 @@ cloudinary==1.41.0
 Flask-Babel==4.0.0
 stripe>=11.0.0
 python-slugify==8.0.4
+
+psycopg2-binary==2.9.9; platform_system != "Windows"
