@@ -535,28 +535,45 @@ def attach_uploaded_files(item_id):
         f"cover={data.get('cover_url') is not None}"
     )
     
+    # ✅ COMPAT PARSING: Handle multiple STL formats
+    # Priority: stl_urls[] > stl_main_url + stl_extra_urls > stl_url (legacy)
+    stl_main = None
+    stl_extras = []
+    
+    if data.get('stl_urls') and isinstance(data['stl_urls'], list):
+        # ✅ NEW: stl_urls[] array format (frontend sends all STLs in one array)
+        stl_list = [url for url in data['stl_urls'] if url and str(url).strip()]
+        if stl_list:
+            stl_main = stl_list[0]
+            stl_extras = stl_list[1:5]  # Max 4 extras
+            current_app.logger.info(f"[ATTACH] 🎯 stl_urls[] format: main + {len(stl_extras)} extras")
+    elif data.get('stl_main_url'):
+        # ✅ EXPLICIT: stl_main_url + stl_extra_urls format
+        stl_main = data['stl_main_url']
+        if data.get('stl_extra_urls') and isinstance(data['stl_extra_urls'], list):
+            stl_extras = [url for url in data['stl_extra_urls'] if url and str(url).strip()][:4]
+        current_app.logger.info(f"[ATTACH] 🎯 explicit format: main + {len(stl_extras)} extras")
+    elif data.get('stl_url'):
+        # ✅ LEGACY: single stl_url field
+        stl_main = data['stl_url']
+        current_app.logger.info(f"[ATTACH] 🎯 legacy stl_url format")
+    
     # Attach video
     if data.get('video_url'):
         item.video_url = data['video_url']
         item.video_duration = data.get('video_duration', 10)
         current_app.logger.info(f"[ATTACH]   video_url: {data['video_url'][:80]}...")
     
-    # ✅ Attach main STL (new field name: stl_main_url)
-    if data.get('stl_main_url'):
-        item.stl_main_url = data['stl_main_url']
-        current_app.logger.info(f"[ATTACH]   stl_main_url: {data['stl_main_url'][:80]}...")
-    elif data.get('stl_url'):  # Legacy fallback
-        item.stl_main_url = data['stl_url']
-        current_app.logger.info(f"[ATTACH]   stl_url (legacy): {data['stl_url'][:80]}...")
+    # ✅ Attach main STL (from compat parsing)
+    if stl_main:
+        item.stl_main_url = stl_main
+        current_app.logger.info(f"[ATTACH]   stl_main_url: {stl_main[:80]}...")
     
-    # ✅ Attach extra STL files (new: multi-part models)
-    if data.get('stl_extra_urls'):
-        extras = data['stl_extra_urls']
-        if isinstance(extras, list) and extras:
-            item.stl_extra_urls = json.dumps(extras)
-            current_app.logger.info(f"[ATTACH]   stl_extra_urls: {len(extras)} files")
-        else:
-            current_app.logger.warning(f"[ATTACH]   stl_extra_urls invalid format: {type(extras)}")
+    # ✅ Attach extra STL files (from compat parsing)
+    # IMPORTANT: Only update if we have data (don't clear existing extras)
+    if stl_extras:
+        item.stl_extra_urls = json.dumps(stl_extras)
+        current_app.logger.info(f"[ATTACH]   stl_extra_urls: {len(stl_extras)} files")
     
     # Attach ZIP
     if data.get('zip_url'):
@@ -572,8 +589,13 @@ def attach_uploaded_files(item_id):
     if data.get('gallery_urls'):
         item.gallery_urls = json.dumps(data['gallery_urls'])
     
-    # ✅ Validate: must have at least stl_main_url or zip_url
-    has_stl = bool(data.get('stl_main_url') or data.get('stl_url'))
+    # ✅ Validate: must have at least stl or zip
+    has_stl = bool(
+        stl_main or 
+        data.get('stl_main_url') or 
+        data.get('stl_url') or 
+        (data.get('stl_urls') and len(data.get('stl_urls', [])) > 0)
+    )
     has_zip = bool(data.get('zip_url'))
     
     if not has_stl and not has_zip:

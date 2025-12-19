@@ -405,38 +405,33 @@ class UploadManager {
    */
   async completeUpload(itemId, urls) {
     try {
-      // ✅ Handle multiple STL files (split into main + extras)
+      // ✅ Collect all STL URLs into single array
       let stlUrls = [];
       
-      // Collect all STL URLs
       if (urls.stl_url) {
-        // Legacy single STL
         stlUrls.push(urls.stl_url);
       }
       if (urls.stl_urls && Array.isArray(urls.stl_urls)) {
-        // New multi-STL format
         stlUrls.push(...urls.stl_urls);
       }
       
       // Remove duplicates
-      stlUrls = [...new Set(stlUrls)];
+      stlUrls = [...new Set(stlUrls)].filter(url => url && String(url).trim());
       
-      // Split into main + extras (max 5 total)
+      // ✅ NEW: Send stl_urls[] array (backend will split into main + extras)
       const payload = {
         video_url: urls.video_url,
         video_duration: urls.video_duration,
-        stl_main_url: stlUrls[0] || null,
-        stl_extra_urls: stlUrls.slice(1, 5),  // Max 4 extras (1 main + 4 extras = 5 total)
+        stl_urls: stlUrls,  // ✅ Simple array format
         zip_url: urls.zip_url,
         cover_url: urls.cover_url,
         gallery_urls: urls.gallery_urls || []
       };
       
-      // Validate: must have at least stl_main_url or zip_url
-      if (!payload.stl_main_url && !payload.zip_url) {
-        console.error('[UPLOAD] Cannot publish: missing both stl_url and zip_url');
+      // Validate: must have at least stl_urls or zip_url
+      if ((!stlUrls || stlUrls.length === 0) && !payload.zip_url) {
+        console.error('[UPLOAD] Cannot publish: missing both stl and zip');
         
-        // Mark as failed in state
         if (this.uploads[itemId]) {
           this.uploads[itemId].status = 'failed';
           this.saveState();
@@ -446,7 +441,7 @@ class UploadManager {
           window.toast('Помилка: не завантажено STL або ZIP файл', 'error');
         }
         
-        throw new Error('Missing required files (stl_url or zip_url)');
+        throw new Error('Missing required files (stl or zip)');
       }
       
       const url = `/api/market/items/${itemId}/attach`;
@@ -457,7 +452,7 @@ class UploadManager {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        keepalive: true,  // ✅ Survives page navigation
+        keepalive: true,
         body: JSON.stringify(payload)
       });
 
