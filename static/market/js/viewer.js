@@ -149,10 +149,31 @@ document.addEventListener("DOMContentLoaded", async () => {
        * @param {string} url - URL to STL/OBJ/PLY/glTF file
        */
       load: async (url) => {
+        // ✅ Normalize URL input (handle arrays, non-strings, empty values)
+        if (Array.isArray(url)) {
+          console.warn('[ProoflyViewer] Array passed, using first element:', url);
+          url = url[0];
+        }
+        
+        if (typeof url !== 'string') {
+          console.warn('[ProoflyViewer] Invalid URL type:', typeof url, url);
+          if (window.toast) window.toast('Invalid model URL', 'warning');
+          return false;
+        }
+        
+        url = url.trim();
+        
         if (!url) {
-          console.warn('[ProoflyViewer] Empty URL');
+          console.warn('[ProoflyViewer] Empty URL after trim');
           if (window.toast) window.toast('No model URL provided', 'warning');
-          return;
+          return false;
+        }
+        
+        // ✅ Reject obviously invalid URLs
+        if (url === '/item/' || url.endsWith('/item/') || url === 'null' || url === 'undefined') {
+          console.warn('[ProoflyViewer] Invalid/placeholder URL:', url);
+          if (window.toast) window.toast('Invalid model URL', 'warning');
+          return false;
         }
 
         // ✅ If not ready yet, queue the URL and wait for ready event

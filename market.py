@@ -522,6 +522,14 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     # Get main STL URL
     stl_main = safe_get("stl_main_url") or safe_get("url") or safe_get("file_url")
     
+    # ✅ Filter out empty/invalid URLs
+    # Remove None, empty strings, whitespace-only URLs from extras
+    stl_extra = [u for u in stl_extra if u and str(u).strip()]
+    
+    # Validate main URL - set to None if empty/whitespace
+    if not (stl_main and str(stl_main).strip()):
+        stl_main = None
+    
     return {
         "id": safe_get("id"),
         "title": safe_get("title"),
@@ -529,8 +537,8 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
         "tags": safe_get("tags"),
         "cover_url": cover_url,  # ✅ Always normalized, never "no image"
         "gallery_urls": normalized_gallery,
-        "stl_main_url": stl_main,  # ✅ Main 3D file URL
-        "stl_extra_urls": stl_extra,  # ✅ Additional 3D files (multi-part models)
+        "stl_main_url": stl_main,  # ✅ Main 3D file URL (None if empty)
+        "stl_extra_urls": stl_extra,  # ✅ Additional 3D files (filtered, no empties)
         "rating": safe_get("rating", 0),
         "downloads": safe_get("downloads", 0),
         "url": stl_main,  # Legacy compatibility

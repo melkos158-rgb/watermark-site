@@ -156,12 +156,15 @@
 
       {# Multi-STL switcher (max 5 files shown) #}
       {% set stl_files = [] %}
-      {% if item.stl_main_url %}
+      {% if item.stl_main_url and item.stl_main_url|trim %}
         {% set _ = stl_files.append(item.stl_main_url) %}
       {% endif %}
       {% if item.stl_extra_urls and item.stl_extra_urls|length %}
         {% for extra_url in item.stl_extra_urls %}
-          {% set _ = stl_files.append(extra_url) %}
+          {# ✅ Skip empty/whitespace URLs #}
+          {% if extra_url and extra_url|trim %}
+            {% set _ = stl_files.append(extra_url) %}
+          {% endif %}
         {% endfor %}
       {% endif %}
       
@@ -174,7 +177,7 @@
         {% for stl_url in stl_files %}
           <button type="button" 
                   class="stl-num-btn{% if loop.index0 == 0 %} is-active{% endif %}" 
-                  data-stl-url="{{ stl_url }}"
+                  data-model-url="{{ stl_url }}"
                   onclick="window.ProoflyViewer?.load('{{ stl_url }}'); document.querySelectorAll('.stl-num-btn').forEach(b => b.classList.remove('is-active')); this.classList.add('is-active');">
             {{ loop.index }}
           </button>
