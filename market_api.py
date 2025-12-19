@@ -500,7 +500,8 @@ def attach_uploaded_files(item_id):
     
     Payload: {
         video_url, video_duration,
-        stl_url, zip_url, cover_url,
+        stl_main_url, stl_extra_urls: [],
+        zip_url, cover_url,
         gallery_urls: []
     }
     """
@@ -512,11 +513,15 @@ def attach_uploaded_files(item_id):
     
     data = request.get_json() or {}
     
+    # ✅ DIAGNOSTIC: Log full incoming payload
+    current_app.logger.warning(f"[ATTACH] item={item_id} json={data}")
+    
     # ✅ Log incoming URLs for diagnosis
     current_app.logger.info(
         f"[ATTACH] item={item_id} "
         f"cover={data.get('cover_url')} "
-        f"stl={data.get('stl_url')} "
+        f"stl_main={data.get('stl_main_url')} "
+        f"stl_extras={len(data.get('stl_extra_urls', []))} "
         f"zip={data.get('zip_url')} "
         f"video={data.get('video_url')}"
     )
@@ -536,10 +541,22 @@ def attach_uploaded_files(item_id):
         item.video_duration = data.get('video_duration', 10)
         current_app.logger.info(f"[ATTACH]   video_url: {data['video_url'][:80]}...")
     
-    # Attach STL
-    if data.get('stl_url'):
+    # ✅ Attach main STL (new field name: stl_main_url)
+    if data.get('stl_main_url'):
+        item.stl_main_url = data['stl_main_url']
+        current_app.logger.info(f"[ATTACH]   stl_main_url: {data['stl_main_url'][:80]}...")
+    elif data.get('stl_url'):  # Legacy fallback
         item.stl_main_url = data['stl_url']
-        current_app.logger.info(f"[ATTACH]   stl_url: {data['stl_url'][:80]}...")
+        current_app.logger.info(f"[ATTACH]   stl_url (legacy): {data['stl_url'][:80]}...")
+    
+    # ✅ Attach extra STL files (new: multi-part models)
+    if data.get('stl_extra_urls'):
+        extras = data['stl_extra_urls']
+        if isinstance(extras, list) and extras:
+            item.stl_extra_urls = json.dumps(extras)
+            current_app.logger.info(f"[ATTACH]   stl_extra_urls: {len(extras)} files")
+        else:
+            current_app.logger.warning(f"[ATTACH]   stl_extra_urls invalid format: {type(extras)}")
     
     # Attach ZIP
     if data.get('zip_url'):
@@ -555,9 +572,12 @@ def attach_uploaded_files(item_id):
     if data.get('gallery_urls'):
         item.gallery_urls = json.dumps(data['gallery_urls'])
     
-    # Validate: must have at least stl_url or zip_url
-    if not data.get('stl_url') and not data.get('zip_url'):
-        current_app.logger.warning(f"[ATTACH] Cannot publish item {item_id}: missing both stl_url and zip_url")
+    # ✅ Validate: must have at least stl_main_url or zip_url
+    has_stl = bool(data.get('stl_main_url') or data.get('stl_url'))
+    has_zip = bool(data.get('zip_url'))
+    
+    if not has_stl and not has_zip:
+        current_app.logger.warning(f"[ATTACH] Cannot publish item {item_id}: missing both stl and zip")
         item.upload_status = 'failed'
         item.upload_progress = 0
         db.session.commit()

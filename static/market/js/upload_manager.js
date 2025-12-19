@@ -401,12 +401,39 @@ class UploadManager {
    * Complete upload and publish item
    * 
    * @param {number} itemId - Draft item ID
-   * @param {Object} urls - {video_url, stl_url, zip_url, cover_url, gallery_urls}
+   * @param {Object} urls - {video_url, stl_urls, zip_url, cover_url, gallery_urls}
    */
   async completeUpload(itemId, urls) {
     try {
-      // Validate: must have at least stl_url or zip_url
-      if (!urls.stl_url && !urls.zip_url) {
+      // ✅ Handle multiple STL files (split into main + extras)
+      let stlUrls = [];
+      
+      // Collect all STL URLs
+      if (urls.stl_url) {
+        // Legacy single STL
+        stlUrls.push(urls.stl_url);
+      }
+      if (urls.stl_urls && Array.isArray(urls.stl_urls)) {
+        // New multi-STL format
+        stlUrls.push(...urls.stl_urls);
+      }
+      
+      // Remove duplicates
+      stlUrls = [...new Set(stlUrls)];
+      
+      // Split into main + extras (max 5 total)
+      const payload = {
+        video_url: urls.video_url,
+        video_duration: urls.video_duration,
+        stl_main_url: stlUrls[0] || null,
+        stl_extra_urls: stlUrls.slice(1, 5),  // Max 4 extras (1 main + 4 extras = 5 total)
+        zip_url: urls.zip_url,
+        cover_url: urls.cover_url,
+        gallery_urls: urls.gallery_urls || []
+      };
+      
+      // Validate: must have at least stl_main_url or zip_url
+      if (!payload.stl_main_url && !payload.zip_url) {
         console.error('[UPLOAD] Cannot publish: missing both stl_url and zip_url');
         
         // Mark as failed in state
@@ -424,14 +451,14 @@ class UploadManager {
       
       const url = `/api/market/items/${itemId}/attach`;
       
-      console.log(`[UPLOAD] Attaching files → ${url}`, urls);
+      console.log(`[UPLOAD] Attaching files → ${url}`, payload);
       
       const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         keepalive: true,  // ✅ Survives page navigation
-        body: JSON.stringify(urls)
+        body: JSON.stringify(payload)
       });
 
       if (!resp.ok) {
