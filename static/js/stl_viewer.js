@@ -73,13 +73,13 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   // ── КОНТРОЛИ
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.12;    // ✅ збільшена плавність (було 0.08)
+  controls.dampingFactor = 0.15;    // ✅ максимальна плавність
   controls.enableZoom = true;
-  controls.zoomSpeed = 0.15;        // ✅ ДУЖЕ повільний зум (було 0.35)
-  controls.rotateSpeed = 0.6;
-  controls.panSpeed = 0.6;
-  controls.minDistance = 0.1;       // ✅ початкове мінімальне (перевизначиться в fitCamera)
-  controls.maxDistance = 1000;      // ✅ початкове максимальне (перевизначиться в fitCamera)
+  controls.zoomSpeed = 0.05;        // ✅ ЕКСТРЕМАЛЬНО повільний зум
+  controls.rotateSpeed = 0.5;       // ✅ також зменшено обертання
+  controls.panSpeed = 0.5;          // ✅ також зменшено панорамування
+  controls.minDistance = 0.1;
+  controls.maxDistance = 1000;
   
   // ✅ Страховий пояс від NaN/0 дистанції (запобігає "чорному екрану")
   controls.addEventListener('change', () => {
