@@ -410,7 +410,16 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     autoOrientUpright(modelRoot);
     centerAndDropToFloor(modelRoot);
     resizeGridToModel(1.3);
-    fitCameraToObject(modelRoot, 1.6);
+    fitCameraToObject(modelRoot, 1.6); // ✅ fit тільки після load
+    // Perspective camera clamp
+    if (camera && camera.isPerspectiveCamera) {
+      controls.enableZoom = true;
+      controls.zoomSpeed = 0.25;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = 1.0;
+      controls.maxDistance = 120;
+    }
     return mesh;
   }
 
@@ -428,7 +437,16 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
     autoOrientUpright(modelRoot);
     centerAndDropToFloor(modelRoot);
     resizeGridToModel(1.3);
-    fitCameraToObject(modelRoot, 1.6);
+    fitCameraToObject(modelRoot, 1.6); // ✅ fit тільки після load
+    // Perspective camera clamp
+    if (camera && camera.isPerspectiveCamera) {
+      controls.enableZoom = true;
+      controls.zoomSpeed = 0.25;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = 1.0;
+      controls.maxDistance = 120;
+    }
   }
 
   async function loadAnyFromFile(file) {
