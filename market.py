@@ -1114,7 +1114,14 @@ def page_item(item_id: int):
     gallery_urls = [u for u in gallery_urls if u and str(u).strip()][:10]
 
     # ✅ DEBUG: Log what we're passing to template
-    current_app.logger.warning(f"[ITEM] id={item_id} stl_urls={stl_urls} gallery_urls={len(gallery_urls)} items")
+    current_app.logger.warning(
+        f"[PAGE_ITEM] id={item_id} "
+        f"stl_main={d.get('stl_main_url')[:80] if d.get('stl_main_url') else None}... "
+        f"stl_extras_raw={d.get('stl_extra_urls')} "
+        f"stl_extras_parsed={extra_stls} "
+        f"stl_urls_final={stl_urls} "
+        f"gallery={len(gallery_urls)} items"
+    )
 
     return render_template(
         "market/detail.html",

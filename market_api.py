@@ -27,6 +27,26 @@ from models_market import (
 bp = Blueprint("market_api", __name__)
 
 # ============================================================
+# DEBUG ENDPOINT (TEMPORARY)
+# ============================================================
+
+@bp.get("/debug/item/<int:item_id>/files")
+def debug_item_files(item_id):
+    """
+    🔍 DEBUG: Show raw file URLs from database
+    Use: /api/market/debug/item/41/files
+    """
+    it = MarketItem.query.get_or_404(item_id)
+    return jsonify({
+        "id": it.id,
+        "stl_main_url": getattr(it, "stl_main_url", None),
+        "stl_extra_urls": getattr(it, "stl_extra_urls", None),
+        "zip_url": getattr(it, "zip_url", None),
+        "cover_url": getattr(it, "cover_url", None),
+        "gallery_urls": getattr(it, "gallery_urls", None),
+    })
+
+# ============================================================
 # UPLOADS BASE PATH HELPER
 # ============================================================
 
@@ -514,6 +534,7 @@ def attach_uploaded_files(item_id):
     data = request.get_json() or {}
     
     # ✅ DIAGNOSTIC: Log full incoming payload
+    current_app.logger.info(f"[ATTACH] 📥 RAW JSON: {json.dumps(data, ensure_ascii=False)}")
     current_app.logger.warning(f"[ATTACH] item={item_id} json={data}")
     
     # ✅ Log incoming URLs for diagnosis
@@ -611,6 +632,13 @@ def attach_uploaded_files(item_id):
     item.upload_progress = 100
     item.upload_status = 'published'
     item.is_published = True
+    
+    # ✅ DIAGNOSTIC: Log what we're saving to DB
+    current_app.logger.info(
+        f"[ATTACH] 💾 SAVED: item={item_id} "
+        f"stl_main={getattr(item, 'stl_main_url', None)[:80] if getattr(item, 'stl_main_url', None) else None}... "
+        f"stl_extras={getattr(item, 'stl_extra_urls', None)}"
+    )
     
     db.session.commit()
     
@@ -791,9 +819,12 @@ def upload_file_chunk(item_id, file_type):
         
         current_app.logger.info(f"[UPLOAD] base={base} item_id={item_id} file_type={file_type}")
         
-        # Secure filename
+        # Secure filename with timestamp for uniqueness
         from werkzeug.utils import secure_filename
-        filename = secure_filename(file.filename)
+        import time
+        timestamp = int(time.time() * 1000)  # milliseconds
+        base_filename = secure_filename(file.filename)
+        filename = f"{timestamp}_{base_filename}"
         filepath = upload_dir / f"{file_type}_{filename}"
         
         file.save(str(filepath))
@@ -854,9 +885,12 @@ def upload_file_chunk(item_id, file_type):
         
         # Check if this is the last chunk
         if chunk_index == chunk_total - 1:
-            # Finalize: rename to final filename
+            # Finalize: rename to final filename with timestamp for uniqueness
             from werkzeug.utils import secure_filename
-            final_filename = secure_filename(original_filename or f"{file_type}_file")
+            import time
+            timestamp = int(time.time() * 1000)  # milliseconds
+            base_filename = secure_filename(original_filename or f"{file_type}_file")
+            final_filename = f"{timestamp}_{base_filename}"
             final_path = upload_dir / f"{file_type}_{final_filename}"
             
             # Move .part to final location
