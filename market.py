@@ -1,8 +1,66 @@
 
+import os
+import math
+import json
+import shutil
+import uuid
+from datetime import datetime
+from typing import Any, Dict, Optional, List
+
+from flask import (
+    Blueprint,
+    render_template,
+    jsonify,
+    request,
+    session,
+    current_app,
+    send_from_directory,
+    abort,
+    redirect,
+    g,
+    url_for,
+    make_response,
+)
+from sqlalchemy import text, bindparam
+from sqlalchemy import exc as sa_exc
+from werkzeug.utils import secure_filename
+
+# ✅ Cloudinary (хмарне зберігання)
+# Працює, якщо в ENV є CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud_name>
+try:
+    import cloudinary
+    import cloudinary.uploader
+
+    _CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
+    # cloudinary сам читає CLOUDINARY_URL з env, конфіг не обов'язковий
+    # але залишаємо, якщо в тебе так задумано:
+    if _CLOUDINARY_URL:
+        try:
+            cloudinary.config(cloudinary_url=_CLOUDINARY_URL)
+        except Exception:
+            pass
+    _CLOUDINARY_READY = bool(_CLOUDINARY_URL)
+except Exception:
+    _CLOUDINARY_READY = False
+
+# ✅ беремо db та модель з models.py
+from models import db, MarketItem, MarketReview, UserFollow
+# ✅ MarketFavorite беремо з models_market (так як і в market_api.py)
+from models_market import MarketFavorite
+# якщо User у тебе лишається в db.py — імпортуємо тільки його звідти
+from db import User
+
+# ✅ категорії з нового market-модуля
+try:
+    from models_market import MarketCategory  # для g.market_categories
+except Exception:
+    MarketCategory = None  # fallback, якщо поки не підключено
+
+bp = Blueprint("market", __name__)
+
 # ───────────────────────────── COMPAT: Create Draft Item ─────────────────────────────
 from flask_login import login_required, current_user
 
-# Вставити одразу після створення bp = Blueprint(...)
 @bp.post("/items/draft")
 @login_required
 def create_draft_item():
