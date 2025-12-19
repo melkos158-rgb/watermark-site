@@ -74,24 +74,12 @@ export async function initViewer({ containerId = "viewer", statusId = "status" }
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;  // плавність руху
-  controls.enableZoom = false;      // вимкнено для custom wheel handler
-  controls.rotateSpeed = 0.6;     // щоб не крутився як скажений
+  controls.enableZoom = true;       // ✅ вмикаємо стандартний зум
+  controls.zoomSpeed = 0.35;        // ✅ зменшений "ракетний" зум
+  controls.rotateSpeed = 0.6;       // щоб не крутився як скажений
   controls.panSpeed = 0.6;
-  
-  // ✅ Custom wheel handler (супер-плавний зум як на Printables)
-  renderer.domElement.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    
-    // Нормалізація: обмежуємо дельту (запобігає "ракетному" зуму)
-    const delta = Math.max(-120, Math.min(120, e.deltaY));
-    
-    // Ручний dolly через OrbitControls API
-    // 1.05 = дуже плавно (1.08 = трохи швидше)
-    if (delta > 0) controls.dollyOut(1.05);
-    else controls.dollyIn(1.05);
-    
-    controls.update();
-  }, { passive: false });
+  controls.minDistance = 0.1;       // ✅ початкове мінімальне (перевизначиться в fitCamera)
+  controls.maxDistance = 1000;      // ✅ початкове максимальне (перевизначиться в fitCamera)
   
   // ✅ Страховий пояс від NaN/0 дистанції (запобігає "чорному екрану")
   controls.addEventListener('change', () => {
