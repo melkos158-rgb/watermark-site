@@ -1,3 +1,4 @@
+from flask import Blueprint
 
 bp = Blueprint("market", __name__)
 
