@@ -1,3 +1,7 @@
+# Healthcheck endpoint
+@bp.get("/ping")
+def api_ping():
+    return {"ok": True}
 from flask_login import login_required, current_user
 
 # Draft item endpoint for upload manager
