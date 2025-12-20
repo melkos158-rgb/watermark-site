@@ -104,6 +104,19 @@ def row_to_dict(row):
 
 
 def create_app():
+        # === Temporary endpoint to list all real routes (for diagnostics) ===
+        @app.get("/__routes")
+        def __routes():
+            rules = []
+            for r in app.url_map.iter_rules():
+                rules.append({
+                    "rule": str(r),
+                    "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
+                    "endpoint": r.endpoint,
+                })
+            # Show only those related to api/market
+            filtered = [x for x in rules if "/api/market" in x["rule"] or "market_api" in x["endpoint"]]
+            return {"count": len(filtered), "routes": filtered}
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
