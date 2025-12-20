@@ -1,3 +1,27 @@
+# === REAL DRAFT ENDPOINT ===
+@bp.post("/items/draft")
+def api_market_items_draft():
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "auth"}), 401
+
+    item = MarketItem(
+        user_id=uid,
+        title="",
+        upload_status="draft",
+        upload_progress=0,
+        is_published=False,
+    )
+    db.session.add(item)
+    db.session.commit()
+
+    current_app.logger.info(f"[UPLOAD] Draft created: {item.id}")
+
+    return jsonify({
+        "draft": {
+            "id": item.id
+        }
+    }), 200
 
 # ============================================================
 #  PROOFLY MARKET – MAX POWER API

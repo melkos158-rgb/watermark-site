@@ -9,8 +9,8 @@ def api_market_ping():
     return jsonify({"ok": True})
 
 @bp.post("/items/draft")
-def api_market_items_draft_min():
-    return jsonify({"ok": True, "draft": {"id": session.get("upload_draft_id") or 0}}), 200
+def api_market_items_draft_proxy():
+    return jsonify({"error": "full_api_not_loaded"}), 503
 
 @bp.get("/_routes")
 def api_market_routes_debug():
@@ -40,8 +40,8 @@ bp = Blueprint("market_api", __name__)
 def api_market_ping():
     return jsonify({"ok": True})
 @bp.post("/items/draft")
-def api_market_items_draft_min():
-    return jsonify({"ok": True, "draft": {"id": 0}}), 200
+def api_market_items_draft_proxy():
+    return jsonify({"error": "full_api_not_loaded"}), 503
 @bp.get("/_routes")
 def api_market_routes_debug():
     rules = []
