@@ -1,6 +1,4 @@
-bp = Blueprint("market", __name__)
-
-# --- market.py ---
+from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort, redirect, g, url_for, make_response
 import os
 import math
 import json
@@ -9,20 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional, List
 
-from flask import (
-    Blueprint,
-    render_template,
-    jsonify,
-    request,
-    session,
-    current_app,
-    send_from_directory,
-    abort,
-    redirect,
-    g,
-    url_for,
-    make_response,
-)
+bp = Blueprint("market", __name__)
 from sqlalchemy import text, bindparam
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
