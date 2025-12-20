@@ -16,28 +16,44 @@ def api_market_ping():
     return jsonify(ok=True, bp="market", file=__file__), 200
 
 
-# --- API: Draft creation endpoint ---
-@bp.post("/api/market/items/draft")
-def api_market_create_draft():
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"error": "auth_required"}), 401
 
-    # Create draft item with required fields and defaults
-    item = MarketItem(
-        user_id=user_id,
-        title="Draft",
-        price=0,
-        tags="",
-        desc="",
-        is_published=False,
-        upload_status="draft",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
-    )
-    db.session.add(item)
+# --- API: Draft creation endpoint (session-based, after bp) ---
+@bp.post("/api/market/items/draft")
+def api_market_items_draft():
+    """
+    Creates/returns a draft item for the current upload session.
+    MUST return: { "draft": { "id": <int> } }
+    """
+    from db import db
+    from models import MarketItem
+
+    user_id = None
+    try:
+        from flask_login import current_user
+        if getattr(current_user, "is_authenticated", False):
+            user_id = current_user.id
+    except Exception:
+        pass
+
+    draft_id = session.get("upload_draft_id")
+    if draft_id:
+        it = MarketItem.query.get(draft_id)
+        if it:
+            return jsonify({"draft": {"id": it.id}}), 200
+
+    it = MarketItem()
+    if hasattr(it, "status"):
+        it.status = "draft"
+    if hasattr(it, "is_draft"):
+        it.is_draft = True
+    if user_id is not None and hasattr(it, "user_id"):
+        it.user_id = user_id
+
+    db.session.add(it)
     db.session.commit()
-    return jsonify({"draft": {"id": item.id}}), 200
+
+    session["upload_draft_id"] = it.id
+    return jsonify({"draft": {"id": it.id}}), 200
 
 from sqlalchemy import text, bindparam
 from sqlalchemy import exc as sa_exc
