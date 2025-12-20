@@ -1,4 +1,8 @@
-from flask import jsonify, session
+bp = Blueprint("market", __name__)
+
+from flask import Blueprint, jsonify, session
+
+bp = Blueprint("market", __name__)
 
 @bp.route("/items/draft", methods=["POST"])
 @bp.route("/items/draft/", methods=["POST"])
@@ -10,9 +14,6 @@ def api_market_items_draft_compat():
     """
     # Minimal debug first (можеш лишити, щоб зняти 404 прямо зараз)
     return jsonify({"draft": {"id": 0}}), 200
-from flask import Blueprint
-
-bp = Blueprint("market", __name__)
 
 bp = Blueprint("market", __name__)
 from flask import Blueprint, jsonify, session, request, redirect, url_for, flash, render_template
