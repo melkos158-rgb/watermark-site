@@ -71,28 +71,36 @@ class UploadManager {
       });
 
       if (!resp.ok) {
+        let errBody = null;
+        try { errBody = await resp.json(); } catch {}
+        console.error('[UPLOAD] Draft creation failed: HTTP', resp.status, errBody);
         throw new Error(`Draft creation failed: ${resp.status}`);
       }
 
-      const data = await resp.json();
-      
-      if (!data.ok) {
-        throw new Error(data.error || 'Unknown error');
+      let data = null;
+      try { data = await resp.json(); } catch (e) {
+        console.error('[UPLOAD] Draft creation failed: invalid JSON', e);
+        throw new Error('Draft creation failed: invalid JSON');
+      }
+
+      // Strict structure check: must have data.draft.id
+      if (!data || !data.draft || typeof data.draft.id === 'undefined') {
+        console.error('[UPLOAD] Draft creation failed: invalid response', data);
+        throw new Error('Draft creation failed: invalid response structure');
       }
 
       // Save to state
-      this.uploads[data.item_id] = {
-        item_id: data.item_id,
+      this.uploads[data.draft.id] = {
+        item_id: data.draft.id,
         title: formData.title,
         progress: 0,
         status: 'uploading',
-        upload_urls: data.upload_urls,
+        upload_urls: data.draft.upload_urls || {},
         created_at: Date.now()
       };
       this.saveState();
 
-      console.log('[UPLOAD] Draft created:', data.item_id);
-      
+      console.log('[UPLOAD] Draft created:', data.draft.id);
       return data;
     } catch (error) {
       console.error('[UPLOAD] Draft creation failed:', error);
@@ -114,6 +122,12 @@ class UploadManager {
    * @returns {Promise<string>} - Uploaded file URL
    */
   async uploadFile(itemId, file, type) {
+    // --- FIX #2: Block upload if no valid draft ---
+    if (!this.draft || !this.draft.id) {
+      console.error("UPLOAD BLOCKED: draft not initialized", this.draft);
+      throw new Error("Draft not initialized");
+    }
+
     const upload = this.uploads[itemId];
     if (!upload) {
       throw new Error('Upload not found in state');
