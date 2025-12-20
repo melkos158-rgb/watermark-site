@@ -1,3 +1,15 @@
+from flask import jsonify, session
+
+@bp.route("/items/draft", methods=["POST"])
+@bp.route("/items/draft/", methods=["POST"])
+def api_market_items_draft_compat():
+    """
+    Draft endpoint used by upload wizard:
+    POST /api/market/items/draft
+    Must return: { "draft": { "id": <int> } }
+    """
+    # Minimal debug first (можеш лишити, щоб зняти 404 прямо зараз)
+    return jsonify({"draft": {"id": 0}}), 200
 from flask import Blueprint
 
 bp = Blueprint("market", __name__)
