@@ -393,6 +393,7 @@ def create_app():
     app.register_blueprint(dev_bp)
 
     # окремі API-blueprints
+
     try:
         import market_api
         app.register_blueprint(market_api.bp, url_prefix="/api/market")
@@ -402,6 +403,29 @@ def create_app():
         print(f"❌ [market_api] FAILED to register: {e}")
         import traceback
         traceback.print_exc()
+
+    # --- HARD compat endpoints (app-level, bypass blueprints) ---
+    @app.get("/api/market/ping")
+    def api_market_ping_app():
+        return jsonify(
+            ok=True,
+            route="/api/market/ping",
+            file=__file__,
+            commit=os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("GIT_COMMIT") or "unknown",
+        ), 200
+
+    @app.post("/api/market/items/draft")
+    def api_market_items_draft_app():
+        # Minimal response to stop frontend 404. Later wire to real draft creation.
+        return jsonify(
+            ok=True,
+            route="/api/market/items/draft",
+            draft=True,
+            file=__file__,
+            commit=os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("GIT_COMMIT") or "unknown",
+            content_type=request.content_type,
+        ), 200
+    # --- end compat endpoints ---
 
     try:
         import ai_api
