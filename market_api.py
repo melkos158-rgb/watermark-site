@@ -51,7 +51,6 @@ def api_market_items_draft():
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
 # ============================================================
 
-from __future__ import annotations
 import json
 import os
 import secrets
@@ -76,7 +75,6 @@ from models_market import (
 # Import video upload and allowed file helpers
 from upload_utils import upload_video_to_cloudinary
 
-bp = Blueprint("market_api", __name__)
 
 # ============================================================
 # DEBUG ENDPOINT (TEMPORARY)
