@@ -1,5 +1,7 @@
 
+
 bp = Blueprint("market_api", __name__)
+print(f">>> market_api LOADED: {__file__}")
 # === IMPORTS ===
 from flask import Blueprint, request, jsonify, current_app, session, abort
 from sqlalchemy import func, text
@@ -24,7 +26,10 @@ def api_market_ping():
     return jsonify({"ok": True})
 
 # === DRAFT ENDPOINT (КРИТИЧНИЙ) ===
-@bp.post("/items/draft")
+from flask import jsonify, session
+
+@bp.route("/items/draft", methods=["POST"])
+@bp.route("/items/draft/", methods=["POST"])
 def api_market_items_draft():
     from flask_login import current_user
 

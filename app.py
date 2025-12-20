@@ -396,6 +396,9 @@ def create_app():
 
     try:
         import market_api
+        app.logger.warning(f"✅ market_api imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
+        print(f"✅ [market_api] imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
+
         app.register_blueprint(market_api.bp, url_prefix="/api/market")
         app.logger.warning("✅ market_api.bp registered with /api/market")
         print("✅ [market_api] registered at /api/market")
