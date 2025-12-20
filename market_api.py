@@ -20,10 +20,32 @@ from upload_utils import upload_video_to_cloudinary
 # === BLUEPRINT (ОДИН РАЗ!) ===
 bp = Blueprint("market_api", __name__)
 
+
 # === HEALTHCHECK ===
 @bp.get("/ping")
 def api_market_ping():
     return jsonify({"ok": True})
+
+# === MINIMAL DRAFT ENDPOINT (debug, always 200) ===
+from flask import jsonify
+
+@bp.post("/items/draft")
+def api_market_items_draft_min():
+    return jsonify({"ok": True, "draft": {"id": 0}}), 200
+
+# === ROUTES DEBUG ENDPOINT ===
+@bp.get("/_routes")
+def api_market_routes_debug():
+    from flask import current_app
+    rules = []
+    for r in current_app.url_map.iter_rules():
+        if r.rule.startswith("/api/market"):
+            rules.append({
+                "rule": r.rule,
+                "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
+                "endpoint": r.endpoint,
+            })
+    return jsonify({"routes": sorted(rules, key=lambda x: x["rule"])})
 
 # === DRAFT ENDPOINT (КРИТИЧНИЙ) ===
 from flask import jsonify, session
