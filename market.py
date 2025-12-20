@@ -1,3 +1,4 @@
+
 from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort, redirect, g, url_for, make_response
 import os
 import math
@@ -10,27 +11,31 @@ from typing import Any, Dict, Optional, List
 bp = Blueprint("market", __name__)
 
 # --- Modern upload manager endpoints ---
-@bp.post("/api/market/items/draft")
-def api_market_items_draft():
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"ok": False, "error": "auth_required"}), 401
-    item = MarketItem(
-        user_id=user_id,
-        title="Draft",
-        price=0,
-        is_published=False,
-        upload_status="draft",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({"ok": True, "item_id": item.id})
-
 @bp.get("/api/market/ping")
 def api_market_ping():
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "scope": "api/market", "ts": datetime.utcnow().isoformat()})
+
+@bp.post("/api/market/items/draft")
+def api_items_draft():
+    try:
+        user_id = session.get("user_id")
+        if not user_id:
+            return jsonify({"ok": False, "error": "auth_required"}), 401
+        item = MarketItem(
+            user_id=user_id,
+            title="Draft",
+            price=0,
+            is_published=False,
+            upload_status="draft",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.session.add(item)
+        db.session.commit()
+        return jsonify({"ok": True, "item_id": item.id})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 from sqlalchemy import text, bindparam
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
