@@ -15,9 +15,29 @@ bp = Blueprint("market", __name__)
 def api_market_ping():
     return jsonify(ok=True, bp="market", file=__file__), 200
 
+
+# --- API: Draft creation endpoint ---
 @bp.post("/api/market/items/draft")
-def api_items_draft():
-    return jsonify(ok=True, item_id=None, draft=True, file=__file__), 200
+def api_market_create_draft():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "auth_required"}), 401
+
+    # Create draft item with required fields and defaults
+    item = MarketItem(
+        user_id=user_id,
+        title="Draft",
+        price=0,
+        tags="",
+        desc="",
+        is_published=False,
+        upload_status="draft",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"draft": {"id": item.id}}), 200
 
 from sqlalchemy import text, bindparam
 from sqlalchemy import exc as sa_exc

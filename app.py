@@ -414,12 +414,12 @@ def create_app():
             commit=os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("GIT_COMMIT") or "unknown",
         ), 200
 
-    @app.post("/api/market/items/draft")
+    @app.post("/_debug/api/market/items/draft")
     def api_market_items_draft_app():
-        # Minimal response to stop frontend 404. Later wire to real draft creation.
+        # Minimal response for debug, no longer conflicts with blueprint.
         return jsonify(
             ok=True,
-            route="/api/market/items/draft",
+            route="/_debug/api/market/items/draft",
             draft=True,
             file=__file__,
             commit=os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("GIT_COMMIT") or "unknown",
