@@ -8,23 +8,44 @@ bp = Blueprint("market_api", __name__)
 def api_market_ping():
     return jsonify({"ok": True})
 
+from flask import jsonify, session
+
 @bp.post("/items/draft")
-def api_items_draft():
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"ok": False, "error": "auth_required"}), 401
-    item = MarketItem(
-        user_id=user_id,
-        title="Draft",
-        price=0,
-        is_published=False,
-        upload_status="draft",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
-    )
-    db.session.add(item)
+def api_market_items_draft():
+    """
+    Creates/returns a draft item for the current upload session.
+    MUST return: { "draft": { "id": <int> } }
+    """
+    from db import db
+    from models import MarketItem
+
+    user_id = None
+    try:
+        from flask_login import current_user
+        if getattr(current_user, "is_authenticated", False):
+            user_id = current_user.id
+    except Exception:
+        pass
+
+    draft_id = session.get("upload_draft_id")
+    if draft_id:
+        it = MarketItem.query.get(draft_id)
+        if it:
+            return jsonify({"draft": {"id": it.id}}), 200
+
+    it = MarketItem()
+    if hasattr(it, "status"):
+        it.status = "draft"
+    if hasattr(it, "is_draft"):
+        it.is_draft = True
+    if user_id is not None and hasattr(it, "user_id"):
+        it.user_id = user_id
+
+    db.session.add(it)
     db.session.commit()
-    return jsonify({"ok": True, "item_id": item.id})
+
+    session["upload_draft_id"] = it.id
+    return jsonify({"draft": {"id": it.id}}), 200
 # ============================================================
 #  PROOFLY MARKET – MAX POWER API
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
@@ -426,47 +447,6 @@ def api_market_whoami():
 # UPLOAD MANAGER (Draft + Direct Upload + Progress)
 # ============================================================
 
-@bp.post("/items/draft")
-def create_draft_item():
-    """
-    🎬 STEP 1: Create draft item WITHOUT files
-    
-    Flow:
-      1) User submits form → create draft
-      2) Frontend gets item_id + upload_urls + cloudinary config
-      3) Redirect to /market immediately
-      4) Upload files in background with progress
-    
-    Payload: {title, price, tags, desc, ...}
-    Response: {
-        ok: true, 
-        item_id: 123, 
-        upload_urls: {video, stl, zip, cover},
-        cloudinary: {cloud_name, unsigned_preset}
-    }
-    """
-    uid = _get_uid()
-    if not uid:
-        return jsonify({"ok": False, "error": "unauthorized"}), 401
-    
-    # Ensure upload columns exist (auto-migration)
-    _ensure_items_upload_columns()
-    
-    data = request.get_json() or {}
-    
-    # Create draft item
-    item = MarketItem(
-        user_id=uid,
-        title=data.get('title', 'Untitled Model'),
-        price=data.get('price', 0),
-        tags=data.get('tags', ''),
-        desc=data.get('desc', ''),
-        upload_status='uploading',  # ✅ Set to 'uploading' immediately for UI sync
-        upload_progress=1,           # ✅ Start at 1% to show it's in progress
-        is_published=False           # Draft не публікується одразу
-    )
-    
-    db.session.add(item)
     
     # Commit with retry on UndefinedColumn (safety for parallel/cold starts)
     try:
