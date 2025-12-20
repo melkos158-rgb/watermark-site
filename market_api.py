@@ -1,44 +1,45 @@
 
-# ...existing imports...
+bp = Blueprint("market_api", __name__)
+# === IMPORTS ===
+from flask import Blueprint, request, jsonify, current_app, session, abort
+from sqlalchemy import func, text
+from functools import wraps
+import json
+import os
+import secrets
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, Dict, Any, List
 
+from db import db
+from models_market import MarketItem, MarketFavorite
+from upload_utils import upload_video_to_cloudinary
+
+# === BLUEPRINT (ОДИН РАЗ!) ===
 bp = Blueprint("market_api", __name__)
 
-# --- Healthcheck and draft endpoints (top-level, after bp = Blueprint) ---
+# === HEALTHCHECK ===
 @bp.get("/ping")
 def api_market_ping():
     return jsonify({"ok": True})
 
-from flask import jsonify, session
-
+# === DRAFT ENDPOINT (КРИТИЧНИЙ) ===
 @bp.post("/items/draft")
 def api_market_items_draft():
-    """
-    Creates/returns a draft item for the current upload session.
-    MUST return: { "draft": { "id": <int> } }
-    """
-    from db import db
-    from models import MarketItem
+    from flask_login import current_user
 
-    user_id = None
-    try:
-        from flask_login import current_user
-        if getattr(current_user, "is_authenticated", False):
-            user_id = current_user.id
-    except Exception:
-        pass
+    user_id = current_user.id if current_user.is_authenticated else None
 
     draft_id = session.get("upload_draft_id")
     if draft_id:
-        it = MarketItem.query.get(draft_id)
+        it = db.session.get(MarketItem, draft_id)
         if it:
             return jsonify({"draft": {"id": it.id}}), 200
 
     it = MarketItem()
-    if hasattr(it, "status"):
-        it.status = "draft"
-    if hasattr(it, "is_draft"):
-        it.is_draft = True
-    if user_id is not None and hasattr(it, "user_id"):
+    it.is_draft = True
+    it.status = "draft"
+    if user_id:
         it.user_id = user_id
 
     db.session.add(it)
