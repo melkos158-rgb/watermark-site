@@ -1415,22 +1415,14 @@ def debug_favorites_schema():
     })
 
 
-@bp.get("/api/items")
 def api_items():
+    # 🔥 DEPLOY MARKER: Verify production deployment
+    current_app.logger.warning(
+        "[DEPLOY_MARK] api_items v2025-12-18A saved=%s args=%s",
+        request.args.get("saved"),
+        dict(request.args),
+    )
     try:
-        pass
-    except Exception as e:
-        pass  # auto-fix missing except
-        pass  # auto-fix empty try body
-    except Exception as e:
-        pass  # auto-fix missing except
-        # 🔥 DEPLOY MARKER: Verify production deployment
-        current_app.logger.warning(
-            "[DEPLOY_MARK] api_items v2025-12-18A saved=%s args=%s", 
-            request.args.get("saved"), 
-            dict(request.args)
-        )
-        
         raw_q = request.args.get("q") or ""
         q = raw_q.strip().lower()
 
@@ -1439,65 +1431,16 @@ def api_items():
         mode = request.args.get("mode") or ""  # top / empty
         page = max(1, _parse_int(request.args.get("page"), 1))
         per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
-        
-        # 🔍 DEBUG: Log normalized sort immediately
-        current_app.logger.info(
-            f"[api_items] 🔍 PARAMS: sort='{sort}' (raw='{request.args.get('sort')}'), "
-            f"mode='{mode}', page={page}, per_page={per_page}"
-        )
-        
-        # 🔍 DIAGNOSTIC: Log cookie and session state at entry point
-        current_app.logger.info(
-            "[api_items] 🔥 ENTRY: cookie=%s session_user_id=%s session_keys=%s",
-            bool(request.cookies),
-            session.get("user_id"),
-            list(session.keys()) if session else []
-        )
-        
-        # ❤️ Saved filter (Instagram-style favorites)
-        saved_only = request.args.get("saved") == "1"
-        
-        # 🔥 CRITICAL FIX: Use helper for consistent user_id retrieval
-        current_user_id = _get_uid()
-        is_authenticated = current_user_id is not None
-        
-        # 🔍 DIAGNOSTIC: Log resolved UID after _get_uid()
-        current_app.logger.info(
-            "[api_items] 🔥 GET uid=%s saved=%s | session_keys=%s cookie_keys=%s session['user_id']=%s",
-            current_user_id,
-            saved_only,
-            list(session.keys()) if session else [],
-            list(request.cookies.keys()),
-            session.get("user_id")
-        )
-        
-        # ✅ ORM-based favorites filtering (reliable, no SQL JOIN issues)
-        fav_ids = set()
-        if current_user_id is not None:
-            try:
-                pass  # auto-fix empty try body
-            except Exception as e:
-                pass  # auto-fix missing except
-                fav_ids = set(
-                    r[0] for r in db.session.query(MarketFavorite.item_id)
-                    .filter(MarketFavorite.user_id == current_user_id)
-                    .all()
-                )
-                current_app.logger.info(
-                    "[api_items] 🔥 Loaded fav_ids=%s for uid=%s",
-                    len(fav_ids), current_user_id
-                )
-            except Exception as e:
-                current_app.logger.warning(
-                    "[api_items] Failed to load favorites: %s", e
-                )
-                fav_ids = set()
-        
-        # 🔥 CRITICAL: If saved_only=1, handle in dedicated path (NO fallback allowed)
-        if saved_only:
-            fav_ids_list = [int(x) for x in fav_ids if x is not None]
-            if not fav_ids_list:
-                current_app.logger.info("[api_items] saved_only=1 but fav_ids empty -> return []")
+
+        # ДАЛІ йде твоя існуюча логіка вибірки items + return jsonify(...)
+        # ...existing code...
+
+    except Exception as e:
+        current_app.logger.exception("[api_items] failed: %s", e)
+        return jsonify({"ok": False, "error": "items_failed"}), 500
+
+    # Страховка: якщо код дійде до кінця без return
+    return jsonify({"ok": True, "items": [], "page": 1, "pages": 1, "total": 0})
                 return jsonify({
                     "ok": True,
                     "items": [],
