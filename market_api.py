@@ -1,24 +1,30 @@
-# --- TEMP: Healthcheck and draft endpoints for deployment check ---
-@bp.get("/ping")
-def api_market_ping():
-    return jsonify({"ok": True})
-
-@bp.post("/items/draft")
-def api_items_draft():
-    return jsonify({"ok": True, "draft": True})
-# --- Healthcheck and draft endpoints (top-level, after bp = Blueprint) ---
 
 # ...existing imports...
 
 bp = Blueprint("market_api", __name__)
 
+# --- Healthcheck and draft endpoints (top-level, after bp = Blueprint) ---
 @bp.get("/ping")
 def api_market_ping():
     return jsonify({"ok": True})
 
 @bp.post("/items/draft")
 def api_items_draft():
-    return jsonify({"ok": True})
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"ok": False, "error": "auth_required"}), 401
+    item = MarketItem(
+        user_id=user_id,
+        title="Draft",
+        price=0,
+        is_published=False,
+        upload_status="draft",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"ok": True, "item_id": item.id})
 # ============================================================
 #  PROOFLY MARKET – MAX POWER API
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
