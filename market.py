@@ -17,8 +17,7 @@ def api_market_ping():
 
 
 
-# --- API: Draft creation endpoint (session-based, after bp) ---
-@bp.post("/api/market/items/draft")
+@bp.post("/items/draft")
 def api_market_items_draft():
     """
     Creates/returns a draft item for the current upload session.
