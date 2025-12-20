@@ -8,6 +8,25 @@ def upload_video_to_cloudinary(file, folder="proofly/videos"):
     :param folder: Каталог у Cloudinary
     :return: secure_url
     """
+    import os
+    import cloudinary
+    import cloudinary.uploader
+    from werkzeug.utils import secure_filename
+    import uuid
+    cloud_url = os.getenv("CLOUDINARY_URL", "")
+    if not cloud_url:
+        raise RuntimeError("CLOUDINARY_URL не знайдено в .env — додай його у форматі cloudinary://<api_key>:<api_secret>@<cloud_name>")
+    try:
+        cloud_name = cloud_url.split("@")[-1]
+        api_key = cloud_url.split("//")[1].split(":")[0]
+        api_secret = cloud_url.split(":")[2].split("@")[0]
+    except Exception as e:
+        raise RuntimeError(f"Невірний формат CLOUDINARY_URL: {cloud_url}") from e
+    cloudinary.config(
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret
+    )
     res = cloudinary.uploader.upload(
         file,
         folder=folder,
@@ -16,35 +35,8 @@ def upload_video_to_cloudinary(file, folder="proofly/videos"):
         overwrite=True
     )
     return res.get("secure_url")
-import os
-import uuid
-import cloudinary
-import cloudinary.uploader
-from werkzeug.utils import secure_filename
 
-# ===============================================================
-#  Cloudinary — хмарне сховище для Proofly
-#  Використовує змінну оточення CLOUDINARY_URL:
-#  формату: cloudinary://<api_key>:<api_secret>@<cloud_name>
-# ===============================================================
 
-CLOUD_URL = os.getenv("CLOUDINARY_URL", "")
-
-if not CLOUD_URL:
-    raise RuntimeError("CLOUDINARY_URL не знайдено в .env — додай його у форматі cloudinary://<api_key>:<api_secret>@<cloud_name>")
-
-try:
-    cloud_name = CLOUD_URL.split("@")[-1]
-    api_key = CLOUD_URL.split("//")[1].split(":")[0]
-    api_secret = CLOUD_URL.split(":")[2].split("@")[0]
-except Exception as e:
-    raise RuntimeError(f"Невірний формат CLOUDINARY_URL: {CLOUD_URL}") from e
-
-cloudinary.config(
-    cloud_name=cloud_name,
-    api_key=api_key,
-    api_secret=api_secret
-)
 
 # ===============================================================
 #  Завантаження ЗОБРАЖЕНЬ

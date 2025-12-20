@@ -10,7 +10,13 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional, List
 
+
 bp = Blueprint("market", __name__)
+# Always define MarketCategory (even if import fails)
+try:
+    from models_market import MarketCategory
+except Exception:
+    MarketCategory = None
 
 @bp.route("/items/draft", methods=["POST"])
 @bp.route("/items/draft/", methods=["POST"])
@@ -47,12 +53,19 @@ try:
 except Exception:
     _CLOUDINARY_READY = False
 
+
 # ✅ беремо db та модель з models.py
 from models import db, MarketItem, MarketReview, UserFollow
 # ✅ MarketFavorite беремо з models_market (так як і в market_api.py)
 from models_market import MarketFavorite
 # якщо User у тебе лишається в db.py — імпортуємо тільки його звідти
 from db import User
+
+# ✅ категорії з нового market-модуля (safe import)
+try:
+    from models_market import MarketCategory
+except Exception:
+    MarketCategory = None
 
 
 
@@ -1007,16 +1020,13 @@ def _inject_market_categories():
     p = request.path or ""
     if not (p.startswith("/market") or p.startswith("/api/market") or p.startswith("/api/")):
         return
-    cats = []
-    if MarketCategory is not None:
-        try:
-            pass  # auto-fix empty try body
-        except Exception as e:
-            pass  # auto-fix missing except
-            cats = MarketCategory.query.order_by(MarketCategory.name.asc()).all()
-        except Exception:
-            cats = []
-    g.market_categories = cats
+    try:
+        if MarketCategory is None:
+            g.market_categories = []
+            return
+        g.market_categories = MarketCategory.query.order_by(MarketCategory.name.asc()).all()
+    except Exception:
+        g.market_categories = []
 # ──────────────────────────────────────────────────────────────────────────────
 
 

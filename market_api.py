@@ -1,42 +1,19 @@
+# market_api.py (bootstrap only)
 
+from flask import Blueprint, jsonify, session, current_app
 
 bp = Blueprint("market_api", __name__)
-print(f">>> market_api LOADED: {__file__}")
-# === IMPORTS ===
-from flask import Blueprint, request, jsonify, current_app, session, abort
-from sqlalchemy import func, text
-from functools import wraps
-import json
-import os
-import secrets
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, Dict, Any, List
 
-from db import db
-from models_market import MarketItem, MarketFavorite
-from upload_utils import upload_video_to_cloudinary
-
-# === BLUEPRINT (ОДИН РАЗ!) ===
-bp = Blueprint("market_api", __name__)
-
-
-# === HEALTHCHECK ===
 @bp.get("/ping")
 def api_market_ping():
     return jsonify({"ok": True})
 
-# === MINIMAL DRAFT ENDPOINT (debug, always 200) ===
-from flask import jsonify
-
 @bp.post("/items/draft")
 def api_market_items_draft_min():
-    return jsonify({"ok": True, "draft": {"id": 0}}), 200
+    return jsonify({"ok": True, "draft": {"id": session.get("upload_draft_id") or 0}}), 200
 
-# === ROUTES DEBUG ENDPOINT ===
 @bp.get("/_routes")
 def api_market_routes_debug():
-    from flask import current_app
     rules = []
     for r in current_app.url_map.iter_rules():
         if r.rule.startswith("/api/market"):
@@ -45,30 +22,78 @@ def api_market_routes_debug():
                 "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
                 "endpoint": r.endpoint,
             })
-@bp.route("/items/draft", methods=["POST"])
-@bp.route("/items/draft/", methods=["POST"])
-def api_market_items_draft():
-    from flask_login import current_user
+    return jsonify({"routes": rules})
 
-    user_id = current_user.id if current_user.is_authenticated else None
+try:
+    import market_api_full as full
+    # 🔥 якщо full має свій bp — робимо його основним
+    if hasattr(full, "bp"):
+        bp = full.bp
+    print(f"[market_api] market_api_full loaded OK ({getattr(full, '__file__', 'unknown')})")
+except Exception as e:
+    print(f"[market_api] market_api_full import failed: {e}")
+from flask import Blueprint, jsonify, request, session, current_app
+from flask_login import current_user
 
-    draft_id = session.get("upload_draft_id")
-    if draft_id:
-        it = db.session.get(MarketItem, draft_id)
-        if it:
-            return jsonify({"draft": {"id": it.id}}), 200
+bp = Blueprint("market_api", __name__)
+@bp.get("/ping")
+def api_market_ping():
+    return jsonify({"ok": True})
+@bp.post("/items/draft")
+def api_market_items_draft_min():
+    return jsonify({"ok": True, "draft": {"id": 0}}), 200
+@bp.get("/_routes")
+def api_market_routes_debug():
+    rules = []
+    for r in current_app.url_map.iter_rules():
+        if r.rule.startswith("/api/market"):
+            rules.append({
+                "rule": r.rule,
+                "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
+                "endpoint": r.endpoint,
+            })
+    return jsonify({"routes": rules})
 
-    it = MarketItem()
-    it.is_draft = True
-    it.status = "draft"
-    if user_id:
-        it.user_id = user_id
 
-    db.session.add(it)
-    db.session.commit()
+# підключаємо реальні ендпоінти (але не ламаємо імпорт якщо вони падають)
+try:
+    import market_api_full as full
+    # 🔥 якщо full має свій bp — робимо його основним
+    if hasattr(full, "bp"):
+        bp = full.bp
+    print(f"[market_api] market_api_full loaded OK ({getattr(full, '__file__', 'unknown')})")
+except Exception as e:
+    print(f"[market_api] market_api_full import failed: {e}")
+    import traceback
+    traceback.print_exc()
 
-    session["upload_draft_id"] = it.id
-    return jsonify({"draft": {"id": it.id}}), 200
+from flask import Blueprint, jsonify, request, session, current_app
+from flask_login import current_user
+
+bp = Blueprint("market_api", __name__)
+
+# === HEALTHCHECK ===
+@bp.get("/ping")
+def api_market_ping():
+    return jsonify({"ok": True})
+
+# === MINIMAL DRAFT ENDPOINT (debug, always 200) ===
+@bp.post("/items/draft")
+def api_market_items_draft_min():
+    return jsonify({"ok": True, "draft": {"id": 0}}), 200
+
+# === ROUTES DEBUG ENDPOINT ===
+@bp.get("/_routes")
+def api_market_routes_debug():
+    rules = []
+    for r in current_app.url_map.iter_rules():
+        if r.rule.startswith("/api/market"):
+            rules.append({
+                "rule": r.rule,
+                "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
+                "endpoint": r.endpoint,
+            })
+    return jsonify({"routes": rules})
 # ============================================================
 #  PROOFLY MARKET – MAX POWER API
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
@@ -96,7 +121,6 @@ from models_market import (
 )
 
 # Import video upload and allowed file helpers
-from upload_utils import upload_video_to_cloudinary
 
 
 # ============================================================
@@ -751,7 +775,7 @@ def serve_media(item_id, filename):
 
 
 @bp.get("/items/<int:item_id>/debug_files")
-def debug_item_files(item_id: int):
+def debug_item_files_disk(item_id: int):
     """
     🔍 Debug endpoint: check if files exist on disk
     
@@ -1222,6 +1246,14 @@ def upload_model():
         allowed_exts = {"mp4", "webm", "mov"}
         if ext not in allowed_exts:
             return _json_error("Invalid video format. Allowed: mp4, webm, mov", 400)
+        # lazy import
+        try:
+            from upload_utils import upload_video_to_cloudinary
+        except Exception as e:
+            current_app.logger.warning(f"[UPLOAD] Cloudinary not ready: {e}")
+            upload_video_to_cloudinary = None
+        if upload_video_to_cloudinary is None:
+            return jsonify({"ok": False, "error": "cloudinary_not_configured"}), 400
         try:
             video_url = upload_video_to_cloudinary(video_file)
             item.video_url = video_url

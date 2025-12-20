@@ -5,7 +5,10 @@ from models import db, MarketItem  # ✅ MarketItem вже є
 #   class Bundle(db.Model):
 #       id, user_id, title, description, price, discount, thumb_url, is_active
 #       + зв'язок item_ids / items (як тобі удобно)
-from models import Bundle
+try:
+    from models import Bundle
+except Exception:
+    Bundle = None
 
 
 bundles_api = Blueprint("bundles_api", __name__, url_prefix="/api/market")
@@ -32,7 +35,7 @@ def _current_user_id():
         return None
 
 
-def _bundle_to_dict(b: Bundle) -> dict:
+def _bundle_to_dict(b):
     # item_ids може зберігатися як масив або як CSV-строка в моделі
     item_ids = []
     if hasattr(b, "item_ids") and isinstance(b.item_ids, (list, tuple)):
@@ -56,6 +59,8 @@ def _bundle_to_dict(b: Bundle) -> dict:
 
 @bundles_api.route("/bundles", methods=["GET"])
 def list_bundles():
+    if Bundle is None:
+        return jsonify({"ok": False, "error": "bundles_disabled"}), 501
     """
     GET /api/market/bundles
     Повертає всі бандли поточного автора.
@@ -74,6 +79,8 @@ def list_bundles():
 
 @bundles_api.route("/bundles", methods=["POST"])
 def create_bundle():
+    if Bundle is None:
+        return jsonify({"ok": False, "error": "bundles_disabled"}), 501
     """
     POST /api/market/bundles
     JSON:
@@ -134,6 +141,8 @@ def create_bundle():
 
 @bundles_api.route("/bundles/<int:bundle_id>", methods=["PUT", "PATCH"])
 def update_bundle(bundle_id: int):
+    if Bundle is None:
+        return jsonify({"ok": False, "error": "bundles_disabled"}), 501
     """
     PUT /api/market/bundles/<id>
     PATCH /api/market/bundles/<id>
@@ -188,6 +197,8 @@ def update_bundle(bundle_id: int):
 
 @bundles_api.route("/bundles/<int:bundle_id>", methods=["DELETE"])
 def delete_bundle(bundle_id: int):
+    if Bundle is None:
+        return jsonify({"ok": False, "error": "bundles_disabled"}), 501
     """
     DELETE /api/market/bundles/<id>
     """
