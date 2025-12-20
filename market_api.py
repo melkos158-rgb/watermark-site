@@ -1,3 +1,11 @@
+# --- TEMP: Healthcheck and draft endpoints for deployment check ---
+@bp.get("/ping")
+def api_market_ping():
+    return jsonify({"ok": True})
+
+@bp.post("/items/draft")
+def api_items_draft():
+    return jsonify({"ok": True, "draft": True})
 # --- Healthcheck and draft endpoints (top-level, after bp = Blueprint) ---
 
 # ...existing imports...
