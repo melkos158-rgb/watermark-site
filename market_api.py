@@ -1,26 +1,16 @@
-# Debug: print blueprint name and rules
-try:
-    print("MARKET_API BP NAME:", getattr(bp, "name", None))
-    print("MARKET_API RULES:", [str(r) for r in bp.deferred_functions][:3])
-except Exception as e:
-    print("MARKET_API DEBUG FAIL:", e)
-# Healthcheck endpoint
-@bp.get("/ping")
-def api_ping():
-    return {"ok": True}
-from flask_login import login_required, current_user
+# --- Healthcheck and draft endpoints (top-level, after bp = Blueprint) ---
 
-# Draft item endpoint for upload manager
+# ...existing imports...
+
+bp = Blueprint("market_api", __name__)
+
+@bp.get("/ping")
+def api_market_ping():
+    return jsonify({"ok": True})
+
 @bp.post("/items/draft")
-@login_required
-def api_create_draft():
-    item = MarketItem(
-        user_id=current_user.id,
-        status="draft",
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({"success": True, "item_id": item.id})
+def api_items_draft():
+    return jsonify({"ok": True})
 # ============================================================
 #  PROOFLY MARKET – MAX POWER API
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
