@@ -45,11 +45,6 @@ def api_market_routes_debug():
                 "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
                 "endpoint": r.endpoint,
             })
-    return jsonify({"routes": sorted(rules, key=lambda x: x["rule"])})
-
-# === DRAFT ENDPOINT (КРИТИЧНИЙ) ===
-from flask import jsonify, session
-
 @bp.route("/items/draft", methods=["POST"])
 @bp.route("/items/draft/", methods=["POST"])
 def api_market_items_draft():
