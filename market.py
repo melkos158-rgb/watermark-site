@@ -1,19 +1,16 @@
 
-from flask import Blueprint, render_template, jsonify, request, session, current_app, send_from_directory, abort, redirect, g, url_for, make_response
-import os
-import math
-import json
-import shutil
-import uuid
-from datetime import datetime
-from typing import Any, Dict, Optional, List
+bp = Blueprint("market", __name__)
+
+bp = Blueprint("market", __name__)
+from flask import Blueprint, jsonify, session, request, redirect, url_for, flash, render_template
+from flask_login import login_required, current_user
+
+from sqlalchemy import text, bindparam
 
 bp = Blueprint("market", __name__)
 
-# --- Modern upload manager endpoints ---
-@bp.get("/api/market/ping")
+# --- Далі йде твій робочий код, імпорти, функції, view-роути тощо ---
 
-from sqlalchemy import text, bindparam
 from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
 
