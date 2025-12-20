@@ -107,6 +107,9 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
+    from market_draft import bp_market_draft
+    app.register_blueprint(bp_market_draft)
+
     # === Temporary endpoint to list all real routes (for diagnostics) ===
     @app.get("/__routes")
     def __routes():
@@ -381,12 +384,19 @@ def create_app():
         return resp
 
     # ========= реєстрація blueprints =========
-    import auth, profile, chat, market
+    import auth, profile, chat
+    try:
+        import market
+    except Exception as e:
+        import traceback
+        print("❌ [market] skipped due to import error:", e)
+        traceback.print_exc()
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(chat.bp)
-    app.register_blueprint(market.bp)
+    if 'market' in locals():
+        app.register_blueprint(market.bp)
 
     app.register_blueprint(core_bp)
     app.register_blueprint(ads_bp)
