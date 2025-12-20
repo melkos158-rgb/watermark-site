@@ -1,4 +1,6 @@
+bp = Blueprint("market", __name__)
 
+# --- market.py ---
 import os
 import math
 import json
@@ -26,14 +28,10 @@ from sqlalchemy import exc as sa_exc
 from werkzeug.utils import secure_filename
 
 # ✅ Cloudinary (хмарне зберігання)
-# Працює, якщо в ENV є CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud_name>
 try:
     import cloudinary
     import cloudinary.uploader
-
     _CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
-    # cloudinary сам читає CLOUDINARY_URL з env, конфіг не обов'язковий
-    # але залишаємо, якщо в тебе так задумано:
     if _CLOUDINARY_URL:
         try:
             cloudinary.config(cloudinary_url=_CLOUDINARY_URL)
@@ -57,6 +55,57 @@ except Exception:
     MarketCategory = None  # fallback, якщо поки не підключено
 
 bp = Blueprint("market", __name__)
+
+# --- API: Draft creation and ping endpoints ---
+@bp.post("/api/market/items/draft")
+def api_market_create_draft():
+    # Перевірка авторизації (user_id має бути в сесії)
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"ok": False, "error": "auth_required"}), 401
+
+    # Мінімальні поля для чернетки
+    item = MarketItem(
+        user_id=user_id,
+        title="Draft",
+        price=0,
+        is_published=False,
+        upload_status="draft",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"ok": True, "item_id": item.id})
+
+@bp.get("/api/market/ping")
+def api_market_ping():
+    return jsonify({"ok": True})
+
+@bp.post("/api/market/items/draft")
+def api_market_create_draft():
+    # Перевірка авторизації (user_id має бути в сесії)
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"ok": False, "error": "auth_required"}), 401
+
+    # Мінімальні поля для чернетки
+    item = MarketItem(
+        user_id=user_id,
+        title="Draft",
+        price=0,
+        is_published=False,
+        upload_status="draft",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"ok": True, "item_id": item.id})
+
+@bp.get("/api/market/ping")
+def api_market_ping():
+    return jsonify({"ok": True})
 
 import os
 import math
