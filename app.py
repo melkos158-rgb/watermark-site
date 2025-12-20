@@ -118,6 +118,11 @@ def create_app():
         or "dev"
     )
 
+    # === Production marker route for deployment verification ===
+    @app.get("/__prod_marker")
+    def __prod_marker():
+        return {"ok": True, "ts": "2025-12-20", "file": __file__}
+
     @app.context_processor
     def inject_asset_v():
         """Віддає asset_v в усі шаблони для ?v=commit_hash"""
