@@ -377,6 +377,7 @@ def create_app():
     try:
         import market_api
         app.register_blueprint(market_api.bp, url_prefix="/api/market")
+        app.logger.warning("✅ market_api.bp registered with /api/market")
         print("✅ [market_api] registered at /api/market")
     except Exception as e:
         print(f"❌ [market_api] FAILED to register: {e}")

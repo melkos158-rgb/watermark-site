@@ -1,3 +1,9 @@
+# Debug: print blueprint name and rules
+try:
+    print("MARKET_API BP NAME:", getattr(bp, "name", None))
+    print("MARKET_API RULES:", [str(r) for r in bp.deferred_functions][:3])
+except Exception as e:
+    print("MARKET_API DEBUG FAIL:", e)
 # Healthcheck endpoint
 @bp.get("/ping")
 def api_ping():
