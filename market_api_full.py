@@ -8,35 +8,63 @@ bp = Blueprint("market_api", __name__)
 @bp.post("/upload")
 def api_market_upload_compat():
     """
-    Legacy compat endpoint.
-    Frontend calls POST /api/market/upload
-    We redirect logic to existing item upload flow.
+    Legacy compat endpoint for old upload_manager.js:
+    POST /api/market/upload
+    Must NOT rely only on session, because draft can be created via different flow.
     """
     from flask import request, jsonify, session
     from models import MarketItem
     from db import db
 
-    # 1. Get draft item
-    item_id = session.get("upload_draft_id")
-    if not item_id:
-        return jsonify({"error": "draft_not_initialized"}), 400
+    # 1) Try to get item_id from request (FormData or JSON)
+    item_id = None
 
-    item = MarketItem.query.get(item_id)
-    if not item:
-        return jsonify({"error": "draft_not_found"}), 404
+    # form fields (multipart/form-data)
+    for key in ("item_id", "draft_id", "id"):
+        v = request.form.get(key)
+        if v and str(v).isdigit():
+            item_id = int(v)
+            break
 
-    # 2. Frontend sends FormData with files
-    files = request.files
-    if not files:
-        return jsonify({"error": "no_files"}), 400
+    # json body (application/json)
+    if item_id is None and request.is_json:
+        data = request.get_json(silent=True) or {}
+        for key in ("item_id", "draft_id", "id"):
+            v = data.get(key)
+            if isinstance(v, int):
+                item_id = v
+                break
+            if isinstance(v, str) and v.isdigit():
+                item_id = int(v)
+                break
 
-    # 3. Just ACK for now (real attach is already handled elsewhere)
-    # upload_manager continues with chunk/attach endpoints
-    return jsonify({
-        "ok": True,
-        "item_id": item.id,
-        "legacy": True
-    }), 200
+    # session fallback
+    if item_id is None:
+        sid = session.get("upload_draft_id")
+        if isinstance(sid, int):
+            item_id = sid
+        elif isinstance(sid, str) and sid.isdigit():
+            item_id = int(sid)
+
+    # 2) If still none -> create draft right here and set session
+    if item_id is None:
+        it = MarketItem()
+        if hasattr(it, "status"):
+            it.status = "draft"
+        db.session.add(it)
+        db.session.commit()
+        session["upload_draft_id"] = it.id
+        return jsonify({"ok": True, "item_id": it.id, "legacy": True, "created": True}), 200
+
+    # Ensure session is synced
+    session["upload_draft_id"] = item_id
+
+    # 3) Validate item exists (optional but useful)
+    it = MarketItem.query.get(item_id)
+    if not it:
+        return jsonify({"error": "draft_not_found", "item_id": item_id}), 404
+
+    return jsonify({"ok": True, "item_id": it.id, "legacy": True, "created": False}), 200
 
 # === REAL DRAFT ENDPOINT ===
 @bp.post("/items/draft")
