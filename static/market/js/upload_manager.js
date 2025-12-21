@@ -61,18 +61,13 @@ class UploadManager {
    */
   async createDraft(formData) {
     try {
-      // Convert FormData to plain object for JSON
-      let payload = formData;
-      if (formData instanceof FormData) {
-        payload = Object.fromEntries(formData.entries());
-      }
       const resp = await fetch('/api/market/items/draft', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(formData)
       });
 
       if (!resp.ok) {
@@ -88,25 +83,40 @@ class UploadManager {
         throw new Error('Draft creation failed: invalid JSON');
       }
 
-      // Strict structure check: must have data.draft.id
-      if (!data || !data.draft || typeof data.draft.id === 'undefined') {
+      // ✅ Accept both new and legacy shapes, normalize to draftId
+      const draftId =
+        (data && data.draft && typeof data.draft.id !== 'undefined') ? data.draft.id :
+        (data && typeof data.item_id !== 'undefined') ? data.item_id :
+        (data && typeof data.draft_id !== 'undefined') ? data.draft_id :
+        (data && typeof data.id !== 'undefined') ? data.id :
+        (data && typeof data.draft !== 'undefined' && typeof data.draft === 'number') ? data.draft :
+        undefined;
+
+      const uploadUrls =
+        (data && data.draft && data.draft.upload_urls) ? data.draft.upload_urls :
+        (data && data.upload_urls) ? data.upload_urls :
+        {};
+
+      // Hard fail only if we cannot get an id at all
+      if (typeof draftId === 'undefined') {
         console.error('[UPLOAD] Draft creation failed: invalid response', data);
         throw new Error('Draft creation failed: invalid response structure');
       }
 
       // Save to state
-      this.uploads[data.draft.id] = {
-        item_id: data.draft.id,
+      this.uploads[draftId] = {
+        item_id: draftId,
         title: formData.title,
         progress: 0,
         status: 'uploading',
-        upload_urls: data.draft.upload_urls || {},
+        upload_urls: uploadUrls,
         created_at: Date.now()
       };
       this.saveState();
 
-      console.log('[UPLOAD] Draft created:', data.draft.id);
-      return data;
+      console.log('[UPLOAD] Draft created:', draftId);
+      // ✅ Return normalized object (so other code can rely on it)
+      return { draft: { id: draftId, upload_urls: uploadUrls }, raw: data };
     } catch (error) {
       console.error('[UPLOAD] Draft creation failed:', error);
       throw error;
