@@ -107,6 +107,7 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
+
     from market_draft import bp_market_draft
     app.register_blueprint(bp_market_draft)
 

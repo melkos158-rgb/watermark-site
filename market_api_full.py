@@ -1,3 +1,4 @@
+from market_api import bp
 # === REAL DRAFT ENDPOINT ===
 @bp.post("/items/draft")
 def api_market_items_draft():
@@ -58,7 +59,7 @@ from models_market import (
 # ============================================================
 
 @bp.get("/debug/item/<int:item_id>/files")
-def debug_item_files_db(item_id):
+def debug_item_files_disk(item_id: int):
     """
     🔍 DEBUG: Show raw file URLs from database
     Use: /api/market/debug/item/41/files

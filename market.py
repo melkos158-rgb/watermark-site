@@ -10,6 +10,8 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional, List
 
+def _fetch_item_with_author(query):
+    return query
 
 bp = Blueprint("market", __name__)
 # Always define MarketCategory (even if import fails)
@@ -1415,517 +1417,56 @@ def debug_favorites_schema():
     })
 
 
+@bp.get("/api/items")
 def api_items():
-    # 🔥 DEPLOY MARKER: Verify production deployment
-    current_app.logger.warning(
-        "[DEPLOY_MARK] api_items v2025-12-18A saved=%s args=%s",
-        request.args.get("saved"),
-        dict(request.args),
-    )
+
+    # --- args / user context ---
+    raw_q = request.args.get("q") or ""
+    q = raw_q.strip().lower()
+
+    saved_only = (request.args.get("saved") in ("1", "true", "True", "yes", "on"))
+    author_user_id = None
     try:
-        raw_q = request.args.get("q") or ""
-        q = raw_q.strip().lower()
-
-        free = _normalize_free(request.args.get("free"))
-        sort = _normalize_sort(request.args.get("sort"))
-        mode = request.args.get("mode") or ""  # top / empty
-        page = max(1, _parse_int(request.args.get("page"), 1))
-        per_page = min(60, max(6, _parse_int(request.args.get("per_page"), 24)))
-
-        # ДАЛІ йде твоя існуюча логіка вибірки items + return jsonify(...)
-        # ...existing code...
-
-    except Exception as e:
-        current_app.logger.exception("[api_items] failed: %s", e)
-        return jsonify({"ok": False, "error": "items_failed"}), 500
-
-    # Страховка: якщо код дійде до кінця без return
-    return jsonify({"ok": True, "items": [], "page": 1, "pages": 1, "total": 0})
-                return jsonify({
-                    "ok": True,
-                    "items": [],
-                    "page": page,
-                    "per_page": per_page,
-                    "pages": 0,
-                    "total": 0
-                })
-            
-            # 🔥 DEDICATED saved_only path: build minimal SQL with expanding bindparam
-            current_app.logger.warning("[api_items] 🔥 SAVED_ONLY path: fav_ids=%d", len(fav_ids_list))
-            
-            dialect = db.session.get_bind().dialect.name
-            if dialect == "postgresql":
-                url_expr = "i.stl_main_url"
-            else:
-                url_expr = "i.stl_main_url"
-            
-            # Build WHERE clause for saved_only
-            where_parts = ["i.id IN :fav_ids"]
-            params_saved = {"fav_ids": fav_ids_list}
-            
-            # Add is_published filter if column exists
-            try:
-                pass  # auto-fix empty try body
-            except Exception as e:
-                pass  # auto-fix missing except
-                db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
-                where_parts.append("(i.is_published = :pub OR i.is_published IS NULL)")
-                params_saved["pub"] = True
-            except Exception:
-                db.session.rollback()
-            
-            where_sql_saved = "WHERE " + " AND ".join(where_parts)
-            offset = (page - 1) * per_page
-            
-            # SELECT query for saved items
-            sql_saved = f"""
-                SELECT i.id, i.title, i.price, i.tags,
-                       COALESCE(i.cover_url, '') AS cover,
-                       COALESCE(i.gallery_urls, '[]') AS gallery_urls,
-                       COALESCE(i.rating, 0) AS rating,
-                       COALESCE(i.downloads, 0) AS downloads,
-                       {url_expr} AS url,
-                       i.format, i.user_id, i.created_at,
-                       u.name AS author_name
-                FROM {ITEMS_TBL} i
-                LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                {where_sql_saved}
-                ORDER BY i.created_at DESC, i.id DESC
-                LIMIT :limit OFFSET :offset
-            """
-            
-            # Execute with expanding bindparam
-            stmt_saved = text(sql_saved).bindparams(bindparam("fav_ids", expanding=True))
-            rows = db.session.execute(stmt_saved, {**params_saved, "limit": per_page, "offset": offset}).fetchall()
-            
-            # Build items with is_favorite
-            items = []
-            for r in rows:
-                item = _row_to_dict(r)
-                # ✅ All items in saved_only are favorites by definition
-                item['is_favorite'] = True
-                item['is_fav'] = 1  # Legacy compatibility (integer for frontend)
-                item['has_slice_hints'] = False  # Simplified for saved_only
-                items.append(item)
-            
-            # COUNT query for saved items
-            count_sql_saved = f"""
-                SELECT COUNT(*) 
-                FROM {ITEMS_TBL} i
-                {where_sql_saved}
-            """
-            count_stmt_saved = text(count_sql_saved).bindparams(bindparam("fav_ids", expanding=True))
-            total = db.session.execute(count_stmt_saved, params_saved).scalar() or 0
-            
-            # Serialize and return (NO fallback possible)
-            items = [_item_to_dict(it) for it in items]
-            
-            current_app.logger.warning("[api_items] 🔥 SAVED_ONLY return: items=%d total=%d", len(items), total)
-            return jsonify({
-                "ok": True,
-                "items": items,
-                "page": page,
-                "per_page": per_page,
-                "pages": math.ceil(total / per_page) if per_page else 1,
-                "total": total,
-            })
-        
-        # Author filter: resolve username -> user_id
-        author_param = request.args.get("author", "").strip()
+        author_user_id = int(request.args.get("author")) if request.args.get("author") else None
+    except Exception:
         author_user_id = None
-        
-        if author_param:
-            # Validate username with allowlist regex
-            import re
-            if re.match(r'^[A-Za-z0-9_-]{1,50}$', author_param):
-                # Lookup user_id by username
-                user_row = db.session.execute(
-                    text(f"SELECT id FROM {USERS_TBL} WHERE name = :name LIMIT 1"),
-                    {"name": author_param}
-                ).fetchone()
-                
-                if user_row:
-                    author_user_id = user_row.id
-                else:
-                    # Author not found - return empty result (don't crash)
-                    return jsonify({
-                        "ok": True,
-                        "items": [],
-                        "page": page,
-                        "per_page": per_page,
-                        "pages": 0,
-                        "total": 0
-                    })
-            else:
-                # Invalid username format - return empty result
-                return jsonify({
-                    "ok": True,
-                    "items": [],
-                    "page": page,
-                    "per_page": per_page,
-                    "pages": 0,
-                    "total": 0
-                })
-        
-        # Legacy author_id param (for backwards compatibility)
-        author_id = _parse_int(request.args.get("author_id"), 0)
-        if author_id > 0 and not author_user_id:
-            author_user_id = author_id
-        
-        # Proof Score / Slice Hints filters
-        auto_presets = request.args.get("auto_presets") == "1"
-        min_proof_score = _parse_int(request.args.get("min_proof_score"), 0)
 
-        dialect = db.session.get_bind().dialect.name
-        if dialect == "postgresql":
-            title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
-            tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
-            url_expr = "stl_main_url"
-        else:
-            title_expr = "LOWER(COALESCE(title, ''))"
-            tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
-            url_expr = "stl_main_url"
+    # ці хелпери в тебе вже десь є, бо ти їх використовуєш нижче
+    free = _normalize_free(request.args.get("free"))
+    sort = _normalize_sort(request.args.get("sort"))
 
-        where, params = [], {}
-        
-        # ❤️ Always add current_user_id to params (для можливих SQL що його використовують)
-        # 🔍 DEBUG: Log current_user state
-        current_app.logger.info(
-            f"[api_items] 🔍 is_authenticated={is_authenticated}, "
-            f"current_user_id={current_user_id}, saved_only={saved_only}"
-        )
-        params["current_user_id"] = int(current_user_id or 0)
-        
-        if q:
-            where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
-            params["q"] = f"%{q}%"
-        if free == "free":
-            where.append("i.price = 0")
-        elif free == "paid":
-            where.append("i.price > 0")
-        
-        # Author filter
-        if author_user_id is not None:
-            where.append("i.user_id = :author_id")
-            params["author_id"] = author_user_id
-        
-        # NOTE: saved_only handled in dedicated path above (early return)
-        # This section only executes for non-saved queries
-        
-        # Proof Score filter
-        if min_proof_score > 0:
-            where.append("i.proof_score >= :min_proof_score")
-            params["min_proof_score"] = min_proof_score
-        
-        # Auto presets filter (has slice hints)
-        if auto_presets:
-            where.append(
-                "i.slice_hints_json IS NOT NULL "
-                "AND i.slice_hints_json != '' "
-                "AND i.slice_hints_json != '{}' "
-                "AND LOWER(i.slice_hints_json) != 'null'"
-            )
-        
-        # ✅ Filter only published items in public market
-        try:
-            pass  # auto-fix empty try body
-        except Exception as e:
-            pass  # auto-fix missing except
-            # Check if is_published column exists
-            db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
-            where.append("(i.is_published = :pub OR i.is_published IS NULL)")
-            params["pub"] = True
-        except Exception:
-            db.session.rollback()
-            # Column doesn't exist yet, skip filter
-            pass
-        
-        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    is_authenticated = bool(getattr(current_user, "is_authenticated", False))
+    current_user_id = getattr(current_user, "id", None) if is_authenticated else None
 
-        # 🔍 DEBUG: Log sort value before ORDER BY
-        current_app.logger.info(f"[api_items] 🔍 sort='{sort}', mode='{mode}'")
+    dialect = db.session.get_bind().dialect.name
+    if dialect == "postgresql":
+        title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
+        tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
+        cover_expr = "COALESCE(cover_url, '')"
+        url_expr = "stl_main_url"
+    else:
+        title_expr = "LOWER(COALESCE(title, ''))"
+        tags_expr = "LOWER(COALESCE(tags,  ''))"
+        cover_expr = "COALESCE(cover_url, '')"
+        url_expr = "stl_main_url"
 
-        # Top Prints mode: ranking by quality
-        if mode == "top":
-            try:
-                pass  # auto-fix empty try body
-            except Exception as e:
-                pass  # auto-fix missing except
-                # Check if proof_score column exists
-                db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
-                
-                # Optional: only show items with proof_score
-                if "i.proof_score IS NOT NULL" not in " ".join(where):
-                    if where:
-                        where.append("i.proof_score IS NOT NULL")
-                    else:
-                        where = ["i.proof_score IS NOT NULL"]
-                    where_sql = "WHERE " + " AND ".join(where)
-                
-                # Ranking formula: proof_score + bonus for slice_hints
-                # Using CASE to add +15 if slice_hints is valid
-                if dialect == "postgresql":
-                    ranking_expr = """(
-                        COALESCE(i.proof_score, 0) + 
-                        CASE 
-                            WHEN i.slice_hints_json IS NOT NULL 
-                            AND i.slice_hints_json != '' 
-                            AND i.slice_hints_json != '{}' 
-                            AND LOWER(i.slice_hints_json) != 'null' 
-                            THEN 15 
-                            ELSE 0 
-                        END
-                    )"""
-                else:  # SQLite
-                    ranking_expr = """(
-                        COALESCE(i.proof_score, 0) + 
-                        CASE 
-                            WHEN i.slice_hints_json IS NOT NULL 
-                            AND i.slice_hints_json != '' 
-                            AND i.slice_hints_json != '{}' 
-                            AND LOWER(i.slice_hints_json) != 'null' 
-                            THEN 15 
-                            ELSE 0 
-                        END
-                    )"""
-                
-                order_sql = f"ORDER BY {ranking_expr} DESC, i.created_at DESC"
-            except Exception as e:
-                db.session.rollback()
-                current_app.logger.warning(
-                    f"[api_items] ⚠️ Top mode ranking failed (proof_score missing?): {e} | "
-                    f"Falling back to default ordering"
-                )
-                # Fallback: columns don't exist, use default ordering
-                order_sql = "ORDER BY i.created_at DESC, i.id DESC"
-        elif sort == "price_asc":
-            order_sql = "ORDER BY i.price ASC, i.created_at DESC"
-        elif sort == "price_desc":
-            order_sql = "ORDER BY i.price DESC, i.created_at DESC"
-        elif sort == "downloads":
-            order_sql = "ORDER BY i.downloads DESC, i.created_at DESC"
-        elif sort == "prints":
-            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
-        elif sort == "prints_7d":
-            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
-        elif sort == "prints_30d":
-            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
-        else:
-            order_sql = "ORDER BY i.created_at DESC, i.id DESC"
+    where, params = [], {}
 
-        offset = (page - 1) * per_page
+    # ❤️ Always add current_user_id to params (для можливих SQL що його використовують)
+    # 🔍 DEBUG: Log current_user state
+    current_app.logger.info(
+        f"[api_items] 🔍 is_authenticated={is_authenticated}, "
+        f"current_user_id={current_user_id}, saved_only={saved_only}"
+    )
+    params["current_user_id"] = int(current_user_id or 0)
 
-        # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
-        try:
-            pass
-        except Exception as e:
-            pass  # auto-fix missing except
-            pass  # auto-fix empty try body
-        except Exception as e:
-            pass  # auto-fix missing except
-            # Build SQL with is_published columns - ALL inside try
-            # Try with item_makes LEFT JOIN first
-            try:
-                pass  # auto-fix empty try body
-            except Exception as e:
-                pass  # auto-fix missing except
-                # Determine date filter for trending prints
-                date_filter = ""
-                if sort == "prints_7d":
-                    if dialect == "postgresql":
-                        date_filter = "WHERE m.created_at >= NOW() - INTERVAL '7 days'"
-                    else:  # SQLite
-                        date_filter = "WHERE m.created_at >= datetime('now', '-7 days')"
-                elif sort == "prints_30d":
-                    if dialect == "postgresql":
-                        date_filter = "WHERE m.created_at >= NOW() - INTERVAL '30 days'"
-                    else:  # SQLite
-                        date_filter = "WHERE m.created_at >= datetime('now', '-30 days')"
-                
-                sql_with_publish = f"""
-                    SELECT i.id, i.title, i.price, i.tags,
-                           COALESCE(i.cover_url, '') AS cover,
-                           COALESCE(i.gallery_urls, '[]') AS gallery_urls,
-                           COALESCE(i.rating, 0) AS rating,
-                           COALESCE(i.downloads, 0) AS downloads,
-                           {url_expr.replace('stl_main_url', 'i.stl_main_url')} AS url,
-                           i.format, i.user_id, i.created_at,
-                           i.is_published, i.published_at,
-                           COALESCE(pm.prints_count, 0) AS prints_count,
-                           i.proof_score,
-                           i.slice_hints_json,
-                           u.name AS author_name
-                    FROM {ITEMS_TBL} i
-                    LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                    LEFT JOIN (
-                        SELECT item_id, COUNT(*) AS prints_count
-                        FROM item_makes m
-                        {date_filter}
-                        GROUP BY item_id
-                    ) pm ON pm.item_id = i.id
-                    {where_sql}
-                    {order_sql}
-                    LIMIT :limit OFFSET :offset
-                """
-                # Execute main SELECT (saved_only already returned above)
-                try:
-                    pass  # auto-fix empty try body
-                except Exception as e:
-                    pass  # auto-fix missing except
-                    rows = db.session.execute(
-                        text(sql_with_publish),
-                        {**params, "limit": per_page, "offset": offset},
-                    ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
-                    # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
-                    db.session.rollback()
-                    rows = []
-            except Exception as e:
-                db.session.rollback()
-                current_app.logger.warning(
-                    f"[api_items] ⚠️ Trending prints date filter failed: {e} | "
-                    f"Falling back to query without date filter"
-                )
-                
-                # Fallback: query without date filter
-                sql_with_publish = f"""
-                    SELECT i.id, i.title, i.price, i.tags,
-                           COALESCE(i.cover_url, '') AS cover,
-                           COALESCE(i.gallery_urls, '[]') AS gallery_urls,
-                           COALESCE(i.rating, 0) AS rating,
-                           COALESCE(i.downloads, 0) AS downloads,
-                           {url_expr.replace('stl_main_url', 'i.stl_main_url')} AS url,
-                           i.format, i.user_id, i.created_at,
-                           i.is_published, i.published_at,
-                           COALESCE(pm.prints_count, 0) AS prints_count,
-                           i.proof_score,
-                           i.slice_hints_json,
-                           u.name AS author_name
-                    FROM {ITEMS_TBL} i
-                    LEFT JOIN {USERS_TBL} u ON u.id = i.user_id
-                    LEFT JOIN (
-                        SELECT item_id, COUNT(*) AS prints_count
-                        FROM item_makes m
-                        GROUP BY item_id
-                    ) pm ON pm.item_id = i.id
-                    {where_sql}
-                    {order_sql}
-                    LIMIT :limit OFFSET :offset
-                """
-                rows = db.session.execute(
-                    text(sql_with_publish),
-                    {**params, "limit": per_page, "offset": offset},
-                ).fetchall()
-            
-            # Build items with is_favorite
-            items = []
-            for r in rows:
-                item = _row_to_dict(r)
-                # ✅ All items in saved_only are favorites by definition
-                item['is_favorite'] = True
-                item['is_fav'] = 1  # Legacy compatibility (integer for frontend)
-                item['has_slice_hints'] = False  # Simplified for saved_only
-                items.append(item)
-            
-            # COUNT query for saved items
-            count_sql_saved = f"""
-                SELECT COUNT(*) 
-                FROM {ITEMS_TBL} i
-                {where_sql_saved}
-            """
-            count_stmt_saved = text(count_sql_saved).bindparams(bindparam("fav_ids", expanding=True))
-            total = db.session.execute(count_stmt_saved, params_saved).scalar() or 0
-            
-            # Serialize and return (NO fallback possible)
-            items = [_item_to_dict(it) for it in items]
-            
-            current_app.logger.warning("[api_items] 🔥 SAVED_ONLY return: items=%d total=%d", len(items), total)
-            return jsonify({
-                "ok": True,
-                "items": items,
-                "page": page,
-                "per_page": per_page,
-                "pages": math.ceil(total / per_page) if per_page else 1,
-                "total": total,
-            })
-        
-        # Author filter: resolve username -> user_id
-        author_param = request.args.get("author", "").strip()
-        author_user_id = None
-        
-        if author_param:
-            # Validate username with allowlist regex
-            import re
-            if re.match(r'^[A-Za-z0-9_-]{1,50}$', author_param):
-                # Lookup user_id by username
-                user_row = db.session.execute(
-                    text(f"SELECT id FROM {USERS_TBL} WHERE name = :name LIMIT 1"),
-                    {"name": author_param}
-                ).fetchone()
-                
-                if user_row:
-                    author_user_id = user_row.id
-                else:
-                    # Author not found - return empty result (don't crash)
-                    return jsonify({
-                        "ok": True,
-                        "items": [],
-                        "page": page,
-                        "per_page": per_page,
-                        "pages": 0,
-                        "total": 0
-                    })
-            else:
-                # Invalid username format - return empty result
-                return jsonify({
-                    "ok": True,
-                    "items": [],
-                    "page": page,
-                    "per_page": per_page,
-                    "pages": 0,
-                    "total": 0
-                })
-        
-        # Legacy author_id param (for backwards compatibility)
-        author_id = _parse_int(request.args.get("author_id"), 0)
-        if author_id > 0 and not author_user_id:
-            author_user_id = author_id
-        
-        # Proof Score / Slice Hints filters
-        auto_presets = request.args.get("auto_presets") == "1"
-        min_proof_score = _parse_int(request.args.get("min_proof_score"), 0)
-
-        dialect = db.session.get_bind().dialect.name
-        if dialect == "postgresql":
-            title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
-            tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
-            url_expr = "stl_main_url"
-        else:
-            title_expr = "LOWER(COALESCE(title, ''))"
-            tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
-            url_expr = "stl_main_url"
-
-        where, params = [], {}
-        
-        # ❤️ Always add current_user_id to params (для можливих SQL що його використовують)
-        # 🔍 DEBUG: Log current_user state
-        current_app.logger.info(
-            f"[api_items] 🔍 is_authenticated={is_authenticated}, "
-            f"current_user_id={current_user_id}, saved_only={saved_only}"
-        )
-        params["current_user_id"] = int(current_user_id or 0)
-        
-        if q:
-            where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
-            params["q"] = f"%{q}%"
-        if free == "free":
-            where.append("i.price = 0")
-        elif free == "paid":
-            where.append("i.price > 0")
+    if q:
+        where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
+        params["q"] = f"%{q}%"
+    if free == "free":
+        where.append("i.price = 0")
+    elif free == "paid":
+        where.append("i.price > 0")
         
         # Author filter
         if author_user_id is not None:
