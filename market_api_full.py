@@ -1,3 +1,37 @@
+# === LEGACY COMPAT: GET /api/my/items ===
+@bp.get("/my/items")
+def api_my_items():
+    from flask import session, jsonify, request
+    from models_market import MarketItem
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify(ok=False, error="auth_required"), 401
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 24))
+    q = MarketItem.query.filter_by(user_id=uid)
+    total = q.count()
+    pages = (total + per_page - 1) // per_page
+    items = q.order_by(MarketItem.id.desc()).offset((page-1)*per_page).limit(per_page).all()
+    def serialize_item(it):
+        return {
+            "id": it.id,
+            "title": getattr(it, "title", None),
+            "price": getattr(it, "price", None),
+            "cover_url": getattr(it, "cover_url", None),
+        }
+    return jsonify(ok=True, items=[serialize_item(it) for it in items], page=page, pages=pages, total=total)
+
+# === SERVE MEDIA FILES: /api/market/media/<id>/<filename> ===
+@bp.get("/media/<int:item_id>/<path:filename>")
+def api_market_media(item_id, filename):
+    import os
+    from flask import current_app, send_from_directory, abort
+    root = current_app.config.get("UPLOADS_ROOT") or "/data/market_uploads"
+    item_dir = os.path.join(root, str(item_id))
+    file_path = os.path.join(item_dir, filename)
+    if not os.path.isfile(file_path):
+        abort(404)
+    return send_from_directory(item_dir, filename)
 from flask import Blueprint
 
 bp = Blueprint("market_api", __name__)
