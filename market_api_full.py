@@ -73,6 +73,21 @@ def api_market_items_draft():
     if not uid:
         return jsonify({"error": "auth"}), 401
 
+    # Try to find existing draft in session
+    draft_id = session.get("upload_draft_id")
+    it = None
+    if draft_id:
+        try:
+            draft_id = int(draft_id)
+            it = MarketItem.query.get(draft_id)
+        except Exception:
+            it = None
+    if it:
+        session["upload_draft_id"] = int(it.id)
+        session.modified = True
+        return jsonify({"draft": {"id": it.id}}), 200
+
+    # Create new draft
     item = MarketItem(
         user_id=uid,
         title=""
@@ -89,6 +104,8 @@ def api_market_items_draft():
 
     db.session.add(item)
     db.session.commit()
+    session["upload_draft_id"] = int(item.id)
+    session.modified = True
 
     current_app.logger.info(f"[UPLOAD] Draft created: {item.id}")
 

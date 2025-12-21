@@ -1,3 +1,6 @@
+
+from flask import session, request, redirect
+
 # ads.py
 # Банер TOP-1, завантаження банера та кілька адмін-ендпоінтів.
 
@@ -63,7 +66,7 @@ def admin_required(f):
     def _wrap(*args, **kwargs):
         if not session.get("is_admin"):
             flash("Доступ лише для адміністратора.")
-            return redirect(url_for("index"))
+            return redirect(url_for("core.index"))
         return f(*args, **kwargs)
 
     return _wrap
@@ -108,26 +111,34 @@ def ad_click():
     b = get_active_banner()
     if b.get("link_url"):
         return redirect(b["link_url"])
-    return redirect(url_for("index"))
+    return redirect(url_for("core.index"))
 
 
 @bp.route("/ad/upload", methods=["GET", "POST"])
 def ad_upload():
-    if not session.get("user_id"):
-        return redirect(url_for("auth.login"))
 
-    me = User.query.get(session["user_id"])
+    # ✅ session-based auth compatibility (works with your current site auth)
+    uid = session.get("user_id")
+    if not uid:
+        nxt = (request.full_path or request.path or "/").rstrip("?")
+        return redirect(f"/login?next={nxt}")
+
+    user = User.query.get(uid)
+    if not user:
+        nxt = (request.full_path or request.path or "/").rstrip("?")
+        return redirect(f"/login?next={nxt}")
+
     top1 = get_top1_user_this_month()
-    if not top1 or top1.id != me.id:
+    if not top1 or top1.id != user.id:
         flash("Завантажувати банер може лише користувач із TOP-1 цього місяця.")
-        return redirect(url_for("index"))
+        return redirect(url_for("core.index"))
 
     if request.method == "POST":
         f = request.files.get("image")
         link_url = request.form.get("link_url") or ""
         if not f or not allowed_file(f.filename):
             flash("Завантаж зображення .png/.jpg/.jpeg/.webp")
-            return redirect(url_for("ad_upload"))
+            return redirect(url_for("ads.ad_upload"))
 
         from werkzeug.utils import secure_filename
 
@@ -137,10 +148,10 @@ def ad_upload():
         os.makedirs(os.path.dirname(save_abs), exist_ok=True)
         f.save(save_abs)
 
-        BannerAd.query.filter_by(user_id=me.id, active=True).update({"active": False})
+        BannerAd.query.filter_by(user_id=user.id, active=True).update({"active": False})
         db.session.add(
             BannerAd(
-                user_id=me.id,
+                user_id=user.id,
                 image_path=save_rel,
                 link_url=link_url,
                 active=True,
@@ -148,7 +159,7 @@ def ad_upload():
         )
         db.session.commit()
         flash("Банер оновлено! Він уже на головній.")
-        return redirect(url_for("index"))
+        return redirect(url_for("core.index"))
 
     return render_template("ad_upload_inline.html")
 

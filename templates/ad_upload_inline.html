@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container" style="max-width:720px; margin:24px auto;">
+  <h1>Upload banner</h1>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div style="margin:12px 0; padding:12px; border:1px solid #ddd; border-radius:10px;">
+        {% for m in messages %}<div>{{ m }}</div>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post" enctype="multipart/form-data" style="display:grid; gap:12px;">
+    <label>
+      Banner image (.png/.jpg/.jpeg/.webp)
+      <input type="file" name="image" accept=".png,.jpg,.jpeg,.webp" required>
+    </label>
+
+    <label>
+      Link URL (optional)
+      <input type="url" name="link_url" placeholder="https://..." style="width:100%;">
+    </label>
+
+    <button type="submit">Save banner</button>
+  </form>
+
+  <hr style="margin:20px 0;">
+  <a href="/market/my-ads">My ads</a>
+</div>
+{% endblock %}
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Banner upload</title>
+</head>
+<body>
+  <main style="max-width:720px;margin:24px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+    <h1>Banner upload</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="margin:12px 0;">
+          {% for category, message in messages %}
+            <div style="padding:10px 12px;border:1px solid #ddd;border-radius:10px;margin:8px 0;">
+              <strong>{{ category }}</strong>: {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" enctype="multipart/form-data" style="display:grid;gap:12px;margin-top:12px;">
+      <label style="display:grid;gap:6px;">
+        <span>Banner image</span>
+        <input type="file" name="image" accept="image/*" required>
+      </label>
+
+      <label style="display:grid;gap:6px;">
+        <span>Link URL (optional)</span>
+        <input type="url" name="link_url" placeholder="https://proofly.store/market">
+      </label>
+
+      <button type="submit" style="padding:10px 14px;border-radius:10px;border:1px solid #111;background:#111;color:#fff;">
+        Upload
+      </button>
+    </form>
+  </main>
+</body>
+</html>
