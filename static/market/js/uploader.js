@@ -1,4 +1,10 @@
 // Cleaned: No open_upload or modal logic remains
+// If on /market/upload, do nothing (do not open modal, do not redirect)
+if (window.location.pathname.startsWith("/market/upload")) {
+  // Dedicated upload page, do not auto-open modal or redirect
+} else {
+  // ...existing (now removed) open_upload/modal logic would go here if needed for /market
+}
 import './upload_manager.js';
 // static/market/js/uploader.js
 // =====================================================
@@ -7,6 +13,8 @@ import './upload_manager.js';
 import { uploadModel } from "./api.js";
 
 document.addEventListener("DOMContentLoaded", () => {
+  // If on /market/upload, do nothing (skip modal/init logic)
+  if (window.location.pathname.startsWith('/market/upload')) return;
   const form = document.getElementById("upload-form");
   if (!form) return;
 

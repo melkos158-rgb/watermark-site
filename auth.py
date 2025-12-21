@@ -84,7 +84,7 @@ def login():
 @bp.post("/login")
 def login_post():
     email = (request.form.get("email") or "").strip().lower()
-    next_url = request.args.get("next") or request.form.get("next")
+    next_url = request.args.get('next') or url_for('market.page_market')
 
     u = User.query.filter_by(email=email).first()
     if not u:
@@ -93,7 +93,7 @@ def login_post():
 
     session["user_id"] = u.id
     flash("Увійшли.", "success")
-    return redirect(_safe_next(next_url))
+    return redirect(next_url)
 
 @bp.route("/logout", methods=["GET", "POST"])
 def logout():

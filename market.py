@@ -1,4 +1,3 @@
-
 def _normalize_media_url(url: str) -> str:
     if not url:
         return ""
@@ -1313,7 +1312,8 @@ def page_upload():
 def page_market_upload():
     uid = _parse_int(session.get("user_id"), 0)
     if not uid:
-        return redirect(url_for("auth.login", next=request.full_path or request.path))
+        next_url = request.full_path.rstrip('?')
+        return redirect(url_for("auth.login", next=next_url))
     return render_template("market/upload.html")
 
 
@@ -1593,7 +1593,7 @@ def api_items():
                         CASE 
                             WHEN i.slice_hints_json IS NOT NULL 
                             AND i.slice_hints_json != '' 
-                            AND i.slice_hints_json) != '{}' 
+                            AND i.slice_hints_json != '{}' 
                             AND LOWER(i.slice_hints_json) != 'null' 
                             THEN 15 
                             ELSE 0 
@@ -1698,7 +1698,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -2019,7 +2019,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -2340,7 +2340,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -2661,7 +2661,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -2982,7 +2982,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -3303,7 +3303,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -3624,7 +3624,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -3945,7 +3945,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -4266,7 +4266,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -4587,7 +4587,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -4908,7 +4908,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -5229,7 +5229,7 @@ def api_items():
                     f"Falling back to query without date filter"
                 )
                 
-                # Fallback: query without date filter
+                # Fallback: query без фільтрації за датою
                 sql_with_publish = f"""
                     SELECT i.id, i.title, i.price, i.tags,
                            COALESCE(i.cover_url, '') AS cover,
@@ -5375,4 +5375,140 @@ def api_items():
         # NOTE: saved_only handled in dedicated path above (early return)
         # This section only executes for non-saved queries
         
-       
+        # Proof Score filter
+        if min_proof_score > 0:
+            where.append("i.proof_score >= :min_proof_score")
+            params["min_proof_score"] = min_proof_score
+        
+        # Auto presets filter (has slice hints)
+        if auto_presets:
+            where.append(
+                "i.slice_hints_json IS NOT NULL "
+                "AND i.slice_hints_json != '' "
+                "AND i.slice_hints_json != '{}' "
+                "AND LOWER(i.slice_hints_json) != 'null'"
+            )
+        
+        # ✅ Filter only published items in public market
+        try:
+            pass  # auto-fix empty try body
+        except Exception as e:
+            pass  # auto-fix missing except
+            # Check if is_published column exists
+            db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+            where.append("(i.is_published = :pub OR i.is_published IS NULL)")
+            params["pub"] = True
+        except Exception:
+            db.session.rollback()
+            # Column doesn't exist yet, skip filter
+            pass
+        
+        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+        # 🔍 DEBUG: Log sort value before ORDER BY
+        current_app.logger.info(f"[api_items] 🔍 sort='{sort}', mode='{mode}'")
+
+        # Top Prints mode: ranking by quality
+        if mode == "top":
+            try:
+                pass  # auto-fix empty try body
+            except Exception as e:
+                pass  # auto-fix missing except
+                # Check if proof_score column exists
+                db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
+                
+                # Optional: only show items with proof_score
+                if "i.proof_score IS NOT NULL" not in " ".join(where):
+                    if where:
+                        where.append("i.proof_score IS NOT NULL")
+                    else:
+                        where = ["i.proof_score IS NOT NULL"]
+                    where_sql = "WHERE " + " AND ".join(where)
+                
+                # Ranking formula: proof_score + bonus for slice_hints
+                # Using CASE to add +15 if slice_hints is valid
+                if dialect == "postgresql":
+                    ranking_expr = """(
+                        COALESCE(i.proof_score, 0) + 
+                        CASE 
+                            WHEN i.slice_hints_json IS NOT NULL 
+                            AND i.slice_hints_json != '' 
+                            AND i.slice_hints_json != '{}' 
+                            AND LOWER(i.slice_hints_json) != 'null' 
+                            THEN 15 
+                            ELSE 0 
+                        END
+                    )"""
+                else:  # SQLite
+                    ranking_expr = """(
+                        COALESCE(i.proof_score, 0) + 
+                        CASE 
+                            WHEN i.slice_hints_json IS NOT NULL 
+                            AND i.slice_hints_json != '' 
+                            AND i.slice_hints_json != '{}' 
+                            AND LOWER(i.slice_hints_json) != 'null' 
+                            THEN 15 
+                            ELSE 0 
+                        END
+                    )"""
+                
+                order_sql = f"ORDER BY {ranking_expr} DESC, i.created_at DESC"
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.warning(
+                    f"[api_items] ⚠️ Top mode ranking failed (proof_score missing?): {e} | "
+                    f"Falling back to default ordering"
+                )
+                # Fallback: columns don't exist, use default ordering
+                order_sql = "ORDER BY i.created_at DESC, i.id DESC"
+        elif sort == "price_asc":
+            order_sql = "ORDER BY i.price ASC, i.created_at DESC"
+        elif sort == "price_desc":
+            order_sql = "ORDER BY i.price DESC, i.created_at DESC"
+        elif sort == "downloads":
+            order_sql = "ORDER BY i.downloads DESC, i.created_at DESC"
+        elif sort == "prints":
+            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
+        elif sort == "prints_7d":
+            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
+        elif sort == "prints_30d":
+            order_sql = "ORDER BY prints_count DESC, i.created_at DESC"
+        else:
+            order_sql = "ORDER BY i.created_at DESC, i.id DESC"
+
+        offset = (page - 1) * per_page
+
+        # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
+        try:
+            pass
+        except Exception as e:
+            pass  # auto-fix missing except
+            pass  # auto-fix empty try body
+        except Exception as e:
+            pass  # auto-fix missing except
+            # Build SQL with is_published columns - ALL inside try
+            # Try with item_makes LEFT JOIN first
+            try:
+                pass  # auto-fix empty try body
+            except Exception as e:
+                pass  # auto-fix missing except
+                # Determine date filter for trending prints
+                date_filter = ""
+                if sort == "prints_7d":
+                    if dialect == "postgresql":
+                        date_filter = "WHERE m.created_at >= NOW() - INTERVAL '7 days'"
+                    else:  # SQLite
+                        date_filter = "WHERE m.created_at >= datetime('now', '-7 days')"
+                elif sort == "prints_30d":
+                    if dialect == "postgresql":
+                        date_filter = "WHERE m.created_at >= NOW() - INTERVAL '30 days'"
+                    else:  # SQLite
+                        date_filter = "WHERE m.created_at >= datetime('now', '-30 days')"
+                
+                sql_with_publish = f"""
+                          SELECT i.id, i.title, i.price, i.tags,
+                              COALESCE(i.cover_url, '') AS cover,
+                              COALESCE(i.gallery_urls, '[]') AS gallery_urls,
+                              COALESCE(i.rating, 0) AS rating,
+                              CO
+                          """

@@ -1,3 +1,6 @@
+from flask import Blueprint
+bp = Blueprint("market_api", __name__)
+
 # === LEGACY COMPAT: GET /api/my/items ===
 @bp.get("/my/items")
 def api_my_items():
@@ -7,6 +10,10 @@ def api_my_items():
     if not uid:
         return jsonify(ok=False, error="auth_required"), 401
     page = int(request.args.get("page", 1))
+    from flask import Blueprint
+    bp = Blueprint("market_api", __name__)
+
+    # === LEGACY COMPAT: GET /api/my/items ===
     per_page = int(request.args.get("per_page", 24))
     q = MarketItem.query.filter_by(user_id=uid)
     total = q.count()
@@ -32,9 +39,6 @@ def api_market_media(item_id, filename):
     if not os.path.isfile(file_path):
         abort(404)
     return send_from_directory(item_dir, filename)
-from flask import Blueprint
-
-bp = Blueprint("market_api", __name__)
 
 # === DIAGNOSTIC PING ENDPOINT ===
 @bp.get("/ping")
@@ -225,3 +229,22 @@ def debug_item_files_disk(item_id: int):
     })
 
 # ...rest of the code from the MAX POWER API section...
+
+# === USER-OWNED ITEMS: GET /api/market/my/items ===
+@bp.get("/my/items")
+def api_market_my_items():
+    from flask import jsonify, session
+    from models_market import MarketItem
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    items = MarketItem.query.filter_by(user_id=uid).order_by(MarketItem.id.desc()).limit(50).all()
+    out = []
+    for it in items:
+        out.append({
+            "id": it.id,
+            "title": getattr(it, "title", None) or getattr(it, "name", None) or f"Item {it.id}",
+            "price": getattr(it, "price", 0) or 0,
+            "cover_url": getattr(it, "cover_url", "") or ""
+        })
+    return jsonify({"ok": True, "items": out}), 200
