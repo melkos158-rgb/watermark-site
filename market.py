@@ -1262,7 +1262,7 @@ def page_upload():
 
 @bp.get("/market/upload")
 def page_market_upload():
-    return redirect(url_for("market.page_market", open_upload=1))
+    return render_template("market/index.html", open_upload=1)
 
 
 @bp.get("/edit/<int:item_id>")
