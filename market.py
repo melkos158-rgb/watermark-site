@@ -1334,82 +1334,65 @@ def api_market_favorite_compat():
     """
     ✅ COMPAT: Toggle favorite status for market item
     Called by: market_listeners.js → POST /api/market/favorite
-    
+
     Request JSON: { "item_id": 123, "on": true/false }
     Response: { "ok": true, "on": true/false }
-    
-    This endpoint ensures market_listeners.js always has a working route
-    even if market_api.py blueprint fails to register.
     """
-    # Get user ID from session
     uid = _get_uid()
     if not uid:
         current_app.logger.warning("[api_market_favorite] Unauthorized request")
         return jsonify(ok=False, error="auth_required"), 401
-    
-    # Parse request data
+
     data = request.get_json(silent=True) or {}
-    
+
+    # item_id
     try:
-        pass  # auto-fix empty try body
-    except Exception as e:
-        pass  # auto-fix missing except
         item_id = int(data.get("item_id") or 0)
     except (ValueError, TypeError):
         current_app.logger.warning(f"[api_market_favorite] Invalid item_id: {data.get('item_id')}")
         return jsonify(ok=False, error="invalid_item_id"), 400
-    
+
     if item_id <= 0:
         return jsonify(ok=False, error="missing_item_id"), 400
-    
-    # Get 'on' parameter (default: true for toggle behavior)
-    on = data.get("on")
-    
-    current_app.logger.info(
-        f"[api_market_favorite] uid={uid} item_id={item_id} on={on}"
-    )
-    
+
+    # on: true/false/None (None => toggle)
+    on = data.get("on", None)
+
+    current_app.logger.info(f"[api_market_favorite] uid={uid} item_id={item_id} on={on}")
+
+    # imports here to avoid circulars
+    from datetime import datetime
+    from models import MarketFavorite
     try:
-        pass
-    except Exception as e:
-        pass  # auto-fix missing except
-        pass  # auto-fix empty try body
-    except Exception as e:
-        pass  # auto-fix missing except
-        # Check if favorite exists
         fav = MarketFavorite.query.filter_by(user_id=uid, item_id=item_id).first()
-        
+
         if on is True:
-            # Ensure favorite exists
             if not fav:
                 db.session.add(MarketFavorite(user_id=uid, item_id=item_id, created_at=datetime.utcnow()))
                 db.session.commit()
-                current_app.logger.info(f"[api_market_favorite] ✅ Added favorite: uid={uid} item={item_id}")
-            return jsonify(ok=True, on=True)
-        
-        elif on is False:
-            # Ensure favorite doesn't exist
+            return jsonify(ok=True, on=True), 200
+
+        if on is False:
             if fav:
                 db.session.delete(fav)
                 db.session.commit()
-                current_app.logger.info(f"[api_market_favorite] ❌ Removed favorite: uid={uid} item={item_id}")
-            return jsonify(ok=True, on=False)
-        
+            return jsonify(ok=True, on=False), 200
+
+        # toggle when on is None/undefined
+        if fav:
+            db.session.delete(fav)
+            db.session.commit()
+            return jsonify(ok=True, on=False), 200
         else:
-            # Toggle behavior (on=null/undefined)
-            if fav:
-                db.session.delete(fav)
-                db.session.commit()
-                current_app.logger.info(f"[api_market_favorite] 🔄 Toggled OFF: uid={uid} item={item_id}")
-                return jsonify(ok=True, on=False)
-            else:
-                db.session.add(MarketFavorite(user_id=uid, item_id=item_id, created_at=datetime.utcnow()))
-                db.session.commit()
-                current_app.logger.info(f"[api_market_favorite] 🔄 Toggled ON: uid={uid} item={item_id}")
-                return jsonify(ok=True, on=True)
-    
+            db.session.add(MarketFavorite(user_id=uid, item_id=item_id, created_at=datetime.utcnow()))
+            db.session.commit()
+            return jsonify(ok=True, on=True), 200
+
     except Exception as e:
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         current_app.logger.exception(f"[api_market_favorite] Error: {e}")
         return jsonify(ok=False, error="database_error"), 500
 
