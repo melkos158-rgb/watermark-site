@@ -1419,54 +1419,53 @@ def debug_favorites_schema():
 
 @bp.get("/api/items")
 def api_items():
-
-    # --- args / user context ---
-    raw_q = request.args.get("q") or ""
-    q = raw_q.strip().lower()
-
-    saved_only = (request.args.get("saved") in ("1", "true", "True", "yes", "on"))
-    author_user_id = None
+    from models import MarketItem
+    from sqlalchemy import desc
     try:
-        author_user_id = int(request.args.get("author")) if request.args.get("author") else None
-    except Exception:
-        author_user_id = None
+        page = max(1, int(request.args.get("page", 1) or 1))
+        per_page = min(48, max(1, int(request.args.get("per_page", 24) or 24)))
+        sort = (request.args.get("sort") or "new").lower()
+        q = (request.args.get("q") or "").strip()
 
-    # ці хелпери в тебе вже десь є, бо ти їх використовуєш нижче
-    free = _normalize_free(request.args.get("free"))
-    sort = _normalize_sort(request.args.get("sort"))
+        query = MarketItem.query
 
-    is_authenticated = bool(getattr(current_user, "is_authenticated", False))
-    current_user_id = getattr(current_user, "id", None) if is_authenticated else None
+        # базовий пошук (мінімально безпечно)
+        if q:
+            # якщо в моделі є title/tags — буде працювати; якщо ні — просто ігноруємо
+            if hasattr(MarketItem, "title"):
+                query = query.filter(MarketItem.title.ilike(f"%{q}%"))
+            elif hasattr(MarketItem, "name"):
+                query = query.filter(MarketItem.name.ilike(f"%{q}%"))
 
-    dialect = db.session.get_bind().dialect.name
-    if dialect == "postgresql":
-        title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
-        tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-        cover_expr = "COALESCE(cover_url, '')"
-        url_expr = "stl_main_url"
-    else:
-        title_expr = "LOWER(COALESCE(title, ''))"
-        tags_expr = "LOWER(COALESCE(tags,  ''))"
-        cover_expr = "COALESCE(cover_url, '')"
-        url_expr = "stl_main_url"
+        # сортування
+        if sort in ("new", "latest"):
+            if hasattr(MarketItem, "created_at"):
+                query = query.order_by(desc(MarketItem.created_at))
+            else:
+                query = query.order_by(desc(MarketItem.id))
+        else:
+            query = query.order_by(desc(MarketItem.id))
 
-    where, params = [], {}
+        total = query.count()
+        items = query.offset((page - 1) * per_page).limit(per_page).all()
 
-    # ❤️ Always add current_user_id to params (для можливих SQL що його використовують)
-    # 🔍 DEBUG: Log current_user state
-    current_app.logger.info(
-        f"[api_items] 🔍 is_authenticated={is_authenticated}, "
-        f"current_user_id={current_user_id}, saved_only={saved_only}"
-    )
-    params["current_user_id"] = int(current_user_id or 0)
+        # серіалізація: віддаємо мінімум полів, які точно не впадуть
+        out = []
+        for it in items:
+            out.append({
+                "id": it.id,
+                "title": getattr(it, "title", None) or getattr(it, "name", None) or f"Item {it.id}",
+                "price": getattr(it, "price", 0) or 0,
+                "cover_url": getattr(it, "cover_url", "") or "",
+            })
 
-    if q:
-        where.append(f"({title_expr} LIKE :q OR {tags_expr} LIKE :q)")
-        params["q"] = f"%{q}%"
-    if free == "free":
-        where.append("i.price = 0")
-    elif free == "paid":
-        where.append("i.price > 0")
+        pages = (total + per_page - 1) // per_page if per_page else 1
+        return jsonify({"ok": True, "items": out, "page": page, "pages": pages, "total": total}), 200
+
+    except Exception as e:
+        current_app.logger.exception("[api_items] failed")
+        # ⚠️ навіть при помилці ми ПОВЕРТАЄМО jsonify → 500 буде з читабельним текстом
+        return jsonify({"ok": False, "error": str(e)}), 500
         
         # Author filter
         if author_user_id is not None:
