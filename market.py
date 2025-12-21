@@ -1,9 +1,3 @@
-# === MEDIA COVER ENDPOINT ===
-@bp.get("/api/market/media/<int:item_id>/<path:filename>")
-def api_market_media(item_id, filename):
-    root = current_app.config.get("UPLOADS_ROOT") or os.path.join(current_app.root_path, "static", "market_uploads")
-    item_dir = os.path.join(root, str(item_id))
-    return send_from_directory(item_dir, filename)
 
 # === MY ITEMS ENDPOINT ===
 @bp.get("/api/my/items")
@@ -84,7 +78,15 @@ from typing import Any, Dict, Optional, List
 def _fetch_item_with_author(query):
     return query
 
+# Blueprint definition
 bp = Blueprint("market", __name__)
+
+# === MEDIA COVER ENDPOINT ===
+@bp.get("/api/market/media/<int:item_id>/<path:filename>")
+def api_market_media(item_id, filename):
+    root = current_app.config.get("UPLOADS_ROOT") or os.path.join(current_app.root_path, "static", "market_uploads")
+    item_dir = os.path.join(root, str(item_id))
+    return send_from_directory(item_dir, filename)
 # Always define MarketCategory (even if import fails)
 try:
     from models_market import MarketCategory
