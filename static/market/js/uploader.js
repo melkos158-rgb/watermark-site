@@ -1,10 +1,4 @@
-// Canonical: redirect to /market/upload if open_upload=1
-(function () {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("open_upload") === "1") {
-    window.location.replace("/market/upload");
-  }
-})();
+// Cleaned: No open_upload or modal logic remains
 import './upload_manager.js';
 // static/market/js/uploader.js
 // =====================================================

@@ -62,22 +62,18 @@
 <script>
 (function(){
   const modal = document.getElementById('upload-modal');
-  const openBtn = document.getElementById('btn-upload');
   const priceRow = document.getElementById('price_row');
   const isFree = document.getElementById('is_free');
   const aiTags = document.getElementById('ai-tags');
   const fileInput = document.querySelector('#fileDrop input[type="file"]');
 
 
-  function open(){ modal.hidden = false; document.body.style.overflow = 'hidden'; }
+  // Only manual close logic remains
   function close(){ modal.hidden = true; document.body.style.overflow = ''; }
-
-
 
   document.addEventListener('click', (e)=>{
     if (e.target.matches('[data-close]') || e.target.classList.contains('modal')) close();
   });
-  if (openBtn){ openBtn.addEventListener('click', (e)=>{ e.preventDefault(); open(); }); }
 
   if (isFree){
     const sync = ()=>{ priceRow.hidden = isFree.checked; };
