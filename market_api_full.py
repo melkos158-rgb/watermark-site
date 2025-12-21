@@ -1,4 +1,23 @@
 
+# === DIAGNOSTIC PING ENDPOINT ===
+@bp.get("/ping")
+def ping():
+    from flask import current_app
+    ep = None
+    methods = None
+    for r in current_app.url_map.iter_rules():
+        if r.rule == "/market/upload":
+            ep = r.endpoint
+            methods = sorted(list(r.methods))
+            break
+
+    return jsonify(
+        ok=True,
+        route="/api/market/ping",
+        market_upload_endpoint=ep,
+        market_upload_methods=methods,
+    )
+
 from flask import Blueprint, request, jsonify, current_app, url_for, abort, session
 from models_market import db, MarketItem, MarketFavorite, Favorite, Review, recompute_item_rating
 
