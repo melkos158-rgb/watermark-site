@@ -1092,11 +1092,24 @@ def page_market_following():
 
 @bp.get("/item/<int:item_id>")
 def page_item(item_id: int):
+    reviews = []
     it = _fetch_item_with_author(item_id)
     if not it:
         return render_template("item.html", item=None), 404
 
-    d = dict(it)
+    # it can be model, Row, mapping, or (bug) an int id
+    if isinstance(it, int):
+        # fallback: treat it as item_id and fetch item object
+        it = MarketItem.query.get_or_404(it)
+
+    # SQLAlchemy Row -> mapping
+    if hasattr(it, "_mapping"):
+        d = dict(it._mapping)
+    elif isinstance(it, dict):
+        d = it
+    else:
+        # SQLAlchemy model -> dict via columns
+        d = {c.name: getattr(it, c.name, None) for c in it.__table__.columns}
     d["owner"] = {
         "name": d.get("author_name") or "-",
         "avatar_url": d.get("author_avatar") or "/static/img/user.jpg",
@@ -1217,9 +1230,11 @@ def page_item(item_id: int):
     stl_urls = [u for u in stl_urls if u and not (u in seen or seen.add(u))][:5]
     
     # ✅ Prepare gallery URLs for thumbnails
-    gallery_urls = d.get("gallery_urls") or d.get("photos") or []
+    gallery_urls = d.get("gallery_urls") or d.get("photos")
     if not isinstance(gallery_urls, list):
         gallery_urls = _safe_json_list(gallery_urls)
+    # guard: DB може повернути NULL/None
+    gallery_urls = gallery_urls or []
     gallery_urls = [u for u in gallery_urls if u and str(u).strip()][:10]
 
     # ✅ DEBUG: Log what we're passing to template
