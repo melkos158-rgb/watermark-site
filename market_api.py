@@ -8,9 +8,39 @@ bp = Blueprint("market_api", __name__)
 def api_market_ping():
     return jsonify({"ok": True})
 
+
+from flask import jsonify, session
+
 @bp.post("/items/draft")
-def api_market_items_draft_proxy():
-    return jsonify({"error": "full_api_not_loaded"}), 503
+def api_market_items_draft():
+    """
+    Creates or returns a draft MarketItem.
+    MUST return { "draft": { "id": <int> } }
+    """
+    from db import db
+    from models import MarketItem
+    from flask_login import current_user
+
+    # 1. if already in session
+    draft_id = session.get("upload_draft_id")
+    if draft_id:
+        it = MarketItem.query.get(draft_id)
+        if it:
+            return jsonify({"draft": {"id": it.id}}), 200
+
+    # 2. create new draft
+    it = MarketItem()
+    if hasattr(it, "status"):
+        it.status = "draft"
+
+    if getattr(current_user, "is_authenticated", False):
+        it.user_id = current_user.id
+
+    db.session.add(it)
+    db.session.commit()
+
+    session["upload_draft_id"] = it.id
+    return jsonify({"draft": {"id": it.id}}), 200
 
 @bp.get("/_routes")
 def api_market_routes_debug():
@@ -77,10 +107,6 @@ bp = Blueprint("market_api", __name__)
 def api_market_ping():
     return jsonify({"ok": True})
 
-# === MINIMAL DRAFT ENDPOINT (debug, always 200) ===
-@bp.post("/items/draft")
-def api_market_items_draft_min():
-    return jsonify({"ok": True, "draft": {"id": 0}}), 200
 
 # === ROUTES DEBUG ENDPOINT ===
 @bp.get("/_routes")
