@@ -2,7 +2,14 @@
 from flask import Blueprint, request, jsonify, current_app, url_for, abort, session
 from models_market import db, MarketItem, MarketFavorite, Favorite, Review, recompute_item_rating
 
-bp = Blueprint("market_api", __name__)
+bp = Blueprint("market_api", __name__, url_prefix="/api/market")
+
+# === COMPAT GET /api/market/items ===
+@bp.get("/items")
+def api_market_items_compat():
+    # Import and call the main /api/items handler from market.py
+    from market import api_items
+    return api_items()
 
 # === LEGACY COMPAT ENDPOINT ===
 @bp.post("/upload")

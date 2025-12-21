@@ -3,7 +3,13 @@
     <button class="modal-close" aria-label="Close" data-close>&times;</button>
     <h3>{{ _('Додати модель') }}</h3>
 
-    <form id="upload-form" method="post" enctype="multipart/form-data" action="/api/market/upload">
+        <form id="upload-form"
+          action="#"
+          method="post"
+          enctype="multipart/form-data"
+          novalidate
+          data-upload-endpoint="/api/market/upload"
+          data-draft-endpoint="/api/market/items/draft">
       <label>{{ _('Назва') }}
         <input type="text" name="title" required placeholder="Наприклад: Flexi Dragon">
       </label>

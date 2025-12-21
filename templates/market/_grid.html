@@ -25,7 +25,7 @@
 {# Опційний "ще" — якщо передаси pagination в контекст #}
 {% if pagination is defined and pagination.pages > pagination.page %}
   <div class="grid-more-wrap">
-    <a href="{{ url_for(request.endpoint, **request.view_args, page=pagination.page + 1, **request.args.to_dict(flat=True)) }}"
+    <a href="{{ same_endpoint_url(page=pagination.page + 1) }}"
        class="grid-more-btn">
       Показати ще моделі
     </a>

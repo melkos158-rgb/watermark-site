@@ -40,9 +40,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const uploadEndpoint = form.dataset.uploadEndpoint || "/api/market/upload";
+    const draftEndpoint = form.dataset.draftEndpoint || "/api/market/items/draft";
     const fd = new FormData(form);
 
-    // ── Нормалізація полів під /api/market/upload ───────────────────────────
+    // ── Нормалізація полів під upload ───────────────────────────
     const hasMain = !!(mainFileI?.files?.length);
     const hasOld  = !!(filesI?.files?.length);
     if (!hasMain && hasOld) {
@@ -76,13 +78,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const res = await uploadWithProgress(fd, progress);
-      if (res?.url) {
-        location.href = res.url;
-      } else {
-        alert("✅ Завантажено! Оновлюю сторінку...");
-        location.reload();
-      }
+      // 1) Створити draft
+      const draftRes = await fetch(draftEndpoint, { method: "POST", body: fd, credentials: "same-origin" });
+      const draftJson = await draftRes.json();
+      if (!draftRes.ok) throw new Error(draftJson?.error || "Draft failed");
+
+      // 2) Upload
+      const uploadRes = await fetch(uploadEndpoint, { method: "POST", body: fd, credentials: "same-origin" });
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadJson?.error || "Upload failed");
+
+      // 3) Redirect
+      const itemId = uploadJson?.item_id || uploadJson?.id;
+      if (itemId) window.location.href = `/item/${itemId}`;
+      else window.location.href = "/market";
     } catch (err) {
       console.error(err);
       alert("❌ Помилка під час завантаження.");
