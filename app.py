@@ -449,6 +449,17 @@ def create_app():
             }
         }), 200
 
+
+    # --- COMPAT: /api/my/items for legacy frontend ---
+    @app.get("/api/my/items")
+    def compat_api_my_items():
+        # Import the handler from market_api_full (or market_api)
+        try:
+            from market_api_full import api_market_my_items
+        except ImportError:
+            return {"ok": False, "error": "handler_missing"}, 500
+        return api_market_my_items()
+
     # --- end compat endpoints ---
 
     try:
