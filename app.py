@@ -108,8 +108,8 @@ def create_app():
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
 
-    from market_draft import bp_market_draft
-    app.register_blueprint(bp_market_draft)
+    # from market_draft import bp_market_draft
+    # app.register_blueprint(bp_market_draft)
 
     # === Temporary endpoint to list all real routes (for diagnostics) ===
     @app.get("/__routes")
