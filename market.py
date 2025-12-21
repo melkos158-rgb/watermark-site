@@ -24,43 +24,30 @@ except Exception:
 @bp.route("/api/market/items/draft", methods=["POST"], strict_slashes=False)
 @bp.route("/items/draft", methods=["POST"], strict_slashes=False)
 def api_market_items_draft_compat():
-    """
-    Draft endpoint used by upload wizard.
-    MUST return: { "draft": { "id": <int> } }
-    Works as compat for both:
-      - POST /api/market/items/draft
-      - POST /items/draft
-    """
-    from models import db, MarketItem
+    from models import MarketItem
+    from db import db
+    from flask_login import current_user
     from flask import session, jsonify
 
-    # If we already have a draft in session — reuse it (avoid creating garbage drafts)
+    # якщо вже є draft у сесії — повертаємо його
     draft_id = session.get("upload_draft_id")
     if draft_id:
         it = MarketItem.query.get(draft_id)
         if it:
             return jsonify({"draft": {"id": it.id}}), 200
 
-    # Resolve user_id if logged in (do NOT require login)
-    user_id = None
-    try:
-        from flask_login import current_user
-        if getattr(current_user, "is_authenticated", False):
-            user_id = current_user.id
-    except Exception:
-        pass
-
+    # створюємо новий draft
     it = MarketItem()
-    # set minimal fields safely (only if attributes exist)
-    if hasattr(it, "status"):
-        it.status = "draft"
-    if hasattr(it, "user_id"):
-        it.user_id = user_id
+    it.status = "draft"
+
+    if getattr(current_user, "is_authenticated", False):
+        it.user_id = current_user.id
 
     db.session.add(it)
     db.session.commit()
 
     session["upload_draft_id"] = it.id
+
     return jsonify({"draft": {"id": it.id}}), 200
 
 
