@@ -1,3 +1,40 @@
+def _normalize_media_url(url: str) -> str:
+    if not url:
+        return ""
+    u = str(url).strip()
+    if not u:
+        return ""
+    if u.startswith("http://") or u.startswith("https://"):
+        return u
+    if u.startswith("/"):
+        return u
+    # legacy: stored as filename/key
+    return f"/uploads/{u}"
+def _normalize_media_url(url: str) -> str:
+    if not url:
+        return ""
+    u = str(url).strip()
+    if not u:
+        return ""
+    # already absolute
+    if u.startswith("http://") or u.startswith("https://"):
+        return u
+    # already absolute path
+    if u.startswith("/"):
+        return u
+    # filename only -> serve from uploads
+    return f"/uploads/{u}"
+def _normalize_media_url(url):
+    if not url:
+        return ""
+    u = str(url).strip()
+    if not u:
+        return ""
+    if u.startswith("http://") or u.startswith("https://"):
+        return u
+    if u.startswith("/"):
+        return u
+    return f"/uploads/{u}"
 from flask import Blueprint, jsonify, session, request, redirect, url_for, flash, render_template, current_app, send_from_directory, abort, g, make_response
 from flask_login import login_required, current_user
 from sqlalchemy import text, bindparam, exc as sa_exc
@@ -1128,7 +1165,7 @@ def page_item(item_id: int):
     d["is_free"] = bool(d.get("is_free")) or (int(d.get("price_cents") or 0) == 0)
 
     d["main_model_url"] = d.get("stl_main_url") or d.get("url")
-    d["cover_url"] = _normalize_cover_url(d.get("cover_url") or d.get("cover"))
+    d["cover_url"] = _normalize_media_url(d.get("cover_url") or d.get("cover"))
 
     # Перевірка чи це власний item
     uid = _parse_int(session.get("user_id"), 0)
@@ -1457,11 +1494,19 @@ def api_items():
         # серіалізація: віддаємо мінімум полів, які точно не впадуть
         out = []
         for it in items:
+            raw_cover = (
+                getattr(it, "cover_url", None)
+                or getattr(it, "cover", None)
+                or getattr(it, "cover_path", None)
+                or getattr(it, "image_url", None)
+                or ""
+            )
+            cover_url = _normalize_media_url(raw_cover)
             out.append({
                 "id": it.id,
                 "title": getattr(it, "title", None) or getattr(it, "name", None) or f"Item {it.id}",
                 "price": getattr(it, "price", 0) or 0,
-                "cover_url": getattr(it, "cover_url", "") or "",
+                "cover_url": cover_url,
             })
 
         pages = (total + per_page - 1) // per_page if per_page else 1
