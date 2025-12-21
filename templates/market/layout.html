@@ -46,6 +46,7 @@
   {# базове API + фільтри, завантаження, перегляд, оплата, аналітика - з cache busting #}
   <script type="module" src="{{ url_for('static', filename='market/js/api.js', v=asset_v) }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/filters.js', v=asset_v) }}"></script>
+  <script src="{{ url_for('static', filename='market/js/upload_manager.js', v=asset_v) }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/uploader.js', v=asset_v) }}"></script>
   <script type="module" src="{{ url_for('static', filename='market/js/viewer.js', v=asset_v) }}"></script>
   

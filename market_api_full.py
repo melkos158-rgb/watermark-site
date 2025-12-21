@@ -23,15 +23,20 @@ def api_market_upload_compat():
     from models import MarketItem
     from db import db
 
-    # 1) Try to get item_id from request (FormData or JSON)
-    item_id = None
 
-    # form fields (multipart/form-data)
-    for key in ("item_id", "draft_id", "id"):
-        v = request.form.get(key)
-        if v and str(v).isdigit():
-            item_id = int(v)
-            break
+    # 1) Try to get item_id from request (FormData, args, or JSON)
+    item_id = (
+        request.form.get("item_id")
+        or request.form.get("draft_id")
+        or request.form.get("id")
+        or request.args.get("item_id")
+        or request.args.get("draft_id")
+        or request.args.get("id")
+    )
+    if item_id and str(item_id).isdigit():
+        item_id = int(item_id)
+    else:
+        item_id = None
 
     # json body (application/json)
     if item_id is None and request.is_json:
@@ -71,7 +76,8 @@ def api_market_upload_compat():
     if not it:
         return jsonify({"error": "draft_not_found", "item_id": item_id}), 404
 
-    return jsonify({"ok": True, "item_id": it.id, "legacy": True, "created": False}), 200
+    # If draft exists, do NOT fallback to legacy
+    return jsonify({"ok": True, "item_id": it.id, "legacy": False, "created": False}), 200
 
 # === REAL DRAFT ENDPOINT ===
 @bp.post("/items/draft")
