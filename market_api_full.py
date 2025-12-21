@@ -1,4 +1,9 @@
-from market_api import bp
+
+from flask import Blueprint, request, jsonify, current_app, url_for, abort, session
+from models_market import db, MarketItem, MarketFavorite, Favorite, Review, recompute_item_rating
+
+bp = Blueprint("market_api", __name__)
+
 # === REAL DRAFT ENDPOINT ===
 @bp.post("/items/draft")
 def api_market_items_draft():
@@ -8,11 +13,18 @@ def api_market_items_draft():
 
     item = MarketItem(
         user_id=uid,
-        title="",
-        upload_status="draft",
-        upload_progress=0,
-        is_published=False,
+        title=""
     )
+    # Set status/state fields only if they exist
+    if hasattr(item, "status"):
+        item.status = "draft"
+    if hasattr(item, "upload_status"):
+        item.upload_status = "draft"
+    if hasattr(item, "upload_progress"):
+        item.upload_progress = 0
+    if hasattr(item, "is_published"):
+        item.is_published = False
+
     db.session.add(item)
     db.session.commit()
 
@@ -30,7 +42,6 @@ def api_market_items_draft():
 # ============================================================
 
 
-from market_api import bp
 
 import json
 import os
@@ -40,17 +51,7 @@ from pathlib import Path
 from typing import Tuple, Optional, Dict, Any, List
 
 from functools import wraps
-from flask import request, jsonify, current_app, url_for, abort, session
 from sqlalchemy import func, text
-
-from models_market import (
-    db,
-    MarketItem,
-    MarketFavorite,
-    Favorite,
-    Review,
-    recompute_item_rating,
-)
 
 # ...existing code from MAX POWER API section...
 
@@ -58,10 +59,11 @@ from models_market import (
 # DEBUG ENDPOINT (TEMPORARY)
 # ============================================================
 
+
 @bp.get("/debug/item/<int:item_id>/files")
 def debug_item_files_disk(item_id: int):
     """
-    🔍 DEBUG: Show raw file URLs from database
+    DEBUG: Show raw file URLs from database
     Use: /api/market/debug/item/41/files
     """
     it = MarketItem.query.get_or_404(item_id)
