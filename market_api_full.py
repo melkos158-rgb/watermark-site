@@ -4,6 +4,40 @@ from models_market import db, MarketItem, MarketFavorite, Favorite, Review, reco
 
 bp = Blueprint("market_api", __name__)
 
+# === LEGACY COMPAT ENDPOINT ===
+@bp.post("/upload")
+def api_market_upload_compat():
+    """
+    Legacy compat endpoint.
+    Frontend calls POST /api/market/upload
+    We redirect logic to existing item upload flow.
+    """
+    from flask import request, jsonify, session
+    from models import MarketItem
+    from db import db
+
+    # 1. Get draft item
+    item_id = session.get("upload_draft_id")
+    if not item_id:
+        return jsonify({"error": "draft_not_initialized"}), 400
+
+    item = MarketItem.query.get(item_id)
+    if not item:
+        return jsonify({"error": "draft_not_found"}), 404
+
+    # 2. Frontend sends FormData with files
+    files = request.files
+    if not files:
+        return jsonify({"error": "no_files"}), 400
+
+    # 3. Just ACK for now (real attach is already handled elsewhere)
+    # upload_manager continues with chunk/attach endpoints
+    return jsonify({
+        "ok": True,
+        "item_id": item.id,
+        "legacy": True
+    }), 200
+
 # === REAL DRAFT ENDPOINT ===
 @bp.post("/items/draft")
 def api_market_items_draft():
