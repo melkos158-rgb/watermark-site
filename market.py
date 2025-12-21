@@ -1,3 +1,37 @@
+# === MEDIA COVER ENDPOINT ===
+@bp.get("/api/market/media/<int:item_id>/<path:filename>")
+def api_market_media(item_id, filename):
+    root = current_app.config.get("UPLOADS_ROOT") or os.path.join(current_app.root_path, "static", "market_uploads")
+    item_dir = os.path.join(root, str(item_id))
+    return send_from_directory(item_dir, filename)
+
+# === MY ITEMS ENDPOINT ===
+@bp.get("/api/my/items")
+def api_my_items():
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify(ok=False, error="auth_required"), 401
+    items = MarketItem.query.filter_by(user_id=uid).order_by(MarketItem.id.desc()).all()
+    def serialize_item(it):
+        return {c: getattr(it, c) for c in it.__table__.columns.keys()}
+    return jsonify(ok=True, items=[serialize_item(it) for it in items])
+
+# === ITEM PAGE STUB ENDPOINTS ===
+@bp.get("/api/item/<int:item_id>/printability")
+def api_item_printability(item_id):
+    return jsonify(ok=True, data=[])
+
+@bp.get("/api/item/<int:item_id>/reviews")
+def api_item_reviews(item_id):
+    return jsonify(ok=True, data=[])
+
+@bp.get("/api/item/<int:item_id>/related")
+def api_item_related(item_id):
+    return jsonify(ok=True, data=[])
+
+@bp.get("/api/item/<int:item_id>/makes")
+def api_item_makes(item_id):
+    return jsonify(ok=True, data=[])
 def _normalize_media_url(url: str) -> str:
     if not url:
         return ""
