@@ -61,13 +61,18 @@ class UploadManager {
    */
   async createDraft(formData) {
     try {
+      // Convert FormData to plain object for JSON
+      let payload = formData;
+      if (formData instanceof FormData) {
+        payload = Object.fromEntries(formData.entries());
+      }
       const resp = await fetch('/api/market/items/draft', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (!resp.ok) {
