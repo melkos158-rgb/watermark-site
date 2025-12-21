@@ -1,3 +1,6 @@
+from flask import Blueprint
+
+bp = Blueprint("market_api", __name__)
 
 # === DIAGNOSTIC PING ENDPOINT ===
 @bp.get("/ping")

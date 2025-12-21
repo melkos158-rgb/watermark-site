@@ -1,13 +1,5 @@
 {% if open_upload %}
-<script>
-  window.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('upload-modal');
-    if (modal) {
-      modal.hidden = false;
-      document.body.style.overflow = 'hidden';
-    }
-  });
-</script>
+<script>window.location.replace("/market/upload");</script>
 {% endif %}
 {# templates/market/index.html #}
 {% extends "market/layout.html" %}

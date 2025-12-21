@@ -72,18 +72,7 @@
   function open(){ modal.hidden = false; document.body.style.overflow = 'hidden'; }
   function close(){ modal.hidden = true; document.body.style.overflow = ''; }
 
-  // Auto-open upload modal when redirected from /market/upload
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('open_upload') === '1') {
-      open();
-      // cleanup URL so it doesn't re-open on refresh
-      params.delete('open_upload');
-      const next = params.toString();
-      const cleanUrl = window.location.pathname + (next ? `?${next}` : '');
-      window.history.replaceState({}, '', cleanUrl);
-    }
-  } catch {}
+
 
   document.addEventListener('click', (e)=>{
     if (e.target.matches('[data-close]') || e.target.classList.contains('modal')) close();

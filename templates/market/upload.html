@@ -1,0 +1,30 @@
+{% extends "market/layout.html" %}
+
+{% set market_page = 'upload' %}
+
+{% block content %}
+<div class="upload-page-wrap">
+  {# Inline upload modal content, but as a real page, not a modal #}
+  {% with %}
+    {% include "market/_upload_modal.html" %}
+  {% endwith %}
+</div>
+<script>
+// Remove modal wrapper for inline use
+document.addEventListener('DOMContentLoaded', function() {
+  var modal = document.getElementById('upload-modal');
+  if (modal) {
+    modal.classList.remove('modal');
+    modal.removeAttribute('hidden');
+    var box = modal.querySelector('.modal-box');
+    if (box) {
+      box.style.margin = '32px auto';
+      box.style.position = 'static';
+      box.style.animation = 'none';
+    }
+    document.body.style.overflow = '';
+  }
+});
+</script>
+{% endblock %}
+

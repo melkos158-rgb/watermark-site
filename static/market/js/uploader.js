@@ -1,13 +1,8 @@
-// Автовідкриття модалки при open_upload=1
+// Canonical: redirect to /market/upload if open_upload=1
 (function () {
   const params = new URLSearchParams(window.location.search);
   if (params.get("open_upload") === "1") {
-    const btn = document.getElementById("btn-upload");
-    if (btn) btn.click();
-
-    params.delete("open_upload");
-    const qs = params.toString();
-    history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    window.location.replace("/market/upload");
   }
 })();
 import './upload_manager.js';

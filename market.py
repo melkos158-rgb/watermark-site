@@ -1297,9 +1297,13 @@ def page_upload():
     return redirect(url_for("market.page_market"))
 
 
+
 @bp.get("/market/upload")
 def page_market_upload():
-    return render_template("market/index.html", open_upload=1)
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return redirect(url_for("auth.login", next=request.full_path or request.path))
+    return render_template("market/upload.html")
 
 
 @bp.get("/edit/<int:item_id>")
@@ -1362,7 +1366,7 @@ def api_market_favorite_compat():
 
     # imports here to avoid circulars
     from datetime import datetime
-    from models import MarketFavorite
+    from models_market import MarketFavorite
     try:
         fav = MarketFavorite.query.filter_by(user_id=uid, item_id=item_id).first()
 
