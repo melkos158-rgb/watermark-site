@@ -135,7 +135,10 @@ def create_app():
     def register_bp(name, import_func, attr="bp", url_prefix=None):
         try:
             mod = import_func()
-            bp = getattr(mod, attr)
+            bp = getattr(mod, attr, None)
+            if bp is None:
+                print(f"[{name}] skip: module has no attribute '{attr}'")
+                return
             if url_prefix:
                 app.register_blueprint(bp, url_prefix=url_prefix)
             else:
