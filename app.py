@@ -181,19 +181,20 @@ def create_app():
             for r in app.url_map.iter_rules()
         ]
         status = app.config.get("DEBUG_ADMIN_STATUS", {"ok": None, "error": None})
+        from flask import Response
         html = f"""
-        <html><head><title>__DEBUG</title></head><body style='background:#181a20;color:#eee;font-family:monospace;'>
-        <h1>__DEBUG PAGE</h1>
-        <h2>Current Time</h2>
-        <pre>{now}</pre>
-        <h2>Registered Routes</h2>
-        <pre>{routes}</pre>
-        <h2>debug_admin Blueprint Status</h2>
-        <pre style='color:{'red' if not status['ok'] else 'lime'};'>{status}</pre>
-        {f'<div style="color:red;"><b>ERROR:</b><pre>{status["error"]}</pre></div>' if not status['ok'] and status['error'] else ''}
-        </body></html>
-        """
-        return html
+    <html><head><title>__DEBUG</title></head><body style='background:#181a20;color:#eee;font-family:monospace;'>
+    <h1>__DEBUG PAGE</h1>
+    <h2>Current Time</h2>
+    <pre>{now}</pre>
+    <h2>Registered Routes</h2>
+    <pre>{routes}</pre>
+    <h2>debug_admin Blueprint Status</h2>
+    <pre style='color:{'red' if not status['ok'] else 'lime'};'>{status}</pre>
+    {f'<div style="color:red;"><b>ERROR:</b><pre>{status["error"]}</pre></div>' if not status['ok'] and status['error'] else ''}
+    </body></html>
+    """
+        return Response(html, mimetype="text/html")
 
     # === Temporary endpoint to list all real routes (for diagnostics) ===
     @app.get("/__routes")
