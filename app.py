@@ -512,11 +512,7 @@ def create_app():
 
     try:
         import market_api
-        app.logger.warning(f"✅ market_api imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
-        print(f"✅ [market_api] imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
-
         app.register_blueprint(market_api.bp, url_prefix="/api/market")
-        app.logger.warning("✅ market_api.bp registered with /api/market")
         print("✅ [market_api] registered at /api/market")
     except Exception as e:
         print(f"❌ [market_api] FAILED to register: {e}")
@@ -763,5 +759,7 @@ def start_worker_thread(app):
 
 if __name__ == "__main__":
     app = create_app()
+    if app is None:
+        raise RuntimeError("create_app() returned None (startup failed)")
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
