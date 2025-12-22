@@ -1,7 +1,8 @@
 import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, Optional
 
-from flask import Blueprint, request, jsonify, current_app, render_template, abort
+from flask import (Blueprint, abort, current_app, jsonify, render_template,
+                   request)
 
 from models import db
 

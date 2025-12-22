@@ -1,8 +1,11 @@
 # profile.py
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
-from db import db, User, Transaction, Message
-from datetime import datetime, timedelta
-from sqlalchemy import func, desc
+from datetime import datetime
+
+from flask import (Blueprint, flash, jsonify, redirect, render_template,
+                   request, session, url_for)
+from sqlalchemy import desc, func
+
+from db import Message, Transaction, User, db
 
 bp = Blueprint("profile", __name__, url_prefix="")
 

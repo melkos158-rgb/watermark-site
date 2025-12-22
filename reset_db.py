@@ -1,6 +1,7 @@
 from app import app
 from db import db
 
+
 def drop_specific_tables():
     with app.app_context():
         # список таблиць, які треба видалити

@@ -26,11 +26,10 @@
 
 from __future__ import annotations
 
-import os
 import json
+import os
 import re
-from typing import Dict, List, Set, Tuple, Optional
-
+from typing import Dict, List, Optional, Set
 
 # ---- утиліти ---------------------------------------------------------------
 

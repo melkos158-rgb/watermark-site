@@ -1,8 +1,11 @@
 
-from flask import request, session, jsonify, current_app, send_from_directory, abort
-from sqlalchemy import desc
-from market_api_full import bp  # noqa: F401
 import os
+
+from flask import (abort, current_app, jsonify, request, send_from_directory,
+                   session)
+from sqlalchemy import desc
+
+from market_api_full import bp  # noqa: F401
 from models import MarketItem
 
 

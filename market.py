@@ -1,4 +1,6 @@
-from flask import Blueprint, request, redirect, url_for, render_template, session, flash
+from flask import (Blueprint, flash, redirect, render_template, request,
+                   session, url_for)
+
 # ...your other imports (_parse_int, db, models, upload utils)...
 bp = Blueprint("market", __name__)
 @bp.post("/market/upload")
@@ -10,15 +12,15 @@ def submit_market_upload():
 
     # 1) поля
     title = (request.form.get("title") or "").strip()
-    description = (request.form.get("description") or "").strip()
-    is_free = request.form.get("is_free") in ("1", "true", "on", "yes")
-    price_cents = _parse_int(request.form.get("price_cents"), 0)
+    (request.form.get("description") or "").strip()
+    request.form.get("is_free") in ("1", "true", "on", "yes")
+    _parse_int(request.form.get("price_cents"), 0)
 
     # 2) файли
     main_file = request.files.get("file")           # STL/OBJ/GLTF/ZIP
-    cover_file = request.files.get("cover")
-    video_file = request.files.get("video")
-    zip_file = request.files.get("zip_file")        # <- новий
+    request.files.get("cover")
+    request.files.get("video")
+    request.files.get("zip_file")        # <- новий
 
     # 3) мінімальна валідація
     if not title:
@@ -46,14 +48,14 @@ def post_market_upload():
         return redirect(url_for("auth.login", next=next_url))
 
     title = (request.form.get("title") or "").strip()
-    description = (request.form.get("description") or "").strip()
-    is_free = bool(request.form.get("is_free"))
-    price_cents = _parse_int(request.form.get("price_cents"), 0)
+    (request.form.get("description") or "").strip()
+    bool(request.form.get("is_free"))
+    _parse_int(request.form.get("price_cents"), 0)
 
     main_file = request.files.get("file")       # як у HTML
-    cover = request.files.get("cover")          # як у HTML
-    video = request.files.get("video")          # як у HTML
-    zip_file = request.files.get("zip_file")    # як у HTML
+    request.files.get("cover")          # як у HTML
+    request.files.get("video")          # як у HTML
+    request.files.get("zip_file")    # як у HTML
 
     if not title:
         return render_template("market/upload.html", error="Title is required"), 400
@@ -103,17 +105,19 @@ def _normalize_media_url(url):
     if u.startswith("/"):
         return u
     return f"/uploads/{u}"
-from flask import Blueprint, jsonify, session, request, redirect, url_for, flash, render_template, current_app, send_from_directory, abort, g, make_response
-from flask_login import login_required, current_user
-from sqlalchemy import text, bindparam, exc as sa_exc
-from werkzeug.utils import secure_filename
-import os
-import math
 import json
-import shutil
+import math
+import os
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
+
+from flask import Blueprint, abort, current_app, g, jsonify
+from sqlalchemy import bindparam
+from sqlalchemy import exc as sa_exc
+from sqlalchemy import text
+from werkzeug.utils import secure_filename
+
 
 def _fetch_item_with_author(query):
     return query
@@ -153,12 +157,12 @@ except Exception:
     _CLOUDINARY_READY = False
 
 
-# ✅ беремо db та модель з models.py
-from models import db, MarketItem, MarketReview, UserFollow
-# ✅ MarketFavorite беремо з models_market (так як і в market_api.py)
-from models_market import MarketFavorite
 # якщо User у тебе лишається в db.py — імпортуємо тільки його звідти
 from db import User
+# ✅ беремо db та модель з models.py
+from models import MarketItem, MarketReview, db
+# ✅ MarketFavorite беремо з models_market (так як і в market_api.py)
+from models_market import MarketFavorite
 
 # ✅ категорії з нового market-модуля (safe import)
 try:
@@ -489,17 +493,17 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     if _CLOUDINARY_READY and not is_3d_model:
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             folder = f"proofly/market/{subdir}".replace("\\", "/")
 
             # важливо: якщо stream вже читався — повернемось на 0
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 file_storage.stream.seek(0)
             except Exception:
@@ -527,7 +531,7 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
         except Exception as _e:
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 current_app.logger.warning(
                     f"Cloudinary upload failed, fallback to local: {type(_e).__name__}: {_e}"
@@ -539,7 +543,7 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
     root = _uploads_root()
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         folder = os.path.join(root, subdir)
         os.makedirs(folder, exist_ok=True)
@@ -552,7 +556,7 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
         # fallback to legacy static/uploads within app if preferred root fails
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             legacy_root = os.path.join(current_app.root_path, "static", "market_uploads")
             folder = os.path.join(legacy_root, subdir)
@@ -570,7 +574,7 @@ def _save_upload(file_storage, subdir: str, allowed_ext: set) -> Optional[str]:
 def json_dumps_safe(obj) -> str:
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         return json.dumps(obj, ensure_ascii=False)
     except Exception:
@@ -586,7 +590,7 @@ def _safe_json_list(value) -> list:
         return []
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         if isinstance(value, list):
             return value
@@ -612,7 +616,7 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
             return m.get(key, default)
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             return m[key] if key in m else default
         except (KeyError, TypeError):
@@ -630,7 +634,7 @@ def _item_to_dict(it: Dict[str, Any]) -> Dict[str, Any]:
     for g in gallery:
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             url = g.get("url") if isinstance(g, dict) else str(g)
         except Exception:
@@ -709,7 +713,7 @@ def _ensure_proof_score_columns():
     """
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         dialect = db.session.get_bind().dialect.name
         
@@ -778,7 +782,7 @@ def _init_proof_score_schema():
     
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         _ensure_proof_score_columns()
         current_app.logger.info("✅ Proof Score schema ensured")
@@ -807,14 +811,14 @@ def _ensure_publishing_columns():
     
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         dialect = db.session.get_bind().dialect.name
         
         # Check if columns exist by trying to query them
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
             # Column exists, migration already done
@@ -825,7 +829,7 @@ def _ensure_publishing_columns():
         # Columns don't exist, add them
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             if dialect == "postgresql":
                 # PostgreSQL supports IF NOT EXISTS
@@ -841,7 +845,7 @@ def _ensure_publishing_columns():
                 # SQLite doesn't support IF NOT EXISTS in ALTER TABLE
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN is_published INTEGER DEFAULT 1"))
                 except Exception as e:
@@ -849,7 +853,7 @@ def _ensure_publishing_columns():
                         current_app.logger.warning(f"is_published column add failed: {e}")
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     db.session.execute(text(f"ALTER TABLE {ITEMS_TBL} ADD COLUMN published_at TIMESTAMP"))
                 except Exception as e:
@@ -888,10 +892,10 @@ def _ensure_follow_table():
 
     try:
         pass
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         dialect = db.session.get_bind().dialect.name
         
@@ -954,10 +958,10 @@ def _ensure_item_makes_table():
 
     try:
         pass
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         dialect = db.session.get_bind().dialect.name
         
@@ -1020,10 +1024,10 @@ def _ensure_review_image_column():
 
     try:
         pass
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         dialect = db.session.get_bind().dialect.name
         
@@ -1037,7 +1041,7 @@ def _ensure_review_image_column():
             # SQLite doesn't support IF NOT EXISTS, need try/except
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 db.session.execute(text("""
                     ALTER TABLE market_reviews 
@@ -1074,10 +1078,10 @@ def _ensure_makes_verified_column():
 
     try:
         pass
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         dialect = db.session.get_bind().dialect.name
         
@@ -1091,7 +1095,7 @@ def _ensure_makes_verified_column():
             # SQLite doesn't support IF NOT EXISTS, need try/except
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 db.session.execute(text("""
                     ALTER TABLE item_makes 
@@ -1144,7 +1148,7 @@ def page_market():
     if current_user_id:
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             fav_ids = set(
                 r[0] for r in db.session.query(MarketFavorite.item_id)
@@ -1157,7 +1161,7 @@ def page_market():
     # 📝 Debug log: track uid and favorites count
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         current_app.logger.info("[market_page] uid=%s fav_cnt=%s", current_user_id, len(fav_ids or []))
     except Exception:
@@ -1226,7 +1230,7 @@ def page_item(item_id: int):
     if "price_cents" not in d:
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             price_pln = float(d.get("price") or 0)
             d["price_cents"] = int(round(price_pln * 100))
@@ -1249,7 +1253,7 @@ def page_item(item_id: int):
     
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         # Prints count
         prints = db.session.execute(
@@ -1263,7 +1267,7 @@ def page_item(item_id: int):
     
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         # Reviews count
         reviews_total = db.session.execute(
@@ -1292,7 +1296,7 @@ def page_item(item_id: int):
     
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         # Followers count for this item's author
         author_id = d.get("author_id")
@@ -1308,7 +1312,7 @@ def page_item(item_id: int):
 
     try:
         pass  # auto-fix empty try body
-    except Exception as e:
+    except Exception:
         pass  # auto-fix missing except
         reviews = (
             MarketReview.query.filter_by(item_id=item_id)
@@ -1449,7 +1453,6 @@ def api_market_favorite_compat():
     current_app.logger.info(f"[api_market_favorite] uid={uid} item_id={item_id} on={on}")
 
     # imports here to avoid circulars
-    from datetime import datetime
     from models_market import MarketFavorite
     try:
         fav = MarketFavorite.query.filter_by(user_id=uid, item_id=item_id).first()
@@ -1496,7 +1499,7 @@ def debug_favorites_schema():
     Відповідь: { "tables": [...], "columns": { "table_name": [...] } }
     """
     from models import db
-    
+
     # 1) Знайти всі таблиці з 'fav' в назві
     tables_result = db.session.execute(text("""
         SELECT table_name
@@ -1532,8 +1535,9 @@ def debug_favorites_schema():
 
 @bp.get("/api/items")
 def api_items():
-    from models import MarketItem
     from sqlalchemy import desc
+
+    from models import MarketItem
     try:
         page = max(1, int(request.args.get("page", 1) or 1))
         per_page = min(48, max(1, int(request.args.get("per_page", 24) or 24)))
@@ -1622,7 +1626,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -1633,7 +1636,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -1702,16 +1705,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -1754,13 +1757,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -1883,12 +1886,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -1934,7 +1935,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -1943,7 +1944,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -1954,7 +1954,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -2023,16 +2023,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -2075,13 +2075,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -2204,12 +2204,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -2255,7 +2253,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -2264,7 +2262,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -2275,7 +2272,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -2344,16 +2341,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -2396,13 +2393,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -2525,12 +2522,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -2576,7 +2571,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -2585,7 +2580,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -2596,7 +2590,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -2665,16 +2659,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -2717,13 +2711,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -2846,12 +2840,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -2897,7 +2889,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -2906,7 +2898,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -2917,7 +2908,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -2986,16 +2977,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -3038,13 +3029,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -3167,12 +3158,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -3218,7 +3207,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -3227,7 +3216,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -3238,7 +3226,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -3307,16 +3295,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -3359,13 +3347,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -3488,12 +3476,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -3539,7 +3525,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -3548,7 +3534,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -3559,7 +3544,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -3628,16 +3613,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -3680,13 +3665,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -3809,12 +3794,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -3860,7 +3843,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -3869,7 +3852,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -3880,7 +3862,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -3949,16 +3931,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -4001,13 +3983,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -4130,12 +4112,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -4181,7 +4161,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -4190,7 +4170,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -4201,7 +4180,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -4270,16 +4249,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -4322,13 +4301,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -4451,12 +4430,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -4502,7 +4479,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -4511,7 +4488,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -4522,7 +4498,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -4591,16 +4567,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -4643,13 +4619,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -4772,12 +4748,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -4823,7 +4797,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -4832,7 +4806,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -4843,7 +4816,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -4912,16 +4885,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -4964,13 +4937,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -5093,12 +5066,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -5144,7 +5115,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -5153,7 +5124,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -5164,7 +5134,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -5233,16 +5203,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -5285,13 +5255,13 @@ def api_items():
                 # Execute main SELECT (saved_only already returned above)
                 try:
                     pass  # auto-fix empty try body
-                except Exception as e:
+                except Exception:
                     pass  # auto-fix missing except
                     rows = db.session.execute(
                         text(sql_with_publish),
                         {**params, "limit": per_page, "offset": offset},
                     ).fetchall()
-                except (sa_exc.OperationalError, sa_exc.ProgrammingError) as e:
+                except (sa_exc.OperationalError, sa_exc.ProgrammingError):
                     # ✅ Fallback: item_makes table doesn't exist (old schema / pre-migration)
                     db.session.rollback()
                     rows = []
@@ -5414,12 +5384,10 @@ def api_items():
         if dialect == "postgresql":
             title_expr = "LOWER(COALESCE(CAST(title AS TEXT), ''))"
             tags_expr = "LOWER(COALESCE(CAST(tags  AS TEXT), ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
         else:
             title_expr = "LOWER(COALESCE(title, ''))"
             tags_expr = "LOWER(COALESCE(tags,  ''))"
-            cover_expr = "COALESCE(cover_url, '')"
             url_expr = "stl_main_url"
 
         where, params = [], {}
@@ -5465,7 +5433,7 @@ def api_items():
         # ✅ Filter only published items in public market
         try:
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Check if is_published column exists
             db.session.execute(text(f"SELECT is_published FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -5474,7 +5442,6 @@ def api_items():
         except Exception:
             db.session.rollback()
             # Column doesn't exist yet, skip filter
-            pass
         
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
@@ -5485,7 +5452,7 @@ def api_items():
         if mode == "top":
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Check if proof_score column exists
                 db.session.execute(text(f"SELECT proof_score FROM {ITEMS_TBL} LIMIT 1")).fetchone()
@@ -5554,16 +5521,16 @@ def api_items():
         # ⚠️ HOTFIX: Try full query with is_published inside try block, fallback if column missing
         try:
             pass
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             pass  # auto-fix empty try body
-        except Exception as e:
+        except Exception:
             pass  # auto-fix missing except
             # Build SQL with is_published columns - ALL inside try
             # Try with item_makes LEFT JOIN first
             try:
                 pass  # auto-fix empty try body
-            except Exception as e:
+            except Exception:
                 pass  # auto-fix missing except
                 # Determine date filter for trending prints
                 date_filter = ""
@@ -5578,7 +5545,7 @@ def api_items():
                     else:  # SQLite
                         date_filter = "WHERE m.created_at >= datetime('now', '-30 days')"
                 
-                sql_with_publish = f"""
+                sql_with_publish = """
                           SELECT i.id, i.title, i.price, i.tags,
                               COALESCE(i.cover_url, '') AS cover,
                               COALESCE(i.gallery_urls, '[]') AS gallery_urls,

@@ -1,5 +1,6 @@
 import os
-from flask import Blueprint, request, jsonify, current_app
+
+from flask import Blueprint, current_app, jsonify, request
 
 ai_api = Blueprint("ai_api", __name__, url_prefix="/api/ai")
 

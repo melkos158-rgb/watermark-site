@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 from sqlalchemy import select
-from models import db, MarketItem  # MarketItem у тебе вже є
+
+from models import MarketItem, db  # MarketItem у тебе вже є
 
 compare_api = Blueprint("compare_api", __name__, url_prefix="/api/market")
 

@@ -42,7 +42,7 @@ def main():
         ("POST", "/api/market/upload"),
         ("GET", "/item/1"),
     ]
-    rules = { (next(iter(sorted(r.methods - {"HEAD", "OPTIONS"}))), r.rule): r.endpoint
+    { (next(iter(sorted(r.methods - {"HEAD", "OPTIONS"}))), r.rule): r.endpoint
               for r in app.url_map.iter_rules() if r.endpoint != "static" }
     # Build a quick "exists" check by scanning all rules
     all_rules = [(sorted(list(r.methods)), r.rule, r.endpoint) for r in app.url_map.iter_rules()]

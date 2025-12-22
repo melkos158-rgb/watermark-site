@@ -1,14 +1,18 @@
+from flask import abort
 
 from flask import Blueprint, jsonify
+
 bp = Blueprint("market_api", __name__)
 
 # === LEGACY COMPAT: GET /api/my/items ===
 
 from utils.market import build_cover_url
 
+
 @bp.get("/my/items")
 def api_my_items():
-    from flask import session, request
+    from flask import request, session
+
     from models_market import MarketItem
     uid = session.get("user_id")
     if not uid:
@@ -32,8 +36,8 @@ def api_my_items():
 # === SERVE MEDIA FILES: /api/market/media/<id>/<filename> ===
 @bp.get("/media/<int:item_id>/<path:filename>")
 def api_market_media(item_id, filename):
-    import os
-    from flask import current_app, send_from_directory, abort, redirect
+    from flask import current_app, redirect, send_from_directory
+
     from models_market import MarketItem
     item = MarketItem.query.get(item_id)
     if not item:
@@ -67,8 +71,9 @@ def ping():
         market_upload_methods=methods,
     )
 
-from flask import Blueprint, request, jsonify, current_app, url_for, abort, session
-from models_market import db, MarketItem, MarketFavorite, Favorite, Review, recompute_item_rating
+from flask import Blueprint, current_app, request, session
+
+from models_market import MarketItem, db
 
 bp = Blueprint("market_api", __name__, url_prefix="/api/market")
 
@@ -87,10 +92,10 @@ def api_market_upload_compat():
     POST /api/market/upload
     Must NOT rely only on session, because draft can be created via different flow.
     """
-    from flask import request, jsonify, session
-    from models import MarketItem
-    from db import db
+    from flask import jsonify, request, session
 
+    from db import db
+    from models import MarketItem
 
     # 1) Try to get item_id from request (FormData, args, or JSON)
     item_id = (
@@ -201,9 +206,9 @@ def api_market_items_draft():
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
 # ============================================================
 
-from flask import request, session, jsonify
 from models import MarketItem, _db
-from upload_utils import upload_image, upload_stl, upload_zip, upload_video
+from upload_utils import upload_image, upload_stl, upload_video, upload_zip
+
 
 def _parse_int(val, default=0):
     try:
@@ -257,15 +262,7 @@ def api_market_item_upload(item_id: int, kind: str):
 
 
 
-import json
 import os
-import secrets
-from datetime import datetime
-from pathlib import Path
-from typing import Tuple, Optional, Dict, Any, List
-
-from functools import wraps
-from sqlalchemy import func, text
 
 # ...existing code from MAX POWER API section...
 
@@ -296,6 +293,7 @@ def debug_item_files_disk(item_id: int):
 @bp.get("/my/items")
 def api_market_my_items():
     from flask import jsonify, session
+
     from models_market import MarketItem
     uid = session.get("user_id")
     if not uid:

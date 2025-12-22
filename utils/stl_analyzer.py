@@ -5,8 +5,8 @@ Supports ASCII and Binary STL formats without external dependencies.
 Computes geometry metrics and proof score (0-100) for 3D printability.
 """
 
-import struct
 import math
+import struct
 from typing import Optional
 
 
@@ -158,7 +158,7 @@ def _parse_binary_stl(f) -> list:
 def _parse_ascii_stl(f) -> list:
     """Parse ASCII STL format"""
     triangles = []
-    vertices = []
+    vertices: list[tuple[float, float, float]] = []
     normal = None
     
     for line in f:
@@ -222,7 +222,7 @@ def _check_manifold(triangles) -> tuple:
     Check if mesh is manifold (each edge shared by exactly 2 faces).
     Returns (is_manifold: bool, non_manifold_edge_count: int)
     """
-    edge_counts = {}
+    edge_counts: dict[tuple[float, float, float], int] = {}
     
     for tri in triangles:
         v = tri['vertices']

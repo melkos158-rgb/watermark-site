@@ -1,7 +1,11 @@
 # wallet_link.py
-from flask import Blueprint, request, jsonify, session
+import os
+import secrets
+import sqlite3
+import time
+
+from flask import Blueprint, jsonify, request, session
 from web3 import Web3
-import os, sqlite3, time, secrets
 
 bpw = Blueprint('wallet', __name__, url_prefix='/api/wallet')
 

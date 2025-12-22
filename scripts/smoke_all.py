@@ -1,10 +1,10 @@
 # scripts/smoke_all.py
-import os
 import io
+import os
 import sys
-import json
 import traceback
 from datetime import datetime, timezone
+
 
 def png_bytes_1x1():
     return (

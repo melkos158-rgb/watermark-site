@@ -1,10 +1,11 @@
 # auth.py
 import os
-from urllib.parse import urlparse
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from authlib.integrations.flask_client import OAuth
-from db import db, User
+from flask import (Blueprint, flash, redirect, render_template, request,
+                   session, url_for)
+
+from db import User, db
 
 bp = Blueprint("auth", __name__, url_prefix="")
 
@@ -125,7 +126,7 @@ def google_callback():
         return redirect(url_for("auth.login"))
 
     try:
-        token = google.authorize_access_token()
+        google.authorize_access_token()
         info  = google.get("userinfo").json()
         email = (info.get("email") or "").lower()
         name  = info.get("name") or ""
@@ -158,11 +159,9 @@ def google_callback():
         return redirect(url_for("auth.login"))
 # auth.py
 import os
-from urllib.parse import urlparse
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from authlib.integrations.flask_client import OAuth
-from db import db, User
+from flask import Blueprint
 
 bp = Blueprint("auth", __name__, url_prefix="")
 
@@ -283,7 +282,7 @@ def google_callback():
         return redirect(url_for("auth.login"))
 
     try:
-        token = google.authorize_access_token()
+        google.authorize_access_token()
         info  = google.get("userinfo").json()
         email = (info.get("email") or "").lower()
         name  = info.get("name") or ""

@@ -1,26 +1,17 @@
 
-from flask import session, request, redirect
+import os
+from datetime import datetime
+
+from flask import (Blueprint, current_app, flash, redirect, render_template,
+                   request, session, url_for)
+
+from db import User, db
 
 # ads.py
 # Банер TOP-1, завантаження банера та кілька адмін-ендпоінтів.
 
-import os
-from datetime import datetime
 
-from flask import (
-    Blueprint,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    flash,
-    session,
-    send_from_directory,
-    current_app,
-)
-from sqlalchemy import text
 
-from db import db, User
 
 bp = Blueprint("ads", __name__)
 
@@ -186,7 +177,6 @@ def admin_banner_default():
         flash("Дай .png/.jpg/.jpeg/.webp")
         return redirect(url_for("admin_panel"))
 
-    from werkzeug.utils import secure_filename
 
     ext = f.filename.rsplit(".", 1)[1].lower()
     fname = f"default_banner.{ext}"

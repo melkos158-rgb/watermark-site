@@ -1,6 +1,8 @@
 import io
 from datetime import datetime, timezone
+
 from app import create_app
+
 
 def show(method, url, r):
     print(f"{method} {url} -> {r.status_code} "

@@ -1,11 +1,9 @@
-import importlib
 import datetime
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-from flask import Blueprint, request, jsonify, render_template, current_app
+from flask import Blueprint, current_app, jsonify, render_template, request
 
 from models import db
-
 
 # ===================== МОДЕЛЬ =====================
 

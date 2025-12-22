@@ -29,7 +29,7 @@ def generate_slice_hints(printability: dict, proof_score: int) -> dict:
     if printability is None:
         printability = {}
     
-    bbox = printability.get("bbox") or {}
+    printability.get("bbox") or {}
     volume = printability.get("volume") or 0
     overhang = printability.get("overhang_percent") or 0
     manifold = printability.get("manifold", True)

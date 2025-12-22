@@ -4,9 +4,10 @@
 # - /admin/dev-map    — глобальна карта файлів зі стрілками (static/dev_tree.json або auto-scan)
 #   + /admin/dev-map/positions — збереження позицій вузлів (static/dev_positions.json)
 
-import os
 import json
-from flask import Blueprint, current_app, render_template, request, jsonify
+import os
+
+from flask import Blueprint, current_app, jsonify, render_template, request
 
 dev_bp = Blueprint("dev", __name__)
 

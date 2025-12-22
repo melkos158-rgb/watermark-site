@@ -1,7 +1,7 @@
 import math
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any, Dict, List, Optional
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, current_app, jsonify, request
 
 # Blueprint для аналізу G-code
 gcode_metrics_bp = Blueprint("gcode_metrics", __name__)
@@ -142,7 +142,7 @@ class GCodeStats:
         # Переміщення
         dx = x - self.x
         dy = y - self.y
-        dz = z - self.z
+        z - self.z
         distance_xy = math.sqrt(dx * dx + dy * dy)
 
         # Якщо це перші координати X/Y — просто оновлюємо, без метрик

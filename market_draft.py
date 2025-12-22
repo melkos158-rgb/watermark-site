@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint
 
 bp_market_draft = Blueprint("market_draft", __name__)
 

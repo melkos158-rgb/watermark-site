@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify, session, g
+from flask import Blueprint, g, jsonify, request, session
+
 from db import db
 
 # 🔧 Blueprint без url_prefix — префікс даємо в app.register_blueprint(...)

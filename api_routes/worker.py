@@ -1,11 +1,10 @@
 import datetime
 import json
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, current_app, jsonify, request
 
 from models import db
-
 
 # ===================== МОДЕЛЬ AI-JOB =====================
 

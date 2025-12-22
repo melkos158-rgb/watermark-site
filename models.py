@@ -1,11 +1,13 @@
 # models.py
 from __future__ import annotations
-from datetime import datetime
+
 import json
-from typing import Optional, Dict, Any
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 # >>> використовуємо існуючий інстанс з db.py
-from db import db as _db, User as _User  # ✅ беремо і db, і User з db.py
+from db import User as _User
+from db import db as _db  # ✅ беремо і db, і User з db.py
 
 
 class _DBProxy:

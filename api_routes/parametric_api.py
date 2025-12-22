@@ -1,9 +1,9 @@
 import os
 import uuid
-import math
-from typing import Dict, Any
+from typing import Any, Dict
 
-from flask import Blueprint, request, jsonify, current_app, send_from_directory, abort
+from flask import (Blueprint, abort, current_app, jsonify, request,
+                   send_from_directory)
 
 # Blueprint для API параметричних моделей
 parametric_bp = Blueprint("parametric_api", __name__)

@@ -1,14 +1,11 @@
-import os
-import traceback
-import sys
-import re
-import json
 import logging
+import os
+import re
 import threading
-import traceback as _traceback
-from datetime import datetime
 from collections import deque
+from datetime import datetime
 from functools import wraps
+
 # ...existing code...
 try:
     import sentry_sdk
@@ -43,37 +40,15 @@ try:
     better_exceptions.hook()
 except ImportError:
     pass
-import pkgutil
-import importlib
-from dev_bp import dev_bp
-from ads import bp as ads_bp
-from core_pages import bp as core_bp
-from db import init_app_db, close_db
 import os
-import sys
-import re
-import json
-import logging
-import threading
-import traceback as _traceback
-from datetime import datetime
-from collections import deque
-from functools import wraps
 
-from flask import (
-    Flask,
-    request,
-    session,
-    g,
-    jsonify,
-    render_template,
-    redirect,
-    url_for,
-)
-
+from flask import (Flask, g, jsonify, redirect, render_template, request,
+                   session)
 from sqlalchemy import text
-from market import bp as market_bp
-from profile import bp as profile_bp
+
+from ads import bp as ads_bp
+from db import close_db, init_app_db
+from dev_bp import dev_bp
 
 # Optional deps (don’t crash app if not installed/disabled)
 try:
@@ -87,7 +62,9 @@ except Exception:  # pragma: no cover
     stripe = None
 
 # Project deps
-from models import db as models_db  # keep this import if models.py defines `db`
+from models import \
+    db as models_db  # keep this import if models.py defines `db`
+
 db = models_db  # alias used throughout app.py
 
 # === ADMIN CONFIG ===
@@ -136,7 +113,7 @@ def admin_required(f):
     @wraps(f)
     def _wrap(*args, **kwargs):
         if not session.get("is_admin"):
-            from flask import redirect, url_for, flash
+            from flask import flash, redirect, url_for
             flash("Доступ лише для адміністратора.")
             return redirect(url_for("core.index"))
         return f(*args, **kwargs)
@@ -160,13 +137,13 @@ def row_to_dict(row):
 
 
 def create_app():
-        # Explicitly import and assign blueprints
-        import core_pages
-        core_bp = core_pages.bp
-        import profile
-        profile_bp = profile.bp
-        import market
-        market_bp = market.bp
+    # Explicitly import and assign blueprints
+    import core_pages
+    core_bp = core_pages.bp
+    import profile
+    profile_bp = profile.bp
+    import market
+    market_bp = market.bp
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
@@ -206,6 +183,7 @@ def create_app():
                 app.register_blueprint(bp)
             app.config["DEBUG_BP_STATUS"][name] = True
         except Exception as e:
+            import traceback
             tb = traceback.format_exc()
             app.config["DEBUG_BP_STATUS"][name] = False
             app.config["DEBUG_IMPORT_ERRORS"][name] = tb
@@ -257,7 +235,7 @@ def create_app():
 
     @app.after_request
     def log_error_response(response):
-        from flask import g, request
+        from flask import request
         if response.status_code >= 400:
             app.config["DEBUG_ERRORS"].append({
                 "ts": datetime.utcnow().isoformat() + 'Z',
@@ -554,7 +532,10 @@ def create_app():
         return resp
 
     # ========= реєстрація blueprints =========
-    import auth, profile, chat
+    import profile
+
+    import auth
+    import chat
     try:
         import market
     except Exception as e:
@@ -582,7 +563,7 @@ def create_app():
             app.logger.warning("✅ market_api.bp registered with /api/market")
         else:
             app.logger.warning("⚠️ market_api already registered — skip")
-    except Exception as e:
+    except Exception:
         app.logger.exception("❌ [market_api] FAILED to register")
 
     # --- HARD compat endpoints (app-level, bypass blueprints) ---
@@ -601,7 +582,8 @@ def create_app():
     # --- COMPAT: /api/my/items for legacy frontend ---
     @app.get("/api/my/items")
     def compat_api_my_items():
-        from flask import redirect, request
+        from flask import request
+
         # Proxy to /api/market/my/items with query string
         qs = request.query_string.decode()
         url = "/api/market/my/items"
@@ -627,11 +609,12 @@ def create_app():
             app.logger.warning("✅ lang_api.bp registered with /api/lang")
         else:
             app.logger.warning("⚠️ lang_api already registered — skip")
-    except Exception as e:
+    except Exception:
         app.logger.exception("⚠️ [lang_api] skip")
 
     # ========= before_request хуки =========
     from flask import session  # якщо ще нема
+
     # ADMIN_EMAILS має бути визначений вище
     @app.before_request
     def _mark_admin():

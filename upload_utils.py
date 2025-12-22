@@ -1,6 +1,7 @@
 def upload_video(file, folder="proofly/video"):
-    import cloudinary
     import uuid
+
+    import cloudinary
     from werkzeug.utils import secure_filename
     res = cloudinary.uploader.upload(
         file,
@@ -20,10 +21,11 @@ def upload_video_to_cloudinary(file, folder="proofly/videos"):
     :return: secure_url
     """
     import os
+    import uuid
+
     import cloudinary
     import cloudinary.uploader
     from werkzeug.utils import secure_filename
-    import uuid
     cloud_url = os.getenv("CLOUDINARY_URL", "")
     if not cloud_url:
         raise RuntimeError("CLOUDINARY_URL не знайдено в .env — додай його у форматі cloudinary://<api_key>:<api_secret>@<cloud_name>")

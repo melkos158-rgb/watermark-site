@@ -1,8 +1,10 @@
 # chat.py
-from flask import Blueprint, request, jsonify, session
-from sqlalchemy import select
 from datetime import datetime
-from db import db, User, Message
+
+from flask import Blueprint, jsonify, request, session
+from sqlalchemy import select
+
+from db import Message, User, db
 
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 

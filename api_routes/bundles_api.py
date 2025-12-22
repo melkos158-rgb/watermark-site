@@ -1,6 +1,8 @@
-from flask import Blueprint, request, jsonify, g, current_app
+from flask import Blueprint, g, jsonify, request
 from sqlalchemy import select
-from models import db, MarketItem  # ✅ MarketItem вже є
+
+from models import db  # ✅ MarketItem вже є
+
 # ⚠️ Переконайся, що в models.py є модель Bundle
 #   class Bundle(db.Model):
 #       id, user_id, title, description, price, discount, thumb_url, is_active

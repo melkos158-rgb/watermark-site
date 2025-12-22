@@ -43,7 +43,7 @@ def edit_model(model_id):
                     from upload_utils import upload_video_to_cloudinary
                     url = upload_video_to_cloudinary(video)
                     model.video_url = url
-                except Exception as e:
+                except Exception:
                     current_app.logger.exception("Video upload failed")
                     flash("Не вдалося завантажити відео. Спробуй інший файл.", "error")
 

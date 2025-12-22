@@ -1,6 +1,5 @@
-out = []
+out: list[str] = []
 i = 0
-import re
 import re
 
 PATH = "market.py"
@@ -15,7 +14,11 @@ while i < len(lines):
 
     # detect bare try:
     if re.match(r'^\s*try\s*:\s*$', line):
-        indent = re.match(r'^(\s*)', line).group(1)
+        m = re.match(r'^(\s*)', line)
+        if not m:
+            i += 1
+            continue
+        indent = m.group(1)
 
         # check next meaningful line
         j = i + 1

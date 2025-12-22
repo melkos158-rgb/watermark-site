@@ -1,8 +1,12 @@
-﻿import sys, os
+﻿import os
+import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import io
 from datetime import datetime
+
 from app import create_app
+
 
 def show(label, resp):
     print(f"\n--- {label} ---")

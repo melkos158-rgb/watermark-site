@@ -2,17 +2,10 @@
 # Базові сторінки Proofly (головна, STL, фото/відео, документи, donate, health, media, robots).
 
 import os
-import stripe
 
-from flask import (
-    Blueprint,
-    render_template,
-    send_from_directory,
-    abort,
-    current_app,
-    jsonify,
-    request,
-)
+import stripe
+from flask import (Blueprint, abort, current_app, jsonify, render_template,
+                   request, send_from_directory)
 
 bp = Blueprint("core", __name__)  # імʼя blueprint, але ендпоінти лишаємо як у тебе
 

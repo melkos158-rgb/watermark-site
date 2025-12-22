@@ -1,7 +1,7 @@
 import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, Optional
 
-from flask import Blueprint, request, jsonify, current_app, g, session
+from flask import Blueprint, current_app, g, jsonify, request, session
 
 from models import db  # беремо той самий db, що й для MarketItem та ін.
 

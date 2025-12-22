@@ -3,9 +3,12 @@
 Використання: python fix_follows_table.py [--fix]
 """
 import sys
+
+from sqlalchemy import text
+
 from app import app
 from db import db
-from sqlalchemy import text
+
 
 def diagnose():
     """Діагностика поточного стану таблиці"""
@@ -25,7 +28,7 @@ def diagnose():
             if has_follower and has_author:
                 print("✅ Колонки follower_id та author_id присутні")
             else:
-                print(f"❌ ПРОБЛЕМА: Очікуємо follower_id та author_id")
+                print("❌ ПРОБЛЕМА: Очікуємо follower_id та author_id")
                 print(f"   Знайдено: {columns}")
                 return False
             
@@ -49,7 +52,7 @@ def diagnose():
                 FROM user_follows
             """)).fetchone()
             
-            print(f"\n📈 Статистика:")
+            print("\n📈 Статистика:")
             print(f"   Всього записів: {stats.total}")
             print(f"   Унікальних follower_id: {stats.unique_followers}")
             print(f"   Унікальних author_id: {stats.unique_authors}")
