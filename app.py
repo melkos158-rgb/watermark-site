@@ -214,6 +214,8 @@ def create_app():
     register_bp("ai_api", lambda: __import__("ai_api"))
     register_bp("market_api", lambda: __import__("market_api"), url_prefix="/api/market")
     register_bp("lang_api", lambda: __import__("lang_api"), url_prefix="/api/lang")
+    # Register the UI core blueprint for / (core.index)
+    app.register_blueprint(core_bp)
     # Register the UI market blueprint for /market
     app.register_blueprint(market_bp)
 
