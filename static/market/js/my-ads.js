@@ -335,7 +335,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // ───────────────────── ЗАВАНТАЖЕННЯ ДАНИХ ─────────────────────
   function loadMyItems() {
     console.log("my-ads: fetching /api/my/items?page=1");
-    fetch("/api/my/items?page=1", {
+    fetch("/api/market/my/items?page=1", {
       credentials: "include",
     })
       .then(function (res) {

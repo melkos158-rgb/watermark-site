@@ -19,12 +19,22 @@ def api_my_items():
     total = q.count()
     pages = (total + per_page - 1) // per_page
     items = q.order_by(MarketItem.id.desc()).offset((page-1)*per_page).limit(per_page).all()
+
+    def build_cover_url(item):
+        cover_url = getattr(item, "cover_url", None) or ""
+        cover_filename = getattr(item, "cover_filename", None) or ""
+        if cover_url.startswith("http") or cover_url.startswith("/media/"):
+            return cover_url
+        if cover_filename:
+            return f"/api/market/media/{item.id}/{cover_filename}"
+        return ""
+
     def serialize_item(it):
         return {
             "id": it.id,
             "title": getattr(it, "title", None),
             "price": getattr(it, "price", None),
-            "cover_url": getattr(it, "cover_url", None),
+            "cover_url": build_cover_url(it),
         }
     return jsonify(ok=True, items=[serialize_item(it) for it in items], page=page, pages=pages, total=total)
 
@@ -32,7 +42,14 @@ def api_my_items():
 @bp.get("/media/<int:item_id>/<path:filename>")
 def api_market_media(item_id, filename):
     import os
-    from flask import current_app, send_from_directory, abort
+    from flask import current_app, send_from_directory, abort, redirect
+    from models_market import MarketItem
+    item = MarketItem.query.get(item_id)
+    if not item:
+        abort(404)
+    cover_url = getattr(item, "cover_url", None) or ""
+    if cover_url.startswith("/media/"):
+        return redirect(cover_url, code=302)
     root = current_app.config.get("UPLOADS_ROOT") or "/data/market_uploads"
     item_dir = os.path.join(root, str(item_id))
     file_path = os.path.join(item_dir, filename)
@@ -245,6 +262,6 @@ def api_market_my_items():
             "id": it.id,
             "title": getattr(it, "title", None) or getattr(it, "name", None) or f"Item {it.id}",
             "price": getattr(it, "price", 0) or 0,
-            "cover_url": getattr(it, "cover_url", "") or ""
+            "cover_url": build_cover_url(it)
         })
     return jsonify({"ok": True, "items": out}), 200

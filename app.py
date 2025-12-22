@@ -108,8 +108,14 @@ def create_app():
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
 
-    # from market_draft import bp_market_draft
-    # app.register_blueprint(bp_market_draft)
+
+    # Register debug admin blueprint
+    try:
+        import debug_admin
+        app.register_blueprint(debug_admin.bp)
+        print("✅ [debug_admin] registered at /admin/debug")
+    except Exception as e:
+        print(f"❌ [debug_admin] FAILED to register: {e}")
 
     # === Temporary endpoint to list all real routes (for diagnostics) ===
     @app.get("/__routes")
@@ -450,15 +456,17 @@ def create_app():
         }), 200
 
 
+
     # --- COMPAT: /api/my/items for legacy frontend ---
     @app.get("/api/my/items")
     def compat_api_my_items():
-        # Import the handler from market_api_full (or market_api)
-        try:
-            from market_api_full import api_market_my_items
-        except ImportError:
-            return {"ok": False, "error": "handler_missing"}, 500
-        return api_market_my_items()
+        from flask import redirect, request
+        # Proxy to /api/market/my/items with query string
+        qs = request.query_string.decode()
+        url = "/api/market/my/items"
+        if qs:
+            url += f"?{qs}"
+        return redirect(url, code=307)
 
     # --- end compat endpoints ---
 

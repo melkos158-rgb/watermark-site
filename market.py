@@ -1322,9 +1322,22 @@ def page_market_edit_item(item_id: int):
     if not uid:
         abort(401)
 
+
     it = _fetch_item_with_author(item_id)
     if not it:
         abort(404)
+    # Defensive: ensure 'it' is a dict
+    if not isinstance(it, dict):
+        try:
+            # Try to convert row/tuple to dict if possible
+            if hasattr(it, "_mapping"):
+                it = dict(it._mapping)
+            elif hasattr(it, "_asdict"):
+                it = it._asdict()
+            else:
+                abort(404)
+        except Exception:
+            abort(404)
 
     if _parse_int(it.get("user_id"), 0) != uid:
         abort(403)

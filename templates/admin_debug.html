@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html><head><title>Debug Admin</title></head><body>
+<h1>DEBUG REPORT</h1>
+<div id="env">
+  <h2>ENV</h2>
+  {% for k,v in env.items() %}
+    <div {% if not v %}style="color:red"{% endif %}>{{k}}: {{v or 'MISSING'}}</div>
+  {% endfor %}
+</div>
+<div id="health">
+  <h2>Health Checks</h2>
+  {% for k,v in health.items() %}
+    <div {% if v != 200 %}style="color:red"{% endif %}>{{k}}: {{v}}</div>
+  {% endfor %}
+</div>
+<div id="backend-errors">
+  <h2>Backend Errors</h2>
+  {% for e in errors %}
+    <div style="color:red">[{{e.ts}}] {{e.url}}: {{e.message}} ({{e.request_id}})</div>
+  {% endfor %}
+</div>
+<div id="client-errors">
+  <h2>Client JS Errors</h2>
+  <pre id="js-errors" style="color:red"></pre>
+</div>
+<button onclick="copyDebug()" style="font-size:2em;background:#faa">COPY FULL DEBUG REPORT</button>
+<script src="/static/js/debug.js"></script>
+<script>
+function copyDebug() {
+  let txt = 'DEBUG REPORT\n';
+  txt += 'Timestamp: '+new Date().toISOString()+'\n';
+  txt += 'ENV:\n';
+  document.querySelectorAll('#env div').forEach(d=>txt+=d.textContent+'\n');
+  txt += 'Health:\n';
+  document.querySelectorAll('#health div').forEach(d=>txt+=d.textContent+'\n');
+  txt += 'Backend Errors:\n';
+  document.querySelectorAll('#backend-errors div').forEach(d=>txt+=d.textContent+'\n');
+  txt += 'Client JS Errors:\n'+(window.__DEBUG_ERRORS__||[]).map(e=>JSON.stringify(e)).join('\n');
+  navigator.clipboard.writeText(txt);
+  alert('Copied!');
+}
+// Load client errors
+ document.getElementById('js-errors').textContent = (window.__DEBUG_ERRORS__||[]).map(e=>JSON.stringify(e)).join('\n');
+</script>
+</body></html>
