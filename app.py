@@ -1,43 +1,10 @@
-    import traceback
-import traceback as _traceback
+import traceback
 import os
-import threading
-import re
-import importlib
-import pkgutil
-import logging
-from collections import deque
-import traceback as _traceback
+import sys
 
-from flask import (
-    Flask,
-    render_template,
-    jsonify,
-    request,
-    session,
-    send_from_directory,
-    abort,
-    g,
-)
-from flask_babel import Babel
-import stripe
+from flask import Flask
 
-from db import init_app_db, close_db, db, User
-from models import db as models_db, MarketItem  # MarketItem може знадобитись далі
-
-from functools import wraps
-from sqlalchemy import text
-
-# blueprints з окремих модулів
-from core_pages import bp as core_bp      # 🌟 головні сторінки, /media, /donate, /lang…
-from ads import bp as ads_bp              # 🌟 банер TOP-1 і /ad/*
-from dev_bp import dev_bp                 # 🌟 dev-інструменти (/admin/dev-issues, /admin/dev-map)
-
-# === worker (опціонально) ===
-try:
-    from worker import run_worker  # очікуємо def run_worker(app): ...
-except Exception:
-    run_worker = None
+# ...existing code...
 
 # === ADMIN CONFIG ===
 ADMIN_EMAILS = {
