@@ -72,6 +72,7 @@ from flask import (
 )
 
 from sqlalchemy import text
+from market import bp as market_bp
 
 # Optional deps (don’t crash app if not installed/disabled)
 try:
