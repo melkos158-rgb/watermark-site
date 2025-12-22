@@ -1,3 +1,4 @@
+from db import init_app_db
 import os
 import sys
 import re
