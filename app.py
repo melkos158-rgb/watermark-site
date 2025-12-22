@@ -739,32 +739,12 @@ def create_app():
     if app.config.get("ENABLE_WORKER", True) and run_worker is not None:
         start_worker_thread(app)
 
-    return app
-
-
-def register_api_routes(app):
-    package_name = "api_routes"
-    package_path = os.path.join(BASE_DIR, "api_routes")
-    if not os.path.isdir(package_path):
-        return
-
-    for _, module_name, ispkg in pkgutil.iter_modules([package_path]):
-        if ispkg or module_name.startswith("_"):
-            continue
-        full_module_name = f"{package_name}.{module_name}"
-        try:
-            module = importlib.import_module(full_module_name)
-        except Exception as e:
-            print(f"[api_routes] import fail {full_module_name}: {e}")
-            continue
-
-        bp = getattr(module, "bp", None) or getattr(module, "blueprint", None)
-        if bp is None:
-            continue
-
-        url_prefix = "/api/" + module_name.replace("_api", "")
-        try:
-            app.register_blueprint(bp, url_prefix=url_prefix)
+    try:
+        import ai_api
+        app.register_blueprint(ai_api.bp, url_prefix="/api/ai")
+        print("✅ [ai_api] registered at /api/ai")
+    except Exception as e:
+        print(f"⚠️ [ai_api] skip: {e}")
             print(f"[api_routes] registered {full_module_name} at {url_prefix}")
         except Exception as e:
             print(f"[api_routes] register fail {full_module_name}: {e}")

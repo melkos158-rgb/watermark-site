@@ -1,5 +1,39 @@
-from flask import Blueprint
+from flask import Blueprint, request, redirect, url_for, render_template, session, flash
+# ...your other imports (_parse_int, db, models, upload utils)...
 bp = Blueprint("market", __name__)
+@bp.post("/market/upload")
+def submit_market_upload():
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        next_url = request.full_path.rstrip('?')
+        return redirect(url_for("auth.login", next=next_url))
+
+    # 1) поля
+    title = (request.form.get("title") or "").strip()
+    description = (request.form.get("description") or "").strip()
+    is_free = request.form.get("is_free") in ("1", "true", "on", "yes")
+    price_cents = _parse_int(request.form.get("price_cents"), 0)
+
+    # 2) файли
+    main_file = request.files.get("file")           # STL/OBJ/GLTF/ZIP
+    cover_file = request.files.get("cover")
+    video_file = request.files.get("video")
+    zip_file = request.files.get("zip_file")        # <- новий
+
+    # 3) мінімальна валідація
+    if not title:
+        flash("Title is required", "error")
+        return redirect(url_for("market.page_market_upload"))
+
+    if not main_file or not main_file.filename:
+        flash("Main model file is required", "error")
+        return redirect(url_for("market.page_market_upload"))
+
+    # 4) TODO: тут виклич свою існуючу логіку збереження/Cloudinary/DB
+    # upload_market_item(uid, title, description, main_file, cover_file, video_file, zip_file, is_free, price_cents)
+
+    flash("Uploaded", "success")
+    return redirect(url_for("market.page_market"))
 @bp.get("/market")
 def page_market():
     # TODO: implement real logic or render template
