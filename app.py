@@ -1,5 +1,6 @@
 run_worker = None
 import pkgutil
+import importlib
 from dev_bp import dev_bp
 from ads import bp as ads_bp
 from core_pages import bp as core_bp
@@ -165,18 +166,8 @@ def create_app():
     # Register blueprints using helper
     register_bp("debug_admin", lambda: __import__("debug_admin"))
     register_bp("ai_api", lambda: __import__("ai_api"))
-    import market_api
-    app.logger.warning(f"✅ market_api imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
-    print(f"✅ [market_api] imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
-    app.register_blueprint(market_api.bp, url_prefix="/api/market")
-    app.logger.warning("✅ market_api.bp registered with /api/market")
-    print("✅ [market_api] registered at /api/market")
-
-    import lang_api
-    app.logger.warning(f"✅ lang_api imported from: {getattr(lang_api, '__file__', 'NO_FILE')}")
-    print(f"✅ [lang_api] imported from: {getattr(lang_api, '__file__', 'NO_FILE')}")
-    app.register_blueprint(lang_api.bp, url_prefix="/api/lang")
-    print("✅ [lang_api] registered at /api/lang")
+    register_bp("market_api", lambda: __import__("market_api"), url_prefix="/api/market")
+    register_bp("lang_api", lambda: __import__("lang_api"), url_prefix="/api/lang")
 
     @app.errorhandler(500)
     def handle_500(e):
@@ -266,6 +257,7 @@ def create_app():
         lang = None
         if session.get("user_id"):
             try:
+                from models import User
                 u = User.query.get(session["user_id"])
                 if u and hasattr(u, "lang") and u.lang:
                     lang = (u.lang or "").lower()
@@ -594,6 +586,7 @@ def create_app():
     # ========= before_request хуки =========
     @app.before_request
     def _mark_admin():
+        from models import User
         uid = session.get("user_id")
         if not uid:
             session.pop("is_admin", None)
@@ -610,6 +603,7 @@ def create_app():
         uid = session.get("user_id")
         if uid:
             try:
+                from models import User
                 g.user = User.query.get(uid)
             except Exception:
                 g.user = None
@@ -629,6 +623,7 @@ def create_app():
     # ========= контекстні процесори =========
     @app.context_processor
     def inject_user():
+        from models import User
         u = User.query.get(session["user_id"]) if session.get("user_id") else None
         return dict(current_user=u, pxp=(to_int(u.pxp) if u else 0))
 
