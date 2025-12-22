@@ -32,6 +32,20 @@
         <input type="file" name="file" accept=".stl,.obj,.gltf,.glb,.zip" required>
       </label>
 
+
+      <div class="upload-block">
+        <label class="upload-label">
+          ZIP архів (опціонально)
+          <small>ZIP з кількома STL, README, ліцензією</small>
+        </label>
+        <input
+          type="file"
+          accept=".zip"
+          data-upload-type="zip"
+          class="upload-input"
+        />
+      </div>
+
       <label class="drop">
         {{ _('Обкладинка (зображення)') }}
         <input type="file" name="cover" accept="image/*">
