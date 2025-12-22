@@ -584,15 +584,22 @@ def create_app():
         print(f"⚠️ [lang_api] skip: {e}")
 
     # ========= before_request хуки =========
+    from flask import session  # якщо ще нема
+    # ADMIN_EMAILS має бути визначений вище
     @app.before_request
     def _mark_admin():
-        from models import User
         uid = session.get("user_id")
         if not uid:
             session.pop("is_admin", None)
             return
-        u = User.query.get(uid)
-        if u and u.email and u.email.lower() in ADMIN_EMAILS:
+        try:
+            from models import User  # lazy + safe
+            u = User.query.get(uid)
+        except Exception:
+            # не валимо весь сайт через адмін-прапорець
+            session.pop("is_admin", None)
+            return
+        if u and getattr(u, "email", None) and u.email.lower() in ADMIN_EMAILS:
             session["is_admin"] = True
         else:
             session.pop("is_admin", None)
