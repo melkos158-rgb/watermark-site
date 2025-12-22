@@ -133,8 +133,8 @@ def create_app():
             "ok": True,
             "msg": "debug alive",
             "file": __file__,
+            "debug_admin_status": app.config.get("DEBUG_ADMIN_STATUS", {"ok": None, "error": None})
         })
-        status = app.config.get("DEBUG_ADMIN_STATUS", {"ok": None, "error": None})
 
 
     # === Temporary endpoint to list all real routes (for diagnostics) ===
