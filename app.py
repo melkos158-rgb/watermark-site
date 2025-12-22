@@ -1,3 +1,4 @@
+from ads import bp as ads_bp
 from core_pages import bp as core_bp
 from db import init_app_db, close_db
 import os
