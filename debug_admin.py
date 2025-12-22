@@ -1,11 +1,13 @@
+bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
 from __future__ import annotations
+
 from flask import Blueprint, Response, jsonify
 
 bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
 
 @bp.get("/debug")
 def debug_page():
-    return Response("<h1>Admin Debug</h1><p>debug_admin blueprint loaded ✅</p>", mimetype="text/html")
+    return Response("<h1>Admin Debug</h1><p>debug_admin loaded ✅</p>", mimetype="text/html")
 
 @bp.get("/debug/report.json")
 def debug_report():
