@@ -176,7 +176,8 @@ def create_app():
                 "msg": record.getMessage(),
             }
             if record.exc_info:
-                entry["trace"] = ''.join(traceback.format_exception(*record.exc_info))
+                import traceback as _traceback
+                entry["trace"] = ''.join(_traceback.format_exception(*record.exc_info))
             app.config["DEBUG_ERRORS"].append(entry)
 
     debug_handler = DebugErrorHandler()
