@@ -47,6 +47,7 @@ class MarketItem(_db.Model):
 
     # ---------- медіа ----------
     cover_url = _db.Column(_db.Text)                  # головне фото
+        video_url = _db.Column(_db.Text)                 # preview/demo video
     gallery_urls = _db.Column(_db.Text, default="[]") # список фото (JSON-рядок)
 
     stl_main_url = _db.Column(_db.Text)               # основний STL

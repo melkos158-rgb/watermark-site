@@ -210,6 +210,60 @@ def api_market_items_draft():
 #  FULL SUPPORT FOR edit_model.js AUTOSAVE + FILE UPLOAD
 # ============================================================
 
+from flask import request, session, jsonify
+from models import MarketItem, _db
+from upload_utils import upload_image, upload_stl, upload_zip, upload_video
+
+def _parse_int(val, default=0):
+    try:
+        return int(val)
+    except Exception:
+        return default
+
+@bp.post("/items/<int:item_id>/upload/<string:kind>")
+def api_market_item_upload(item_id: int, kind: str):
+    uid = _parse_int(session.get("user_id"), 0)
+    if not uid:
+        return jsonify({"error": "auth_required"}), 401
+
+    kind = (kind or "").lower().strip()
+    if kind not in {"cover", "stl", "zip", "video"}:
+        return jsonify({"error": "bad_type"}), 400
+
+    file = request.files.get("file")
+    if not file or not getattr(file, "filename", ""):
+        return jsonify({"error": "no_file"}), 400
+
+    item = MarketItem.query.get(item_id)
+    if not item or int(item.user_id or 0) != int(uid):
+        return jsonify({"error": "not_found"}), 404
+
+    try:
+        if kind == "cover":
+            url, _pid = upload_image(file, folder="proofly/market/covers")
+            item.cover_url = url
+
+        elif kind == "stl":
+            url, _pid = upload_stl(file, folder="proofly/market/stl")
+            item.stl_main_url = url
+            item.format = "stl"
+
+        elif kind == "zip":
+            url, _pid = upload_zip(file, folder="proofly/market/zip")
+            item.zip_url = url
+            item.format = "zip"
+
+        elif kind == "video":
+            url, _pid = upload_video(file, folder="proofly/market/video")
+            item.video_url = url
+
+        _db.session.commit()
+        return jsonify({"secure_url": url, "url": url}), 200
+
+    except Exception as e:
+        _db.session.rollback()
+        return jsonify({"error": "upload_failed", "detail": str(e)}), 500
+
 
 
 import json

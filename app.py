@@ -3,6 +3,9 @@ import threading
 import re
 import importlib
 import pkgutil
+import logging
+from collections import deque
+import traceback
 
 from flask import (
     Flask,
@@ -104,26 +107,91 @@ def row_to_dict(row):
 
 
 def create_app():
-
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
-    # Register debug admin blueprint
-    import traceback
-    try:
-        import debug_admin
-        print("DEBUG_ADMIN FILE:", debug_admin.__file__)
-        app.register_blueprint(debug_admin.bp)
-        print("✅ [debug_admin] registered at /admin/debug")
-        app.config["DEBUG_ADMIN_STATUS"] = {"ok": True, "error": None}
-    except Exception as e:
-        err = traceback.format_exc()
-        print(f"❌ [debug_admin] FAILED to register: {e}")
+    # Lightweight in-memory error collector
+    app.config["DEBUG_ERRORS"] = deque(maxlen=200)
+    app.config["DEBUG_BP_STATUS"] = {}
+    app.config["DEBUG_IMPORT_ERRORS"] = {}
+
+    class DebugErrorHandler(logging.Handler):
+        def emit(self, record):
+            entry = {
+                "ts": datetime.utcnow().isoformat() + 'Z',
+                "level": record.levelname,
+                "logger": record.name,
+                "msg": record.getMessage(),
+            }
+            if record.exc_info:
+                entry["trace"] = ''.join(traceback.format_exception(*record.exc_info))
+            app.config["DEBUG_ERRORS"].append(entry)
+
+    debug_handler = DebugErrorHandler()
+    debug_handler.setLevel(logging.ERROR)
+    app.logger.addHandler(debug_handler)
+    logging.getLogger().addHandler(debug_handler)
+
+    def register_bp(name, import_func, attr="bp", url_prefix=None):
         try:
-            app.logger.exception("❌ [debug_admin] FAILED to register")
-        except Exception:
-            pass
-        app.config["DEBUG_ADMIN_STATUS"] = {"ok": False, "error": err}
+            mod = import_func()
+            bp = getattr(mod, attr)
+            if url_prefix:
+                app.register_blueprint(bp, url_prefix=url_prefix)
+            else:
+                app.register_blueprint(bp)
+            app.config["DEBUG_BP_STATUS"][name] = True
+        except Exception as e:
+            tb = traceback.format_exc()
+            app.config["DEBUG_BP_STATUS"][name] = False
+            app.config["DEBUG_IMPORT_ERRORS"][name] = tb
+            app.config["DEBUG_ERRORS"].append({
+                "ts": datetime.utcnow().isoformat() + 'Z',
+                "level": "ERROR",
+                "logger": f"register_bp.{name}",
+                "msg": str(e),
+                "trace": tb,
+            })
+
+    # Register blueprints using helper
+    register_bp("debug_admin", lambda: __import__("debug_admin"))
+    register_bp("market_api", lambda: __import__("market_api"))
+    register_bp("ai_api", lambda: __import__("ai_api"))
+    register_bp("lang_api", lambda: __import__("lang_api"))
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        import traceback
+        app.config["DEBUG_ERRORS"].append({
+            "ts": datetime.utcnow().isoformat() + 'Z',
+            "level": "ERROR",
+            "logger": "app.errorhandler",
+            "msg": str(e),
+            "trace": traceback.format_exc(),
+        })
+        return "Internal Server Error", 500
+
+    @app.before_request
+    def store_last_request():
+        from flask import g, request
+        g._last_request = {
+            "path": request.path,
+            "method": request.method,
+            "remote_addr": request.remote_addr,
+            "ts": datetime.utcnow().isoformat() + 'Z',
+        }
+
+    @app.after_request
+    def log_error_response(response):
+        from flask import g, request
+        if response.status_code >= 400:
+            app.config["DEBUG_ERRORS"].append({
+                "ts": datetime.utcnow().isoformat() + 'Z',
+                "level": "ERROR" if response.status_code >= 500 else "WARNING",
+                "logger": "after_request",
+                "msg": f"{request.method} {request.path} -> {response.status_code}",
+            })
+        return response
 
     # Guaranteed debug route
     from flask import jsonify
