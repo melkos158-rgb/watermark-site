@@ -28,7 +28,7 @@ def admin_debug_report():
 from flask import Blueprint, request, jsonify, session, render_template, current_app, g
 import uuid, os, datetime
 
-bp = Blueprint("debug_admin", __name__)
+bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
 
 # Store latest errors in memory (for demo, not production)
 _ERRORS = []
@@ -72,7 +72,7 @@ def handle_exception(e):
         {"Content-Type": "text/plain"}
     )
 
-@bp.route("/admin/debug")
+@bp.get("/debug")
 def admin_debug():
     # Only admin or DEV
     uid = session.get("user_id")
