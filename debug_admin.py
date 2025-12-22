@@ -1,3 +1,18 @@
+from flask import Blueprint, jsonify, Response
+bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
+
+@bp.get("/debug")
+def debug_page():
+    return Response("<h1>Debug Admin OK</h1>", mimetype="text/html")
+
+@bp.get("/debug/report.json")
+def admin_debug_report():
+    uid = session.get("user_id")
+    is_admin = session.get("is_admin") or os.environ.get("FLASK_ENV") == "development"
+    if not is_admin:
+        return jsonify({"error": "Forbidden"}), 403
+
+    return jsonify({"status": "ok", "message": "Debug report endpoint alive."})
 @bp.route("/admin/debug/report.json")
 def admin_debug_report():
     uid = session.get("user_id")
@@ -6,10 +21,10 @@ def admin_debug_report():
         return jsonify({"error": "Forbidden"}), 403
 
     from flask import Blueprint, Response
-    bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
+bp = Blueprint("debug_admin", __name__, url_prefix="/admin")  # This line is retained for context
 
     @bp.get("/debug")
-    def admin_debug():
+    def debug_page():  # Renamed function to match the new intent
         return Response("<h1>Debug Admin OK</h1>", mimetype="text/html")
         return "Forbidden", 403
     env = {
