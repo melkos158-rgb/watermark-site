@@ -1,4 +1,4 @@
-from db import init_app_db
+from db import init_app_db, close_db
 import os
 import sys
 import re
