@@ -510,14 +510,16 @@ def create_app():
 
     # окремі API-blueprints
 
+    # --- market_api ---
     try:
         import market_api
-        app.register_blueprint(market_api.bp, url_prefix="/api/market")
-        print("✅ [market_api] registered at /api/market")
+        if "market_api" not in app.blueprints:
+            app.register_blueprint(market_api.bp, url_prefix="/api/market")
+            app.logger.warning("✅ market_api.bp registered with /api/market")
+        else:
+            app.logger.warning("⚠️ market_api already registered — skip")
     except Exception as e:
-        print(f"❌ [market_api] FAILED to register: {e}")
-        import traceback
-        traceback.print_exc()
+        app.logger.exception("❌ [market_api] FAILED to register")
 
     # --- HARD compat endpoints (app-level, bypass blueprints) ---
 
@@ -552,12 +554,17 @@ def create_app():
     except Exception as e:
         print(f"⚠️ [ai_api] skip: {e}")
 
+    # --- lang_api ---
+    # --- lang_api ---
     try:
         import lang_api
-        app.register_blueprint(lang_api.bp, url_prefix="/api/lang")
-        print("✅ [lang_api] registered at /api/lang")
+        if "lang_api" not in app.blueprints:
+            app.register_blueprint(lang_api.bp, url_prefix="/api/lang")
+            app.logger.warning("✅ lang_api.bp registered with /api/lang")
+        else:
+            app.logger.warning("⚠️ lang_api already registered — skip")
     except Exception as e:
-        print(f"⚠️ [lang_api] skip: {e}")
+        app.logger.exception("⚠️ [lang_api] skip")
 
     # ========= before_request хуки =========
     from flask import session  # якщо ще нема
