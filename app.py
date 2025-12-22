@@ -104,87 +104,52 @@ def row_to_dict(row):
 
 
 def create_app():
-        import traceback
-        app.config["DEBUG_IMPORT_ERRORS"] = {}
-        app.config["DEBUG_BP_STATUS"] = {}
 
-        def register_bp(bp_name, import_stmt, bp_attr):
-            try:
-                mod = import_stmt()
-                bp = getattr(mod, bp_attr)
-                app.register_blueprint(bp)
-                app.config["DEBUG_BP_STATUS"][bp_name] = True
-                app.config["DEBUG_IMPORT_ERRORS"][bp_name] = None
-            except Exception as e:
-                app.config["DEBUG_BP_STATUS"][bp_name] = False
-                app.config["DEBUG_IMPORT_ERRORS"][bp_name] = traceback.format_exc()
-                print(f"❌ [{bp_name}] FAILED to register: {e}")
-                try:
-                    app.logger.exception(f"❌ [{bp_name}] FAILED to register: {e}")
-                except Exception:
-                    pass
-                traceback.print_exc()
-
-        # Register debug_admin blueprint using helper
-        def import_debug_admin():
-            import debug_admin
-            print("DEBUG_ADMIN FILE:", debug_admin.__file__)
-            return debug_admin
-        register_bp("debug_admin", import_debug_admin, "bp")
-
-        # Add built-in debug page
-        @app.get("/__debug")
-        def builtin_debug():
-            from flask import Response, jsonify
-            import json
-            # Security: allow only admin or DEBUG_KEY
-            debug_key = os.environ.get("DEBUG_KEY", "")
-            is_admin = session.get("is_admin") or os.environ.get("FLASK_ENV") != "production"
-            if not is_admin and request.args.get("key") != debug_key:
-                return Response("Forbidden", status=403)
-            # Collect diagnostics
-            env = {
-                "UPLOADS_ROOT": app.config.get("UPLOADS_ROOT"),
-                "CLOUDINARY_URL": os.environ.get("CLOUDINARY_URL"),
-                "DATABASE_URL": os.environ.get("DATABASE_URL"),
-            }
-            routes = [str(r) for r in app.url_map.iter_rules()]
-            debug_info = {
-                "DEBUG_IMPORT_ERRORS": app.config["DEBUG_IMPORT_ERRORS"],
-                "DEBUG_BP_STATUS": app.config["DEBUG_BP_STATUS"],
-                "routes": sorted(routes),
-                "env": env,
-            }
-            # Render HTML page
-            html = f"""
-            <html><head><title>__DEBUG</title></head><body style='background:#181a20;color:#eee;font-family:monospace;'>
-            <h1>__DEBUG PAGE</h1>
-            <h2>Blueprint Import Errors</h2>
-            <pre style='color:red;'>{json.dumps(debug_info['DEBUG_IMPORT_ERRORS'], indent=2)}</pre>
-            <h2>Blueprint Registration Status</h2>
-            <pre>{json.dumps(debug_info['DEBUG_BP_STATUS'], indent=2)}</pre>
-            <h2>Registered Routes</h2>
-            <pre>{json.dumps(debug_info['routes'], indent=2)}</pre>
-            <h2>ENV Summary</h2>
-            <pre>{json.dumps(debug_info['env'], indent=2)}</pre>
-            <button id='copy-debug' style='font-size:2em;background:#faa;margin:18px 0;'>COPY FULL DEBUG REPORT</button>
-            <span id='copy-status' style='margin-left:1em'></span>
-            <textarea id='debug-report-box' style='width:100%;height:200px;font-size:1em'></textarea>
-            <script>
-            const report = {json.dumps(debug_info, indent=2)};
-            document.getElementById('copy-debug').onclick = async function() {{
-              const text = JSON.stringify(report, null, 2);
-              await navigator.clipboard.writeText(text);
-              document.getElementById('copy-status').textContent = 'Copied ✅';
-              document.getElementById('debug-report-box').value = text;
-            }};
-            document.getElementById('debug-report-box').value = JSON.stringify(report, null, 2);
-            </script>
-            </body></html>
-            """
-            return Response(html, mimetype="text/html")
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
+
+    # Register debug admin blueprint
+    import traceback
+    try:
+        import debug_admin
+        print("DEBUG_ADMIN FILE:", debug_admin.__file__)
+        app.register_blueprint(debug_admin.bp)
+        print("✅ [debug_admin] registered at /admin/debug")
+        app.config["DEBUG_ADMIN_STATUS"] = {"ok": True, "error": None}
+    except Exception as e:
+        err = traceback.format_exc()
+        print(f"❌ [debug_admin] FAILED to register: {e}")
+        try:
+            app.logger.exception("❌ [debug_admin] FAILED to register")
+        except Exception:
+            pass
+        app.config["DEBUG_ADMIN_STATUS"] = {"ok": False, "error": err}
+
+    # Guaranteed debug route
+    @app.get("/__debug")
+    def builtin_debug():
+        import datetime
+        now = datetime.datetime.utcnow().isoformat()
+        routes = [
+            {"methods": list(r.methods), "rule": r.rule, "endpoint": r.endpoint}
+            for r in app.url_map.iter_rules()
+        ]
+        status = app.config.get("DEBUG_ADMIN_STATUS", {"ok": None, "error": None})
+        html = f"""
+        <html><head><title>__DEBUG</title></head><body style='background:#181a20;color:#eee;font-family:monospace;'>
+        <h1>__DEBUG PAGE</h1>
+        <h2>Current Time</h2>
+        <pre>{now}</pre>
+        <h2>Registered Routes</h2>
+        <pre>{routes}</pre>
+        <h2>debug_admin Blueprint Status</h2>
+        <pre style='color:{{'red' if not status['ok'] else 'lime'}};'>{status}</pre>
+        {f'<div style="color:red;"><b>ERROR:</b><pre>{status["error"]}</pre></div>' if not status['ok'] and status['error'] else ''}
+        <button id='copy-debug' style='font-size:2em;background:#faa;margin:18px 0;'>COPY FULL DEBUG REPORT</button>
+        <span id='copy-status' style='margin-left:1em'></span>
+        <textarea id='debug-report-box' style='width:100%;height:200px;font-size:1em'></textarea>
+        <script>
+        const report = {{
 
 
 
