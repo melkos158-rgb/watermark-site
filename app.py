@@ -1,13 +1,23 @@
-# --- sentry-sdk integration for runtime error tracking ---
-SENTRY_DSN = os.environ.get("SENTRY_DSN")
+import os
+import sys
+import re
+import json
+import logging
+import threading
+import traceback as _traceback
+from datetime import datetime
+from collections import deque
+from functools import wraps
+# ...existing code...
 try:
     import sentry_sdk
     from sentry_sdk.integrations.flask import FlaskIntegration
-    if SENTRY_DSN:
+    dsn = os.environ.get("SENTRY_DSN")
+    if dsn:
         sentry_sdk.init(
-            dsn=SENTRY_DSN,
+            dsn=dsn,
             integrations=[FlaskIntegration()],
-            traces_sample_rate=1.0,
+            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.0")),
         )
 except ImportError:
     pass
