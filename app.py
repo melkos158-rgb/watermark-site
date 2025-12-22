@@ -111,11 +111,18 @@ def create_app():
 
     # Register debug admin blueprint
     try:
-        import debug_admin
-        app.register_blueprint(debug_admin.bp)
+        from debug_admin import bp as debug_bp
+        print("✅ [debug_admin] imported and blueprint ready")
+        app.register_blueprint(debug_bp)
         print("✅ [debug_admin] registered at /admin/debug")
     except Exception as e:
+        import traceback
         print(f"❌ [debug_admin] FAILED to register: {e}")
+        try:
+            app.logger.exception(f"❌ [debug_admin] FAILED to register: {e}")
+        except Exception:
+            pass
+        traceback.print_exc()
 
     # === Temporary endpoint to list all real routes (for diagnostics) ===
     @app.get("/__routes")
