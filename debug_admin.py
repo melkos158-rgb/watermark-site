@@ -1,18 +1,14 @@
-from flask import Blueprint, jsonify, Response
+from __future__ import annotations
+from flask import Blueprint, Response, jsonify
 bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
 
 @bp.get("/debug")
 def debug_page():
-    return Response("<h1>Debug Admin OK</h1>", mimetype="text/html")
+    return Response("<h1>Debug OK</h1><p>/admin/debug is alive.</p>", mimetype="text/html")
 
 @bp.get("/debug/report.json")
-def admin_debug_report():
-    uid = session.get("user_id")
-    is_admin = session.get("is_admin") or os.environ.get("FLASK_ENV") == "development"
-    if not is_admin:
-        return jsonify({"error": "Forbidden"}), 403
-
-    return jsonify({"status": "ok", "message": "Debug report endpoint alive."})
+def debug_report():
+    return jsonify({"ok": True, "msg": "debug report endpoint alive"})
 @bp.route("/admin/debug/report.json")
 def admin_debug_report():
     uid = session.get("user_id")

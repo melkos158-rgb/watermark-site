@@ -111,9 +111,9 @@ def create_app():
 
     # Register debug admin blueprint
     try:
-        from debug_admin import bp as debug_bp
-        print("✅ [debug_admin] imported and blueprint ready")
-        app.register_blueprint(debug_bp)
+        import debug_admin
+        print("DEBUG_ADMIN FILE:", debug_admin.__file__)
+        app.register_blueprint(debug_admin.bp)
         print("✅ [debug_admin] registered at /admin/debug")
     except Exception as e:
         import traceback
