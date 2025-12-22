@@ -126,75 +126,16 @@ def create_app():
         app.config["DEBUG_ADMIN_STATUS"] = {"ok": False, "error": err}
 
     # Guaranteed debug route
+    from flask import jsonify
     @app.get("/__debug")
-    def builtin_debug():
-        import datetime
-        now = datetime.datetime.utcnow().isoformat()
-        routes = [
-            {"methods": list(r.methods), "rule": r.rule, "endpoint": r.endpoint}
-            for r in app.url_map.iter_rules()
-        ]
+    def __debug():
+        return jsonify({
+            "ok": True,
+            "msg": "debug alive",
+            "file": __file__,
+        })
         status = app.config.get("DEBUG_ADMIN_STATUS", {"ok": None, "error": None})
-        html = f"""
-        <html><head><title>__DEBUG</title></head><body style='background:#181a20;color:#eee;font-family:monospace;'>
-        <h1>__DEBUG PAGE</h1>
-        <h2>Current Time</h2>
-        <pre>{now}</pre>
-        <h2>Registered Routes</h2>
-        <pre>{routes}</pre>
-        <h2>debug_admin Blueprint Status</h2>
-        <pre style='color:{{'red' if not status['ok'] else 'lime'}};'>{status}</pre>
-        {f'<div style="color:red;"><b>ERROR:</b><pre>{status["error"]}</pre></div>' if not status['ok'] and status['error'] else ''}
-        <button id='copy-debug' style='font-size:2em;background:#faa;margin:18px 0;'>COPY FULL DEBUG REPORT</button>
-        <span id='copy-status' style='margin-left:1em'></span>
-        <textarea id='debug-report-box' style='width:100%;height:200px;font-size:1em'></textarea>
-        <script>
-        const report = {{
 
-
-
-    # Register debug admin blueprint
-    import traceback
-    try:
-        import debug_admin
-        print("DEBUG_ADMIN FILE:", debug_admin.__file__)
-        app.register_blueprint(debug_admin.bp)
-        print("✅ [debug_admin] registered at /admin/debug")
-        app.config["DEBUG_ADMIN_STATUS"] = {"ok": True, "error": None}
-    except Exception as e:
-        err = traceback.format_exc()
-        print(f"❌ [debug_admin] FAILED to register: {e}")
-        try:
-            app.logger.exception(f"❌ [debug_admin] FAILED to register: {e}")
-        except Exception:
-            pass
-        traceback.print_exc()
-        app.config["DEBUG_ADMIN_STATUS"] = {"ok": False, "error": err}
-
-    # Guaranteed debug route
-    @app.get("/__debug")
-    def builtin_debug():
-        import datetime
-        now = datetime.datetime.utcnow().isoformat()
-        routes = [
-            {"methods": list(r.methods), "rule": r.rule, "endpoint": r.endpoint}
-            for r in app.url_map.iter_rules()
-        ]
-        status = app.config.get("DEBUG_ADMIN_STATUS", {"ok": None, "error": None})
-        from flask import Response
-        html = f"""
-    <html><head><title>__DEBUG</title></head><body style='background:#181a20;color:#eee;font-family:monospace;'>
-    <h1>__DEBUG PAGE</h1>
-    <h2>Current Time</h2>
-    <pre>{now}</pre>
-    <h2>Registered Routes</h2>
-    <pre>{routes}</pre>
-    <h2>debug_admin Blueprint Status</h2>
-    <pre style='color:{'red' if not status['ok'] else 'lime'};'>{status}</pre>
-    {f'<div style="color:red;"><b>ERROR:</b><pre>{status["error"]}</pre></div>' if not status['ok'] and status['error'] else ''}
-    </body></html>
-    """
-        return Response(html, mimetype="text/html")
 
     # === Temporary endpoint to list all real routes (for diagnostics) ===
     @app.get("/__routes")
@@ -228,7 +169,7 @@ def create_app():
 
     @app.context_processor
     def inject_asset_v():
-        """Віддає asset_v в усі шаблони для ?v=commit_hash"""
+        # Inject asset_v into all templates for cache busting
         return {"asset_v": app.config["ASSET_V"]}
 
     # ========= i18n =========
