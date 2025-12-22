@@ -73,6 +73,7 @@ from flask import (
 
 from sqlalchemy import text
 from market import bp as market_bp
+from profile import bp as profile_bp
 
 # Optional deps (don’t crash app if not installed/disabled)
 try:
@@ -216,6 +217,8 @@ def create_app():
     register_bp("lang_api", lambda: __import__("lang_api"), url_prefix="/api/lang")
     # Register the UI core blueprint for / (core.index)
     app.register_blueprint(core_bp)
+    # Register the UI profile blueprint for /profile and /top100
+    app.register_blueprint(profile_bp)
     # Register the UI market blueprint for /market
     app.register_blueprint(market_bp)
 
