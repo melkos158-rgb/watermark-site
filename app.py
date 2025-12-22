@@ -527,32 +527,12 @@ def create_app():
 
     @app.get("/api/market/ping")
     def api_market_ping_app():
-        import os
-        from flask import jsonify, current_app
-
-        commit = os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("GIT_COMMIT") or "unknown"
-
-        def _rule_info(path: str):
-            for r in current_app.url_map.iter_rules():
-                if r.rule == path:
-                    return {
-                        "endpoint": r.endpoint,
-                        "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
-                    }
-            return None
-
-        return jsonify({
-            "ok": True,
-            "route": "/api/market/ping",
-            "file": __file__,
-            "commit": commit,
-            "map": {
-                "/market/upload": _rule_info("/market/upload"),
-                "/api/market/upload": _rule_info("/api/market/upload"),
-                "/api/market/items/draft": _rule_info("/api/market/items/draft"),
-                "/api/market/favorite": _rule_info("/api/market/favorite"),
-            }
-        }), 200
+        try:
+            import ai_api
+            app.register_blueprint(ai_api.bp, url_prefix="/api/ai")
+            print("✅ [ai_api] registered at /api/ai")
+        except Exception as e:
+            print(f"⚠️ [ai_api] skip: {e}")
 
 
 

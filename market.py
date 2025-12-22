@@ -1,3 +1,9 @@
+from flask import Blueprint
+bp = Blueprint("market", __name__)
+@bp.get("/market")
+def page_market():
+    # TODO: implement real logic or render template
+    return render_template("market/market.html")
 @bp.post("/market/upload")
 def post_market_upload():
     uid = _parse_int(session.get("user_id"), 0)
