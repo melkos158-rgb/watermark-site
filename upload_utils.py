@@ -1,3 +1,14 @@
+def upload_video(file, folder="proofly/video"):
+    import cloudinary
+    import uuid
+    from werkzeug.utils import secure_filename
+    res = cloudinary.uploader.upload(
+        file,
+        folder=folder,
+        resource_type="video",
+        public_id=f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+    )
+    return res.get("secure_url"), res.get("public_id")
 # ===============================================================
 #  Завантаження ВІДЕО
 # ===============================================================
