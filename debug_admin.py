@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 
 import os
-from flask import Blueprint, Response, jsonify, session, request
+from flask import Blueprint, Response, jsonify, session, request, current_app
 from datetime import datetime
 
 bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
@@ -42,4 +42,28 @@ def debug_report():
     is_admin = bool(session.get("is_admin")) or os.environ.get("FLASK_ENV") == "development"
     if not is_admin:
         return jsonify({"ok": False, "error": "forbidden"}), 403
-    return jsonify({"ok": True, "module": __file__})
+    cfg = current_app.config
+    now = datetime.utcnow().isoformat() + 'Z'
+    commit = os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("GIT_COMMIT") or os.getenv("RENDER_GIT_COMMIT") or "dev"
+    env = {
+        "uploads_root": cfg.get("UPLOADS_ROOT"),
+        "media_root": cfg.get("MEDIA_ROOT"),
+        "has_cloudinary": bool(os.getenv("CLOUDINARY_URL")),
+        "has_db": bool(os.getenv("DATABASE_URL")),
+    }
+    bp_status = cfg.get("DEBUG_BP_STATUS", {})
+    import_errors = cfg.get("DEBUG_IMPORT_ERRORS", {})
+    errors = list(cfg.get("DEBUG_ERRORS", []))
+    rules = [r.rule for r in current_app.url_map.iter_rules()]
+    filter_keys = ["/admin", "/market", "/api/market", "/api/lang"]
+    filtered_routes = [r for r in rules if any(k in r for k in filter_keys)]
+    return jsonify({
+        "ok": True,
+        "ts_utc": now,
+        "commit": commit,
+        "env": env,
+        "bp_status": bp_status,
+        "import_errors": import_errors,
+        "errors": errors,
+        "routes": {"count": len(filtered_routes), "list": filtered_routes},
+    })
