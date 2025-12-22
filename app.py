@@ -1,3 +1,4 @@
+run_worker = None
 import pkgutil
 from dev_bp import dev_bp
 from ads import bp as ads_bp
@@ -163,9 +164,19 @@ def create_app():
 
     # Register blueprints using helper
     register_bp("debug_admin", lambda: __import__("debug_admin"))
-    register_bp("market_api", lambda: __import__("market_api"))
     register_bp("ai_api", lambda: __import__("ai_api"))
-    register_bp("lang_api", lambda: __import__("lang_api"))
+        import market_api
+        app.logger.warning(f"✅ market_api imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
+        print(f"✅ [market_api] imported from: {getattr(market_api, '__file__', 'NO_FILE')}")
+        app.register_blueprint(market_api.bp, url_prefix="/api/market")
+        app.logger.warning("✅ market_api.bp registered with /api/market")
+        print("✅ [market_api] registered at /api/market")
+    
+        import lang_api
+        app.logger.warning(f"✅ lang_api imported from: {getattr(lang_api, '__file__', 'NO_FILE')}")
+        print(f"✅ [lang_api] imported from: {getattr(lang_api, '__file__', 'NO_FILE')}")
+        app.register_blueprint(lang_api.bp, url_prefix="/api/lang")
+        print("✅ [lang_api] registered at /api/lang")
 
     @app.errorhandler(500)
     def handle_500(e):
