@@ -23,23 +23,22 @@
   <h2>Client JS Errors</h2>
   <pre id="js-errors" style="color:red"></pre>
 </div>
-<button onclick="copyDebug()" style="font-size:2em;background:#faa">COPY FULL DEBUG REPORT</button>
+
+<button id="copy-debug-report" style="font-size:2em;background:#faa">COPY FULL DEBUG REPORT</button>
+<span id="copy-status" style="margin-left:1em"></span>
+<br><br>
+<textarea id="debug-report-box" style="width:100%;height:200px;font-size:1em"></textarea>
 <script src="/static/js/debug.js"></script>
 <script>
-function copyDebug() {
-  let txt = 'DEBUG REPORT\n';
-  txt += 'Timestamp: '+new Date().toISOString()+'\n';
-  txt += 'ENV:\n';
-  document.querySelectorAll('#env div').forEach(d=>txt+=d.textContent+'\n');
-  txt += 'Health:\n';
-  document.querySelectorAll('#health div').forEach(d=>txt+=d.textContent+'\n');
-  txt += 'Backend Errors:\n';
-  document.querySelectorAll('#backend-errors div').forEach(d=>txt+=d.textContent+'\n');
-  txt += 'Client JS Errors:\n'+(window.__DEBUG_ERRORS__||[]).map(e=>JSON.stringify(e)).join('\n');
-  navigator.clipboard.writeText(txt);
-  alert('Copied!');
-}
+document.getElementById('copy-debug-report').onclick = async function() {
+  const res = await fetch('/admin/debug/report.json');
+  const data = await res.json();
+  const text = JSON.stringify(data, null, 2);
+  await navigator.clipboard.writeText(text);
+  document.getElementById('copy-status').textContent = 'Copied ✅';
+  document.getElementById('debug-report-box').value = text;
+};
 // Load client errors
- document.getElementById('js-errors').textContent = (window.__DEBUG_ERRORS__||[]).map(e=>JSON.stringify(e)).join('\n');
+document.getElementById('js-errors').textContent = (window.__DEBUG_ERRORS__||[]).map(e=>JSON.stringify(e)).join('\n');
 </script>
 </body></html>

@@ -1,3 +1,30 @@
+@bp.route("/admin/debug/report.json")
+def admin_debug_report():
+    uid = session.get("user_id")
+    is_admin = session.get("is_admin") or os.environ.get("FLASK_ENV") == "development"
+    if not is_admin:
+        return jsonify({"error": "Forbidden"}), 403
+    env = {
+        "UPLOADS_ROOT": current_app.config.get("UPLOADS_ROOT"),
+        "CLOUDINARY_URL": bool(os.environ.get("CLOUDINARY_URL")),
+    }
+    health = {}
+    import requests
+    for url in ["/market", "/api/items"]:
+        try:
+            r = requests.get(request.host_url.rstrip("/") + url)
+            health[url] = r.status_code
+        except Exception as e:
+            health[url] = str(e)
+    report = {
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "env": env,
+        "health": health,
+        "backend_errors": _ERRORS[-20:],
+        "client_errors": request.args.get("client_errors"),
+        "request_ids": [e.get("request_id") for e in _ERRORS[-20:] if e.get("request_id")],
+    }
+    return jsonify(report)
 from flask import Blueprint, request, jsonify, session, render_template, current_app, g
 import uuid, os, datetime
 
