@@ -160,6 +160,13 @@ def row_to_dict(row):
 
 
 def create_app():
+        # Explicitly import and assign blueprints
+        import core_pages
+        core_bp = core_pages.bp
+        import profile
+        profile_bp = profile.bp
+        import market
+        market_bp = market.bp
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
@@ -179,7 +186,7 @@ def create_app():
             if record.exc_info:
                 import traceback as _traceback
                 entry["trace"] = ''.join(_traceback.format_exception(*record.exc_info))
-            app.config["DEBUG_ERRORS"].append(entry)
+            app.config.setdefault("DEBUG_ERRORS", []).append(entry)
 
     debug_handler = DebugErrorHandler()
     debug_handler.setLevel(logging.ERROR)
