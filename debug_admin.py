@@ -6,16 +6,21 @@ bp = Blueprint("debug_admin", __name__)
 # Store latest errors in memory (for demo, not production)
 _ERRORS = []
 
+
+# Attach request_id before each request
 @bp.before_app_request
 def attach_request_id():
     rid = str(uuid.uuid4())
     g.request_id = rid
     request.request_id = rid
-    # Attach header for response
-    @current_app.after_request
-    def add_request_id_header(resp):
-        resp.headers["X-Request-Id"] = g.request_id
-        return resp
+
+# Attach X-Request-Id header after each request
+@bp.after_app_request
+def add_request_id_header(resp):
+    rid = getattr(g, "request_id", None)
+    if rid:
+        resp.headers["X-Request-Id"] = rid
+    return resp
 
 @bp.app_errorhandler(Exception)
 def handle_exception(e):
@@ -33,7 +38,12 @@ def handle_exception(e):
     _ERRORS.append(err)
     if request.path.startswith("/api/"):
         return jsonify(error=True, message=str(e), request_id=rid), 500
-    return render_template("admin_debug_error.html", error=err), 500
+    # Return plain text for non-API errors
+    return (
+        f"[DEBUG ERROR] Request ID: {rid}\nURL: {request.path}\nMessage: {str(e)}\nTrace:\n{tb}",
+        500,
+        {"Content-Type": "text/plain"}
+    )
 
 @bp.route("/admin/debug")
 def admin_debug():
