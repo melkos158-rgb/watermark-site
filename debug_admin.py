@@ -1,14 +1,15 @@
 from __future__ import annotations
 from flask import Blueprint, Response, jsonify
+
 bp = Blueprint("debug_admin", __name__, url_prefix="/admin")
 
 @bp.get("/debug")
 def debug_page():
-    return Response("<h1>Debug OK</h1><p>/admin/debug is alive.</p>", mimetype="text/html")
+    return Response("<h1>Admin Debug</h1><p>debug_admin blueprint loaded ✅</p>", mimetype="text/html")
 
 @bp.get("/debug/report.json")
 def debug_report():
-    return jsonify({"ok": True, "msg": "debug report endpoint alive"})
+    return jsonify({"ok": True, "module": __file__})
 @bp.route("/admin/debug/report.json")
 def admin_debug_report():
     uid = session.get("user_id")
