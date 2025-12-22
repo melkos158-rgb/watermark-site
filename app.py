@@ -1,4 +1,27 @@
+# --- sentry-sdk integration for runtime error tracking ---
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN"),
+    integrations=[FlaskIntegration()],
+    traces_sample_rate=1.0,
+)
+# --- structlog setup for structured logging ---
+import structlog
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(20),
+)
+log = structlog.get_logger()
 run_worker = None
+from rich.traceback import install
+install(show_locals=True)
+
+# Enable better-exceptions for local debugging (optional, safe if not present)
+try:
+    import better_exceptions
+    better_exceptions.hook()
+except ImportError:
+    pass
 import pkgutil
 import importlib
 from dev_bp import dev_bp

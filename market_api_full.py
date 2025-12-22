@@ -1,33 +1,24 @@
-from flask import Blueprint
+
+from flask import Blueprint, jsonify
 bp = Blueprint("market_api", __name__)
 
 # === LEGACY COMPAT: GET /api/my/items ===
+
+from utils.market import build_cover_url
+
 @bp.get("/my/items")
 def api_my_items():
-    from flask import session, jsonify, request
+    from flask import session, request
     from models_market import MarketItem
     uid = session.get("user_id")
     if not uid:
         return jsonify(ok=False, error="auth_required"), 401
     page = int(request.args.get("page", 1))
-    from flask import Blueprint
-    bp = Blueprint("market_api", __name__)
-
-    # === LEGACY COMPAT: GET /api/my/items ===
     per_page = int(request.args.get("per_page", 24))
     q = MarketItem.query.filter_by(user_id=uid)
     total = q.count()
     pages = (total + per_page - 1) // per_page
     items = q.order_by(MarketItem.id.desc()).offset((page-1)*per_page).limit(per_page).all()
-
-    def build_cover_url(item):
-        cover_url = getattr(item, "cover_url", None) or ""
-        cover_filename = getattr(item, "cover_filename", None) or ""
-        if cover_url.startswith("http") or cover_url.startswith("/media/"):
-            return cover_url
-        if cover_filename:
-            return f"/api/market/media/{item.id}/{cover_filename}"
-        return ""
 
     def serialize_item(it):
         return {
