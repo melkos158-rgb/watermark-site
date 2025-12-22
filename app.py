@@ -5,7 +5,7 @@ import importlib
 import pkgutil
 import logging
 from collections import deque
-import traceback
+import traceback as _traceback
 
 from flask import (
     Flask,
