@@ -213,6 +213,10 @@ def create_app():
     register_bp("market_api", lambda: __import__("market_api"), url_prefix="/api/market")
     register_bp("lang_api", lambda: __import__("lang_api"), url_prefix="/api/lang")
 
+    # ...existing code...
+
+    return app
+
     @app.errorhandler(500)
     def handle_500(e):
         import traceback
