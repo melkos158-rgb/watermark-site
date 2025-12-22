@@ -730,10 +730,7 @@ def create_app():
         return "ok", 200
 
     # ========= auto-реєстрація модулів з api_routes/* =========
-    try:
-        register_api_routes(app)
-    except Exception as e:
-        print("[api_routes] skipped:", e)
+    # (No dynamic loader implemented; skip if not needed)
 
     # ========= background-worker =========
     if app.config.get("ENABLE_WORKER", True) and run_worker is not None:
@@ -745,9 +742,6 @@ def create_app():
         print("✅ [ai_api] registered at /api/ai")
     except Exception as e:
         print(f"⚠️ [ai_api] skip: {e}")
-            print(f"[api_routes] registered {full_module_name} at {url_prefix}")
-        except Exception as e:
-            print(f"[api_routes] register fail {full_module_name}: {e}")
 
 
 def start_worker_thread(app):
