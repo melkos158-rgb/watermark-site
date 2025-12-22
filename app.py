@@ -13,7 +13,7 @@ ADMIN_EMAILS = {
     if e.strip()
 }
 
-USERS_TBL = getattr(User, "__tablename__", "users") or "users"
+USERS_TBL = "users"
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # === BOT FILTER (посилений) ===
