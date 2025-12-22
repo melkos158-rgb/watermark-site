@@ -1,11 +1,41 @@
-import re
-import traceback
 import os
 import sys
+import re
+import json
+import logging
+import threading
+import traceback as _traceback
+from datetime import datetime
+from collections import deque
+from functools import wraps
 
-from flask import Flask
+from flask import (
+    Flask,
+    request,
+    session,
+    g,
+    jsonify,
+    render_template,
+    redirect,
+    url_for,
+)
 
-# ...existing code...
+from sqlalchemy import text
+
+# Optional deps (don’t crash app if not installed/disabled)
+try:
+    from flask_babel import Babel
+except Exception:  # pragma: no cover
+    Babel = None
+
+try:
+    import stripe
+except Exception:  # pragma: no cover
+    stripe = None
+
+# Project deps
+from models import db as models_db  # keep this import if models.py defines `db`
+db = models_db  # alias used throughout app.py
 
 # === ADMIN CONFIG ===
 ADMIN_EMAILS = {
