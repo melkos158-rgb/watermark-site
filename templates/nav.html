@@ -1,11 +1,4 @@
-{% macro safe_url_for(endpoint, **kwargs) %}
-    {% set exists = endpoint in current_app.view_functions %}
-    {% if exists %}
-        {{ url_for(endpoint, **kwargs) }}
-    {% else %}
-        #
-    {% endif %}
-{% endmacro %}
+
 
 <nav class="navbar">
   <div class="nav-wrap">
