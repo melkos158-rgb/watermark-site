@@ -1,12 +1,13 @@
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+
+# ...your other imports (_parse_int, db, models, upload utils)...
+bp = Blueprint("market", __name__)
+
 # Add GET /market/upload route that redirects to /market#upload
 @bp.get("/market/upload")
 def page_market_upload():
     return redirect("/market#upload")
-from flask import (Blueprint, flash, redirect, render_template, request,
-                   session, url_for)
 
-# ...your other imports (_parse_int, db, models, upload utils)...
-bp = Blueprint("market", __name__)
 @bp.get("/market")
 def page_market():
     # TODO: implement real logic or render template
