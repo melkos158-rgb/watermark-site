@@ -1,21 +1,30 @@
+{% macro safe_url_for(endpoint, **kwargs) %}
+    {% set exists = endpoint in current_app.view_functions %}
+    {% if exists %}
+        {{ url_for(endpoint, **kwargs) }}
+    {% else %}
+        #
+    {% endif %}
+{% endmacro %}
+
 <nav class="navbar">
   <div class="nav-wrap">
     <!-- БУРГЕР (видимий лише на мобілці) -->
     <button class="burger" id="burger" aria-label="Меню" aria-expanded="false">☰</button>
 
     <!-- ЛОГО + НАЗВА -->
-    <a href="{{ url_for('core.index') }}" class="brand" aria-label="На головну">
+    <a href="{{ safe_url_for('core.index') }}" class="brand" aria-label="На головну">
       <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
       <span class="wordmark" aria-label="Proofly">Proofly</span>
     </a>
 
     <!-- ЛІВІ КНОПКИ -->
-    <a class="nav-btn {{ 'active' if request.endpoint=='core.index' else '' }}" href="{{ url_for('core.index') }}">Головна</a>
-    <a class="nav-btn {{ 'active' if request.endpoint=='core.stl' else '' }}" href="{{ url_for('core.stl') }}">STL3D</a>
+    <a class="nav-btn {{ 'active' if request.endpoint=='core.index' else '' }}" href="{{ safe_url_for('core.index') }}">Головна</a>
+    <a class="nav-btn {{ 'active' if request.endpoint=='core.stl' else '' }}" href="{{ safe_url_for('core.stl') }}">STL3D</a>
 
 
     <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='market.page_market' and not request.args.get('saved')) else '' }}"
-       href="{{ url_for('market.page_market') }}">Market</a>
+       href="{{ safe_url_for('market.page_market') }}">Market</a>
 
     <!-- ПРАВИЙ БЛОК -->
     <div class="nav-right" style="display:flex; align-items:center; gap:10px; margin-left:auto">
@@ -45,10 +54,10 @@
 
       {% if has_user %}
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}"
-           href="{{ url_for('profile.top100') }}">Top-100</a>
+           href="{{ safe_url_for('profile.top100') }}">Top-100</a>
         <span class="sep" aria-hidden="true">|</span>
         <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}"
-           href="{{ url_for('profile.donate') }}">Donate</a>
+           href="{{ safe_url_for('profile.donate') }}">Donate</a>
         <span class="sep" aria-hidden="true">|</span>
 
         <!-- PXP бейдж без імені -->
@@ -67,13 +76,13 @@
         {% if session.is_admin %}
           <span class="sep" aria-hidden="true">|</span>
           <a class="nav-btn {{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}"
-             href="{{ url_for('admin_panel') }}">Admin</a>
+             href="{{ safe_url_for('admin_panel') }}">Admin</a>
         {% endif %}
 
-        <a class="nav-btn" href="{{ url_for('auth.logout') }}">Вийти</a>
+        <a class="nav-btn" href="{{ safe_url_for('auth.logout') }}">Вийти</a>
       {% else %}
         <a class="nav-btn {{ 'active' if request.endpoint=='auth.login' else '' }}"
-           href="{{ url_for('auth.login') }}">Увійти</a>
+           href="{{ safe_url_for('auth.login') }}">Увійти</a>
       {% endif %}
     </div>
   </div>
@@ -91,17 +100,17 @@
   </div>
 
   <nav class="drawer-links">
-    <a href="{{ url_for('core.index') }}"     class="{{ 'active' if request.endpoint=='core.index' else '' }}">Головна</a>
-    <a href="{{ url_for('core.stl') }}"       class="{{ 'active' if request.endpoint=='core.stl' else '' }}">STL3D</a>
-    <a href="{{ url_for('core.video') }}"     class="{{ 'active' if request.endpoint=='core.video' else '' }}">Video</a>
-    <a href="{{ url_for('core.photo') }}"      class="{{ 'active' if request.endpoint=='core.photo' else '' }}">Photo — Gallery / Tools</a>
-    <a href="{{ url_for('core.enhance') }}"    class="{{ 'active' if request.endpoint=='core.enhance' else '' }}">Photo Enhance</a>
-    <a href="{{ url_for('core.edit_photo') }}" class="{{ 'active' if request.endpoint=='core.edit_photo' else '' }}">Edit Photo</a>
+    <a href="{{ safe_url_for('core.index') }}"     class="{{ 'active' if request.endpoint=='core.index' else '' }}">Головна</a>
+    <a href="{{ safe_url_for('core.stl') }}"       class="{{ 'active' if request.endpoint=='core.stl' else '' }}">STL3D</a>
+    <a href="{{ safe_url_for('core.video') }}"     class="{{ 'active' if request.endpoint=='core.video' else '' }}">Video</a>
+    <a href="{{ safe_url_for('core.photo') }}"      class="{{ 'active' if request.endpoint=='core.photo' else '' }}">Photo — Gallery / Tools</a>
+    <a href="{{ safe_url_for('core.enhance') }}"    class="{{ 'active' if request.endpoint=='core.enhance' else '' }}">Photo Enhance</a>
+    <a href="{{ safe_url_for('core.edit_photo') }}" class="{{ 'active' if request.endpoint=='core.edit_photo' else '' }}">Edit Photo</a>
 
     <!-- NEW: Documents (mobile) -->
-    <a href="{{ url_for('core.documents') }}" class="{{ 'active' if request.endpoint=='core.documents' else '' }}">Documents</a>
+    <a href="{{ safe_url_for('core.documents') }}" class="{{ 'active' if request.endpoint=='core.documents' else '' }}">Documents</a>
 
-    <a href="{{ url_for('market.page_market') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}">Market</a>
+    <a href="{{ safe_url_for('market.page_market') }}" class="{{ 'active' if (request.endpoint and request.endpoint=='market.page_market') else '' }}">Market</a>
 
     <hr>
 
@@ -118,15 +127,15 @@
     <hr>
 
     {% if has_user %}
-      <a href="{{ url_for('profile.top100') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}">Top-100</a>
-      <a href="{{ url_for('profile.donate') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}">Donate</a>
+      <a href="{{ safe_url_for('profile.top100') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('top100')) else '' }}">Top-100</a>
+      <a href="{{ safe_url_for('profile.donate') }}"  class="{{ 'active' if (request.endpoint and request.endpoint.endswith('donate')) else '' }}">Donate</a>
       <a href="/profile"                         class="{{ 'active' if (request.path == '/profile') else '' }}">Профіль</a>
       {% if session.is_admin %}
-        <a href="{{ url_for('admin_panel') }}"   class="{{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}">Admin</a>
+        <a href="{{ safe_url_for('admin_panel') }}"   class="{{ 'active' if (request.endpoint and request.endpoint=='admin_panel') else '' }}">Admin</a>
       {% endif %}
-      <a href="{{ url_for('auth.logout') }}">Вийти</a>
+      <a href="{{ safe_url_for('auth.logout') }}">Вийти</a>
     {% else %}
-      <a href="{{ url_for('auth.login') }}" class="{{ 'active' if request.endpoint=='auth.login' else '' }}">Увійти</a>
+      <a href="{{ safe_url_for('auth.login') }}" class="{{ 'active' if request.endpoint=='auth.login' else '' }}">Увійти</a>
     {% endif %}
   </nav>
 </aside>

@@ -6,7 +6,8 @@
   <title>{% block title %}{{ title or 'PXP' }}{% endblock %}</title>
 
   <!-- 1) Глобальні стилі (каркас без кольорів) -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% set u = safe_url_for('static', filename='style.css') %}
+  {% if u %}<link rel="stylesheet" href="{{ u }}">{% endif %}
 
   <!-- 2) Додаткові базові стилі (покладаються на змінні теми) -->
   <style>
@@ -42,15 +43,16 @@
   </style>
 
   <!-- 3) ТЕМА (МАЄ ЙТИ ПІСЛЯ КАРКАСА ТА INLINE-СТИЛЕЙ, щоб переважати кольорами) -->
-  <link id="theme-css" rel="stylesheet" href="{{ url_for('static', filename='themes/main.css') }}">
+  {% set u = safe_url_for('static', filename='themes/main.css') %}
+  {% if u %}<link id="theme-css" rel="stylesheet" href="{{ u }}">{% endif %}
   <script>
     (function(){
       var saved = localStorage.getItem('theme') || 'main';
       var map = {
-        main: '{{ url_for("static", filename="themes/main.css") }}',
-        cat: '{{ url_for("static", filename="themes/cat.css") }}',
-        hellowen: '{{ url_for("static", filename="themes/hellowen.css") }}',
-        minecraft: '{{ url_for("static", filename="themes/minecraft.css") }}'
+        main: '{{ safe_url_for("static", filename="themes/main.css") }}',
+        cat: '{{ safe_url_for("static", filename="themes/cat.css") }}',
+        hellowen: '{{ safe_url_for("static", filename="themes/hellowen.css") }}',
+        minecraft: '{{ safe_url_for("static", filename="themes/minecraft.css") }}'
       };
       var el = document.getElementById('theme-css');
       if (el) el.href = map[saved] || map.main;
@@ -59,16 +61,21 @@
   </script>
 
   <!-- === Favicon & app icons (static/icons/) === -->
-  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/favicon-16x16.png') }}">
-  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32x32.png') }}">
+  {% set u16 = safe_url_for('static', filename='icons/favicon-16x16.png') %}
+  {% set u32 = safe_url_for('static', filename='icons/favicon-32x32.png') %}
+  {% set u180 = safe_url_for('static', filename='icons/favicon-180x180.png') %}
+  {% set u512 = safe_url_for('static', filename='icons/favicon-512x512.png') %}
+  {% if u16 %}<link rel="icon" type="image/png" sizes="16x16" href="{{ u16 }}">{% endif %}
+  {% if u32 %}<link rel="icon" type="image/png" sizes="32x32" href="{{ u32 }}">{% endif %}
   <!-- Apple touch: у репо файл названо favicon-180x180.png -->
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/favicon-180x180.png') }}">
-  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icons/favicon-512x512.png') }}">
-  <link rel="shortcut icon" href="{{ url_for('static', filename='icons/favicon-32x32.png') }}">
+  {% if u180 %}<link rel="apple-touch-icon" sizes="180x180" href="{{ u180 }}">{% endif %}
+  {% if u512 %}<link rel="icon" type="image/png" sizes="512x512" href="{{ u512 }}">{% endif %}
+  {% if u32 %}<link rel="shortcut icon" href="{{ u32 }}">{% endif %}
   <meta name="theme-color" content="#0f1724" />
 
   <!-- ✅ FIX: three.js у браузері (щоб import ... from "three" працював без bundler) -->
-  <script defer src="{{ url_for('static', filename='vendor/es-module-shims.js') }}"></script>
+  {% set u = safe_url_for('static', filename='vendor/es-module-shims.js') %}
+  {% if u %}<script defer src="{{ u }}"></script>{% endif %}
   <script type="importmap">
   {
     "imports": {
@@ -102,7 +109,8 @@
      not in ["auth.login","auth.register","auth.logout"] #}
 
   <!-- === i18n ядро: автопереклад усього DOM + підтримка 60+ мов === -->
-  <script defer src="{{ url_for('static', filename='vendor/i18next.min.js') }}"></script>
+  {% set u = safe_url_for('static', filename='vendor/i18next.min.js') %}
+  {% if u %}<script defer src="{{ u }}"></script>{% endif %}
   <script>
   window.addEventListener("DOMContentLoaded", () => {
     if (!window.i18next) {

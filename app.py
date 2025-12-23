@@ -137,6 +137,37 @@ def row_to_dict(row):
 
 
 def create_app():
+    app = Flask(__name__)
+    app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
+
+    # --- Safe URL helper for templates ---
+    def safe_url_for(endpoint, **values):
+        from flask import current_app, url_for
+        if endpoint in current_app.view_functions:
+            try:
+                return url_for(endpoint, **values)
+            except Exception:
+                return None
+        return None
+    app.jinja_env.globals["safe_url_for"] = safe_url_for
+
+    import uuid
+    from flask import render_template, g, request
+
+    @app.before_request
+    def assign_request_id():
+        g.request_id = str(uuid.uuid4())
+
+    @app.errorhandler(404)
+    def handle_404(e):
+        rid = getattr(g, 'request_id', None) or str(uuid.uuid4())
+        return render_template("errors/404.html", request_id=rid), 404
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        rid = getattr(g, 'request_id', None) or str(uuid.uuid4())
+        return render_template("errors/500.html", request_id=rid), 500
+
     # Explicitly import and assign blueprints
     import core_pages
     core_bp = core_pages.bp
@@ -144,8 +175,6 @@ def create_app():
     profile_bp = profile.bp
     import market
     market_bp = market.bp
-    app = Flask(__name__)
-    app.secret_key = os.environ.get("SECRET_KEY", "devsecret-change-me")
 
     # Lightweight in-memory error collector
     app.config["DEBUG_ERRORS"] = deque(maxlen=200)
@@ -195,83 +224,18 @@ def create_app():
                 "trace": tb,
             })
 
-    # Register blueprints using helper
+    # Register blueprints using helper (no duplicates)
     register_bp("debug_admin", lambda: __import__("debug_admin"))
     register_bp("ai_api", lambda: __import__("ai_api"))
     register_bp("market_api", lambda: __import__("market_api"), url_prefix="/api/market")
     register_bp("lang_api", lambda: __import__("lang_api"), url_prefix="/api/lang")
-    # Register the UI core blueprint for / (core.index)
     app.register_blueprint(core_bp)
-    # Register the UI profile blueprint for /profile and /top100
     app.register_blueprint(profile_bp)
-    # Register the UI market blueprint for /market
     app.register_blueprint(market_bp)
+
 
     # ...existing code...
 
-    return app
-
-    @app.errorhandler(500)
-    def handle_500(e):
-        import traceback
-        app.config["DEBUG_ERRORS"].append({
-            "ts": datetime.utcnow().isoformat() + 'Z',
-            "level": "ERROR",
-            "logger": "app.errorhandler",
-            "msg": str(e),
-            "trace": traceback.format_exc(),
-        })
-        return "Internal Server Error", 500
-
-    @app.before_request
-    def store_last_request():
-        from flask import g, request
-        g._last_request = {
-            "path": request.path,
-            "method": request.method,
-            "remote_addr": request.remote_addr,
-            "ts": datetime.utcnow().isoformat() + 'Z',
-        }
-
-    @app.after_request
-    def log_error_response(response):
-        from flask import request
-        if response.status_code >= 400:
-            app.config["DEBUG_ERRORS"].append({
-                "ts": datetime.utcnow().isoformat() + 'Z',
-                "level": "ERROR" if response.status_code >= 500 else "WARNING",
-                "logger": "after_request",
-                "msg": f"{request.method} {request.path} -> {response.status_code}",
-            })
-        return response
-
-    # Guaranteed debug route
-    from flask import jsonify
-    @app.get("/__debug")
-    def __debug():
-        return jsonify({
-            "ok": True,
-            "msg": "debug alive",
-            "file": __file__,
-            "debug_admin_status": app.config.get("DEBUG_ADMIN_STATUS", {"ok": None, "error": None})
-        })
-
-
-    # === Temporary endpoint to list all real routes (for diagnostics) ===
-    @app.get("/__routes")
-    def __routes():
-        rules = []
-        for r in app.url_map.iter_rules():
-            rules.append({
-                "rule": str(r),
-                "methods": sorted([m for m in r.methods if m not in ("HEAD", "OPTIONS")]),
-                "endpoint": r.endpoint,
-            })
-        # Show only those related to api/market
-        filtered = [x for x in rules if "/api/market" in x["rule"] or "market_api" in x["endpoint"]]
-        return {"count": len(filtered), "routes": filtered}
-
-    # 🔧 максимальний розмір запиту (щоб великий upload не рвав конект)
     app.config["MAX_CONTENT_LENGTH"] = 512 * 1024 * 1024
 
     # 📦 ASSET VERSION - кеш-бастінг для CSS/JS
@@ -292,32 +256,34 @@ def create_app():
         # Inject asset_v into all templates for cache busting
         return {"asset_v": app.config["ASSET_V"]}
 
+
     # ========= i18n =========
-    babel = Babel()
+    if Babel is not None:
+        babel = Babel()
 
-    def _get_locale():
-        lang = None
-        if session.get("user_id"):
+        def _get_locale():
+            lang = None
+            if session.get("user_id"):
+                try:
+                    from models import User
+                    u = User.query.get(session["user_id"])
+                    if u and hasattr(u, "lang") and u.lang:
+                        lang = (u.lang or "").lower()
+                except Exception:
+                    pass
+            if not lang:
+                lang = (session.get("lang") or "uk").lower()
+            return (lang[:8] or "uk")
+
+        babel.init_app(app, locale_selector=_get_locale)
+
+        @app.context_processor
+        def _inject_current_lang():
             try:
-                from models import User
-                u = User.query.get(session["user_id"])
-                if u and hasattr(u, "lang") and u.lang:
-                    lang = (u.lang or "").lower()
+                cur = _get_locale()
             except Exception:
-                pass
-        if not lang:
-            lang = (session.get("lang") or "uk").lower()
-        return (lang[:8] or "uk")
-
-    babel.init_app(app, locale_selector=_get_locale)
-
-    @app.context_processor
-    def _inject_current_lang():
-        try:
-            cur = _get_locale()
-        except Exception:
-            cur = (session.get("lang") or "uk")
-        return dict(current_lang=cur)
+                cur = (session.get("lang") or "uk")
+            return dict(current_lang=cur)
 
     # ========= шляхи для файлів =========
     base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -339,9 +305,10 @@ def create_app():
     os.makedirs(legacy_static_uploads, exist_ok=True)
 
     # ========= STRIPE =========
+
     app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "").strip()
     app.config["STRIPE_PUBLISHABLE_KEY"] = os.getenv("STRIPE_PUBLISHABLE_KEY", "").strip()
-    if app.config["STRIPE_SECRET_KEY"]:
+    if stripe is not None and app.config["STRIPE_SECRET_KEY"]:
         stripe.api_key = app.config["STRIPE_SECRET_KEY"]
 
     @app.context_processor
@@ -532,10 +499,10 @@ def create_app():
         return resp
 
     # ========= реєстрація blueprints =========
-    import profile
 
     import auth
     import chat
+
     try:
         import market
     except Exception as e:
@@ -544,12 +511,8 @@ def create_app():
         traceback.print_exc()
 
     app.register_blueprint(auth.bp)
-    app.register_blueprint(profile.bp)
     app.register_blueprint(chat.bp)
-    if 'market' in locals():
-        app.register_blueprint(market.bp)
 
-    app.register_blueprint(core_bp)
     app.register_blueprint(ads_bp)
     app.register_blueprint(dev_bp)
 
@@ -707,6 +670,7 @@ def create_app():
                 "monthly_visitors": 0,
             })
 
+
     # ========= адмін-панель =========
     @app.route("/admin", endpoint="admin_panel")
     @admin_required
@@ -786,12 +750,15 @@ def create_app():
     if app.config.get("ENABLE_WORKER", True) and run_worker is not None:
         start_worker_thread(app)
 
+
     try:
         import ai_api
         app.register_blueprint(ai_api.bp, url_prefix="/api/ai")
         print("✅ [ai_api] registered at /api/ai")
     except Exception as e:
         print(f"⚠️ [ai_api] skip: {e}")
+
+    return app
 
 
 def start_worker_thread(app):

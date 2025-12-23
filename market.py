@@ -39,7 +39,10 @@ def submit_market_upload():
 @bp.get("/market")
 def page_market():
     # TODO: implement real logic or render template
-    return render_template("market/market.html")
+    try:
+        return render_template("market/market.html")
+    except Exception:
+        return "Market page is temporarily unavailable.", 200
 @bp.post("/market/upload")
 def post_market_upload():
     uid = _parse_int(session.get("user_id"), 0)

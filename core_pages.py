@@ -14,7 +14,10 @@ bp = Blueprint("core", __name__)  # імʼя blueprint, але ендпоінт�
 
 @bp.route("/", endpoint="index")
 def index():
-    return render_template("index.html")
+    try:
+        return render_template("index.html")
+    except Exception:
+        return "Home page is temporarily unavailable.", 200
 
 
 @bp.route("/stl", endpoint="stl")
