@@ -13,6 +13,26 @@ import './upload_manager.js';
 import { uploadModel } from "./api.js";
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Open upload modal when hash is #upload
+    const modal = document.getElementById("upload-modal");
+    const openModal = () => {
+      if (!modal) return;
+      modal.hidden = false;
+      document.body.style.overflow = "hidden";
+    };
+
+    const closeModal = () => {
+      if (!modal) return;
+      modal.hidden = true;
+      document.body.style.overflow = "";
+    };
+
+    function syncHash() {
+      if (window.location.hash === "#upload") openModal();
+    }
+
+    window.addEventListener("hashchange", syncHash);
+    syncHash();
   // If on /market/upload, do nothing (skip modal/init logic)
   if (window.location.pathname.startsWith('/market/upload')) return;
   const form = document.getElementById("upload-form");

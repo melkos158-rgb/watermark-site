@@ -89,7 +89,11 @@
 
 
   // Only manual close logic remains
-  function close(){ modal.hidden = true; document.body.style.overflow = ''; }
+  function close(){
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    if (location.hash === '#upload') history.replaceState(null, '', location.pathname + location.search);
+  }
 
   document.addEventListener('click', (e)=>{
     if (e.target.matches('[data-close]') || e.target.classList.contains('modal')) close();
