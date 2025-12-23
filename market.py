@@ -1316,13 +1316,11 @@ def page_upload():
 
 
 
+
+# Always redirect /market/upload to /market#upload
 @bp.get("/market/upload")
 def page_market_upload():
-    uid = _parse_int(session.get("user_id"), 0)
-    if not uid:
-        next_url = request.full_path.rstrip('?')
-        return redirect(url_for("auth.login", next=next_url))
-    return render_template("market/upload.html")
+    return redirect("/market#upload")
 
 
 @bp.get("/edit/<int:item_id>")

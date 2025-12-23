@@ -115,7 +115,13 @@ def api_market_upload():
         cover = request.files.get("cover")
         video = request.files.get("video")
 
-        item = MarketItem(user_id=uid, title=title, description=description)
+
+        item = MarketItem(user_id=uid, title=title)
+        # Assign description to the first available attribute
+        for desc_field in ("description", "desc", "body", "details"):
+            if hasattr(item, desc_field):
+                setattr(item, desc_field, description)
+                break
         if hasattr(item, "is_free"):
             item.is_free = is_free
         if hasattr(item, "price_cents"):
