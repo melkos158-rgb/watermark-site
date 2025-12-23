@@ -1,11 +1,168 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Proofly Home</title>
-</head>
-<body>
-  <h1>Proofly Home Page</h1>
-  <p>This is a minimal placeholder for index.html.</p>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Proofly — STL Marketplace{% endblock %}
+
+{% block extra_head %}
+<style>
+  .home-hero{
+    background: radial-gradient(1200px 500px at 10% 10%, rgba(173,92,255,.22), transparent 55%),
+                radial-gradient(900px 420px at 85% 20%, rgba(43,134,197,.22), transparent 55%),
+                linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+    border: 1px solid color-mix(in srgb, var(--line) 80%, #2b86c5 20%);
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.35);
+  }
+  .home-grid{display:grid;grid-template-columns: 1.2fr .8fr;gap:16px;align-items:stretch}
+  @media (max-width: 900px){ .home-grid{grid-template-columns:1fr} }
+
+  .kicker{color:var(--muted);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px}
+  .h1{font-size:44px;line-height:1.05;margin:0 0 10px;font-weight:900}
+  @media (max-width: 520px){ .h1{font-size:34px} }
+  .lead{color:color-mix(in srgb, var(--ink) 78%, var(--muted) 22%);font-size:16px;line-height:1.5;margin:0 0 16px}
+
+  .hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:10px 14px;border-radius:12px;text-decoration:none;
+    border:1px solid color-mix(in srgb, var(--line) 75%, #7ba2ff 25%);
+    background: color-mix(in srgb, var(--card) 92%, #1f2b45 8%);
+    color:var(--ink); font-weight:700;
+  }
+  .btn.primary{
+    background: linear-gradient(135deg, #1a73e8, #784ba0);
+    border-color: transparent;
+  }
+  .btn:hover{filter:brightness(1.08);text-decoration:none}
+  .searchbox{
+    display:flex;gap:10px;align-items:center;
+    background: color-mix(in srgb, var(--card) 92%, #0b0d12 8%);
+    border:1px solid var(--line); border-radius:14px; padding:10px;
+  }
+  .searchbox input{
+    flex:1;border:0;outline:none;background:transparent;color:var(--ink);
+    font-size:15px;padding:6px 8px;
+  }
+  .chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chip{
+    font-size:12px;color:var(--ink);
+    background: color-mix(in srgb, var(--card) 88%, #182034 12%);
+    border:1px solid color-mix(in srgb, var(--line) 85%, #2a3b63 15%);
+    padding:6px 10px;border-radius:999px;
+    cursor:pointer; user-select:none;
+  }
+  .panel{
+    border:1px solid var(--line); border-radius:18px;
+    padding:16px; background: color-mix(in srgb, var(--card) 94%, #0b0d12 6%);
+  }
+  .stat{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed color-mix(in srgb, var(--line) 70%, transparent 30%)}
+  .stat:last-child{border-bottom:0}
+  .stat b{font-size:14px}
+  .stat span{color:var(--muted);font-size:13px}
+
+  .section{margin-top:18px}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  @media (max-width: 900px){ .cards{grid-template-columns:1fr} }
+  .card{
+    border:1px solid var(--line); border-radius:16px;
+    padding:14px; background: color-mix(in srgb, var(--card) 94%, #0b0d12 6%);
+  }
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home-hero">
+  <div class="home-grid">
+    <div>
+      <p class="kicker">STL marketplace • fast • creator-first</p>
+      <h1 class="h1">Sell & discover STL models with a marketplace built for speed.</h1>
+      <p class="lead">
+        Proofly робить маркет простим: швидкий пошук, чистий UI, прозорі правила, і фокус на авторах.
+        Зайди в Market або завантаж модель за 1 хвилину.
+      </p>
+
+      <div class="searchbox" role="search">
+        <input id="homeSearch" placeholder="Search: dragon, cosplay, tools, miniatures..." autocomplete="off">
+        <a class="btn primary" id="homeSearchBtn" href="{{ safe_url_for('market.page_market') }}">Search</a>
+      </div>
+
+      <div class="chiprow" aria-label="Popular categories">
+        <span class="chip" data-q="dragon">🐉 Dragons</span>
+        <span class="chip" data-q="cosplay">🛡️ Cosplay</span>
+        <span class="chip" data-q="miniatures">🧙 Miniatures</span>
+        <span class="chip" data-q="tools">🧰 Tools</span>
+        <span class="chip" data-q="home">🏠 Home</span>
+        <span class="chip" data-q="gaming">🎮 Gaming</span>
+      </div>
+
+      <div class="hero-actions">
+        <a class="btn primary" href="{{ safe_url_for('market.page_market') }}">Open Market</a>
+        <a class="btn" href="{{ safe_url_for('market.page_market_upload') or '#' }}">Upload STL</a>
+        <a class="btn" href="{{ safe_url_for('profile.top100') or '#' }}">Top creators</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin:0 0 8px;font-size:16px">Live</h3>
+
+      <div class="stat">
+        <b>Users</b>
+        <span>{{ (admin_metrics.total_users if admin_metrics is defined else 0) }}</span>
+      </div>
+      <div class="stat">
+        <b>Online now</b>
+        <span>{{ (admin_metrics.online_now if admin_metrics is defined else 0) }}</span>
+      </div>
+      <div class="stat">
+        <b>Visitors this month</b>
+        <span>{{ (admin_metrics.monthly_visitors if admin_metrics is defined else 0) }}</span>
+      </div>
+
+      <div style="margin-top:12px;color:var(--muted);font-size:13px;line-height:1.5">
+        Далі можна підключити “Trending” з API, але цей блок вже виглядає як продукт, а не як тест.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="cards">
+    <div class="card">
+      <h3>Creator-first</h3>
+      <p>Фокус на авторах: прозорі сторінки, чіткі правила, швидкий upload і нормальний превʼю-флоу.</p>
+    </div>
+    <div class="card">
+      <h3>Fast browsing</h3>
+      <p>Маркет завантажується як стрічка: легкий HTML + дані через API, без “білих екранів”.</p>
+    </div>
+    <div class="card">
+      <h3>Trust & safety</h3>
+      <p>Уніфіковані помилки, request_id, адмін-debug, і контроль того що реально ламається.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var input = document.getElementById('homeSearch');
+  var btn = document.getElementById('homeSearchBtn');
+  function go(q){
+    q = (q||'').trim();
+    var url = "{{ safe_url_for('market.page_market') or '/market' }}";
+    if(q) url += (url.indexOf('?')>=0 ? '&' : '?') + "q=" + encodeURIComponent(q);
+    window.location.href = url;
+  }
+  btn && btn.addEventListener('click', function(e){
+    e.preventDefault(); go(input && input.value);
+  });
+  input && input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); go(input.value); }
+  });
+  document.querySelectorAll('.chip[data-q]').forEach(function(ch){
+    ch.addEventListener('click', function(){ go(ch.getAttribute('data-q')); });
+  });
+})();
+</script>
+{% endblock %}
