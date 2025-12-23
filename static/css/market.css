@@ -1,3 +1,48 @@
+/* === Upload Topbar Progress === */
+#upload-topbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  z-index: 1002;
+  height: 6px;
+  background: rgba(30,34,54,0.92);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  overflow: visible;
+  transition: height 0.18s cubic-bezier(.4,0,.2,1);
+}
+#upload-topbar[style*="display: none"] {
+  height: 0 !important;
+  min-height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+#upload-topbar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--mkt-accent), var(--mkt-accent-hover));
+  border-radius: 0 8px 8px 0;
+  transition: width 0.25s cubic-bezier(.4,0,.2,1);
+}
+#upload-topbar-pct {
+  position: absolute;
+  right: 18px;
+  top: -2px;
+  font-size: 0.85rem;
+  color: var(--mkt-accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgba(30,34,54,0.92);
+  padding: 2px 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  pointer-events: none;
+  user-select: none;
+  display: none;
+}
+#upload-topbar.uploading #upload-topbar-pct {
+  display: inline-block;
+}
 /* static/market/css/market.css */
 /* =======================
    БАЗОВЕ ОФОРМЛЕННЯ МАРКЕТУ

@@ -1,3 +1,7 @@
+# Add GET /market/upload route that redirects to /market#upload
+@bp.get("/market/upload")
+def page_market_upload():
+    return redirect("/market#upload")
 from flask import (Blueprint, flash, redirect, render_template, request,
                    session, url_for)
 
@@ -7,34 +11,6 @@ bp = Blueprint("market", __name__)
 def page_market():
     # TODO: implement real logic or render template
     return render_template("market/market.html")
-@bp.post("/market/upload")
-def post_market_upload():
-    uid = _parse_int(session.get("user_id"), 0)
-    if not uid:
-        next_url = request.full_path.rstrip('?')
-        return redirect(url_for("auth.login", next=next_url))
-
-    title = (request.form.get("title") or "").strip()
-    (request.form.get("description") or "").strip()
-    bool(request.form.get("is_free"))
-    _parse_int(request.form.get("price_cents"), 0)
-
-    main_file = request.files.get("file")       # як у HTML
-    request.files.get("cover")          # як у HTML
-    request.files.get("video")          # як у HTML
-    request.files.get("zip_file")    # як у HTML
-
-    if not title:
-        return render_template("market/upload.html", error="Title is required"), 400
-
-    if not main_file or not getattr(main_file, "filename", ""):
-        return render_template("market/upload.html", error="Main file is required"), 400
-
-    # TODO: тут має бути твоя реальна логіка створення лота + збереження файлів
-    # ВАЖЛИВО: не вигадую моделі. Тому:
-    # 1) знайди існуючий upload handler (market_api.py / services/*) і виклич його звідси
-    # 2) якщо його нема — тимчасово верни 501, щоб не було “німих” помилок
-    return render_template("market/upload.html", error="Upload handler not wired yet"), 501
 def _normalize_media_url(url: str) -> str:
     if not url:
         return ""

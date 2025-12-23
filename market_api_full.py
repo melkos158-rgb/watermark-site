@@ -1,7 +1,7 @@
 from flask import abort
 
-from flask import Blueprint, jsonify
 
+from flask import Blueprint, jsonify
 bp = Blueprint("market_api", __name__)
 
 # === LEGACY COMPAT: GET /api/my/items ===
@@ -71,11 +71,9 @@ def ping():
         market_upload_methods=methods,
     )
 
+
 from flask import Blueprint, current_app, request, session
-
 from models_market import MarketItem, db
-
-bp = Blueprint("market_api", __name__, url_prefix="/api/market")
 
 # === COMPAT GET /api/market/items ===
 @bp.get("/items")
@@ -84,73 +82,74 @@ def api_market_items_compat():
     from market import api_items
     return api_items()
 
-# === LEGACY COMPAT ENDPOINT ===
-@bp.post("/upload")
-def api_market_upload_compat():
-    """
-    Legacy compat endpoint for old upload_manager.js:
-    POST /api/market/upload
-    Must NOT rely only on session, because draft can be created via different flow.
-    """
-    from flask import jsonify, request, session
 
+# === POST /api/market/upload ===
+@bp.post("/upload")
+def api_market_upload():
+    from flask import jsonify, request, session
     from db import db
     from models import MarketItem
+    from upload_utils import upload_image, upload_stl, upload_video, upload_zip
 
-    # 1) Try to get item_id from request (FormData, args, or JSON)
-    item_id = (
-        request.form.get("item_id")
-        or request.form.get("draft_id")
-        or request.form.get("id")
-        or request.args.get("item_id")
-        or request.args.get("draft_id")
-        or request.args.get("id")
-    )
-    if item_id and str(item_id).isdigit():
-        item_id = int(item_id)
-    else:
-        item_id = None
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"ok": False, "error": "auth_required"}), 401
 
-    # json body (application/json)
-    if item_id is None and request.is_json:
-        data = request.get_json(silent=True) or {}
-        for key in ("item_id", "draft_id", "id"):
-            v = data.get(key)
-            if isinstance(v, int):
-                item_id = v
-                break
-            if isinstance(v, str) and v.isdigit():
-                item_id = int(v)
-                break
+    try:
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        is_free = request.form.get("is_free") in ("1", "true", "on", True)
+        price_cents = request.form.get("price_cents")
+        try:
+            price_cents = int(price_cents) if price_cents is not None else 0
+        except Exception:
+            price_cents = 0
 
-    # session fallback
-    if item_id is None:
-        sid = session.get("upload_draft_id")
-        if isinstance(sid, int):
-            item_id = sid
-        elif isinstance(sid, str) and sid.isdigit():
-            item_id = int(sid)
+        # Required file
+        main_file = request.files.get("file")
+        if not main_file:
+            return jsonify({"ok": False, "error": "missing_file"}), 400
 
-    # 2) If still none -> create draft right here and set session
-    if item_id is None:
-        it = MarketItem()
-        if hasattr(it, "status"):
-            it.status = "draft"
-        db.session.add(it)
+        # Optional files
+        zip_file = request.files.get("zip_file")
+        cover = request.files.get("cover")
+        video = request.files.get("video")
+
+        item = MarketItem(user_id=uid, title=title, description=description)
+        if hasattr(item, "is_free"):
+            item.is_free = is_free
+        if hasattr(item, "price_cents"):
+            item.price_cents = price_cents
+
+        # Save main file (STL/OBJ/GLTF/ZIP)
+        url, _ = upload_stl(main_file, folder="proofly/market/stl")
+        if hasattr(item, "stl_main_url"):
+            item.stl_main_url = url
+        if hasattr(item, "format"):
+            item.format = "stl"
+
+        # Save optional files
+        if zip_file:
+            zip_url, _ = upload_zip(zip_file, folder="proofly/market/zip")
+            if hasattr(item, "zip_url"):
+                item.zip_url = zip_url
+        if cover:
+            cover_url, _ = upload_image(cover, folder="proofly/market/covers")
+            if hasattr(item, "cover_url"):
+                item.cover_url = cover_url
+        if video:
+            video_url, _ = upload_video(video, folder="proofly/market/video")
+            if hasattr(item, "video_url"):
+                item.video_url = video_url
+
+        db.session.add(item)
         db.session.commit()
-        session["upload_draft_id"] = it.id
-        return jsonify({"ok": True, "item_id": it.id, "legacy": True, "created": True}), 200
 
-    # Ensure session is synced
-    session["upload_draft_id"] = item_id
+        return jsonify({"ok": True, "item_id": item.id, "redirect_url": "/market"}), 200
 
-    # 3) Validate item exists (optional but useful)
-    it = MarketItem.query.get(item_id)
-    if not it:
-        return jsonify({"error": "draft_not_found", "item_id": item_id}), 404
-
-    # If draft exists, do NOT fallback to legacy
-    return jsonify({"ok": True, "item_id": it.id, "legacy": False, "created": False}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 # === REAL DRAFT ENDPOINT ===
 @bp.post("/items/draft")

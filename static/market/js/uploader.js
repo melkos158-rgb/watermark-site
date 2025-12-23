@@ -48,10 +48,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  form.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", function(e) {
     e.preventDefault();
     const uploadEndpoint = form.dataset.uploadEndpoint || "/api/market/upload";
-    const draftEndpoint = form.dataset.draftEndpoint || "/api/market/items/draft";
     const fd = new FormData(form);
 
     // ── Нормалізація полів під upload ───────────────────────────
@@ -78,40 +77,79 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // --- Topbar Progress ---
+    const topbar = document.getElementById("upload-topbar");
+    const topbarFill = document.getElementById("upload-topbar-fill");
+    const topbarPct = document.getElementById("upload-topbar-pct");
+    function showTopbar() {
+      if (topbar) topbar.style.display = "block";
+      if (topbar) topbar.classList.add("uploading");
+      if (topbarFill) topbarFill.style.width = "0%";
+      if (topbarPct) { topbarPct.textContent = "0%"; topbarPct.style.display = "inline-block"; }
+    }
+    function setTopbar(p) {
+      if (topbarFill) topbarFill.style.width = p + "%";
+      if (topbarPct) topbarPct.textContent = p + "%";
+    }
+    function hideTopbar() {
+      if (topbar) topbar.style.display = "none";
+      if (topbar) topbar.classList.remove("uploading");
+      if (topbarFill) topbarFill.style.width = "0%";
+      if (topbarPct) { topbarPct.textContent = "0%"; topbarPct.style.display = "none"; }
+    }
+
+    showTopbar();
+
     const submitBtn = form.querySelector('button[type="submit"]');
     const prevText = submitBtn ? submitBtn.textContent : "";
-    const progress = createProgressBar(form);
-
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.textContent = "⏳ Завантаження...";
     }
 
-    try {
-      // 1) Створити draft
-      const draftRes = await fetch(draftEndpoint, { method: "POST", body: fd, credentials: "same-origin" });
-      const draftJson = await draftRes.json();
-      if (!draftRes.ok) throw new Error(draftJson?.error || "Draft failed");
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", uploadEndpoint, true);
+    xhr.withCredentials = true;
 
-      // 2) Upload
-      const uploadRes = await fetch(uploadEndpoint, { method: "POST", body: fd, credentials: "same-origin" });
-      const uploadJson = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadJson?.error || "Upload failed");
+    xhr.upload.onprogress = function(e) {
+      if (!e.lengthComputable) return;
+      const p = Math.round((e.loaded / e.total) * 100);
+      setTopbar(p);
+    };
 
-      // 3) Redirect
-      const itemId = uploadJson?.item_id || uploadJson?.id;
-      if (itemId) window.location.href = `/item/${itemId}`;
-      else window.location.href = "/market";
-    } catch (err) {
-      console.error(err);
-      alert("❌ Помилка під час завантаження.");
-    } finally {
+    xhr.onload = function() {
+      let res = {};
+      try { res = JSON.parse(xhr.responseText || "{}"); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300 && res.ok) {
+        setTopbar(100);
+        setTimeout(hideTopbar, 600);
+        // If not on /market, redirect
+        if (!window.location.pathname.startsWith("/market")) {
+          window.location.href = res.redirect_url || "/market";
+        } else {
+          // Already on /market: refresh list or show toast
+          if (window.showToast) window.showToast("✅ Модель завантажено!");
+          else alert("✅ Модель завантажено!");
+          // Optionally: trigger reload/refresh event here
+        }
+      } else {
+        hideTopbar();
+        alert(res.error || "❌ Помилка під час завантаження.");
+      }
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = prevText;
       }
-      progress.remove();
-    }
+    };
+    xhr.onerror = function() {
+      hideTopbar();
+      alert("❌ Помилка мережі під час завантаження.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = prevText;
+      }
+    };
+    xhr.send(fd);
   });
 });
 

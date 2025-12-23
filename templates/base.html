@@ -1,6 +1,25 @@
 <!doctype html>
 <html lang="uk">
 <head>
+    <!-- Global Upload Progress Bar -->
+    <style>
+      #global-upload-progress {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 5px;
+        background: transparent;
+        z-index: 9999;
+        pointer-events: none;
+        transition: background 0.2s;
+      }
+      #global-upload-progress .bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #1a73e8, #784ba0);
+        transition: width 0.25s cubic-bezier(.4,1,.7,1);
+      }
+      #global-upload-progress.active { background: rgba(30,40,80,0.08); }
+    </style>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}{{ title or 'PXP' }}{% endblock %}</title>
@@ -88,6 +107,7 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+    <div id="global-upload-progress"><div class="bar"></div></div>
   {% include 'nav.html' %}
 
   <main>
@@ -112,6 +132,25 @@
   {% set u = safe_url_for('static', filename='vendor/i18next.min.js') %}
   {% if u %}<script defer src="{{ u }}"></script>{% endif %}
   <script>
+    // Global upload progress JS hook
+    window.setGlobalUploadProgress = function(p) {
+      var bar = document.querySelector('#global-upload-progress .bar');
+      var wrap = document.getElementById('global-upload-progress');
+      if (!bar || !wrap) return;
+      if (typeof p === 'number' && p > 0 && p < 100) {
+        bar.style.width = p + '%';
+        wrap.classList.add('active');
+      } else if (p >= 100) {
+        bar.style.width = '100%';
+        setTimeout(function(){
+          bar.style.width = '0%';
+          wrap.classList.remove('active');
+        }, 600);
+      } else {
+        bar.style.width = '0%';
+        wrap.classList.remove('active');
+      }
+    };
   window.addEventListener("DOMContentLoaded", () => {
     if (!window.i18next) {
       console.error("i18next missing (script not loaded) — skip translate init");

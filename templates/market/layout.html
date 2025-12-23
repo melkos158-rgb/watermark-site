@@ -9,6 +9,11 @@
 {% endblock %}
 
 {% block content %}
+  <!-- Upload Topbar Progress (hidden by default, shown only when uploading) -->
+  <div id="upload-topbar" style="display:none">
+    <div id="upload-topbar-fill"></div>
+    <span id="upload-topbar-pct">0%</span>
+  </div>
   {# можна задати тип сторінки з дочірнього шаблону: {% set market_page = 'list' or 'detail' or 'my' %} #}
   <div class="market-wrap">
     {# верхня підшапка показується тільки якщо це НЕ головний список (/market) #}
